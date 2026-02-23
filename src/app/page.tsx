@@ -21,18 +21,24 @@ export default function PosPage() {
     let unsubscribe = () => {};
 
     async function setupSubscription() {
-      await initializeDatabase();
-      
-      unsubscribe = subscribeToProducts(
-        (products) => {
-          setProducts(products);
-          setIsLoading(false);
-        },
-        (error) => {
-          console.error("Error subscribing to products:", error);
-          setIsLoading(false);
-        }
-      );
+      try {
+        const { fsLib, dbInstance } = await initializeDatabase();
+        
+        unsubscribe = subscribeToProducts(
+          { fsLib, dbInstance },
+          (products) => {
+            setProducts(products);
+            setIsLoading(false);
+          },
+          (error) => {
+            console.error("Error subscribing to products:", error);
+            setIsLoading(false);
+          }
+        );
+      } catch (error) {
+        console.error("Failed to setup subscription:", error);
+        setIsLoading(false);
+      }
     }
 
     setupSubscription();

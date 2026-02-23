@@ -1,7 +1,6 @@
 import type {NextConfig} from 'next';
 
 const nextConfig: NextConfig = {
-  transpilePackages: ['firesqlite'],
   /* config options here */
   typescript: {
     ignoreBuildErrors: true,

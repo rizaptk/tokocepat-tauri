@@ -1,24 +1,21 @@
 'use client';
 
-import { getFirestore, collection, onSnapshot } from 'firesqlite';
 import type { Product } from '@/lib/types';
 
 export function subscribeToProducts(
+    { fsLib, dbInstance }: { fsLib: any; dbInstance: any },
     onUpdate: (products: Product[]) => void, 
     onError: (error: Error) => void
 ) {
     try {
-        const db = getFirestore();
-        if (!db) {
-            // This should not happen if initializeDatabase is called first.
-            throw new Error("Firestore not initialized. Call initializeDatabase first.");
-        }
-        const productsCollection = collection(db, 'products');
+        const { collection, onSnapshot } = fsLib;
 
-        const unsubscribe = onSnapshot(productsCollection, (snapshot) => {
-            const productList = snapshot.docs.map(doc => doc.data() as Product);
+        const productsCollection = collection(dbInstance, 'products');
+
+        const unsubscribe = onSnapshot(productsCollection, (snapshot: any) => {
+            const productList = snapshot.docs.map((doc: any) => doc.data() as Product);
             onUpdate(productList);
-        }, (error) => {
+        }, (error: Error) => {
             console.error("Error in product subscription:", error);
             onError(error);
         });
