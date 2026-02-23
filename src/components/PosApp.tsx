@@ -7,11 +7,8 @@ import { Cart } from '@/components/Cart';
 import { MobileCart } from '@/components/MobileCart';
 import { useStore } from '@/lib/store';
 import type { Product } from '@/lib/types';
-import { initialProducts } from '@/lib/products';
+import { subscribeToProducts } from '@/services/productService';
 
-const DB_NAME = 'tokoc-db';
-const DB_VERSION_KEY = 'tokoc_db_version';
-const CURRENT_DB_VERSION = '1.0.0';
 
 export default function PosApp() {
   const products = useStore((state) => state.products);
@@ -20,65 +17,32 @@ export default function PosApp() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    let unsubscribe = () => {};
+    let unsubscribe: (() => void) | undefined;
 
-    const setupDatabase = async () => {
+    const setupSubscription = async () => {
       try {
-        const {
-          initializeFirestoreSQLite,
-          getFirestore,
-          collection,
-          onSnapshot,
-          setDoc,
-          doc,
-          getDocs,
-        } = await import('firesqlite');
-
-        await initializeFirestoreSQLite(DB_NAME);
-        const db = getFirestore();
-
-        // Seeding logic
-        const storedVersion = localStorage.getItem(DB_VERSION_KEY);
-        if (storedVersion !== CURRENT_DB_VERSION) {
-          console.log('Database version mismatch or not found. Seeding data...');
-          const productsCollectionRef = collection(db, 'products');
-          const existingDocs = await getDocs(productsCollectionRef);
-          if (existingDocs.docs.length === 0) {
-            console.log(`Seeding ${initialProducts.length} products...`);
-            const seedPromises = initialProducts.map((product: any) => {
-              const productRef = doc(db, 'products', product.id);
-              return setDoc(productRef, product);
-            });
-            await Promise.all(seedPromises);
-          }
-          localStorage.setItem(DB_VERSION_KEY, CURRENT_DB_VERSION);
-          console.log('Database seeding complete.');
-        }
-
-        // Subscription logic
-        const productsCollection = collection(db, 'products');
-        unsubscribe = onSnapshot(
-          productsCollection,
-          (snapshot: any) => {
-            const productList = snapshot.docs.map((doc: any) => doc.data() as Product);
+        unsubscribe = await subscribeToProducts(
+          (productList: Product[]) => {
             setProducts(productList);
             setIsLoading(false);
           },
           (error: Error) => {
-            console.error('Error in product subscription:', error);
+            console.error('Failed to subscribe to products:', error);
             setIsLoading(false);
           }
         );
       } catch (error) {
-        console.error('Failed to initialize database:', error);
+        console.error('Failed to setup database subscription:', error);
         setIsLoading(false);
       }
     };
 
-    setupDatabase();
+    setupSubscription();
 
     return () => {
-      unsubscribe();
+      if (unsubscribe) {
+        unsubscribe();
+      }
     };
   }, [setProducts]);
 
