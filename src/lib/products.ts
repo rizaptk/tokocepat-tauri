@@ -1,4 +1,4 @@
-import type { Product } from '@/lib/types';
+import type { Product, ProductVariant, ModifierGroup } from '@/lib/types';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 
 const getImageData = (id: string) => {
@@ -22,4 +22,38 @@ export const initialProducts: Product[] = [
   { id: '10', name: 'Teh Celup', price: 10000, stock: 65, ...getImageData('product-10'), track_stock: true, has_variant: false, has_modifier: false, is_active: true },
   { id: '11', name: 'Biskuit', price: 9000, stock: 90, ...getImageData('product-11'), track_stock: true, has_variant: false, has_modifier: false, is_active: true },
   { id: '12', name: 'Minyak Goreng', price: 32000, stock: 25, ...getImageData('product-12'), track_stock: true, has_variant: false, has_modifier: false, is_active: true },
+];
+
+export const initialVariants: ProductVariant[] = [
+    { id: 'pv1', product_id: '9', name: 'Biji Utuh', additional_price: 0, stock: 20, sku: 'COFFEE-BEAN' },
+    { id: 'pv2', product_id: '9', name: 'Giling Halus', additional_price: 1000, stock: 15, sku: 'COFFEE-FINE' },
+    { id: 'pv3', product_id: '9', name: 'Giling Kasar', additional_price: 1000, stock: 15, sku: 'COFFEE-COARSE' }
+];
+
+export const initialModifierGroups: ModifierGroup[] = [
+    { 
+        id: 'mg1', 
+        product_id: '9',
+        name: 'Tingkat Kemanisan', 
+        min_select: 1, 
+        max_select: 1, 
+        required: true,
+        items: [
+            { id: 'mi1', name: 'Normal', additional_price: 0 },
+            { id: 'mi2', name: 'Less Sugar', additional_price: 0 },
+            { id: 'mi3', name: 'No Sugar', additional_price: 0 },
+        ]
+    },
+    { 
+        id: 'mg2', 
+        product_id: '9',
+        name: 'Tambahan', 
+        min_select: 0, 
+        max_select: 2, 
+        required: false,
+        items: [
+            { id: 'mi4', name: 'Extra Shot', additional_price: 5000 },
+            { id: 'mi5', name: 'Sirup Karamel', additional_price: 3000 },
+        ]
+    }
 ];

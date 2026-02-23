@@ -11,6 +11,7 @@ export interface ModifierItem {
 
 export interface ModifierGroup {
     id: string;
+    product_id: string;
     name: string;
     min_select: number;
     max_select: number;
@@ -20,8 +21,10 @@ export interface ModifierGroup {
 
 export interface ProductVariant {
     id: string;
+    product_id: string;
     name: string; // e.g. "Size M", "Red"
     additional_price: number;
+    sku?: string;
     stock: number;
 }
 
