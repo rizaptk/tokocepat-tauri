@@ -30,7 +30,6 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  transpilePackages: ['wa-sqlite', 'firesqlite'],
 };
 
 export default nextConfig;

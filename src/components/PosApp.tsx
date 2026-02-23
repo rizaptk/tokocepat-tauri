@@ -6,8 +6,12 @@ import { ProductGrid } from '@/components/ProductGrid';
 import { Cart } from '@/components/Cart';
 import { MobileCart } from '@/components/MobileCart';
 import { useStore } from '@/lib/store';
-import { subscribeToProducts } from '@/services/productService';
-import { initializeDatabase } from '@/lib/database';
+import { initialProducts } from '@/lib/products';
+import { Product } from '@/lib/types';
+
+const DB_NAME = 'tokoc-db';
+const DB_VERSION_KEY = 'tokoc_db_version';
+const CURRENT_DB_VERSION = '1.0.0';
 
 export default function PosApp() {
   const products = useStore((state) => state.products);
@@ -19,17 +23,59 @@ export default function PosApp() {
     let unsubscribe: (() => void) | undefined;
 
     const setup = async () => {
-      await initializeDatabase();
-      unsubscribe = subscribeToProducts(
-        (products) => {
-          setProducts(products);
-          setIsLoading(false);
-        },
-        (error) => {
-          console.error("Error fetching products:", error);
-          setIsLoading(false);
+      try {
+        const { 
+          initializeFirestoreSQLite, 
+          getFirestore, 
+          collection, 
+          onSnapshot,
+          getDocs,
+          doc,
+          setDoc
+        } = await import('firesqlite');
+
+        await initializeFirestoreSQLite(DB_NAME);
+        const db = getFirestore();
+        
+        // Seeding logic
+        const storedVersion = localStorage.getItem(DB_VERSION_KEY);
+        if (storedVersion !== CURRENT_DB_VERSION) {
+          console.log('Database version mismatch or not set. Seeding data...');
+          const productsCollectionRef = collection(db, 'products');
+          const existingDocs = await getDocs(productsCollectionRef);
+
+          if (existingDocs.docs.length === 0) {
+            console.log('No existing products found. Seeding initial products...');
+            const seedPromises = initialProducts.map((product: Product) => {
+              const productRef = doc(db, 'products', product.id);
+              return setDoc(productRef, product);
+            });
+            await Promise.all(seedPromises);
+            console.log('Seeding complete.');
+          } else {
+            console.log('Products already exist, skipping seed.');
+          }
+          
+          localStorage.setItem(DB_VERSION_KEY, CURRENT_DB_VERSION);
+        } else {
+          console.log("Database version is up to date.");
         }
-      );
+        
+        // Snapshot listener
+        const productsCollection = collection(db, 'products');
+        unsubscribe = onSnapshot(productsCollection, (snapshot: any) => {
+          const productList = snapshot.docs.map((doc: any) => doc.data() as Product);
+          setProducts(productList);
+          setIsLoading(false);
+        }, (error: Error) => {
+          console.error("Error in product subscription:", error);
+          setIsLoading(false);
+        });
+
+      } catch (error: any) {
+        console.error("Failed to initialize or subscribe to products:", error);
+        setIsLoading(false);
+      }
     };
 
     setup();
