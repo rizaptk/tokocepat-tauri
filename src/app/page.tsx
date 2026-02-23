@@ -1,67 +1,29 @@
+'use client';
 
-"use client";
+import dynamic from 'next/dynamic';
+import { Skeleton } from '@/components/ui/skeleton';
 
-import { useState, useEffect } from 'react';
-import { Header } from '@/components/Header';
-import { ProductGrid } from '@/components/ProductGrid';
-import { Cart } from '@/components/Cart';
-import { MobileCart } from '@/components/MobileCart';
-import { useStore } from '@/lib/store';
-import { initializeDatabase } from '@/lib/database';
-import { subscribeToProducts } from '@/services/productService';
-import type { Product } from '@/lib/types';
+const PosApp = dynamic(() => import('@/components/PosApp'), { 
+  ssr: false,
+  loading: () => (
+    <div className="flex h-screen w-full bg-muted/40 p-4 gap-4 md:p-6">
+      <div className="flex flex-col flex-1 gap-4 md:gap-6">
+        <Skeleton className="h-16 w-full" />
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+          {Array.from({ length: 18 }).map((_, index) => (
+            <div key={index} className="flex flex-col gap-2">
+              <Skeleton className="aspect-square w-full rounded-lg" />
+              <Skeleton className="h-5 w-3/4" />
+              <Skeleton className="h-5 w-1/2" />
+            </div>
+          ))}
+        </div>
+      </div>
+      <Skeleton className="hidden md:flex h-full w-full max-w-sm rounded-lg" />
+    </div>
+  )
+});
 
 export default function PosPage() {
-  const products = useStore((state) => state.products);
-  const setProducts = useStore((state) => state.setProducts);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    let unsubscribe = () => {};
-
-    async function setupSubscription() {
-      try {
-        const { fsLib, dbInstance } = await initializeDatabase();
-        
-        unsubscribe = subscribeToProducts(
-          { fsLib, dbInstance },
-          (products) => {
-            setProducts(products);
-            setIsLoading(false);
-          },
-          (error) => {
-            console.error("Error subscribing to products:", error);
-            setIsLoading(false);
-          }
-        );
-      } catch (error) {
-        console.error("Failed to setup subscription:", error);
-        setIsLoading(false);
-      }
-    }
-
-    setupSubscription();
-
-    return () => {
-      unsubscribe();
-    };
-  }, [setProducts]);
-
-  const filteredProducts = products.filter(product =>
-    product.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  return (
-    <div className="flex h-screen w-full bg-muted/40">
-      <div className="flex flex-col flex-1">
-        <Header searchTerm={searchTerm} setSearchTerm={setSearchTerm} />
-        <main className="flex-1 p-4 md:p-6 overflow-y-auto">
-          <ProductGrid products={filteredProducts} isLoading={isLoading} />
-        </main>
-      </div>
-      <Cart />
-      <MobileCart />
-    </div>
-  );
+  return <PosApp />;
 }
