@@ -1,21 +1,57 @@
-# **App Name**: TokoCepat
+# TokoCepat - System Blueprint
 
-## Core Features:
+This document outlines the architectural blueprint for the TokoCepat application. It is designed as a single-device, offline-first Point of Sale (POS) system with a focus on high performance and financial integrity, suitable for various retail environments from cafes to stores.
 
-- Fast Tap Cart: Implement a fast tap cart system for quick transaction processing, allowing for efficient cashier operations. Add the items to the cart with a simple tap.
-- Mobile Barcode Scanning: Integrate a mobile barcode scanner for product identification and stock management.
-- Cash Payment Processing: Process cash payments, calculate change, and record transaction details.
-- Offline Persistence: Store transaction data locally for offline access and later synchronization.
-- Stock Control: Implement real-time inventory management to track stock levels, including beginning balance and end-of-day cash declaration for accurate financial control.
-- Product Search: Enable a multi-listing product search with auto-complete suggestions.
-- Automated Tax Calculation: Automatically calculate and apply taxes such as PPN or local taxes.
+## 1. Core Principles
 
-## Style Guidelines:
+- **Offline-First:** Fully functional without an internet connection. All data is stored and managed locally on the device.
+- **Single Device Focus:** The architecture is optimized for a standalone POS terminal without requiring user authentication or cloud synchronization.
+- **High Financial Integrity:** Employs an immutable transaction ledger. Once a transaction is recorded, it cannot be altered, ensuring data accuracy for auditing and financial control.
+- **Speed & Efficiency:** The user interface and workflow are streamlined for fast cashier operations, featuring a "tap-to-add" cart and simplified payment processing.
+- **Modular Design:** Built with a modular structure to accommodate different business types and allow for future scalability.
 
-- Primary color: Dark gray (#24292e), inspired by GitHub's dark theme
-- Background color: Light gray (#f6f8fa) for a clean and unobtrusive feel, similar to GitHub's light theme.
-- Accent color: Blue (#0366d6) for interactive elements to draw focus, matching GitHub's link color.
-- Body and headline font: 'Plus Jakarta Sans' for a modern yet warm feel
-- Use minimalist icons for product categories and actions, ensuring clarity and ease of use.
-- Design a card-based layout for products, optimized for mobile screens.
-- Incorporate subtle animations for cart updates and payment confirmations to enhance user experience.
+## 2. Technology Stack
+
+| Layer              | Technology                        | Purpose                                 |
+| ------------------ | --------------------------------- | --------------------------------------- |
+| **UI/Frontend**    | React (Next.js) / Capacitor       | Cross-platform user interface           |
+| **State Mgt**      | Zustand                           | Lightweight, centralized state control  |
+| **Local Database** | `firesqlite` or similar           | Robust offline data persistence         |
+| **UI Components**  | ShadCN UI & Tailwind CSS          | Modern and consistent design system     |
+- **Charts:** Recharts
+- **PDF/Excel Export:** `pdf-lib`, `SheetJS`
+- **Hardware Integration:** ESC/POS for printers, Camera for barcode scanning
+
+## 3. Key Modules & Features
+
+### A. Transaction & POS
+- **Fast Tap Cart:** Instantly add items to the cart with a single tap.
+- **Cash Payment:** Efficiently process cash payments and calculate change.
+- **Pending Carts:** Park active transactions to be resumed later.
+- **Immutable Ledger:** All sales are recorded as final, with voids handled as reverse transactions.
+
+### B. Product & Inventory
+- **Product Catalog:** Manage products, including SKU, price, and stock levels.
+- **Variants & Modifiers:** Support for complex products with options (e.g., sizes, toppings).
+- **Stock Control:** Real-time inventory tracking with automatic deduction on sales and support for manual adjustments.
+- **Product Search:** Fast, indexed search across products by name, SKU, or barcode.
+
+### C. Financial & Shift Control
+- **Shift Management:** Formal "Open Shift" and "Close Shift" workflows.
+- **Cash Drawer Control:** Track beginning balance, expected cash at end of day, and declare final cash amount.
+- **Variance Reporting:** Automatically calculate and flag discrepancies in cash.
+
+### D. Reporting & Analytics
+- **Dashboard:** At-a-glance view of daily sales, top-selling products, and low-stock alerts.
+- **Detailed Reports:** Generate reports for sales, inventory, and profit.
+- **Data Export:** Export reports to Excel and PDF for analysis and record-keeping.
+
+## 4. Data Model Overview
+
+The local database is structured around these core entities:
+
+- **StoreConfig:** General store settings (e.g., tax rate, currency).
+- **Products:** The item catalog.
+- **Transactions:** Immutable records of all completed sales.
+- **Shifts:** Sessions for cash control, containing opening/closing balances.
+- **StockMovements:** A detailed log of all inventory changes.
