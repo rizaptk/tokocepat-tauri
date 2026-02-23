@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { DollarSign, Package, ShoppingCart } from "lucide-react";
-import { useStore } from "@/context/StoreContext";
+import { useStore } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -10,7 +10,10 @@ import { TokoCepatLogo } from "@/components/TokoCepatLogo";
 import { Input } from "@/components/ui/input";
 
 export default function DashboardPage() {
-  const { products, transactions, beginningBalance, setBeginningBalance } = useStore();
+  const products = useStore((state) => state.products);
+  const transactions = useStore((state) => state.transactions);
+  const beginningBalance = useStore((state) => state.beginningBalance);
+  const setBeginningBalance = useStore((state) => state.setBeginningBalance);
 
   const totalRevenue = transactions.reduce((sum, t) => sum + t.total, 0);
   const endOfDayCash = beginningBalance + totalRevenue;

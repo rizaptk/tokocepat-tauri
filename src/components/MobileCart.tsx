@@ -4,11 +4,11 @@ import { useState } from "react";
 import { Button } from "./ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "./ui/sheet";
 import { ShoppingCart } from "lucide-react";
-import { useStore } from "@/context/StoreContext";
+import { useStore } from "@/lib/store";
 import { CartDisplay } from "./CartDisplay";
 
 export function MobileCart() {
-    const { cart } = useStore();
+    const cart = useStore((state) => state.cart);
     const [isOpen, setIsOpen] = useState(false);
 
     const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);

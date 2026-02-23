@@ -4,7 +4,7 @@ import Image from 'next/image';
 import { Product } from '@/lib/types';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { useStore } from '@/context/StoreContext';
+import { useStore } from '@/lib/store';
 import { PlusCircle, ShoppingCart } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -13,7 +13,7 @@ type ProductCardProps = {
 };
 
 export function ProductCard({ product }: ProductCardProps) {
-  const { addToCart } = useStore();
+  const addToCart = useStore((state) => state.addToCart);
   const { toast } = useToast();
 
   const formatCurrency = (amount: number) => {

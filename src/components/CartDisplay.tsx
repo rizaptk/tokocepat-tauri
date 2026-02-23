@@ -1,6 +1,6 @@
 "use client";
     
-import { useStore } from "@/context/StoreContext";
+import { useStore } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -11,7 +11,9 @@ import { useState } from "react";
 import { PaymentModal } from "./PaymentModal";
 
 export function CartDisplay({ onCheckout }: { onCheckout?: () => void }) {
-  const { cart, removeFromCart, updateQuantity } = useStore();
+  const cart = useStore((state) => state.cart);
+  const removeFromCart = useStore((state) => state.removeFromCart);
+  const updateQuantity = useStore((state) => state.updateQuantity);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
 
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);

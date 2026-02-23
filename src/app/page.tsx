@@ -5,10 +5,10 @@ import { Header } from '@/components/Header';
 import { ProductGrid } from '@/components/ProductGrid';
 import { Cart } from '@/components/Cart';
 import { MobileCart } from '@/components/MobileCart';
-import { useStore } from '@/context/StoreContext';
+import { useStore } from '@/lib/store';
 
 export default function PosPage() {
-  const { products } = useStore();
+  const products = useStore((state) => state.products);
   const [searchTerm, setSearchTerm] = useState('');
 
   const filteredProducts = products.filter(product =>

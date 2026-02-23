@@ -12,7 +12,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useStore } from '@/context/StoreContext';
+import { useStore } from '@/lib/store';
 import { useToast } from '@/hooks/use-toast';
 import { CheckCircle, XCircle } from 'lucide-react';
 
@@ -28,7 +28,7 @@ export function PaymentModal({ isOpen, setIsOpen, total }: PaymentModalProps) {
   const [cashReceived, setCashReceived] = useState('');
   const [status, setStatus] = useState<PaymentStatus>('pending');
   const [transactionDetails, setTransactionDetails] = useState<{ change: number; total: number} | null>(null);
-  const { checkout } = useStore();
+  const checkout = useStore((state) => state.checkout);
   const { toast } = useToast();
   
   const change = parseFloat(cashReceived) - total;

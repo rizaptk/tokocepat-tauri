@@ -1,7 +1,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster"
-import { StoreProvider } from '@/context/StoreContext';
 
 export const metadata: Metadata = {
   title: 'TokoCepat',
@@ -24,9 +23,7 @@ export default function RootLayout({
         />
       </head>
       <body className="font-body antialiased">
-        <StoreProvider>
-          {children}
-        </StoreProvider>
+        {children}
         <Toaster />
       </body>
     </html>
