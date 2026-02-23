@@ -1,3 +1,76 @@
 {
-  "placeholderImages": []
+  "placeholderImages": [
+    {
+      "id": "product-1",
+      "description": "Instant Noodles",
+      "imageUrl": "https://images.unsplash.com/photo-1591874879354-bf0a6e982c60?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxMHx8aW5zdGFudCUyMG5vb2RsZXN8ZW58MHx8fHwxNzcxODI5NzQ5fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "instant noodles"
+    },
+    {
+      "id": "product-2",
+      "description": "Bottled Water",
+      "imageUrl": "https://images.unsplash.com/photo-1523362628745-0c100150b504?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw1fHxib3R0bGVkJTIwd2F0ZXJ8ZW58MHx8fHwxNzcxODI5NzQ5fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "bottled water"
+    },
+    {
+      "id": "product-3",
+      "description": "Chocolate Bar",
+      "imageUrl": "https://images.unsplash.com/photo-1623660053975-cf75a8be0908?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxjaG9jb2xhdGUlMjBiYXJ8ZW58MHx8fHwxNzcxODI1NTIyfDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "chocolate bar"
+    },
+    {
+      "id": "product-4",
+      "description": "Potato Chips",
+      "imageUrl": "https://images.unsplash.com/photo-1599490659213-e2b9527bd087?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw0fHxwb3RhdG8lMjBjaGlwc3xlbnwwfHx8fDE3NzE4Mjk3NDl8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "potato chips"
+    },
+    {
+      "id": "product-5",
+      "description": "Soda Can",
+      "imageUrl": "https://images.unsplash.com/photo-1596793453600-adeef0163df2?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwyfHxzb2RhJTIwY2FufGVufDB8fHx8MTc3MTc3MzI3MHww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "soda can"
+    },
+    {
+      "id": "product-6",
+      "description": "White Bread",
+      "imageUrl": "https://images.unsplash.com/photo-1549931319-a545dcf3bc73?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwyfHxzbGljZWQlMjBicmVhZHxlbnwwfHx8fDE3NzE4Mjk3NTB8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "sliced bread"
+    },
+    {
+      "id": "product-7",
+      "description": "Milk Carton",
+      "imageUrl": "https://images.unsplash.com/photo-1610462372926-391a31dd04cb?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw1fHxtaWxrJTIwY2FydG9ufGVufDB8fHx8MTc3MTc3NTExNXww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "milk carton"
+    },
+    {
+      "id": "product-8",
+      "description": "Eggs",
+      "imageUrl": "https://images.unsplash.com/photo-1551112649-5f012491a5c4?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxMHx8ZWdnJTIwY2FydG9ufGVufDB8fHx8MTc3MTgyOTc0OXww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "egg carton"
+    },
+    {
+      "id": "product-9",
+      "description": "Coffee",
+      "imageUrl": "https://images.unsplash.com/photo-1630595478342-5b257b95f783?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw4fHxjb2ZmZWUlMjBiYWd8ZW58MHx8fHwxNzcxODI5NzQ5fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "coffee bag"
+    },
+    {
+      "id": "product-10",
+      "description": "Tea Box",
+      "imageUrl": "https://images.unsplash.com/photo-1597481288323-efff1b2f6d23?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHx0ZWElMjBib3h8ZW58MHx8fHwxNzcxODI5NzQ5fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "tea box"
+    },
+    {
+      "id": "product-11",
+      "description": "Biscuits",
+      "imageUrl": "https://images.unsplash.com/photo-1766072785824-380c1a6cf69c?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw2fHxiaXNjdWl0JTIwcGFja2V0fGVufDB8fHx8MTc3MTgyOTc1MHww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "biscuit packet"
+    },
+    {
+      "id": "product-12",
+      "description": "Cooking Oil",
+      "imageUrl": "https://images.unsplash.com/photo-1654245201134-49f7e8115817?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw1fHxjb29raW5nJTIwb2lsfGVufDB8fHx8MTc3MTgyOTc0OXww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "cooking oil"
+    }
+  ]
 }
