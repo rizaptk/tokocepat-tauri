@@ -8,7 +8,7 @@ import { Cart } from '@/components/Cart';
 import { MobileCart } from '@/components/MobileCart';
 import { useStore } from '@/lib/store';
 import { initializeDatabase } from '@/lib/database';
-import { collection, getFirestore, onSnapshot } from 'firesqlite';
+import { subscribeToProducts } from '@/services/productService';
 import type { Product } from '@/lib/types';
 
 export default function PosPage() {
@@ -18,27 +18,24 @@ export default function PosPage() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    let unsubscribe: () => void = () => {};
+    let unsubscribe = () => {};
 
-    async function setupDatabase() {
+    async function setupSubscription() {
       await initializeDatabase();
-      const db = getFirestore();
       
-      const productsCollection = collection(db, 'products');
-      
-      unsubscribe = onSnapshot(productsCollection, (snapshot) => {
-        if (snapshot.docs.length > 0) {
-          const productList = snapshot.docs.map(doc => doc.data() as Product);
-          setProducts(productList);
+      unsubscribe = subscribeToProducts(
+        (products) => {
+          setProducts(products);
+          setIsLoading(false);
+        },
+        (error) => {
+          console.error("Error subscribing to products:", error);
+          setIsLoading(false);
         }
-        setIsLoading(false);
-      }, (error) => {
-        console.error("Error listening to products collection:", error);
-        setIsLoading(false);
-      });
+      );
     }
 
-    setupDatabase();
+    setupSubscription();
 
     return () => {
       unsubscribe();
