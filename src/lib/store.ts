@@ -2,7 +2,7 @@
 
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { Product, CartItem, Transaction } from '@/lib/types';
+import { Product, CartItem, Transaction, Category, ModifierGroup, ProductVariant } from '@/lib/types';
 import { initialProducts } from '@/lib/products';
 import { toast } from '@/hooks/use-toast';
 
@@ -10,9 +10,18 @@ const TAX_RATE = 0.11; // PPN 11%
 
 interface StoreState {
   products: Product[];
+  categories: Category[];
+  modifierGroups: ModifierGroup[];
+  productVariants: ProductVariant[];
   cart: CartItem[];
   transactions: Transaction[];
   beginningBalance: number;
+  
+  // Actions
+  setProducts: (products: Product[]) => void;
+  setCategories: (categories: Category[]) => void;
+  setModifierGroups: (modifierGroups: ModifierGroup[]) => void;
+  setProductVariants: (productVariants: ProductVariant[]) => void;
   addToCart: (product: Product) => void;
   removeFromCart: (productId: string) => void;
   updateQuantity: (productId: string, quantity: number) => void;
@@ -25,21 +34,35 @@ export const useStore = create<StoreState>()(
   persist(
     (set, get) => ({
       products: initialProducts,
+      categories: [],
+      modifierGroups: [],
+      productVariants: [],
       cart: [],
       transactions: [],
       beginningBalance: 0,
     
+      setProducts: (products) => set({ products }),
+      setCategories: (categories) => set({ categories }),
+      setModifierGroups: (modifierGroups) => set({ modifierGroups }),
+      setProductVariants: (productVariants) => set({ productVariants }),
+    
       addToCart: (product: Product) => {
         const { products, cart } = get();
         const productInState = products.find(p => p.id === product.id);
-        if (!productInState || productInState.stock <= 0) {
+
+        if (!productInState || !productInState.is_active) {
+          toast({ variant: 'destructive', description: `${product.name} is not available.` });
+          return;
+        }
+    
+        if (productInState.track_stock && productInState.stock <= 0) {
           toast({ variant: 'destructive', description: `${product.name} is out of stock.` });
           return;
         }
     
         const existingItem = cart.find(item => item.id === product.id);
         if (existingItem) {
-            if (existingItem.quantity < productInState.stock) {
+            if (!productInState.track_stock || existingItem.quantity < productInState.stock) {
                 set({
                     cart: cart.map(item =>
                         item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
@@ -74,7 +97,7 @@ export const useStore = create<StoreState>()(
         }
     
         let newQuantity = quantity;
-        if (quantity > product.stock) {
+        if (product.track_stock && quantity > product.stock) {
             toast({ variant: 'destructive', description: `Only ${product.stock} items of ${product.name} in stock.`});
             newQuantity = product.stock;
         }
@@ -120,7 +143,7 @@ export const useStore = create<StoreState>()(
         const updatedProducts = [...products];
         cart.forEach(cartItem => {
             const productIndex = updatedProducts.findIndex(p => p.id === cartItem.id);
-            if (productIndex !== -1) {
+            if (productIndex !== -1 && updatedProducts[productIndex].track_stock) {
                 updatedProducts[productIndex].stock -= cartItem.quantity;
             }
         });
