@@ -6,9 +6,8 @@ import { ProductGrid } from '@/components/ProductGrid';
 import { Cart } from '@/components/Cart';
 import { MobileCart } from '@/components/MobileCart';
 import { useStore } from '@/lib/store';
-import type { Product } from '@/lib/types';
 import { subscribeToProducts } from '@/services/productService';
-
+import { initializeDatabase } from '@/lib/database';
 
 export default function PosApp() {
   const products = useStore((state) => state.products);
@@ -19,25 +18,21 @@ export default function PosApp() {
   useEffect(() => {
     let unsubscribe: (() => void) | undefined;
 
-    const setupSubscription = async () => {
-      try {
-        unsubscribe = await subscribeToProducts(
-          (productList: Product[]) => {
-            setProducts(productList);
-            setIsLoading(false);
-          },
-          (error: Error) => {
-            console.error('Failed to subscribe to products:', error);
-            setIsLoading(false);
-          }
-        );
-      } catch (error) {
-        console.error('Failed to setup database subscription:', error);
-        setIsLoading(false);
-      }
+    const setup = async () => {
+      await initializeDatabase();
+      unsubscribe = subscribeToProducts(
+        (products) => {
+          setProducts(products);
+          setIsLoading(false);
+        },
+        (error) => {
+          console.error("Error fetching products:", error);
+          setIsLoading(false);
+        }
+      );
     };
 
-    setupSubscription();
+    setup();
 
     return () => {
       if (unsubscribe) {
