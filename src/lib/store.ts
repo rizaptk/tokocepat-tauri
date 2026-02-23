@@ -1,9 +1,9 @@
+
 "use client";
 
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { Product, CartItem, Transaction, Category, ModifierGroup, ProductVariant } from '@/lib/types';
-import { initialProducts } from '@/lib/products';
 import { toast } from '@/hooks/use-toast';
 
 const TAX_RATE = 0.11; // PPN 11%
@@ -33,7 +33,7 @@ interface StoreState {
 export const useStore = create<StoreState>()(
   persist(
     (set, get) => ({
-      products: initialProducts,
+      products: [],
       categories: [],
       modifierGroups: [],
       productVariants: [],
