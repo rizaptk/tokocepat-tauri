@@ -5,7 +5,8 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { Product, CartItem, Transaction, Category, ModifierGroup, ProductVariant, Shift, StoreConfig } from '@/lib/types';
 import { toast } from '@/hooks/use-toast';
-import { useDbStore } from './db-store';
+import { openShift as openShiftService, closeShift as closeShiftService } from '@/services/shiftService';
+import { createTransaction } from '@/services/transactionService';
 
 interface StoreState {
   products: Product[];
@@ -138,128 +139,46 @@ export const useStore = create<StoreState>()(
       },
       
       openShift: async (openingCash: number) => {
-        const { db, firesqlite } = useDbStore.getState();
-        if (get().activeShift || !db || !firesqlite) return;
-        
-        const { doc, setDoc } = firesqlite;
-        const now = new Date().toISOString();
-        const newShift: Shift = {
-            id: now,
-            opened_at: now,
-            opening_cash: openingCash,
-            status: 'open'
-        };
-        await setDoc(doc(db, 'shifts', newShift.id), newShift);
+        if (get().activeShift) return;
+        try {
+            await openShiftService(openingCash);
+        } catch (error) {
+            console.error("Failed to open shift:", error);
+            toast({ variant: "destructive", title: "Error", description: "Could not open a new shift." });
+        }
       },
       
       closeShift: async (declaredCash: number) => {
         const { activeShift, transactions } = get();
-        const { db, firesqlite } = useDbStore.getState();
-        if (!activeShift || !db || !firesqlite) return;
+        if (!activeShift) return;
 
-        const { doc, updateDoc } = firesqlite;
-
-        const shiftTransactions = transactions.filter(t => t.shift_id === activeShift.id);
-        const system_cash = activeShift.opening_cash + shiftTransactions.reduce((sum, t) => t.total, 0);
-
-        const updatedShift: Partial<Shift> = {
-            closed_at: new Date().toISOString(),
-            declared_cash: declaredCash,
-            system_cash: system_cash,
-            variance: declaredCash - system_cash,
-            status: 'closed'
-        };
-
-        await updateDoc(doc(db, 'shifts', activeShift.id), updatedShift);
+        try {
+            await closeShiftService(activeShift, transactions, declaredCash);
+        } catch (error) {
+            console.error("Failed to close shift:", error);
+            toast({ variant: "destructive", title: "Error", description: "Could not close the shift." });
+        }
       },
 
       checkout: async (cashReceived: number): Promise<Transaction | null> => {
         const { cart, activeShift, storeConfig } = get();
-        const { db, firesqlite } = useDbStore.getState();
-
-        if (!activeShift) {
-            toast({ variant: 'destructive', title: 'Shift Closed', description: 'Please open a shift to process transactions.' });
+        
+        if (!activeShift || !storeConfig) {
+            toast({ variant: 'destructive', title: 'Error', description: 'Cannot process payment. Shift or store config is missing.' });
             return null;
         }
-        if (cart.length === 0 || !db || !firesqlite) return null;
 
-        const { doc, getDoc, setDoc, updateDoc } = firesqlite;
-    
-        const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
-        const taxRate = storeConfig?.tax_rate ?? 0.11;
-        const tax_amount = subtotal * taxRate;
-        const total = subtotal + tax_amount;
-    
-        if (cashReceived < total) {
-          return null; // Insufficient cash
-        }
-
-        const now = new Date();
-        const transactionId = now.toISOString();
-        const invoiceNumber = `INV-${now.getTime()}`;
-    
-        const newTransaction: Transaction = {
-          id: transactionId,
-          invoice_number: invoiceNumber,
-          shift_id: activeShift.id,
-          items: cart.map(item => ({
-            id: `${transactionId}-${item.id}`,
-            transaction_id: transactionId,
-            product_snapshot: {
-                id: item.id,
-                name: item.name,
-                price: item.price,
-                imageUrl: item.imageUrl,
-                imageHint: item.imageHint,
-                category_id: item.category_id,
-                cost_price: item.cost_price,
-                sku: item.sku,
-                barcode: item.barcode,
-            },
-            price_snapshot: item.price,
-            cost_snapshot: item.cost_price,
-            qty: item.quantity,
-            subtotal: item.price * item.quantity,
-          })),
-          subtotal,
-          tax_amount,
-          total,
-          cash_paid: cashReceived,
-          change: cashReceived - total,
-          created_at: transactionId,
-        };
-
-        // --- Database Operations ---
-        // 1. Save transaction
-        await setDoc(doc(db, 'transactions', transactionId), newTransaction);
-
-        // 2. Update stock and create stock movements
-        for (const cartItem of cart) {
-            if (cartItem.track_stock) {
-                const productRef = doc(db, 'products', cartItem.id);
-                
-                const productSnap = await getDoc(productRef);
-                if (productSnap.exists()) {
-                    const currentStock = productSnap.data().stock;
-                    await updateDoc(productRef, { stock: currentStock - cartItem.quantity });
-                }
-
-                const movementId = `${transactionId}-${cartItem.id}-sale`;
-                const stockMovement = {
-                    id: movementId,
-                    product_id: cartItem.id,
-                    type: 'sale',
-                    qty_change: -cartItem.quantity,
-                    reference_id: transactionId,
-                    created_at: transactionId,
-                };
-                await setDoc(doc(db, 'stock_movements', movementId), stockMovement);
+        try {
+            const newTransaction = await createTransaction(cart, activeShift, storeConfig, cashReceived);
+            if (newTransaction) {
+                set({ cart: [] }); // Clear cart on successful transaction
             }
+            return newTransaction;
+        } catch(error) {
+            console.error("Checkout failed:", error);
+            toast({ variant: "destructive", title: "Checkout Error", description: "The transaction could not be completed." });
+            return null;
         }
-        
-        set({ cart: [] });
-        
-        return newTransaction;
       },
     }),
     {
