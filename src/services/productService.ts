@@ -2,6 +2,7 @@
 import { Product, ProductType } from '@/lib/types';
 import { useDbStore } from '@/lib/db-store';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
+import { setProductVariants, type VariantFormData } from './variantService';
 
 // This type should match the Zod schema in the form dialog
 export type ProductFormData = {
@@ -19,6 +20,7 @@ export type ProductFormData = {
     modifier_group_ids?: string[];
     sku?: string;
     barcode?: string;
+    variants?: VariantFormData[];
 }
 
 export const addProduct = async (productData: ProductFormData): Promise<Product | null> => {
@@ -26,19 +28,28 @@ export const addProduct = async (productData: ProductFormData): Promise<Product 
     if (!db || !firesqlite) throw new Error("Database not initialized");
 
     const { doc, setDoc } = firesqlite;
+    const { variants, ...restOfProductData } = productData;
+    const hasVariant = !!(variants && variants.length > 0);
 
     const newId = new Date().getTime().toString();
     const placeholder = PlaceHolderImages[parseInt(newId) % PlaceHolderImages.length];
 
     const newProduct: Product = {
         id: newId,
-        ...productData,
-        modifier_group_ids: productData.has_modifier ? productData.modifier_group_ids : [],
+        ...restOfProductData,
+        // If variants exist, parent does not track stock.
+        track_stock: hasVariant ? false : restOfProductData.track_stock,
+        has_variant: hasVariant,
+        modifier_group_ids: restOfProductData.has_modifier ? restOfProductData.modifier_group_ids : [],
         imageUrl: placeholder.imageUrl,
         imageHint: placeholder.imageHint,
     };
 
     await setDoc(doc(db, 'products', newProduct.id), newProduct);
+
+    if (hasVariant && variants) {
+        await setProductVariants(newProduct.id, variants);
+    }
     
     return newProduct;
 };
@@ -49,10 +60,23 @@ export const updateProduct = async (id: string, productData: ProductFormData): P
 
     const { doc, updateDoc } = firesqlite;
     
+    const { variants, ...restOfProductData } = productData;
+    const hasVariant = !!(variants && variants.length > 0);
+
     const dataToUpdate = {
-        ...productData,
-        modifier_group_ids: productData.has_modifier ? productData.modifier_group_ids : [],
+        ...restOfProductData,
+         // If variants exist, parent does not track stock.
+        track_stock: hasVariant ? false : restOfProductData.track_stock,
+        has_variant: hasVariant,
+        modifier_group_ids: restOfProductData.has_modifier ? restOfProductData.modifier_group_ids : [],
     };
     
     await updateDoc(doc(db, 'products', id), dataToUpdate);
+
+    if (hasVariant && variants) {
+        await setProductVariants(id, variants);
+    } else {
+        // If has_variant is false, ensure all variants are removed.
+        await setProductVariants(id, []);
+    }
 };

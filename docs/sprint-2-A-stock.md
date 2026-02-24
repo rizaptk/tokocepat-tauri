@@ -21,11 +21,11 @@
 - [x] Add a `low_stock_alert` field to the Product schema and form.
 
 #### 3️⃣ Variant & Modifier Engine
-- [ ] **Variants:**
-    - [ ] Add a "Has Variants" toggle to the product form.
-    - [ ] When enabled, create a sub-form to dynamically add/edit/remove variants (Name, Additional Price, SKU, Stock).
-    - [ ] Implement logic to disable parent product stock tracking if variants are enabled and track stock per-variant instead.
-    - [ ] Update `productService` to handle the nested variant data during product creation and updates.
+- [x] **Variants:**
+    - [x] Add a "Has Variants" toggle to the product form.
+    - [x] When enabled, create a sub-form to dynamically add/edit/remove variants (Name, Additional Price, SKU, Stock).
+    - [x] Implement logic to disable parent product stock tracking if variants are enabled and track stock per-variant instead.
+    - [x] Update `productService` to handle the nested variant data during product creation and updates.
 - [x] **Modifiers:**
     - [x] Create a new page at `/dashboard/modifiers` for managing global modifier groups.
     - [x] Implement full CRUD for `ModifierGroups` (Name, Min/Max Select, Required).
@@ -35,7 +35,6 @@
 
 #### 4️⃣ Barcode / QR System
 - [x] Add `barcode` and `sku` fields to the `Product` and `ProductVariant` schemas.
-- [x] In the product form, create a "Barcode/SKU" section.
 - [ ] Implement a "Scan Barcode" button that opens the camera modal (integration with a scanning library can be a separate task).
 - [ ] Add a button to auto-generate a unique internal barcode/SKU if none is provided.
 - [ ] Implement a backend check in `productService` to ensure all barcodes and SKUs are unique across all products and variants.

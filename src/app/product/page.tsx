@@ -2,11 +2,11 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useStore } from "@/lib/store";
-import { Product, Category, ModifierGroup, ModifierItem, ProductType } from "@/lib/types";
+import { Product, Category, ModifierGroup, ModifierItem, ProductType, ProductVariant } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
@@ -40,27 +40,36 @@ import { addModifierGroup, updateModifierGroup, deleteModifierGroup, addModifier
 
 
 // ========= PRODUCT FORM =========
-const productFormSchema = z.object({
-    name: z.string().min(2, { message: "Product name must be at least 2 characters." }),
-    product_type: z.enum(["retail", "food_and_beverage"], { required_error: "You need to select a product type." }),
-    category_id: z.string().optional(),
+const variantSchema = z.object({
+    id: z.string().optional(), // Keep track of existing variants for React keys
+    name: z.string().min(1, "Variant name is required."),
+    additional_price: z.coerce.number().min(0),
     sku: z.string().optional(),
-    barcode: z.string().optional(),
-    price: z.coerce.number().min(0, { message: "Price cannot be negative." }),
-    cost_price: z.coerce.number().min(0, { message: "Cost price cannot be negative." }).optional(),
-    stock: z.coerce.number().min(0, { message: "Stock cannot be negative." }),
-    low_stock_alert: z.coerce.number().min(0, { message: "Low stock alert cannot be negative." }).optional(),
-    track_stock: z.boolean().default(true),
-    is_active: z.boolean().default(true),
-    has_variant: z.boolean().default(false),
-    has_modifier: z.boolean().default(false),
-    modifier_group_ids: z.array(z.string()).optional(),
-  });
+    stock: z.coerce.number().min(0, "Stock cannot be negative."),
+});
+
+const productFormSchema = z.object({
+  name: z.string().min(2, { message: "Product name must be at least 2 characters." }),
+  product_type: z.enum(["retail", "food_and_beverage"], { required_error: "You need to select a product type." }),
+  category_id: z.string().optional(),
+  sku: z.string().optional(),
+  barcode: z.string().optional(),
+  price: z.coerce.number().min(0, { message: "Price cannot be negative." }),
+  cost_price: z.coerce.number().min(0, { message: "Cost price cannot be negative." }).optional(),
+  stock: z.coerce.number().min(0, { message: "Stock cannot be negative." }),
+  low_stock_alert: z.coerce.number().min(0, { message: "Low stock alert cannot be negative." }).optional(),
+  track_stock: z.boolean().default(true),
+  is_active: z.boolean().default(true),
+  has_variant: z.boolean().default(false),
+  has_modifier: z.boolean().default(false),
+  modifier_group_ids: z.array(z.string()).optional(),
+  variants: z.array(variantSchema).optional(),
+});
   
 type ProductFormValues = z.infer<typeof productFormSchema>;
 
 const ProductForm = ({ productId, onSave }: { productId: string | null, onSave: () => void }) => {
-    const { products, categories, modifierGroups } = useStore();
+    const { products, categories, modifierGroups, productVariants } = useStore();
     const { toast } = useToast();
     const isEditing = !!productId;
     const product = useMemo(() => products.find(p => p.id === productId), [productId, products]);
@@ -70,12 +79,20 @@ const ProductForm = ({ productId, onSave }: { productId: string | null, onSave: 
         defaultValues: {
             name: "", product_type: "retail", price: 0, cost_price: 0, stock: 0,
             low_stock_alert: 0, track_stock: true, is_active: true, has_variant: false,
-            has_modifier: false, modifier_group_ids: [], sku: "", barcode: "",
+            has_modifier: false, modifier_group_ids: [], sku: "", barcode: "", variants: [],
         },
     });
 
+    const { fields, append, remove } = useFieldArray({
+        control: form.control,
+        name: "variants",
+    });
+
+    const hasVariant = form.watch('has_variant');
+
     useEffect(() => {
         if (product) {
+            const variantsForProduct = productVariants.filter(v => v.product_id === product.id);
             form.reset({
                 name: product.name, product_type: product.product_type, category_id: product.category_id,
                 sku: product.sku, barcode: product.barcode,
@@ -83,11 +100,12 @@ const ProductForm = ({ productId, onSave }: { productId: string | null, onSave: 
                 low_stock_alert: product.low_stock_alert, track_stock: product.track_stock,
                 is_active: product.is_active, has_variant: product.has_variant, has_modifier: product.has_modifier,
                 modifier_group_ids: product.modifier_group_ids || [],
+                variants: variantsForProduct,
             });
         } else {
             form.reset(form.formState.defaultValues);
         }
-    }, [product, form]);
+    }, [product, form, productVariants]);
 
     async function onSubmit(data: ProductFormValues) {
         try {
@@ -159,32 +177,178 @@ const ProductForm = ({ productId, onSave }: { productId: string | null, onSave: 
                                 <FormField control={form.control} name="cost_price" render={({ field }) => (
                                     <FormItem><FormLabel>Cost Price</FormLabel><FormControl><div className="relative"><span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">Rp</span><Input type="number" placeholder="6500" className="pl-10" {...field} /></div></FormControl><FormDescription>Used to calculate profit.</FormDescription><FormMessage /></FormItem>
                                 )} />
-
-                                <FormField control={form.control} name="track_stock" render={({ field }) => (
-                                    <FormItem className="flex flex-row items-center justify-between border-t pt-4">
-                                        <FormLabel className="text-base">Track Stock</FormLabel>
-                                        <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem>
-                                )} />
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 border-b py-4">
-                                    <FormField control={form.control} name="stock" render={({ field }) => (
-                                        <FormItem><FormLabel>Initial Stock</FormLabel><FormControl><Input type="number" placeholder="50" {...field} disabled={!form.watch('track_stock')} /></FormControl><FormMessage /></FormItem>
-                                    )} />
-                                    <FormField control={form.control} name="low_stock_alert" render={({ field }) => (
-                                        <FormItem><FormLabel>Low Stock Alert</FormLabel><FormControl><Input type="number" placeholder="10" {...field} disabled={!form.watch('track_stock')} /></FormControl><FormMessage /></FormItem>
-                                    )} />
+                            </CardContent>
+                        </Card>
+                         <Card>
+                            <CardHeader>
+                                <CardTitle>Inventory</CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-6">
+                                <FormField
+                                    control={form.control}
+                                    name="track_stock"
+                                    render={({ field }) => (
+                                        <FormItem className={cn("flex flex-row items-center justify-between rounded-lg border p-4", hasVariant && "opacity-50")}>
+                                            <div className="space-y-0.5">
+                                                <FormLabel className="text-base">Track Stock (Parent)</FormLabel>
+                                                <FormDescription>
+                                                {hasVariant ? "Disabled. Stock is tracked per variant." : "Automatically deduct stock for each sale."}
+                                                </FormDescription>
+                                            </div>
+                                            <FormControl>
+                                                <Switch
+                                                    checked={hasVariant ? false : field.value}
+                                                    onCheckedChange={field.onChange}
+                                                    disabled={hasVariant}
+                                                />
+                                            </FormControl>
+                                        </FormItem>
+                                    )}
+                                />
+                                <div className={cn("grid grid-cols-1 md:grid-cols-2 gap-6", hasVariant && "opacity-50")}>
+                                    <FormField
+                                        control={form.control}
+                                        name="stock"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>Initial Stock</FormLabel>
+                                                <FormControl>
+                                                    <Input type="number" placeholder="50" {...field} disabled={hasVariant || !form.watch('track_stock')} />
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                     <FormField
+                                        control={form.control}
+                                        name="low_stock_alert"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>Low Stock Alert</FormLabel>
+                                                <FormControl>
+                                                    <Input type="number" placeholder="10" {...field} disabled={hasVariant || !form.watch('track_stock')} />
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
                                 </div>
+                            </CardContent>
+                        </Card>
 
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Variants</CardTitle>
+                                <CardDescription>
+                                    Create different versions of a product, like sizes or colors.
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                <FormField
+                                    control={form.control}
+                                    name="has_variant"
+                                    render={({ field }) => (
+                                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                                            <div className="space-y-0.5">
+                                                <FormLabel className="text-base">Enable Variants</FormLabel>
+                                                <FormDescription>
+                                                    If enabled, stock will be tracked per variant.
+                                                </FormDescription>
+                                            </div>
+                                            <FormControl>
+                                                <Switch
+                                                    checked={field.value}
+                                                    onCheckedChange={field.onChange}
+                                                />
+                                            </FormControl>
+                                        </FormItem>
+                                    )}
+                                />
+                                {hasVariant && (
+                                    <div className="space-y-4 pt-4">
+                                        {fields.map((field, index) => (
+                                            <div key={field.id} className="flex gap-2 items-end p-3 border rounded-lg bg-muted/50">
+                                                <div className="flex-grow grid grid-cols-2 md:grid-cols-4 gap-4">
+                                                    <FormField
+                                                        control={form.control}
+                                                        name={`variants.${index}.name`}
+                                                        render={({ field }) => (
+                                                            <FormItem>
+                                                                <FormLabel className="text-xs">Name</FormLabel>
+                                                                <FormControl>
+                                                                    <Input placeholder="e.g. Small" {...field} />
+                                                                </FormControl>
+                                                            </FormItem>
+                                                        )}
+                                                    />
+                                                    <FormField
+                                                        control={form.control}
+                                                        name={`variants.${index}.additional_price`}
+                                                        render={({ field }) => (
+                                                            <FormItem>
+                                                                <FormLabel className="text-xs">Price Adj.</FormLabel>
+                                                                <FormControl>
+                                                                    <div className="relative"><span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground text-xs">Rp</span><Input type="number" placeholder="0" className="pl-8" {...field} /></div>
+                                                                </FormControl>
+                                                            </FormItem>
+                                                        )}
+                                                    />
+                                                    <FormField
+                                                        control={form.control}
+                                                        name={`variants.${index}.sku`}
+                                                        render={({ field }) => (
+                                                            <FormItem>
+                                                                <FormLabel className="text-xs">SKU</FormLabel>
+                                                                <FormControl>
+                                                                    <Input placeholder="SKU-S" {...field} />
+                                                                </FormControl>
+                                                            </FormItem>
+                                                        )}
+                                                    />
+                                                    <FormField
+                                                        control={form.control}
+                                                        name={`variants.${index}.stock`}
+                                                        render={({ field }) => (
+                                                            <FormItem>
+                                                                <FormLabel className="text-xs">Stock</FormLabel>
+                                                                <FormControl>
+                                                                    <Input type="number" placeholder="50" {...field} />
+                                                                </FormControl>
+                                                            </FormItem>
+                                                        )}
+                                                    />
+                                                </div>
+                                                <Button type="button" variant="ghost" size="icon" className="shrink-0 text-muted-foreground hover:text-destructive" onClick={() => remove(index)}>
+                                                    <Trash className="h-4 w-4" />
+                                                </Button>
+                                            </div>
+                                        ))}
+                                        <Button type="button" variant="outline" size="sm" onClick={() => append({ name: '', additional_price: 0, stock: 0, sku: '' })}>
+                                            <PlusCircle className="mr-2 h-4 w-4" /> Add Variant
+                                        </Button>
+                                    </div>
+                                )}
+                            </CardContent>
+                        </Card>
+
+                        <Card>
+                             <CardHeader>
+                                <CardTitle>Customization</CardTitle>
+                            </CardHeader>
+                            <CardContent>
                                 <FormField control={form.control} name="has_modifier" render={({ field }) => (
-                                    <FormItem className="flex flex-row items-center justify-between">
-                                        <FormLabel className="text-base">Enable Modifiers</FormLabel>
+                                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                                        <div className="space-y-0.5">
+                                            <FormLabel className="text-base">Enable Modifiers</FormLabel>
+                                            <FormDescription>Allow add-ons like toppings or sugar levels.</FormDescription>
+                                        </div>
                                         <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} disabled={form.watch('product_type') === 'retail'} /></FormControl>
                                     </FormItem>
                                 )} />
                                 {form.watch('has_modifier') && form.watch('product_type') === 'food_and_beverage' && (
                                     <FormField control={form.control} name="modifier_group_ids" render={() => (
-                                        <FormItem className="border-b py-4">
+                                        <FormItem className="rounded-lg border p-4 mt-4">
                                             <div className="mb-4"><FormLabel className="text-base">Modifier Groups</FormLabel>
-                                            {/* <FormDescription>Select which modifier groups can be applied.</FormDescription> */}
                                             </div>
                                             <div className="space-y-2">
                                                 {modifierGroups.map((group) => (<FormField key={group.id} control={form.control} name="modifier_group_ids" render={({ field }) => {
@@ -199,15 +363,22 @@ const ProductForm = ({ productId, onSave }: { productId: string | null, onSave: 
                                         </FormItem>
                                     )} />
                                 )}
+                             </CardContent>
+                        </Card>
 
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Availability</CardTitle>
+                            </CardHeader>
+                             <CardContent>
                                 <FormField control={form.control} name="is_active" render={({ field }) => (
-                                    <FormItem className="flex flex-row items-center justify-between">
+                                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
                                         <div className="space-y-0.5">
                                             <FormLabel className="text-base">Product Active</FormLabel>
                                         </div>
                                     <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem>
                                 )} />
-                            </CardContent>
+                             </CardContent>
                         </Card>
                     </div>
                  </ScrollArea>
