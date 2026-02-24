@@ -81,6 +81,19 @@ export default function CashierPage() {
     }
   };
 
+  const handleBarcodeScan = (barcode: string) => {
+    const product = products.find(p => p.barcode === barcode);
+    if (product) {
+        handleProductSelect(product);
+    } else {
+        toast({
+            variant: "destructive",
+            title: "Product Not Found",
+            description: `No product found with barcode: ${barcode}`,
+        });
+    }
+  };
+
   const handleModifierConfirm = (selectedModifiers: SelectedModifier[]) => {
     if (!itemToModify) return;
     saveItemToCart(itemToModify, selectedModifiers);
@@ -154,6 +167,7 @@ export default function CashierPage() {
                   onSearchTermChange={setSearchTerm}
                   viewMode={viewMode}
                   onViewModeChange={setViewMode}
+                  onBarcodeScan={handleBarcodeScan}
                 />
             </div>
           <ProductList products={filteredProducts.length > 0 ? filteredProducts : products} viewMode={viewMode} isLoading={products.length === 0} onItemClick={handleProductSelect} context="cashier"/>
@@ -173,6 +187,7 @@ export default function CashierPage() {
                         onSearchTermChange={setSearchTerm}
                         viewMode={viewMode}
                         onViewModeChange={setViewMode}
+                        onBarcodeScan={handleBarcodeScan}
                     />
                 </div>
                 

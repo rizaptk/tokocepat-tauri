@@ -1,21 +1,33 @@
 
 "use client";
 
+import { useState } from 'react';
 import { Search, Barcode, Grid, List, Rows, SlidersHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import type { ViewMode } from "@/app/cashier/page";
+import { BarcodeScanner } from './BarcodeScanner';
 
 interface ProductSearchBarProps {
     searchTerm: string;
     onSearchTermChange: (term: string) => void;
     viewMode?: ViewMode;
     onViewModeChange?: (mode: ViewMode) => void;
+    onBarcodeScan?: (barcode: string) => void;
 }
 
-export function ProductSearchBar({ searchTerm, onSearchTermChange, viewMode, onViewModeChange }: ProductSearchBarProps) {
+export function ProductSearchBar({ searchTerm, onSearchTermChange, viewMode, onViewModeChange, onBarcodeScan }: ProductSearchBarProps) {
+    const [isScannerOpen, setIsScannerOpen] = useState(false);
+
+    const handleScanSuccess = (barcode: string) => {
+        if (onBarcodeScan) {
+            onBarcodeScan(barcode);
+        }
+        setIsScannerOpen(false);
+    }
+    
     return (
         <div className="flex items-center gap-2 w-full">
             <div className="relative flex-1">
@@ -28,25 +40,21 @@ export function ProductSearchBar({ searchTerm, onSearchTermChange, viewMode, onV
                     onChange={(e) => onSearchTermChange(e.target.value)}
                 />
             </div>
-            <Dialog>
-                <DialogTrigger asChild>
-                    <Button variant="outline" size="icon" className="shrink-0">
-                        <Barcode className="h-5 w-5" />
-                    </Button>
-                </DialogTrigger>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Barcode Scanner</DialogTitle>
-                        <DialogDescription>
-                            This feature is for demonstration purposes. In a real app, this would open the device's camera to scan product barcodes.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="flex flex-col items-center justify-center gap-4 py-8">
-                        <Barcode className="h-24 w-24 text-muted-foreground" />
-                        <p className="text-muted-foreground">Ready to scan</p>
-                    </div>
-                </DialogContent>
-            </Dialog>
+            {onBarcodeScan && (
+                <Dialog open={isScannerOpen} onOpenChange={setIsScannerOpen}>
+                    <DialogTrigger asChild>
+                        <Button variant="outline" size="icon" className="shrink-0">
+                            <Barcode className="h-5 w-5" />
+                        </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>Barcode Scanner</DialogTitle>
+                        </DialogHeader>
+                        <BarcodeScanner onScanSuccess={handleScanSuccess} />
+                    </DialogContent>
+                </Dialog>
+            )}
             {viewMode && onViewModeChange && (
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>

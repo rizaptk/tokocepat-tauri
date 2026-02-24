@@ -37,6 +37,7 @@ import { PlusCircle, Edit, Trash, SlidersHorizontal, Library, Package, Menu, Sca
 import { addProduct, updateProduct } from "@/services/productService";
 import { addCategory, updateCategory, deleteCategory } from "@/services/categoryService";
 import { addModifierGroup, updateModifierGroup, deleteModifierGroup, addModifierItem, updateModifierItem, deleteModifierItem } from "@/services/modifierService";
+import { BarcodeScanner } from "@/components/BarcodeScanner";
 
 
 // ========= PRODUCT FORM =========
@@ -73,6 +74,7 @@ const ProductForm = ({ productId, onSave }: { productId: string | null, onSave: 
     const { toast } = useToast();
     const isEditing = !!productId;
     const product = useMemo(() => products.find(p => p.id === productId), [productId, products]);
+    const [isScannerOpen, setIsScannerOpen] = useState(false);
 
     const form = useForm<ProductFormValues>({
         resolver: zodResolver(productFormSchema),
@@ -106,6 +108,11 @@ const ProductForm = ({ productId, onSave }: { productId: string | null, onSave: 
             form.reset(form.formState.defaultValues);
         }
     }, [product, form, productVariants]);
+
+    const handleScanSuccess = (barcode: string) => {
+        form.setValue('barcode', barcode, { shouldValidate: true });
+        setIsScannerOpen(false);
+    };
 
     async function onSubmit(data: ProductFormValues) {
         try {
@@ -154,7 +161,7 @@ const ProductForm = ({ productId, onSave }: { productId: string | null, onSave: 
                                             <Input placeholder="Scan or enter barcode" {...field} />
                                         </FormControl>
                                         <div className="flex gap-2 pt-2">
-                                            <Dialog>
+                                            <Dialog open={isScannerOpen} onOpenChange={setIsScannerOpen}>
                                                 <DialogTrigger asChild>
                                                     <Button type="button" variant="outline" className="w-full">
                                                         <Scan className="h-4 w-4" /> Scan
@@ -163,14 +170,8 @@ const ProductForm = ({ productId, onSave }: { productId: string | null, onSave: 
                                                 <DialogContent>
                                                     <DialogHeader>
                                                         <DialogTitle>Barcode Scanner</DialogTitle>
-                                                        <DialogDescription>
-                                                            This feature is for demonstration purposes. In a real app, this would open the device's camera to scan product barcodes.
-                                                        </DialogDescription>
                                                     </DialogHeader>
-                                                    <div className="flex flex-col items-center justify-center gap-4 py-8">
-                                                        <Barcode className="h-24 w-24 text-muted-foreground" />
-                                                        <p className="text-muted-foreground">Ready to scan</p>
-                                                    </div>
+                                                    <BarcodeScanner onScanSuccess={handleScanSuccess} />
                                                 </DialogContent>
                                             </Dialog>
                                             <Button type="button" variant="outline" className="w-full" onClick={() => {
