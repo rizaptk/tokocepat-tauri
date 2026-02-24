@@ -7,7 +7,6 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { ShoppingCart, Trash2 } from "lucide-react";
-import Image from "next/image";
 import { useState } from "react";
 import { PaymentModal } from "./PaymentModal";
 import { useToast } from "@/hooks/use-toast";
@@ -47,7 +46,7 @@ export function CartDisplay() {
   }
 
   return (
-    <>
+    <div className="flex flex-col flex-1 bg-background h-full">
       <header className="flex h-16 items-center justify-between border-b px-6 shrink-0">
         <h2 className="text-lg font-semibold">Cart</h2>
         <div className="relative">
@@ -71,27 +70,30 @@ export function CartDisplay() {
           <ScrollArea className="flex-1">
             <div className="flex flex-col gap-4 p-4">
               {cart.map(item => (
-                <div key={item.id} className="flex items-center gap-4">
-                  <div className="relative h-16 w-16 overflow-hidden rounded-md">
-                    <Image src={item.imageUrl} alt={item.name} fill className="object-cover" data-ai-hint={item.imageHint} />
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-medium">{item.name}</p>
-                    <p className="text-sm text-muted-foreground">{formatCurrency(item.price)}</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      type="number"
-                      value={item.quantity}
-                      onChange={e => updateQuantity(item.id, parseInt(e.target.value))}
-                      className="h-8 w-16 text-center"
-                      min="1"
-                      max={item.stock}
-                    />
-                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => removeFromCart(item.id)}>
-                      <Trash2 className="h-4 w-4" />
+                <div key={item.id} className="flex items-start gap-4">
+                    <div className="flex-1 space-y-1">
+                        <p className="font-medium leading-tight">{item.name}</p>
+                        <p className="text-sm text-muted-foreground">
+                            {formatCurrency(item.price)}
+                        </p>
+                        {/* Placeholder for variants/modifiers */}
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <Input
+                            type="number"
+                            value={item.quantity}
+                            onChange={e => updateQuantity(item.id, parseInt(e.target.value))}
+                            className="h-8 w-16 text-center"
+                            min="1"
+                            max={item.stock}
+                        />
+                    </div>
+                    <div className="w-24 text-right">
+                        <p className="font-semibold">{formatCurrency(item.price * item.quantity)}</p>
+                    </div>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive" onClick={() => removeFromCart(item.id)}>
+                        <Trash2 className="h-4 w-4" />
                     </Button>
-                  </div>
                 </div>
               ))}
             </div>
@@ -119,6 +121,6 @@ export function CartDisplay() {
         </>
       )}
       <PaymentModal isOpen={isPaymentModalOpen} setIsOpen={setIsPaymentModalOpen} total={total} />
-    </>
+    </div>
   );
 }
