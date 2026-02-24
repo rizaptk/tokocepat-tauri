@@ -5,133 +5,51 @@ import { useState, useEffect, useMemo } from 'react';
 import { Header } from '@/components/Header';
 import { CartDisplay } from '@/components/CartDisplay';
 import { useStore } from '@/lib/store';
-import { useDbStore } from '@/lib/db-store';
-import { Product, ProductVariant, ModifierGroup, Transaction, Shift, StoreConfig, Category, CartItem, SelectedModifier } from '@/lib/types';
+import { Product, CartItem } from '@/lib/types';
 import { TokoCepatLogo } from '@/components/TokoCepatLogo';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { LogIn } from 'lucide-react';
-import { seedDatabase } from '@/lib/database';
 import { ProductSearchBar } from '@/components/ProductSearchBar';
 import { ProductList } from '@/components/ProductList';
 import { useToast } from '@/hooks/use-toast';
 import { ModifierPanel } from '@/components/ModifierPanel';
 import { cn } from '@/lib/utils';
+import { SelectedModifier } from '@/lib/types';
 
 export type ViewMode = 'card' | 'thumbnail' | 'list';
 
 export default function CashierPage() {
-  // Global state
-  const { products, setProducts, setProductVariants, setModifierGroups, setTransactions, setShifts, setStoreConfig, setCategories, activeShift, openShift, cart, saveItemToCart } = useStore();
-  const { isInitialized, db, firesqlite } = useDbStore();
+  // Global state from Zustand
+  const { products, activeShift, openShift, saveItemToCart } = useStore();
   const { toast } = useToast();
   
-  // Local state
+  // Local state for UI
   const [searchTerm, setSearchTerm] = useState('');
-  const [isDataLoading, setIsDataLoading] = useState(true);
   const [openingCash, setOpeningCash] = useState(0);
   const [itemToModify, setItemToModify] = useState<Product | CartItem | null>(null);
 
   // Responsive and view state
   const [viewMode, setViewMode] = useState<ViewMode>('thumbnail');
-  const [isMobile, setIsMobile] = useState(false);
-  const [isCartVisible, setIsCartVisible] = useState(true);
+  const isAutocompleteVisible = searchTerm.length > 0;
 
   useEffect(() => {
     // Set default view mode based on screen size
     const handleResize = () => {
         const mobile = window.innerWidth < 768;
-        setIsMobile(mobile);
         setViewMode(mobile ? 'thumbnail' : 'card');
-        if (!mobile) setIsCartVisible(true);
-        else setIsCartVisible(false);
     };
     window.addEventListener('resize', handleResize);
     handleResize(); // Set initial view mode
     return () => window.removeEventListener('resize', handleResize);
   }, []);
-
-  useEffect(() => {
-    if (!isInitialized || !db || !firesqlite) return;
-
-    let unsubProducts: (() => void) | undefined;
-    let unsubVariants: (() => void) | undefined;
-    let unsubModifiers: (() => void) | undefined;
-    let unsubTransactions: (() => void) | undefined;
-    let unsubShifts: (() => void) | undefined;
-    let unsubStoreConfig: (() => void) | undefined;
-    let unsubCategories: (() => void) | undefined;
-
-    const setupData = async () => {
-      try {
-        await seedDatabase(firesqlite, db);
-        
-        const { collection, doc, onSnapshot } = firesqlite;
-        
-        unsubStoreConfig = onSnapshot(doc(db, 'store_config', 'main'), (docSnap: any) => {
-            if (docSnap.exists()) {
-                setStoreConfig(docSnap.data() as StoreConfig);
-            }
-        });
-        
-        unsubProducts = onSnapshot(collection(db, 'products'), (snapshot: any) => {
-          const productList = snapshot.docs.map((doc: any) => doc.data() as Product);
-          setProducts(productList);
-          if (isDataLoading) setIsDataLoading(false);
-        });
-
-        unsubVariants = onSnapshot(collection(db, 'product_variants'), (snapshot: any) => {
-            const variantList = snapshot.docs.map((doc: any) => doc.data() as ProductVariant);
-            setProductVariants(variantList);
-        });
-
-        unsubModifiers = onSnapshot(collection(db, 'modifier_groups'), (snapshot: any) => {
-            const groupList = snapshot.docs.map((doc: any) => doc.data() as ModifierGroup);
-            setModifierGroups(groupList);
-        });
-
-        unsubTransactions = onSnapshot(collection(db, 'transactions'), (snapshot: any) => {
-            const transactionList = snapshot.docs.map((doc: any) => doc.data() as Transaction);
-            setTransactions(transactionList);
-        });
-
-        unsubShifts = onSnapshot(collection(db, 'shifts'), (snapshot: any) => {
-          const shiftList = snapshot.docs.map((doc: any) => doc.data() as Shift);
-          setShifts(shiftList);
-        });
-
-        unsubCategories = onSnapshot(collection(db, 'categories'), (snapshot: any) => {
-            const categoryList = snapshot.docs.map((doc: any) => doc.data() as Category);
-            setCategories(categoryList);
-        });
-
-      } catch (error: any) {
-        console.error("Failed to subscribe to data:", error);
-        setIsDataLoading(false);
-      }
-    };
-
-    setupData();
-
-    return () => {
-      if (unsubProducts) unsubProducts();
-      if (unsubVariants) unsubVariants();
-      if (unsubModifiers) unsubModifiers();
-      if (unsubTransactions) unsubTransactions();
-      if (unsubShifts) unsubShifts();
-      if (unsubStoreConfig) unsubStoreConfig();
-      if (unsubCategories) unsubCategories();
-    };
-  }, [isInitialized, db, firesqlite, setProducts, setProductVariants, setModifierGroups, setTransactions, setShifts, setStoreConfig, setCategories, isDataLoading]);
-
+  
   const filteredProducts = useMemo(() => 
     products.filter(product =>
       product.name.toLowerCase().includes(searchTerm.toLowerCase())
     ), [products, searchTerm]);
-
-  const isAutocompleteVisible = searchTerm.length > 0;
 
   const handleOpenShift = () => {
     openShift(openingCash);
@@ -166,6 +84,7 @@ export default function CashierPage() {
     if (!itemToModify) return;
     saveItemToCart(itemToModify, selectedModifiers);
     setItemToModify(null);
+    // If we were adding a new item (not editing from cart), clear search
     if (!('cartItemId' in itemToModify)) {
        handleItemAdded();
     }
@@ -182,18 +101,10 @@ export default function CashierPage() {
       }
   }
 
-  if (!isInitialized) {
-      return (
-        <div className="flex h-screen w-full items-center justify-center bg-background">
-          <div className="flex flex-col items-center gap-4">
-            <TokoCepatLogo />
-            <p className="text-muted-foreground">Initializing Database...</p>
-            <div className="w-48 h-2 bg-muted rounded-full overflow-hidden">
-                <div className="h-full bg-primary animate-pulse w-full"></div>
-            </div>
-          </div>
-        </div>
-      )
+  // This check is now handled by DbProvider, but we need to wait for activeShift to be determined.
+  if (activeShift === undefined) {
+    // DbProvider shows the main loading screen. We render nothing here until shift status is known.
+    return null; 
   }
 
   if (!activeShift) {
@@ -246,10 +157,10 @@ export default function CashierPage() {
             </div>
             {isAutocompleteVisible && (
                 <div className="absolute top-20 left-4 right-4 z-20 bg-background border rounded-lg shadow-lg max-h-[60vh] overflow-y-auto">
-                     <ProductList products={filteredProducts} viewMode="list" isLoading={isDataLoading} onItemClick={handleProductSelect} />
+                     <ProductList products={filteredProducts} viewMode="list" isLoading={products.length === 0} onItemClick={handleProductSelect} />
                 </div>
             )}
-          <ProductList products={filteredProducts.length > 0 ? filteredProducts : products} viewMode={viewMode} isLoading={isDataLoading} onItemClick={handleProductSelect}/>
+          <ProductList products={filteredProducts.length > 0 ? filteredProducts : products} viewMode={viewMode} isLoading={products.length === 0} onItemClick={handleProductSelect}/>
         </main>
         <aside className="col-span-2 lg:col-span-1 border-l bg-background flex flex-col">
             <CartDisplay onEditItem={handleEditCartItem} />
@@ -269,7 +180,7 @@ export default function CashierPage() {
             
             {isAutocompleteVisible && (
                 <div className="absolute top-20 left-4 right-4 z-20 bg-background border rounded-lg shadow-lg max-h-[60vh] overflow-y-auto">
-                    <ProductList products={filteredProducts} viewMode="thumbnail" isLoading={isDataLoading} onItemClick={handleProductSelect} />
+                    <ProductList products={filteredProducts} viewMode="thumbnail" isLoading={products.length === 0} onItemClick={handleProductSelect} />
                 </div>
             )}
             

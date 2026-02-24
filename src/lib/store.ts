@@ -16,7 +16,7 @@ interface StoreState {
   cart: CartItem[];
   transactions: Transaction[];
   shifts: Shift[];
-  activeShift: Shift | null;
+  activeShift: Shift | null | undefined;
   storeConfig: StoreConfig | null;
   
   // Actions
@@ -46,7 +46,7 @@ export const useStore = create<StoreState>()(
       cart: [],
       transactions: [],
       shifts: [],
-      activeShift: null,
+      activeShift: undefined,
       storeConfig: null,
     
       setProducts: (products) => set({ products }),
@@ -78,7 +78,7 @@ export const useStore = create<StoreState>()(
         // For simple products (no modifiers), check if it already exists and stack it.
         const isModified = selectedModifiers.length > 0;
         if (!isModified && !isEditing) {
-            const existingItem = cart.find(item => item.id === itemData.id && item.selectedModifiers.length === 0);
+            const existingItem = cart.find(item => item.id === itemData.id && (!item.selectedModifiers || item.selectedModifiers.length === 0));
             if (existingItem) {
                 get().updateQuantity(existingItem.cartItemId, existingItem.quantity + 1);
                 toast({
