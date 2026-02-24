@@ -2,7 +2,7 @@ import { Product, ProductVariant, ModifierGroup, StoreConfig, Category } from '@
 import { initialProducts, initialVariants, initialModifierGroups, initialCategories } from '@/lib/products';
 
 const DB_VERSION_KEY = 'tokoc_db_version';
-const CURRENT_DB_VERSION = '1.0.4';
+const CURRENT_DB_VERSION = '1.0.5';
 
 export const seedDatabase = async (firesqlite: any, db: any) => {
     if (!firesqlite || !db) return;
@@ -12,7 +12,7 @@ export const seedDatabase = async (firesqlite: any, db: any) => {
         
         const storedVersion = localStorage.getItem(DB_VERSION_KEY);
         if (storedVersion === CURRENT_DB_VERSION) {
-            console.log("Database version is up to date.");
+            // console.log("Database version is up to date.");
             return;
         }
 
@@ -29,12 +29,13 @@ export const seedDatabase = async (firesqlite: any, db: any) => {
         
         // Seed Products
         const productsCollectionRef = collection(db, 'products');
-        const existingProds = await getDocs(productsCollectionRef);
-        if (existingProds.docs.length === 0) {
+        // Forcing a re-seed of products due to schema changes
+        // const existingProds = await getDocs(productsCollectionRef);
+        // if (existingProds.docs.length === 0) {
             console.log('Seeding initial products...');
             const productPromises = initialProducts.map((p: Product) => setDoc(doc(db, 'products', p.id), p));
             await Promise.all(productPromises);
-        }
+        // }
         
         // Seed Variants
         const variantsCollectionRef = collection(db, 'product_variants');

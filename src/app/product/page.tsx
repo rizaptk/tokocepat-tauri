@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
@@ -12,7 +11,7 @@ import { cn } from "@/lib/utils";
 
 // UI Components
 import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ProductSearchBar } from "@/components/ProductSearchBar";
 import { ProductList } from "@/components/ProductList";
@@ -27,12 +26,11 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 
 // Icons
-import { PlusCircle, Edit, Trash, SlidersHorizontal, Library, Package, MoreVertical, Menu } from "lucide-react";
+import { PlusCircle, Edit, Trash, SlidersHorizontal, Library, Package, Menu, Scan } from "lucide-react";
 
 // Services
 import { addProduct, updateProduct } from "@/services/productService";
@@ -45,6 +43,8 @@ const productFormSchema = z.object({
     name: z.string().min(2, { message: "Product name must be at least 2 characters." }),
     product_type: z.enum(["retail", "food_and_beverage"], { required_error: "You need to select a product type." }),
     category_id: z.string().optional(),
+    sku: z.string().optional(),
+    barcode: z.string().optional(),
     price: z.coerce.number().min(0, { message: "Price cannot be negative." }),
     cost_price: z.coerce.number().min(0, { message: "Cost price cannot be negative." }).optional(),
     stock: z.coerce.number().min(0, { message: "Stock cannot be negative." }),
@@ -69,7 +69,7 @@ const ProductForm = ({ productId, onSave }: { productId: string | null, onSave: 
         defaultValues: {
             name: "", product_type: "retail", price: 0, cost_price: 0, stock: 0,
             low_stock_alert: 0, track_stock: true, is_active: true, has_variant: false,
-            has_modifier: false, modifier_group_ids: [],
+            has_modifier: false, modifier_group_ids: [], sku: "", barcode: "",
         },
     });
 
@@ -77,6 +77,7 @@ const ProductForm = ({ productId, onSave }: { productId: string | null, onSave: 
         if (product) {
             form.reset({
                 name: product.name, product_type: product.product_type, category_id: product.category_id,
+                sku: product.sku, barcode: product.barcode,
                 price: product.price, cost_price: product.cost_price, stock: product.stock,
                 low_stock_alert: product.low_stock_alert, track_stock: product.track_stock,
                 is_active: product.is_active, has_variant: product.has_variant, has_modifier: product.has_modifier,
@@ -147,6 +148,20 @@ const ProductForm = ({ productId, onSave }: { productId: string | null, onSave: 
                                         <FormItem><FormLabel>Cost Price</FormLabel><FormControl><div className="relative"><span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">Rp</span><Input type="number" placeholder="6500" className="pl-10" {...field} /></div></FormControl><FormDescription>Used to calculate profit.</FormDescription><FormMessage /></FormItem>
                                     )} />
                                 </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <FormField control={form.control} name="sku" render={({ field }) => (
+                                        <FormItem><FormLabel>SKU (Stock Keeping Unit)</FormLabel><FormControl><Input placeholder="e.g. F-DRK-001" {...field} /></FormControl><FormMessage /></FormItem>
+                                    )} />
+                                    <FormField control={form.control} name="barcode" render={({ field }) => (
+                                        <FormItem><FormLabel>Barcode</FormLabel>
+                                         <div className="flex gap-2">
+                                            <FormControl><Input placeholder="Scan or enter barcode" {...field} /></FormControl>
+                                            <Button type="button" variant="outline" size="icon"><Scan className="h-5 w-5"/></Button>
+                                         </div>
+                                         <FormMessage />
+                                        </FormItem>
+                                    )} />
+                                </div>
                             </CardContent>
                         </Card>
                         <Card>
@@ -157,7 +172,7 @@ const ProductForm = ({ productId, onSave }: { productId: string | null, onSave: 
                                 )} />
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <FormField control={form.control} name="stock" render={({ field }) => (
-                                        <FormItem><FormLabel>Stock Quantity</FormLabel><FormControl><Input type="number" placeholder="50" {...field} disabled={!form.watch('track_stock')} /></FormControl><FormMessage /></FormItem>
+                                        <FormItem><FormLabel>Initial Stock</FormLabel><FormControl><Input type="number" placeholder="50" {...field} disabled={!form.watch('track_stock')} /></FormControl><FormMessage /></FormItem>
                                     )} />
                                     <FormField control={form.control} name="low_stock_alert" render={({ field }) => (
                                         <FormItem><FormLabel>Low Stock Alert</FormLabel><FormControl><Input type="number" placeholder="10" {...field} disabled={!form.watch('track_stock')} /></FormControl><FormMessage /></FormItem>
@@ -447,12 +462,11 @@ const ModifierManager = () => {
 
 
 // ========= EDITOR PANEL (RIGHT SIDE / DRAWER) =========
-const ProductEditor = ({ selectedProductId, onProductUpdate, activeTab, onTabChange, onNewProduct }: {
+const ProductEditor = ({ selectedProductId, onProductUpdate, activeTab, onTabChange }: {
     selectedProductId: string | null;
     onProductUpdate: () => void;
     activeTab: string;
     onTabChange: (tab: string) => void;
-    onNewProduct: () => void;
 }) => {
     return (
         <Tabs value={activeTab} onValueChange={onTabChange} className="h-full flex flex-col">
@@ -559,7 +573,6 @@ export default function ProductManagementPage() {
                     onProductUpdate={handleSaveChanges}
                     activeTab={activeTab}
                     onTabChange={setActiveTab}
-                    onNewProduct={handleAddNew}
                 />
             </aside>
 
@@ -571,7 +584,6 @@ export default function ProductManagementPage() {
                         onProductUpdate={handleSaveChanges}
                         activeTab={activeTab}
                         onTabChange={setActiveTab}
-                        onNewProduct={handleAddNew}
                     />
                 </SheetContent>
             </Sheet>

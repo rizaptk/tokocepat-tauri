@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useMemo } from "react";
@@ -12,7 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -27,14 +26,15 @@ import { SlidersHorizontal, PlusCircle } from "lucide-react";
 // Form for the right panel / sheet content
 const adjustmentFormSchema = z.object({
   product_id: z.string().min(1, "Please select a product."),
-  type: z.enum(["restock", "correction", "lost", "damaged"], { required_error: "Please select an adjustment type." }),
+  type: z.enum(["restock", "correction", "lost", "damaged", "initial_balance"], { required_error: "Please select an adjustment type." }),
   qty_change: z.coerce.number().refine(val => val !== 0, "Quantity cannot be zero."),
   reason: z.string().min(3, "Please provide a reason for the adjustment."),
 });
 type AdjustmentFormValues = z.infer<typeof adjustmentFormSchema>;
 
 const adjustmentTypes: { value: StockMovementType, label: string }[] = [
-    { value: 'restock', label: 'Restock (+)' },
+    { value: 'initial_balance', label: 'Opening Balance (+)' },
+    { value: 'restock', label: 'Purchase / Restock (+)' },
     { value: 'correction', label: 'Correction (+/-)' },
     { value: 'lost', label: 'Lost (-)' },
     { value: 'damaged', label: 'Damaged (-)' },

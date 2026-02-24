@@ -17,6 +17,8 @@ export type ProductFormData = {
     has_variant: boolean;
     has_modifier: boolean;
     modifier_group_ids?: string[];
+    sku?: string;
+    barcode?: string;
 }
 
 export const addProduct = async (productData: ProductFormData): Promise<Product | null> => {
