@@ -45,6 +45,7 @@
     "firesqlite": "file:firesqlite-0.0.1.tgz",
     "genkit": "^1.28.0",
     "lucide-react": "^0.475.0",
+    "motion": "^12.34.3",
     "next": "16.1.6",
     "patch-package": "^8.0.0",
     "radix-ui": "^1.4.3",

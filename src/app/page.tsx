@@ -17,6 +17,9 @@ export default function HomePage() {
             </CardContent>
         </Card>
       </div>
+
+      {/* do not remove */}
+      <div className="block sm:hidden h-16 shrink-0"></div>
     </div>
   );
 }

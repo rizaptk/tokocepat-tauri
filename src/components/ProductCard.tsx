@@ -53,18 +53,6 @@ export function ProductCard({ product, onItemClick, isSelected, context = 'cashi
       aria-disabled={isOutOfStock}
     >
       <CardHeader className="p-0 relative">
-        <div className="absolute top-2 right-2 z-10 flex gap-1">
-            {product.has_modifier && context === 'product' && (
-                <Badge variant="secondary" className="bg-black/50 text-white backdrop-blur-sm">
-                    <SlidersHorizontal className="h-3 w-3" />
-                </Badge>
-            )}
-            {isLowStock && (
-                 <Badge variant="destructive" className="bg-yellow-500/80 text-black backdrop-blur-sm items-center">
-                    <TriangleAlert className="h-3 w-3" />
-                </Badge>
-            )}
-        </div>
         <div className="relative aspect-square w-full">
           <Image
             src={product.imageUrl}
@@ -79,23 +67,36 @@ export function ProductCard({ product, onItemClick, isSelected, context = 'cashi
               <Badge variant="destructive" className="text-sm">Out of Stock</Badge>
             </div>
           )}
+          {context === 'cashier' && (
+            <div className="h-7 w-7 rounded-full flex items-center justify-center bg-background absolute bottom-2 left-2">
+                <ShoppingCart className="h-4 w-4 text-primary" />
+            </div>)
+          }
+          {context !== 'cashier' && (
+             <Badge variant={isLowStock ? "destructive" : "secondary"} className='absolute bottom-2 left-2'>
+                {product.track_stock ? `${product.stock}` : 'Untracked'}
+             </Badge>
+          )}
+          {category && <Badge variant="secondary" className='truncate text-xs absolute bottom-2 right-2 max-w-[70%]'>{category.name}</Badge>}
+        </div>
+        <div className="absolute top-2 right-2 z-10 flex gap-1">
+            {product.has_modifier && context === 'product' && (
+                <Badge variant="secondary" className="bg-black/50 text-white backdrop-blur-sm">
+                    <SlidersHorizontal className="h-3 w-3" />
+                </Badge>
+            )}
+            {isLowStock && (
+                 <Badge variant="destructive" className="bg-yellow-500/80 text-black backdrop-blur-sm items-center">
+                    <TriangleAlert className="h-3 w-3" />
+                </Badge>
+            )}
         </div>
       </CardHeader>
       <CardContent className="flex-grow p-4 space-y-1.5">
         <CardTitle className="text-base font-medium line-clamp-2">{product.name}</CardTitle>
-        {category && <Badge variant="outline">{category.name}</Badge>}
       </CardContent>
       <CardFooter className="flex items-center justify-between p-4 pt-0">
         <p className="font-semibold text-foreground">{formatCurrency(product.price)}</p>
-        {context === 'cashier' ? (
-             <div className="h-8 w-8 rounded-full flex items-center justify-center bg-primary/10">
-                <ShoppingCart className="h-5 w-5 text-primary" />
-            </div>
-        ) : (
-             <Badge variant={isLowStock ? "destructive" : "secondary"}>
-                {product.track_stock ? `${product.stock} in stock` : 'Untracked'}
-             </Badge>
-        )}
       </CardFooter>
     </Card>
   );

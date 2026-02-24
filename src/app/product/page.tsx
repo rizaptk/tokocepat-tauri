@@ -129,6 +129,18 @@ const ProductForm = ({ productId, onSave }: { productId: string | null, onSave: 
                                         <FormMessage />
                                     </FormItem>
                                 )} />
+                                <FormField control={form.control} name="barcode" render={({ field }) => (
+                                    <FormItem><FormLabel>Barcode</FormLabel>
+                                        <div className="flex gap-2">
+                                        <FormControl><Input placeholder="Scan or enter barcode" {...field} /></FormControl>
+                                        <Button type="button" variant="outline" size="icon"><Scan className="h-5 w-5"/></Button>
+                                        </div>
+                                        <FormMessage />
+                                    </FormItem>
+                                )} />
+                                <FormField control={form.control} name="sku" render={({ field }) => (
+                                    <FormItem><FormLabel>SKU (Stock Keeping Unit)</FormLabel><FormControl><Input placeholder="e.g. F-DRK-001" {...field} /></FormControl><FormMessage /></FormItem>
+                                )} />
                                 <FormField control={form.control} name="name" render={({ field }) => (
                                     <FormItem><FormLabel>Product Name</FormLabel><FormControl><Input placeholder="e.g. Cokelat Batang" {...field} /></FormControl><FormMessage /></FormItem>
                                 )} />
@@ -141,37 +153,19 @@ const ProductForm = ({ productId, onSave }: { productId: string | null, onSave: 
                                         <FormMessage />
                                     </FormItem>
                                 )} />
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <FormField control={form.control} name="price" render={({ field }) => (
-                                        <FormItem><FormLabel>Selling Price</FormLabel><FormControl><div className="relative"><span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">Rp</span><Input type="number" placeholder="8000" className="pl-10" {...field} /></div></FormControl><FormMessage /></FormItem>
-                                    )} />
-                                    <FormField control={form.control} name="cost_price" render={({ field }) => (
-                                        <FormItem><FormLabel>Cost Price</FormLabel><FormControl><div className="relative"><span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">Rp</span><Input type="number" placeholder="6500" className="pl-10" {...field} /></div></FormControl><FormDescription>Used to calculate profit.</FormDescription><FormMessage /></FormItem>
-                                    )} />
-                                </div>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <FormField control={form.control} name="sku" render={({ field }) => (
-                                        <FormItem><FormLabel>SKU (Stock Keeping Unit)</FormLabel><FormControl><Input placeholder="e.g. F-DRK-001" {...field} /></FormControl><FormMessage /></FormItem>
-                                    )} />
-                                    <FormField control={form.control} name="barcode" render={({ field }) => (
-                                        <FormItem><FormLabel>Barcode</FormLabel>
-                                         <div className="flex gap-2">
-                                            <FormControl><Input placeholder="Scan or enter barcode" {...field} /></FormControl>
-                                            <Button type="button" variant="outline" size="icon"><Scan className="h-5 w-5"/></Button>
-                                         </div>
-                                         <FormMessage />
-                                        </FormItem>
-                                    )} />
-                                </div>
-                            </CardContent>
-                        </Card>
-                        <Card>
-                            <CardHeader><CardTitle>Inventory</CardTitle></CardHeader>
-                            <CardContent className="space-y-6">
-                                <FormField control={form.control} name="track_stock" render={({ field }) => (
-                                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4"><div className="space-y-0.5"><FormLabel className="text-base">Track Stock</FormLabel><FormDescription>Automatically deduct stock for each sale.</FormDescription></div><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem>
+                                <FormField control={form.control} name="price" render={({ field }) => (
+                                    <FormItem><FormLabel>Selling Price</FormLabel><FormControl><div className="relative"><span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">Rp</span><Input type="number" placeholder="8000" className="pl-10" {...field} /></div></FormControl><FormMessage /></FormItem>
                                 )} />
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <FormField control={form.control} name="cost_price" render={({ field }) => (
+                                    <FormItem><FormLabel>Cost Price</FormLabel><FormControl><div className="relative"><span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">Rp</span><Input type="number" placeholder="6500" className="pl-10" {...field} /></div></FormControl><FormDescription>Used to calculate profit.</FormDescription><FormMessage /></FormItem>
+                                )} />
+
+                                <FormField control={form.control} name="track_stock" render={({ field }) => (
+                                    <FormItem className="flex flex-row items-center justify-between border-t pt-4">
+                                        <FormLabel className="text-base">Track Stock</FormLabel>
+                                        <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem>
+                                )} />
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 border-b py-4">
                                     <FormField control={form.control} name="stock" render={({ field }) => (
                                         <FormItem><FormLabel>Initial Stock</FormLabel><FormControl><Input type="number" placeholder="50" {...field} disabled={!form.watch('track_stock')} /></FormControl><FormMessage /></FormItem>
                                     )} />
@@ -179,21 +173,19 @@ const ProductForm = ({ productId, onSave }: { productId: string | null, onSave: 
                                         <FormItem><FormLabel>Low Stock Alert</FormLabel><FormControl><Input type="number" placeholder="10" {...field} disabled={!form.watch('track_stock')} /></FormControl><FormMessage /></FormItem>
                                     )} />
                                 </div>
-                            </CardContent>
-                        </Card>
-                         <Card>
-                            <CardHeader><CardTitle>Customization</CardTitle></CardHeader>
-                             <CardContent className="space-y-6">
+
                                 <FormField control={form.control} name="has_modifier" render={({ field }) => (
-                                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                                        <div className="space-y-0.5"><FormLabel className="text-base">Enable Modifiers</FormLabel><FormDescription>Allow add-ons like toppings or sugar levels.</FormDescription></div>
+                                    <FormItem className="flex flex-row items-center justify-between">
+                                        <FormLabel className="text-base">Enable Modifiers</FormLabel>
                                         <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} disabled={form.watch('product_type') === 'retail'} /></FormControl>
                                     </FormItem>
                                 )} />
                                 {form.watch('has_modifier') && form.watch('product_type') === 'food_and_beverage' && (
                                     <FormField control={form.control} name="modifier_group_ids" render={() => (
-                                        <FormItem className="rounded-lg border p-4">
-                                            <div className="mb-4"><FormLabel className="text-base">Modifier Groups</FormLabel><FormDescription>Select which modifier groups can be applied.</FormDescription></div>
+                                        <FormItem className="border-b py-4">
+                                            <div className="mb-4"><FormLabel className="text-base">Modifier Groups</FormLabel>
+                                            {/* <FormDescription>Select which modifier groups can be applied.</FormDescription> */}
+                                            </div>
                                             <div className="space-y-2">
                                                 {modifierGroups.map((group) => (<FormField key={group.id} control={form.control} name="modifier_group_ids" render={({ field }) => {
                                                     return (<FormItem key={group.id} className="flex flex-row items-start space-x-3 space-y-0">
@@ -207,13 +199,13 @@ const ProductForm = ({ productId, onSave }: { productId: string | null, onSave: 
                                         </FormItem>
                                     )} />
                                 )}
-                            </CardContent>
-                        </Card>
-                        <Card>
-                            <CardHeader><CardTitle>Availability</CardTitle></CardHeader>
-                            <CardContent>
+
                                 <FormField control={form.control} name="is_active" render={({ field }) => (
-                                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4"><div className="space-y-0.5"><FormLabel className="text-base">Product Active</FormLabel><FormDescription>Allow this product to be sold.</FormDescription></div><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem>
+                                    <FormItem className="flex flex-row items-center justify-between">
+                                        <div className="space-y-0.5">
+                                            <FormLabel className="text-base">Product Active</FormLabel>
+                                        </div>
+                                    <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem>
                                 )} />
                             </CardContent>
                         </Card>
@@ -277,27 +269,34 @@ const CategoryManager = () => {
                 <Button size="sm" onClick={() => openDialog(null)}><PlusCircle className="mr-2 h-4 w-4" /> Add</Button>
             </div>
              <ScrollArea className="flex-grow">
-                <Table>
-                    <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
-                    <TableBody>
-                        {categories.map(cat => (
-                            <TableRow key={cat.id}>
-                                <TableCell className="font-medium">{cat.name}</TableCell>
-                                <TableCell><Badge variant={cat.is_active ? "default" : "outline"}>{cat.is_active ? "Active" : "Inactive"}</Badge></TableCell>
-                                <TableCell className="text-right">
-                                    <Button variant="ghost" size="icon" onClick={() => openDialog(cat)}><Edit className="h-4 w-4" /></Button>
-                                    <AlertDialog>
-                                        <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="text-destructive hover:text-destructive"><Trash className="h-4 w-4" /></Button></AlertDialogTrigger>
-                                        <AlertDialogContent>
-                                            <AlertDialogHeader><AlertDialogTitle>Are you sure?</AlertDialogTitle><AlertDialogDescription>This will soft-delete the category. It cannot be used for new products.</AlertDialogDescription></AlertDialogHeader>
-                                            <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDelete(cat.id)}>Confirm Delete</AlertDialogAction></AlertDialogFooter>
-                                        </AlertDialogContent>
-                                    </AlertDialog>
-                                </TableCell>
-                            </TableRow>
-                        ))}
-                    </TableBody>
-                </Table>
+                <Card>
+                    <CardContent className="pt-6">
+
+                        <Table>
+                            <TableHeader><TableRow><TableHead>Name</TableHead>
+                            {/* <TableHead>Status</TableHead> */}
+                            <TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
+                            <TableBody>
+                                {categories.map(cat => (
+                                    <TableRow key={cat.id}>
+                                        <TableCell className="font-medium">{cat.name}</TableCell>
+                                        {/* <TableCell><Badge variant={cat.is_active ? "default" : "outline"}>{cat.is_active ? "Active" : "Inactive"}</Badge></TableCell> */}
+                                        <TableCell className="text-right">
+                                            <Button variant="ghost" size="sm" onClick={() => openDialog(cat)}><Edit className="h-4 w-4" /></Button>
+                                            <AlertDialog>
+                                                <AlertDialogTrigger asChild><Button variant="ghost" size="sm" className="text-destructive hover:text-destructive"><Trash className="h-4 w-4" /></Button></AlertDialogTrigger>
+                                                <AlertDialogContent>
+                                                    <AlertDialogHeader><AlertDialogTitle>Are you sure?</AlertDialogTitle><AlertDialogDescription>This will soft-delete the category. It cannot be used for new products.</AlertDialogDescription></AlertDialogHeader>
+                                                    <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDelete(cat.id)}>Confirm Delete</AlertDialogAction></AlertDialogFooter>
+                                                </AlertDialogContent>
+                                            </AlertDialog>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </CardContent>
+                </Card>
              </ScrollArea>
              <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <DialogContent>
@@ -533,7 +532,7 @@ export default function ProductManagementPage() {
     }
 
     return (
-        <div className="w-full h-[calc(100vh-4rem)] md:grid md:grid-cols-10">
+        <div className="w-full md:grid md:grid-cols-10">
             {/* Left Panel: Product List */}
             <div className="col-span-10 md:col-span-6 lg:col-span-7 h-full flex flex-col bg-muted/40">
                 <div className="p-4 border-b">
@@ -544,9 +543,9 @@ export default function ProductManagementPage() {
                             viewMode={viewMode}
                             onViewModeChange={setViewMode}
                         />
-                        <Button onClick={handleAddNew} className="hidden md:inline-flex">
+                        {/* <Button onClick={handleAddNew} className="hidden md:inline-flex">
                            <PlusCircle className="mr-2 h-4 w-4"/> Add Product
-                        </Button>
+                        </Button> */}
                     </div>
                 </div>
                 <ScrollArea className="flex-grow">

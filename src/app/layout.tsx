@@ -3,6 +3,7 @@ import './globals.css';
 import { Toaster } from "@/components/ui/toaster"
 import { DbProvider } from '@/components/DbProvider';
 import { BottomNav } from '@/components/BottomNav';
+import { MobileChecker } from '@/components/MobileChecker';
 
 export const metadata: Metadata = {
   title: 'TokoCepat',
@@ -27,8 +28,9 @@ export default function RootLayout({
         />
       </head>
       <body className="font-body antialiased">
+        <MobileChecker />
         <DbProvider>
-          <div className="pb-24">{children}</div>
+          <div>{children}</div>
           <BottomNav />
         </DbProvider>
         <Toaster />

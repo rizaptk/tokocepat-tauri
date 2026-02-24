@@ -6,7 +6,6 @@ import { Header } from '@/components/Header';
 import { CartDisplay } from '@/components/CartDisplay';
 import { useStore } from '@/lib/store';
 import { Product, CartItem } from '@/lib/types';
-import { TokoCepatLogo } from '@/components/TokoCepatLogo';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -18,6 +17,7 @@ import { useToast } from '@/hooks/use-toast';
 import { ModifierPanel } from '@/components/ModifierPanel';
 import { cn } from '@/lib/utils';
 import { SelectedModifier } from '@/lib/types';
+import { useIsMobile } from '@/lib/ismobile-store';
 
 export type ViewMode = 'card' | 'thumbnail' | 'list';
 
@@ -25,6 +25,7 @@ export default function CashierPage() {
   // Global state from Zustand
   const { products, activeShift, openShift, saveItemToCart } = useStore();
   const { toast } = useToast();
+  const { isMobile } = useIsMobile();
   
   // Local state for UI
   const [searchTerm, setSearchTerm] = useState('');
@@ -146,8 +147,8 @@ export default function CashierPage() {
 
       {/* Desktop & Tablet Layout: Split View */}
       <div className="hidden md:grid md:grid-cols-5 lg:grid-cols-3 flex-1 overflow-hidden">
-        <main className="col-span-3 lg:col-span-2 flex flex-col p-4 overflow-y-auto relative">
-            <div className="mb-4 sticky top-0 bg-muted/40 py-2 z-10">
+        <main className="col-span-3 lg:col-span-2 flex flex-col overflow-y-auto relative">
+            <div className="bg-muted/40 z-10 border-b p-4">
                <ProductSearchBar 
                   searchTerm={searchTerm} 
                   onSearchTermChange={setSearchTerm}
@@ -155,11 +156,6 @@ export default function CashierPage() {
                   onViewModeChange={setViewMode}
                 />
             </div>
-            {isAutocompleteVisible && (
-                <div className="absolute top-20 left-4 right-4 z-20 bg-background border rounded-lg shadow-lg max-h-[60vh] overflow-y-auto">
-                     <ProductList products={filteredProducts} viewMode="list" isLoading={products.length === 0} onItemClick={handleProductSelect} context="cashier" />
-                </div>
-            )}
           <ProductList products={filteredProducts.length > 0 ? filteredProducts : products} viewMode={viewMode} isLoading={products.length === 0} onItemClick={handleProductSelect} context="cashier"/>
         </main>
         <aside className="col-span-2 lg:col-span-1 border-l bg-background flex flex-col">
@@ -168,26 +164,32 @@ export default function CashierPage() {
       </div>
 
       {/* Mobile Layout: Toggle between Cart and Product List */}
-      <div className="md:hidden flex flex-col flex-1 overflow-hidden relative">
-            <div className="p-4 border-b shrink-0 bg-background">
-                 <ProductSearchBar 
-                    searchTerm={searchTerm} 
-                    onSearchTermChange={setSearchTerm}
-                    viewMode={viewMode}
-                    onViewModeChange={setViewMode}
-                />
-            </div>
-            
-            {isAutocompleteVisible && (
-                <div className="absolute top-20 left-4 right-4 z-20 bg-background border rounded-lg shadow-lg max-h-[60vh] overflow-y-auto">
-                    <ProductList products={filteredProducts} viewMode="thumbnail" isLoading={products.length === 0} onItemClick={handleProductSelect} context="cashier" />
+      {
+        isMobile &&
+        <div className="md:hidden flex flex-col flex-1 overflow-hidden relative">
+                <div className="p-4 border-b shrink-0 bg-background">
+                    <ProductSearchBar 
+                        searchTerm={searchTerm} 
+                        onSearchTermChange={setSearchTerm}
+                        viewMode={viewMode}
+                        onViewModeChange={setViewMode}
+                    />
                 </div>
-            )}
-            
-            <div className={cn("flex-1 flex flex-col", isAutocompleteVisible ? 'opacity-20 pointer-events-none' : 'opacity-100')}>
-                <CartDisplay onEditItem={handleEditCartItem}/>
-            </div>
-      </div>
+                
+                {isAutocompleteVisible && (
+                    <div className="absolute top-16 left-3 right-3 z-20 bg-background border rounded-lg shadow-lg max-h-[70vh] overflow-y-auto">
+                        <ProductList products={filteredProducts} viewMode={viewMode} isLoading={products.length === 0} onItemClick={handleProductSelect} context="cashier" />
+                    </div>
+                )}
+                
+                <div className={cn("flex-1 flex flex-col", isAutocompleteVisible ? 'opacity-20 pointer-events-none' : 'opacity-100')}>
+                    <CartDisplay onEditItem={handleEditCartItem}/>
+                </div>
+
+                {/* do not remove */}
+                <div className='h-16 shrink-0'></div>
+        </div>
+      }
 
        <ModifierPanel 
             item={itemToModify} 
