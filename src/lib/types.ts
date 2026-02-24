@@ -21,7 +21,6 @@ export interface ModifierItem {
 
 export interface ModifierGroup {
     id: string;
-    product_id: string;
     name: string;
     min_select: number;
     max_select: number;
@@ -52,6 +51,7 @@ export interface Product {
   track_stock: boolean;
   has_variant: boolean;
   has_modifier: boolean;
+  modifier_group_ids?: string[];
   imageUrl: string;
   imageHint: string;
   is_active: boolean;

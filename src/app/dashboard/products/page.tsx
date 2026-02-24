@@ -7,7 +7,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { TokoCepatLogo } from "@/components/TokoCepatLogo";
 import { Button } from "@/components/ui/button";
-import { Library, PlusCircle } from "lucide-react";
+import { Library, PlusCircle, SlidersHorizontal } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 export default function ProductsManagementPage() {
@@ -41,6 +41,11 @@ export default function ProductsManagementPage() {
                         <Button variant="outline" asChild>
                             <Link href="/dashboard/categories">
                                 <Library className="mr-2 h-4 w-4" /> Manage Categories
+                            </Link>
+                        </Button>
+                        <Button variant="outline" asChild>
+                            <Link href="/dashboard/modifiers">
+                                <SlidersHorizontal className="mr-2 h-4 w-4" /> Manage Modifiers
                             </Link>
                         </Button>
                         <Button asChild>

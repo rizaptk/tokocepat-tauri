@@ -25,7 +25,7 @@ export const initialProducts: Product[] = [
   { id: '6', name: 'Roti Tawar', price: 12000, cost_price: 9000, stock: 40, ...getImageData('product-6'), track_stock: true, has_variant: false, has_modifier: false, is_active: true, product_type: 'retail', category_id: 'cat-3' },
   { id: '7', name: 'Susu UHT', price: 7000, cost_price: 5500, stock: 60, ...getImageData('product-7'), track_stock: true, has_variant: false, has_modifier: false, is_active: true, product_type: 'retail', category_id: 'cat-3' },
   { id: '8', name: 'Telur (10 butir)', price: 25000, cost_price: 22000, stock: 30, ...getImageData('product-8'), track_stock: true, has_variant: false, has_modifier: false, is_active: true, product_type: 'retail', category_id: 'cat-3' },
-  { id: '9', name: 'Kopi Seduh', price: 15000, cost_price: 8000, stock: 50, ...getImageData('product-9'), track_stock: false, has_variant: true, has_modifier: true, is_active: true, product_type: 'food_and_beverage', category_id: 'cat-4' },
+  { id: '9', name: 'Kopi Seduh', price: 15000, cost_price: 8000, stock: 50, ...getImageData('product-9'), track_stock: false, has_variant: true, has_modifier: true, is_active: true, product_type: 'food_and_beverage', category_id: 'cat-4', modifier_group_ids: ['mg1', 'mg2'] },
   { id: '10', name: 'Teh Celup Kotak', price: 10000, cost_price: 7000, stock: 65, ...getImageData('product-10'), track_stock: true, has_variant: false, has_modifier: false, is_active: true, product_type: 'retail', category_id: 'cat-4' },
   { id: '11', name: 'Biskuit', price: 9000, cost_price: 6500, stock: 90, ...getImageData('product-11'), track_stock: true, has_variant: false, has_modifier: false, is_active: true, product_type: 'retail', category_id: 'cat-2' },
   { id: '12', name: 'Minyak Goreng', price: 32000, cost_price: 28000, stock: 25, ...getImageData('product-12'), track_stock: true, has_variant: false, has_modifier: false, is_active: true, product_type: 'retail', category_id: 'cat-3', low_stock_alert: 5 },
@@ -39,8 +39,7 @@ export const initialVariants: ProductVariant[] = [
 
 export const initialModifierGroups: ModifierGroup[] = [
     { 
-        id: 'mg1', 
-        product_id: '9',
+        id: 'mg1',
         name: 'Tingkat Kemanisan', 
         min_select: 1, 
         max_select: 1, 
@@ -52,8 +51,7 @@ export const initialModifierGroups: ModifierGroup[] = [
         ]
     },
     { 
-        id: 'mg2', 
-        product_id: '9',
+        id: 'mg2',
         name: 'Tambahan', 
         min_select: 0, 
         max_select: 2, 

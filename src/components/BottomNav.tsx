@@ -56,6 +56,7 @@ export function BottomNav() {
           </PopoverTrigger>
           <PopoverContent side="top" align="center" className="mb-2 w-48 p-1">
               <Link href="/dashboard/categories" className="block w-full text-left p-2 rounded-md hover:bg-accent text-sm">Categories</Link>
+              <Link href="/dashboard/modifiers" className="block w-full text-left p-2 rounded-md hover:bg-accent text-sm">Modifiers</Link>
               <Link href="#" className="block w-full text-left p-2 rounded-md hover:bg-accent text-sm">Settings</Link>
               <Link href="#" className="block w-full text-left p-2 rounded-md hover:bg-accent text-sm">Reports</Link>
           </PopoverContent>
