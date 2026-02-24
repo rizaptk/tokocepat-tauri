@@ -2,7 +2,7 @@
 "use client";
 
 import Link from "next/link";
-import { Barcode, LayoutDashboard, LogOut, Search } from "lucide-react";
+import { Barcode, LogOut, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { TokoCepatLogo } from "@/components/TokoCepatLogo";
@@ -96,13 +96,6 @@ export function Header({ searchTerm, setSearchTerm }: HeaderProps) {
             </div>
           </DialogContent>
         </Dialog>
-
-        <Button asChild variant="outline" size="icon" className="h-9 w-9">
-          <Link href="/dashboard">
-            <LayoutDashboard className="h-4 w-4" />
-            <span className="sr-only">Dashboard</span>
-          </Link>
-        </Button>
 
         <AlertDialog>
           <AlertDialogTrigger asChild>

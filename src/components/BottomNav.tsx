@@ -17,16 +17,11 @@ const navItems = [
 export function BottomNav() {
   const pathname = usePathname();
 
-  if (pathname === '/') {
-    return null;
-  }
-
   const isActive = (href: string) => {
-    // Exact match for dashboard
-    if (href === '/dashboard') {
-      return pathname === href;
+    // Exact match for some routes, startsWith for others
+    if (href === '/dashboard' || href === '/cashier' || href === '/') {
+        return pathname === href;
     }
-    // Starts with for other routes to handle sub-pages
     return pathname.startsWith(href);
   };
 
