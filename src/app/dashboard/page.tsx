@@ -7,8 +7,11 @@ import { useStore } from "@/lib/store";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { TokoCepatLogo } from "@/components/TokoCepatLogo";
+import { useRouter } from "next/navigation";
+import { Badge } from "@/components/ui/badge";
 
 export default function DashboardPage() {
+  const router = useRouter();
   const products = useStore((state) => state.products);
   const shifts = useStore((state) => state.shifts);
   const closedShifts = shifts.filter(s => s.status === 'closed');
@@ -59,7 +62,7 @@ export default function DashboardPage() {
             <Card>
                 <CardHeader>
                     <CardTitle>Shift History</CardTitle>
-                    <CardDescription>Summary of previously closed shifts.</CardDescription>
+                    <CardDescription>Review previously closed shifts. Click a row to see details.</CardDescription>
                 </CardHeader>
                 <CardContent>
                    {closedShifts.length === 0 ? (
@@ -72,18 +75,20 @@ export default function DashboardPage() {
                         <TableHeader>
                             <TableRow>
                                 <TableHead>Date</TableHead>
+                                <TableHead>Status</TableHead>
                                 <TableHead className="text-right">Variance</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {closedShifts.map(shift => (
-                                <TableRow key={shift.id}>
+                                <TableRow key={shift.id} onClick={() => router.push(`/dashboard/shifts/${shift.id}`)} className="cursor-pointer">
                                     <TableCell>
                                         <div className="font-medium">{new Date(shift.opened_at).toLocaleDateString()}</div>
                                         <div className="text-xs text-muted-foreground">
                                             {new Date(shift.opened_at).toLocaleTimeString()} - {shift.closed_at ? new Date(shift.closed_at).toLocaleTimeString() : ''}
                                         </div>
                                     </TableCell>
+                                    <TableCell><Badge variant="secondary">CLOSED</Badge></TableCell>
                                     <TableCell className={`text-right font-medium ${shift.variance && shift.variance !== 0 ? 'text-destructive' : ''}`}>
                                         {formatCurrency(shift.variance || 0)}
                                     </TableCell>
