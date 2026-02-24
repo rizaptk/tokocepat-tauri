@@ -9,7 +9,7 @@ import { MobileCart } from '@/components/MobileCart';
 import { useStore } from '@/lib/store';
 import { useDbStore } from '@/lib/db-store';
 import { initialProducts, initialVariants, initialModifierGroups } from '@/lib/products';
-import { Product, ProductVariant, ModifierGroup, Transaction, Shift } from '@/lib/types';
+import { Product, ProductVariant, ModifierGroup, Transaction, Shift, StoreConfig } from '@/lib/types';
 import { TokoCepatLogo } from '@/components/TokoCepatLogo';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -27,6 +27,7 @@ export default function CashierPage() {
   const setModifierGroups = useStore((state) => state.setModifierGroups);
   const setTransactions = useStore((state) => state.setTransactions);
   const setShifts = useStore((state) => state.setShifts);
+  const setStoreConfig = useStore((state) => state.setStoreConfig);
   const activeShift = useStore((state) => state.activeShift);
   const openShift = useStore((state) => state.openShift);
 
@@ -44,6 +45,7 @@ export default function CashierPage() {
     let unsubModifiers: (() => void) | undefined;
     let unsubTransactions: (() => void) | undefined;
     let unsubShifts: (() => void) | undefined;
+    let unsubStoreConfig: (() => void) | undefined;
 
     const setupData = async () => {
       try {
@@ -89,6 +91,26 @@ export default function CashierPage() {
           console.log("Database version is up to date.");
         }
         
+        const storeConfigRef = doc(db, 'store_config', 'main');
+        const configSnap = await getDocs(collection(db, 'store_config'));
+        if (configSnap.docs.length === 0) {
+            console.log('Seeding initial store config...');
+            const initialConfig: StoreConfig = {
+                id: 'main',
+                store_name: 'TokoCepat',
+                tax_rate: 0.11,
+                currency: 'IDR',
+                receipt_footer: 'Terima kasih telah berbelanja!'
+            };
+            await setDoc(storeConfigRef, initialConfig);
+        }
+
+        unsubStoreConfig = onSnapshot(storeConfigRef, (docSnap: any) => {
+            if (docSnap.exists()) {
+                setStoreConfig(docSnap.data() as StoreConfig);
+            }
+        });
+        
         unsubProducts = onSnapshot(collection(db, 'products'), (snapshot: any) => {
           const productList = snapshot.docs.map((doc: any) => doc.data() as Product);
           setProducts(productList);
@@ -129,8 +151,9 @@ export default function CashierPage() {
       if (unsubModifiers) unsubModifiers();
       if (unsubTransactions) unsubTransactions();
       if (unsubShifts) unsubShifts();
+      if (unsubStoreConfig) unsubStoreConfig();
     };
-  }, [isInitialized, db, firesqlite, setProducts, setProductVariants, setModifierGroups, setTransactions, setShifts, isDataLoading]);
+  }, [isInitialized, db, firesqlite, setProducts, setProductVariants, setModifierGroups, setTransactions, setShifts, setStoreConfig, isDataLoading]);
 
   const filteredProducts = products.filter(product =>
     product.name.toLowerCase().includes(searchTerm.toLowerCase())

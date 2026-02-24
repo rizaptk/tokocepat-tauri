@@ -3,11 +3,9 @@
 
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { Product, CartItem, Transaction, Category, ModifierGroup, ProductVariant, Shift } from '@/lib/types';
+import { Product, CartItem, Transaction, Category, ModifierGroup, ProductVariant, Shift, StoreConfig } from '@/lib/types';
 import { toast } from '@/hooks/use-toast';
 import { useDbStore } from './db-store';
-
-const TAX_RATE = 0.11; // PPN 11%
 
 interface StoreState {
   products: Product[];
@@ -18,6 +16,7 @@ interface StoreState {
   transactions: Transaction[];
   shifts: Shift[];
   activeShift: Shift | null;
+  storeConfig: StoreConfig | null;
   
   // Actions
   setProducts: (products: Product[]) => void;
@@ -26,6 +25,7 @@ interface StoreState {
   setProductVariants: (productVariants: ProductVariant[]) => void;
   setTransactions: (transactions: Transaction[]) => void;
   setShifts: (shifts: Shift[]) => void;
+  setStoreConfig: (config: StoreConfig) => void;
   addToCart: (product: Product) => void;
   removeFromCart: (productId: string) => void;
   updateQuantity: (productId: string, quantity: number) => void;
@@ -46,6 +46,7 @@ export const useStore = create<StoreState>()(
       transactions: [],
       shifts: [],
       activeShift: null,
+      storeConfig: null,
     
       setProducts: (products) => set({ products }),
       setCategories: (categories) => set({ categories }),
@@ -57,6 +58,7 @@ export const useStore = create<StoreState>()(
         const activeShift = sortedShifts.find(s => s.status === 'open') || null;
         set({ shifts: sortedShifts, activeShift });
       },
+      setStoreConfig: (config) => set({ storeConfig: config }),
     
       addToCart: (product: Product) => {
         const { products, cart, activeShift } = get();
@@ -172,7 +174,7 @@ export const useStore = create<StoreState>()(
       },
 
       checkout: async (cashReceived: number): Promise<Transaction | null> => {
-        const { cart, activeShift } = get();
+        const { cart, activeShift, storeConfig } = get();
         const { db, firesqlite } = useDbStore.getState();
 
         if (!activeShift) {
@@ -184,7 +186,8 @@ export const useStore = create<StoreState>()(
         const { doc, getDoc, setDoc, updateDoc } = firesqlite;
     
         const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
-        const tax_amount = subtotal * TAX_RATE;
+        const taxRate = storeConfig?.tax_rate ?? 0.11;
+        const tax_amount = subtotal * taxRate;
         const total = subtotal + tax_amount;
     
         if (cashReceived < total) {
@@ -264,7 +267,7 @@ export const useStore = create<StoreState>()(
       storage: createJSONStorage(() => localStorage),
        partialize: (state) =>
         Object.fromEntries(
-          Object.entries(state).filter(([key]) => !['products', 'transactions', 'modifierGroups', 'productVariants', 'categories', 'shifts', 'activeShift'].includes(key))
+          Object.entries(state).filter(([key]) => !['products', 'transactions', 'modifierGroups', 'productVariants', 'categories', 'shifts', 'activeShift', 'storeConfig'].includes(key))
         ),
     }
   )

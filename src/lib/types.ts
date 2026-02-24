@@ -1,6 +1,15 @@
+
 export interface Category {
     id: string;
     name: string;
+}
+
+export interface StoreConfig {
+    id: string;
+    store_name: string;
+    tax_rate: number;
+    currency: string;
+    receipt_footer?: string;
 }
 
 export interface ModifierItem {

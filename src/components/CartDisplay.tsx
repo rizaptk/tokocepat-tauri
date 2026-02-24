@@ -15,13 +15,15 @@ import { useToast } from "@/hooks/use-toast";
 export function CartDisplay({ onCheckout }: { onCheckout?: () => void }) {
   const cart = useStore((state) => state.cart);
   const activeShift = useStore((state) => state.activeShift);
+  const storeConfig = useStore((state) => state.storeConfig);
   const removeFromCart = useStore((state) => state.removeFromCart);
   const updateQuantity = useStore((state) => state.updateQuantity);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const { toast } = useToast();
 
+  const taxRate = storeConfig?.tax_rate ?? 0.11;
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const tax = subtotal * 0.11;
+  const tax = subtotal * taxRate;
   const total = subtotal + tax;
   
   const formatCurrency = (amount: number) => {
@@ -104,7 +106,7 @@ export function CartDisplay({ onCheckout }: { onCheckout?: () => void }) {
                 <span>{formatCurrency(subtotal)}</span>
               </div>
               <div className="flex justify-between">
-                <span>Tax (11%)</span>
+                <span>Tax ({Math.round(taxRate * 100)}%)</span>
                 <span>{formatCurrency(tax)}</span>
               </div>
               <Separator />
