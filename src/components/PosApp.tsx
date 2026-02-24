@@ -6,12 +6,14 @@ import { ProductGrid } from '@/components/ProductGrid';
 import { Cart } from '@/components/Cart';
 import { MobileCart } from '@/components/MobileCart';
 import { useStore } from '@/lib/store';
+import { useDbStore } from '@/lib/db-store';
 import { initialProducts, initialVariants, initialModifierGroups } from '@/lib/products';
 import { Product, ProductVariant, ModifierGroup } from '@/lib/types';
+import { Skeleton } from './ui/skeleton';
+import { TokoCepatLogo } from './TokoCepatLogo';
 
-const DB_NAME = 'tokoc-db';
 const DB_VERSION_KEY = 'tokoc_db_version';
-const CURRENT_DB_VERSION = '1.0.1'; // Bump version for new schema
+const CURRENT_DB_VERSION = '1.0.1';
 
 export default function PosApp() {
   const products = useStore((state) => state.products);
@@ -20,35 +22,23 @@ export default function PosApp() {
   const setModifierGroups = useStore((state) => state.setModifierGroups);
 
   const [searchTerm, setSearchTerm] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
-  const [isMount, setIsMount] = useState(false);
+  const [isDataLoading, setIsDataLoading] = useState(true);
+
+  // Use the new DB store
+  const { isInitialized, db, firesqlite } = useDbStore();
 
   useEffect(() => {
-    setIsMount(true);
-  }, []);
-
-  useEffect(() => {
-    if (!isMount) return;
+    // Wait for the DB to be initialized
+    if (!isInitialized || !db || !firesqlite) return;
 
     let unsubProducts: (() => void) | undefined;
     let unsubVariants: (() => void) | undefined;
     let unsubModifiers: (() => void) | undefined;
 
-    const setup = async () => {
+    const setupData = async () => {
       try {
-        const { 
-          initializeFirestoreSQLite, 
-          getFirestore, 
-          collection, 
-          onSnapshot,
-          getDocs,
-          doc,
-          setDoc
-        } = await import('firesqlite');
-
-        const wasmUrl = new URL('/wa-sqlite-async.wasm', window.location.origin).href;
-        await initializeFirestoreSQLite(wasmUrl, DB_NAME);
-        const db = getFirestore();
+        // De-structure firesqlite functions
+        const { collection, onSnapshot, getDocs, doc, setDoc } = firesqlite;
         
         // Seeding logic
         const storedVersion = localStorage.getItem(DB_VERSION_KEY);
@@ -98,7 +88,7 @@ export default function PosApp() {
         unsubProducts = onSnapshot(collection(db, 'products'), (snapshot: any) => {
           const productList = snapshot.docs.map((doc: any) => doc.data() as Product);
           setProducts(productList);
-          if (isLoading) setIsLoading(false);
+          if (isDataLoading) setIsDataLoading(false);
         });
 
         unsubVariants = onSnapshot(collection(db, 'product_variants'), (snapshot: any) => {
@@ -112,32 +102,46 @@ export default function PosApp() {
         });
 
       } catch (error: any) {
-        console.error("Failed to initialize or subscribe to data:", error);
-        setIsLoading(false);
+        console.error("Failed to subscribe to data:", error);
+        setIsDataLoading(false);
       }
     };
 
-    setup();
+    setupData();
 
     return () => {
-      if (isMount) {
-        if (unsubProducts) unsubProducts();
-        if (unsubVariants) unsubVariants();
-        if (unsubModifiers) unsubModifiers();
-      }
+      // Cleanup subscriptions on component unmount
+      if (unsubProducts) unsubProducts();
+      if (unsubVariants) unsubVariants();
+      if (unsubModifiers) unsubModifiers();
     };
-  }, [setProducts, setProductVariants, setModifierGroups, isMount]);
+  }, [isInitialized, db, firesqlite, setProducts, setProductVariants, setModifierGroups, isDataLoading]);
 
   const filteredProducts = products.filter(product =>
     product.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
+  
+  // Show a global loading state until DB is ready
+  if (!isInitialized) {
+      return (
+        <div className="flex h-screen w-full items-center justify-center bg-background">
+          <div className="flex flex-col items-center gap-4">
+            <TokoCepatLogo />
+            <p className="text-muted-foreground">Initializing Database...</p>
+            <div className="w-48 h-2 bg-muted rounded-full overflow-hidden">
+                <div className="h-full bg-primary animate-pulse w-full"></div>
+            </div>
+          </div>
+        </div>
+      )
+  }
 
   return (
     <div className="flex h-screen w-full bg-muted/40">
       <div className="flex flex-col flex-1">
         <Header searchTerm={searchTerm} setSearchTerm={setSearchTerm} />
         <main className="flex-1 p-4 md:p-6 overflow-y-auto">
-          <ProductGrid products={filteredProducts} isLoading={isLoading} />
+          <ProductGrid products={filteredProducts} isLoading={isDataLoading} />
         </main>
       </div>
       <Cart />
