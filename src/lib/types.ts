@@ -80,3 +80,14 @@ export interface StockMovement {
     reference_id: string; // transaction_id for sales
     created_at: string;
 }
+
+export interface Shift {
+    id: string;
+    opened_at: string;
+    opening_cash: number;
+    closed_at?: string;
+    declared_cash?: number;
+    system_cash?: number;
+    variance?: number;
+    status: 'open' | 'closed';
+}

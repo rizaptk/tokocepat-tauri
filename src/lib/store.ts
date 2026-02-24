@@ -3,7 +3,7 @@
 
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { Product, CartItem, Transaction, Category, ModifierGroup, ProductVariant } from '@/lib/types';
+import { Product, CartItem, Transaction, Category, ModifierGroup, ProductVariant, Shift } from '@/lib/types';
 import { toast } from '@/hooks/use-toast';
 import { useDbStore } from './db-store';
 
@@ -16,7 +16,8 @@ interface StoreState {
   productVariants: ProductVariant[];
   cart: CartItem[];
   transactions: Transaction[];
-  beginningBalance: number;
+  shifts: Shift[];
+  activeShift: Shift | null;
   
   // Actions
   setProducts: (products: Product[]) => void;
@@ -24,12 +25,14 @@ interface StoreState {
   setModifierGroups: (modifierGroups: ModifierGroup[]) => void;
   setProductVariants: (productVariants: ProductVariant[]) => void;
   setTransactions: (transactions: Transaction[]) => void;
+  setShifts: (shifts: Shift[]) => void;
   addToCart: (product: Product) => void;
   removeFromCart: (productId: string) => void;
   updateQuantity: (productId: string, quantity: number) => void;
   clearCart: () => void;
   checkout: (cashReceived: number) => Promise<Transaction | null>;
-  setBeginningBalance: (amount: number) => void;
+  openShift: (openingCash: number) => Promise<void>;
+  closeShift: (declaredCash: number) => Promise<void>;
 }
 
 export const useStore = create<StoreState>()(
@@ -41,13 +44,19 @@ export const useStore = create<StoreState>()(
       productVariants: [],
       cart: [],
       transactions: [],
-      beginningBalance: 0,
+      shifts: [],
+      activeShift: null,
     
       setProducts: (products) => set({ products }),
       setCategories: (categories) => set({ categories }),
       setModifierGroups: (modifierGroups) => set({ modifierGroups }),
       setProductVariants: (productVariants) => set({ productVariants }),
       setTransactions: (transactions) => set({ transactions: transactions.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()) }),
+      setShifts: (shifts) => {
+        const sortedShifts = shifts.sort((a, b) => new Date(b.opened_at).getTime() - new Date(a.opened_at).getTime());
+        const activeShift = sortedShifts.find(s => s.status === 'open') || null;
+        set({ shifts: sortedShifts, activeShift });
+      },
     
       addToCart: (product: Product) => {
         const { products, cart } = get();
@@ -116,14 +125,50 @@ export const useStore = create<StoreState>()(
         set({ cart: [] });
       },
       
-      setBeginningBalance: (amount: number) => {
-        set({ beginningBalance: amount < 0 ? 0 : amount });
+      openShift: async (openingCash: number) => {
+        const { db, firesqlite } = useDbStore.getState();
+        if (get().activeShift || !db || !firesqlite) return;
+        
+        const { doc, setDoc } = firesqlite;
+        const now = new Date().toISOString();
+        const newShift: Shift = {
+            id: now,
+            opened_at: now,
+            opening_cash: openingCash,
+            status: 'open'
+        };
+        await setDoc(doc(db, 'shifts', newShift.id), newShift);
       },
-    
+      
+      closeShift: async (declaredCash: number) => {
+        const { activeShift, transactions } = get();
+        const { db, firesqlite } = useDbStore.getState();
+        if (!activeShift || !db || !firesqlite) return;
+
+        const { doc, updateDoc } = firesqlite;
+
+        const shiftTransactions = transactions.filter(t => t.shift_id === activeShift.id);
+        const system_cash = activeShift.opening_cash + shiftTransactions.reduce((sum, t) => t.total, 0);
+
+        const updatedShift: Partial<Shift> = {
+            closed_at: new Date().toISOString(),
+            declared_cash: declaredCash,
+            system_cash: system_cash,
+            variance: declaredCash - system_cash,
+            status: 'closed'
+        };
+
+        await updateDoc(doc(db, 'shifts', activeShift.id), updatedShift);
+      },
+
       checkout: async (cashReceived: number): Promise<Transaction | null> => {
-        const { cart } = get();
+        const { cart, activeShift } = get();
         const { db, firesqlite } = useDbStore.getState();
 
+        if (!activeShift) {
+            toast({ variant: 'destructive', title: 'Shift Closed', description: 'Please open a shift to process transactions.' });
+            return null;
+        }
         if (cart.length === 0 || !db || !firesqlite) return null;
 
         const { doc, getDoc, setDoc, updateDoc } = firesqlite;
@@ -143,6 +188,7 @@ export const useStore = create<StoreState>()(
         const newTransaction: Transaction = {
           id: transactionId,
           invoice_number: invoiceNumber,
+          shift_id: activeShift.id,
           items: cart.map(item => ({
             id: `${transactionId}-${item.id}`,
             transaction_id: transactionId,
@@ -208,7 +254,7 @@ export const useStore = create<StoreState>()(
       storage: createJSONStorage(() => localStorage),
        partialize: (state) =>
         Object.fromEntries(
-          Object.entries(state).filter(([key]) => !['products', 'transactions', 'modifierGroups', 'productVariants', 'categories'].includes(key))
+          Object.entries(state).filter(([key]) => !['products', 'transactions', 'modifierGroups', 'productVariants', 'categories', 'shifts', 'activeShift'].includes(key))
         ),
     }
   )

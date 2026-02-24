@@ -8,12 +8,11 @@ import { MobileCart } from '@/components/MobileCart';
 import { useStore } from '@/lib/store';
 import { useDbStore } from '@/lib/db-store';
 import { initialProducts, initialVariants, initialModifierGroups } from '@/lib/products';
-import { Product, ProductVariant, ModifierGroup, Transaction } from '@/lib/types';
-import { Skeleton } from './ui/skeleton';
+import { Product, ProductVariant, ModifierGroup, Transaction, Shift } from '@/lib/types';
 import { TokoCepatLogo } from './TokoCepatLogo';
 
 const DB_VERSION_KEY = 'tokoc_db_version';
-const CURRENT_DB_VERSION = '1.0.2'; // Incremented version
+const CURRENT_DB_VERSION = '1.0.3'; // Incremented version
 
 export default function PosApp() {
   const products = useStore((state) => state.products);
@@ -21,7 +20,7 @@ export default function PosApp() {
   const setProductVariants = useStore((state) => state.setProductVariants);
   const setModifierGroups = useStore((state) => state.setModifierGroups);
   const setTransactions = useStore((state) => state.setTransactions);
-
+  const setShifts = useStore((state) => state.setShifts);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [isDataLoading, setIsDataLoading] = useState(true);
@@ -35,6 +34,7 @@ export default function PosApp() {
     let unsubVariants: (() => void) | undefined;
     let unsubModifiers: (() => void) | undefined;
     let unsubTransactions: (() => void) | undefined;
+    let unsubShifts: (() => void) | undefined;
 
     const setupData = async () => {
       try {
@@ -101,6 +101,11 @@ export default function PosApp() {
             setTransactions(transactionList);
         });
 
+        unsubShifts = onSnapshot(collection(db, 'shifts'), (snapshot: any) => {
+          const shiftList = snapshot.docs.map((doc: any) => doc.data() as Shift);
+          setShifts(shiftList);
+      });
+
       } catch (error: any) {
         console.error("Failed to subscribe to data:", error);
         setIsDataLoading(false);
@@ -114,8 +119,9 @@ export default function PosApp() {
       if (unsubVariants) unsubVariants();
       if (unsubModifiers) unsubModifiers();
       if (unsubTransactions) unsubTransactions();
+      if (unsubShifts) unsubShifts();
     };
-  }, [isInitialized, db, firesqlite, setProducts, setProductVariants, setModifierGroups, setTransactions, isDataLoading]);
+  }, [isInitialized, db, firesqlite, setProducts, setProductVariants, setModifierGroups, setTransactions, setShifts, isDataLoading]);
 
   const filteredProducts = products.filter(product =>
     product.name.toLowerCase().includes(searchTerm.toLowerCase())
