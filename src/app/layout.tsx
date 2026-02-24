@@ -28,7 +28,7 @@ export default function RootLayout({
       </head>
       <body className="font-body antialiased">
         <DbProvider>
-          <div className="pb-16 md:pb-0">{children}</div>
+          <div className="pb-24">{children}</div>
           <BottomNav />
         </DbProvider>
         <Toaster />
