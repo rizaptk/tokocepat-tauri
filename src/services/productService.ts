@@ -3,8 +3,8 @@ import { Product, ProductType } from '@/lib/types';
 import { useDbStore } from '@/lib/db-store';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 
-// This type should match the Zod schema in NewProductPage
-type NewProductData = {
+// This type should match the Zod schema in the form dialog
+export type ProductFormData = {
     name: string;
     price: number;
     stock: number;
@@ -18,7 +18,7 @@ type NewProductData = {
     has_modifier: boolean;
 }
 
-export const addProduct = async (productData: NewProductData): Promise<Product | null> => {
+export const addProduct = async (productData: ProductFormData): Promise<Product | null> => {
     const { db, firesqlite } = useDbStore.getState();
     if (!db || !firesqlite) throw new Error("Database not initialized");
 
@@ -37,4 +37,14 @@ export const addProduct = async (productData: NewProductData): Promise<Product |
     await setDoc(doc(db, 'products', newProduct.id), newProduct);
     
     return newProduct;
+};
+
+export const updateProduct = async (id: string, productData: ProductFormData): Promise<void> => {
+    const { db, firesqlite } = useDbStore.getState();
+    if (!db || !firesqlite) throw new Error("Database not initialized");
+
+    const { doc, updateDoc } = firesqlite;
+    
+    // We only pass the fields that can be edited from the form
+    await updateDoc(doc(db, 'products', id), productData);
 };
