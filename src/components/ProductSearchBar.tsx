@@ -11,8 +11,8 @@ import type { ViewMode } from "@/app/cashier/page";
 interface ProductSearchBarProps {
     searchTerm: string;
     onSearchTermChange: (term: string) => void;
-    viewMode: ViewMode;
-    onViewModeChange: (mode: ViewMode) => void;
+    viewMode?: ViewMode;
+    onViewModeChange?: (mode: ViewMode) => void;
 }
 
 export function ProductSearchBar({ searchTerm, onSearchTermChange, viewMode, onViewModeChange }: ProductSearchBarProps) {
@@ -47,26 +47,28 @@ export function ProductSearchBar({ searchTerm, onSearchTermChange, viewMode, onV
                     </div>
                 </DialogContent>
             </Dialog>
-            <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="icon" className="shrink-0">
-                       <SlidersHorizontal className="h-5 w-5" />
-                    </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent>
-                    <DropdownMenuRadioGroup value={viewMode} onValueChange={(value) => onViewModeChange(value as ViewMode)}>
-                        <DropdownMenuRadioItem value="card">
-                            <Grid className="mr-2" /> Card View
-                        </DropdownMenuRadioItem>
-                         <DropdownMenuRadioItem value="thumbnail">
-                            <Rows className="mr-2" /> Thumbnail View
-                        </DropdownMenuRadioItem>
-                         <DropdownMenuRadioItem value="list">
-                            <List className="mr-2" /> List View
-                        </DropdownMenuRadioItem>
-                    </DropdownMenuRadioGroup>
-                </DropdownMenuContent>
-            </DropdownMenu>
+            {viewMode && onViewModeChange && (
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button variant="outline" size="icon" className="shrink-0">
+                           <SlidersHorizontal className="h-5 w-5" />
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent>
+                        <DropdownMenuRadioGroup value={viewMode} onValueChange={(value) => onViewModeChange(value as ViewMode)}>
+                            <DropdownMenuRadioItem value="card">
+                                <Grid className="mr-2" /> Card View
+                            </DropdownMenuRadioItem>
+                             <DropdownMenuRadioItem value="thumbnail">
+                                <Rows className="mr-2" /> Thumbnail View
+                            </DropdownMenuRadioItem>
+                             <DropdownMenuRadioItem value="list">
+                                <List className="mr-2" /> List View
+                            </DropdownMenuRadioItem>
+                        </DropdownMenuRadioGroup>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            )}
         </div>
     )
 }
