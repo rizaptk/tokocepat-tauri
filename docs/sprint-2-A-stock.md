@@ -35,8 +35,8 @@
 
 #### 4️⃣ Barcode / QR System
 - [x] Add `barcode` and `sku` fields to the `Product` and `ProductVariant` schemas.
-- [ ] Implement a "Scan Barcode" button that opens the camera modal (integration with a scanning library can be a separate task).
-- [ ] Add a button to auto-generate a unique internal barcode/SKU if none is provided.
+- [x] Implement a "Scan Barcode" button that opens the camera modal (integration with a scanning library can be a separate task).
+- [x] Add a button to auto-generate a unique internal barcode/SKU if none is provided.
 - [ ] Implement a backend check in `productService` to ensure all barcodes and SKUs are unique across all products and variants.
 
 #### 5️⃣ Inventory & Stock Management

@@ -27,11 +27,11 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 
 // Icons
-import { PlusCircle, Edit, Trash, SlidersHorizontal, Library, Package, Menu, Scan } from "lucide-react";
+import { PlusCircle, Edit, Trash, SlidersHorizontal, Library, Package, Menu, Scan, Barcode, Zap } from "lucide-react";
 
 // Services
 import { addProduct, updateProduct } from "@/services/productService";
@@ -148,10 +148,37 @@ const ProductForm = ({ productId, onSave }: { productId: string | null, onSave: 
                                     </FormItem>
                                 )} />
                                 <FormField control={form.control} name="barcode" render={({ field }) => (
-                                    <FormItem><FormLabel>Barcode</FormLabel>
-                                        <div className="flex gap-2">
-                                        <FormControl><Input placeholder="Scan or enter barcode" {...field} /></FormControl>
-                                        <Button type="button" variant="outline" size="icon"><Scan className="h-5 w-5"/></Button>
+                                    <FormItem>
+                                        <FormLabel>Barcode</FormLabel>
+                                        <FormControl>
+                                            <Input placeholder="Scan or enter barcode" {...field} />
+                                        </FormControl>
+                                        <div className="flex gap-2 pt-2">
+                                            <Dialog>
+                                                <DialogTrigger asChild>
+                                                    <Button type="button" variant="outline" className="w-full">
+                                                        <Scan className="h-4 w-4" /> Scan
+                                                    </Button>
+                                                </DialogTrigger>
+                                                <DialogContent>
+                                                    <DialogHeader>
+                                                        <DialogTitle>Barcode Scanner</DialogTitle>
+                                                        <DialogDescription>
+                                                            This feature is for demonstration purposes. In a real app, this would open the device's camera to scan product barcodes.
+                                                        </DialogDescription>
+                                                    </DialogHeader>
+                                                    <div className="flex flex-col items-center justify-center gap-4 py-8">
+                                                        <Barcode className="h-24 w-24 text-muted-foreground" />
+                                                        <p className="text-muted-foreground">Ready to scan</p>
+                                                    </div>
+                                                </DialogContent>
+                                            </Dialog>
+                                            <Button type="button" variant="outline" className="w-full" onClick={() => {
+                                                const randomBarcode = Math.floor(1000000000000 + Math.random() * 9000000000000).toString();
+                                                form.setValue('barcode', randomBarcode, { shouldValidate: true });
+                                            }}>
+                                                <Zap className="h-4 w-4" /> Generate
+                                            </Button>
                                         </div>
                                         <FormMessage />
                                     </FormItem>
