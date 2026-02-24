@@ -2,6 +2,7 @@
 export interface Category {
     id: string;
     name: string;
+    is_active: boolean;
 }
 
 export interface StoreConfig {
@@ -37,6 +38,8 @@ export interface ProductVariant {
     stock: number;
 }
 
+export type ProductType = 'retail' | 'food_and_beverage';
+
 export interface Product {
   id: string;
   sku?: string;
@@ -52,6 +55,8 @@ export interface Product {
   imageUrl: string;
   imageHint: string;
   is_active: boolean;
+  product_type: ProductType;
+  low_stock_alert?: number;
 }
 
 export interface CartItem extends Product {
@@ -61,7 +66,7 @@ export interface CartItem extends Product {
 export interface TransactionItem {
     id: string;
     transaction_id: string;
-    product_snapshot: Omit<Product, 'stock' | 'track_stock' | 'has_variant' | 'has_modifier' | 'is_active'>;
+    product_snapshot: Omit<Product, 'stock' | 'track_stock' | 'has_variant' | 'has_modifier' | 'is_active' | 'low_stock_alert'>;
     price_snapshot: number;
     cost_snapshot?: number;
     qty: number;

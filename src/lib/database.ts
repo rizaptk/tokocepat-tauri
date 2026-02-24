@@ -1,8 +1,8 @@
-import { Product, ProductVariant, ModifierGroup, StoreConfig } from '@/lib/types';
-import { initialProducts, initialVariants, initialModifierGroups } from '@/lib/products';
+import { Product, ProductVariant, ModifierGroup, StoreConfig, Category } from '@/lib/types';
+import { initialProducts, initialVariants, initialModifierGroups, initialCategories } from '@/lib/products';
 
 const DB_VERSION_KEY = 'tokoc_db_version';
-const CURRENT_DB_VERSION = '1.0.3';
+const CURRENT_DB_VERSION = '1.0.4';
 
 export const seedDatabase = async (firesqlite: any, db: any) => {
     if (!firesqlite || !db) return;
@@ -17,6 +17,15 @@ export const seedDatabase = async (firesqlite: any, db: any) => {
         }
 
         console.log('Database version mismatch or not set. Seeding data...');
+
+        // Seed Categories
+        const categoriesCollectionRef = collection(db, 'categories');
+        const existingCats = await getDocs(categoriesCollectionRef);
+        if (existingCats.docs.length === 0) {
+            console.log('Seeding initial categories...');
+            const categoryPromises = initialCategories.map((c: Category) => setDoc(doc(db, 'categories', c.id), c));
+            await Promise.all(categoryPromises);
+        }
         
         // Seed Products
         const productsCollectionRef = collection(db, 'products');

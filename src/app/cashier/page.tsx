@@ -7,7 +7,7 @@ import { Cart } from '@/components/Cart';
 import { MobileCart } from '@/components/MobileCart';
 import { useStore } from '@/lib/store';
 import { useDbStore } from '@/lib/db-store';
-import { Product, ProductVariant, ModifierGroup, Transaction, Shift, StoreConfig } from '@/lib/types';
+import { Product, ProductVariant, ModifierGroup, Transaction, Shift, StoreConfig, Category } from '@/lib/types';
 import { TokoCepatLogo } from '@/components/TokoCepatLogo';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -24,6 +24,7 @@ export default function CashierPage() {
   const setTransactions = useStore((state) => state.setTransactions);
   const setShifts = useStore((state) => state.setShifts);
   const setStoreConfig = useStore((state) => state.setStoreConfig);
+  const setCategories = useStore((state) => state.setCategories);
   const activeShift = useStore((state) => state.activeShift);
   const openShift = useStore((state) => state.openShift);
 
@@ -42,6 +43,7 @@ export default function CashierPage() {
     let unsubTransactions: (() => void) | undefined;
     let unsubShifts: (() => void) | undefined;
     let unsubStoreConfig: (() => void) | undefined;
+    let unsubCategories: (() => void) | undefined;
 
     const setupData = async () => {
       try {
@@ -79,7 +81,12 @@ export default function CashierPage() {
         unsubShifts = onSnapshot(collection(db, 'shifts'), (snapshot: any) => {
           const shiftList = snapshot.docs.map((doc: any) => doc.data() as Shift);
           setShifts(shiftList);
-      });
+        });
+
+        unsubCategories = onSnapshot(collection(db, 'categories'), (snapshot: any) => {
+            const categoryList = snapshot.docs.map((doc: any) => doc.data() as Category);
+            setCategories(categoryList);
+        });
 
       } catch (error: any) {
         console.error("Failed to subscribe to data:", error);
@@ -96,8 +103,9 @@ export default function CashierPage() {
       if (unsubTransactions) unsubTransactions();
       if (unsubShifts) unsubShifts();
       if (unsubStoreConfig) unsubStoreConfig();
+      if (unsubCategories) unsubCategories();
     };
-  }, [isInitialized, db, firesqlite, setProducts, setProductVariants, setModifierGroups, setTransactions, setShifts, setStoreConfig, isDataLoading]);
+  }, [isInitialized, db, firesqlite, setProducts, setProductVariants, setModifierGroups, setTransactions, setShifts, setStoreConfig, setCategories, isDataLoading]);
 
   const filteredProducts = products.filter(product =>
     product.name.toLowerCase().includes(searchTerm.toLowerCase())
