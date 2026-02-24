@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -8,7 +7,6 @@ import { Cart } from '@/components/Cart';
 import { MobileCart } from '@/components/MobileCart';
 import { useStore } from '@/lib/store';
 import { useDbStore } from '@/lib/db-store';
-import { initialProducts, initialVariants, initialModifierGroups } from '@/lib/products';
 import { Product, ProductVariant, ModifierGroup, Transaction, Shift, StoreConfig } from '@/lib/types';
 import { TokoCepatLogo } from '@/components/TokoCepatLogo';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,9 +14,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { LogIn } from 'lucide-react';
-
-const DB_VERSION_KEY = 'tokoc_db_version';
-const CURRENT_DB_VERSION = '1.0.3';
+import { seedDatabase } from '@/lib/database';
 
 export default function CashierPage() {
   const products = useStore((state) => state.products);
@@ -49,63 +45,11 @@ export default function CashierPage() {
 
     const setupData = async () => {
       try {
-        const { collection, onSnapshot, getDocs, getDoc, doc, setDoc } = firesqlite;
+        await seedDatabase(firesqlite, db);
         
-        const storedVersion = localStorage.getItem(DB_VERSION_KEY);
-        if (storedVersion !== CURRENT_DB_VERSION) {
-          console.log('Database version mismatch or not set. Seeding data...');
-          
-          const productsCollectionRef = collection(db, 'products');
-          const existingProds = await getDocs(productsCollectionRef);
-          if (existingProds.docs.length === 0) {
-            console.log('Seeding initial products...');
-            const seedPromises = initialProducts.map((product: Product) => 
-              setDoc(doc(db, 'products', product.id), product)
-            );
-            await Promise.all(seedPromises);
-          }
-          
-          const variantsCollectionRef = collection(db, 'product_variants');
-          const existingVariants = await getDocs(variantsCollectionRef);
-          if (existingVariants.docs.length === 0) {
-            console.log('Seeding initial variants...');
-            const seedPromises = initialVariants.map((variant: ProductVariant) => 
-              setDoc(doc(db, 'product_variants', variant.id), variant)
-            );
-            await Promise.all(seedPromises);
-          }
-
-          const modifiersCollectionRef = collection(db, 'modifier_groups');
-          const existingModifiers = await getDocs(modifiersCollectionRef);
-          if (existingModifiers.docs.length === 0) {
-            console.log('Seeding initial modifiers...');
-            const seedPromises = initialModifierGroups.map((group: ModifierGroup) => 
-              setDoc(doc(db, 'modifier_groups', group.id), group)
-            );
-            await Promise.all(seedPromises);
-          }
-
-          localStorage.setItem(DB_VERSION_KEY, CURRENT_DB_VERSION);
-          console.log('Seeding complete.');
-        } else {
-          console.log("Database version is up to date.");
-        }
+        const { collection, doc, onSnapshot } = firesqlite;
         
-        const storeConfigRef = doc(db, 'store_config', 'main');
-        const configSnap = await getDoc(storeConfigRef);
-        if (!configSnap.exists()) {
-            console.log('Seeding initial store config...');
-            const initialConfig: StoreConfig = {
-                id: 'main',
-                store_name: 'TokoCepat',
-                tax_rate: 0.11,
-                currency: 'IDR',
-                receipt_footer: 'Terima kasih telah berbelanja!'
-            };
-            await setDoc(storeConfigRef, initialConfig);
-        }
-
-        unsubStoreConfig = onSnapshot(storeConfigRef, (docSnap: any) => {
+        unsubStoreConfig = onSnapshot(doc(db, 'store_config', 'main'), (docSnap: any) => {
             if (docSnap.exists()) {
                 setStoreConfig(docSnap.data() as StoreConfig);
             }
