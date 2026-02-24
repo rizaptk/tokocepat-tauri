@@ -13,7 +13,8 @@ type ProductListProps = {
   products: Product[];
   viewMode: ViewMode;
   isLoading?: boolean;
-  onItemAdded?: (product: Product) => void;
+  onItemClick?: (product: Product) => void;
+  selectedProductId?: string | null;
 };
 
 const LoadingSkeleton = ({ viewMode }: { viewMode: ViewMode }) => {
@@ -42,7 +43,7 @@ const LoadingSkeleton = ({ viewMode }: { viewMode: ViewMode }) => {
 }
 
 
-export function ProductList({ products, viewMode, isLoading, onItemAdded }: ProductListProps) {
+export function ProductList({ products, viewMode, isLoading, onItemClick, selectedProductId }: ProductListProps) {
   if (isLoading) {
     return <LoadingSkeleton viewMode={viewMode} />;
   }
@@ -60,7 +61,7 @@ export function ProductList({ products, viewMode, isLoading, onItemAdded }: Prod
     return (
         <div className="flex flex-col divide-y divide-border rounded-md border">
             {products.map(product => (
-                <ProductListItem key={product.id} product={product} onItemAdded={onItemAdded} />
+                <ProductListItem key={product.id} product={product} onItemClick={onItemClick} isSelected={product.id === selectedProductId} />
             ))}
         </div>
     )
@@ -70,7 +71,7 @@ export function ProductList({ products, viewMode, isLoading, onItemAdded }: Prod
     return (
         <div className="flex flex-col gap-2 p-2">
             {products.map(product => (
-                <ProductThumbnailItem key={product.id} product={product} onItemAdded={onItemAdded} />
+                <ProductThumbnailItem key={product.id} product={product} onItemClick={onItemClick} isSelected={product.id === selectedProductId} />
             ))}
         </div>
     )
@@ -80,7 +81,7 @@ export function ProductList({ products, viewMode, isLoading, onItemAdded }: Prod
   return (
     <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 p-4">
       {products.map(product => (
-        <ProductCard key={product.id} product={product} onItemAdded={onItemAdded} />
+        <ProductCard key={product.id} product={product} onItemClick={onItemClick} isSelected={product.id === selectedProductId} />
       ))}
     </div>
   );

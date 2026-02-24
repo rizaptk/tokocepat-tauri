@@ -1,8 +1,9 @@
+
 "use client";
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutGrid, Library, MoreHorizontal, Package, ShoppingCart, SlidersHorizontal } from 'lucide-react';
+import { LayoutGrid, Library, MoreHorizontal, Package, ShoppingCart, SlidersHorizontal, Warehouse } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useEffect, useState } from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -14,8 +15,7 @@ const navItems = [
 ];
 
 const moreNavItems = [
-    { href: '/product/categories', label: 'Categories', icon: Library },
-    { href: '/product/modifiers', label: 'Modifiers', icon: SlidersHorizontal },
+    { href: '/product/inventory', label: 'Inventory', icon: Warehouse },
 ]
 
 export function BottomNav() {
@@ -28,7 +28,6 @@ export function BottomNav() {
 
   const isActive = (href: string) => {
     if (!isClient) return false;
-    // Special case for dashboard to not match /dashboard/*
     if (href === '/dashboard' || href === '/cashier') {
         return pathname === href;
     }

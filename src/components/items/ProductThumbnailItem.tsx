@@ -8,10 +8,11 @@ import { Badge } from '../ui/badge';
 
 type ProductThumbnailItemProps = {
   product: Product;
-  onItemAdded?: (product: Product) => void;
+  onItemClick?: (product: Product) => void;
+  isSelected?: boolean;
 };
 
-export function ProductThumbnailItem({ product, onItemAdded }: ProductThumbnailItemProps) {
+export function ProductThumbnailItem({ product, onItemClick, isSelected }: ProductThumbnailItemProps) {
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('id-ID', {
@@ -22,8 +23,8 @@ export function ProductThumbnailItem({ product, onItemAdded }: ProductThumbnailI
   };
   
   const handleSelect = () => {
-    if (onItemAdded) {
-      onItemAdded(product);
+    if (onItemClick) {
+      onItemClick(product);
     }
   }
 
@@ -35,7 +36,8 @@ export function ProductThumbnailItem({ product, onItemAdded }: ProductThumbnailI
         "flex items-center gap-4 p-2 rounded-lg transition-colors",
         isOutOfStock 
             ? "bg-card cursor-not-allowed opacity-60" 
-            : "bg-card hover:bg-accent cursor-pointer"
+            : "bg-card hover:bg-accent cursor-pointer",
+        isSelected && "bg-accent"
       )}
       onClick={!isOutOfStock ? handleSelect : undefined}
       role="button"

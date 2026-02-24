@@ -6,13 +6,15 @@ import { Product } from '@/lib/types';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ShoppingCart } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 type ProductCardProps = {
   product: Product;
-  onItemAdded?: (product: Product) => void;
+  onItemClick?: (product: Product) => void;
+  isSelected?: boolean;
 };
 
-export function ProductCard({ product, onItemAdded }: ProductCardProps) {
+export function ProductCard({ product, onItemClick, isSelected }: ProductCardProps) {
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('id-ID', {
@@ -23,8 +25,8 @@ export function ProductCard({ product, onItemAdded }: ProductCardProps) {
   };
   
   const handleSelect = () => {
-    if (onItemAdded) {
-      onItemAdded(product);
+    if (onItemClick) {
+      onItemClick(product);
     }
   }
 
@@ -32,7 +34,10 @@ export function ProductCard({ product, onItemAdded }: ProductCardProps) {
 
   return (
     <Card 
-      className="flex flex-col overflow-hidden transition-all hover:shadow-lg cursor-pointer"
+      className={cn(
+        "flex flex-col overflow-hidden transition-all hover:shadow-lg cursor-pointer",
+        isSelected && "ring-2 ring-primary ring-offset-2"
+        )}
       onClick={!isOutOfStock ? handleSelect : undefined}
       role="button"
       tabIndex={0}

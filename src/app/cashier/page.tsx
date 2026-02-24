@@ -246,10 +246,10 @@ export default function CashierPage() {
             </div>
             {isAutocompleteVisible && (
                 <div className="absolute top-20 left-4 right-4 z-20 bg-background border rounded-lg shadow-lg max-h-[60vh] overflow-y-auto">
-                     <ProductList products={filteredProducts} viewMode="list" isLoading={isDataLoading} onItemAdded={handleProductSelect} />
+                     <ProductList products={filteredProducts} viewMode="list" isLoading={isDataLoading} onItemClick={handleProductSelect} />
                 </div>
             )}
-          <ProductList products={filteredProducts.length > 0 ? filteredProducts : products} viewMode={viewMode} isLoading={isDataLoading} onItemAdded={handleProductSelect}/>
+          <ProductList products={filteredProducts.length > 0 ? filteredProducts : products} viewMode={viewMode} isLoading={isDataLoading} onItemClick={handleProductSelect}/>
         </main>
         <aside className="col-span-2 lg:col-span-1 border-l bg-background flex flex-col">
             <CartDisplay onEditItem={handleEditCartItem} />
@@ -269,7 +269,7 @@ export default function CashierPage() {
             
             {isAutocompleteVisible && (
                 <div className="absolute top-20 left-4 right-4 z-20 bg-background border rounded-lg shadow-lg max-h-[60vh] overflow-y-auto">
-                    <ProductList products={filteredProducts} viewMode="thumbnail" isLoading={isDataLoading} onItemAdded={handleProductSelect} />
+                    <ProductList products={filteredProducts} viewMode="thumbnail" isLoading={isDataLoading} onItemClick={handleProductSelect} />
                 </div>
             )}
             

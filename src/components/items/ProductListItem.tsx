@@ -6,10 +6,11 @@ import { cn } from '@/lib/utils';
 
 type ProductListItemProps = {
   product: Product;
-  onItemAdded?: (product: Product) => void;
+  onItemClick?: (product: Product) => void;
+  isSelected?: boolean;
 };
 
-export function ProductListItem({ product, onItemAdded }: ProductListItemProps) {
+export function ProductListItem({ product, onItemClick, isSelected }: ProductListItemProps) {
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('id-ID', {
@@ -20,8 +21,8 @@ export function ProductListItem({ product, onItemAdded }: ProductListItemProps) 
   };
   
   const handleSelect = () => {
-    if (onItemAdded) {
-      onItemAdded(product);
+    if (onItemClick) {
+      onItemClick(product);
     }
   }
   
@@ -33,7 +34,8 @@ export function ProductListItem({ product, onItemAdded }: ProductListItemProps) 
         "flex items-center justify-between p-3 transition-colors",
         isOutOfStock 
             ? "bg-muted/50 cursor-not-allowed opacity-60" 
-            : "hover:bg-accent cursor-pointer"
+            : "hover:bg-accent cursor-pointer",
+        isSelected && "bg-accent"
       )}
       onClick={!isOutOfStock ? handleSelect : undefined}
       role="button"
