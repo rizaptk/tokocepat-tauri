@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster"
 import { DbProvider } from '@/components/DbProvider';
+import { BottomNav } from '@/components/BottomNav';
 
 export const metadata: Metadata = {
   title: 'TokoCepat',
@@ -25,7 +26,8 @@ export default function RootLayout({
       </head>
       <body className="font-body antialiased">
         <DbProvider>
-          {children}
+          <div className="pb-16 md:pb-0">{children}</div>
+          <BottomNav />
         </DbProvider>
         <Toaster />
       </body>
