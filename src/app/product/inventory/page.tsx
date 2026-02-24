@@ -163,6 +163,7 @@ const AdjustmentForm = ({ onSave }: { onSave?: () => void }) => {
 
 export default function InventoryPage() {
     const { products } = useStore();
+    const { toast } = useToast();
     const [searchTerm, setSearchTerm] = useState("");
     const [isSheetOpen, setIsSheetOpen] = useState(false);
     const [viewMode, setViewMode] = useState<ViewMode>('thumbnail');
@@ -177,6 +178,23 @@ export default function InventoryPage() {
         handleResize(); // Set initial view mode
         return () => window.removeEventListener('resize', handleResize);
     }, []);
+
+    const handleBarcodeScan = (barcode: string) => {
+        const product = products.find(p => p.barcode === barcode);
+        if (product) {
+            setSearchTerm(product.name);
+             toast({
+                title: "Product Found",
+                description: `Showing results for "${product.name}".`,
+            });
+        } else {
+            toast({
+                variant: "destructive",
+                title: "Product Not Found",
+                description: `No product found with barcode: ${barcode}`,
+            });
+        }
+    };
 
     const filteredProducts = useMemo(() => {
         return products
@@ -195,6 +213,7 @@ export default function InventoryPage() {
                             onSearchTermChange={setSearchTerm}
                             viewMode={viewMode}
                             onViewModeChange={setViewMode}
+                            onBarcodeScan={handleBarcodeScan}
                         />
                     </div>
                      <div className="md:hidden">

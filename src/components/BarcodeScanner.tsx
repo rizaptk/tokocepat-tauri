@@ -6,6 +6,10 @@ import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Camera } from 'lucide-react';
 
+// add beeping sound
+const beepSoundBase64 = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA';
+const beepSound = new Audio(beepSoundBase64);
+
 interface BarcodeScannerProps {
     onScanSuccess: (result: string) => void;
 }
@@ -17,6 +21,9 @@ export function BarcodeScanner({ onScanSuccess }: BarcodeScannerProps) {
     const { ref } = useZxing({
         onDecodeResult(result) {
             onScanSuccess(result.getText());
+            
+            // play beep on success scan
+            beepSound.play();
         },
         onError(error) {
             if (error?.name === 'NotAllowedError') {
