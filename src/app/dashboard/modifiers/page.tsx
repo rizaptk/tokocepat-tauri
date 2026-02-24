@@ -21,6 +21,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
+import { DashboardPageHeader } from "@/components/DashboardPageHeader";
 
 // Form state for adding/editing a modifier group
 const defaultGroupState = {
@@ -116,19 +117,16 @@ export default function ModifiersPage() {
                     <TokoCepatLogo />
                 </header>
                 <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
+                    <DashboardPageHeader
+                        title="Modifier Group Management"
+                        description="Create and manage global modifier groups for your products."
+                    >
+                         <Button onClick={() => openGroupDialog(null)}>
+                            <PlusCircle className="mr-2 h-4 w-4" /> Add Modifier Group
+                        </Button>
+                    </DashboardPageHeader>
                     <Card>
-                        <CardHeader className="flex flex-row items-center justify-between">
-                            <div>
-                                <CardTitle>Modifier Group Management</CardTitle>
-                                <CardDescription>
-                                    Create and manage global modifier groups for your products.
-                                </CardDescription>
-                            </div>
-                            <Button onClick={() => openGroupDialog(null)}>
-                                <PlusCircle className="mr-2 h-4 w-4" /> Add Modifier Group
-                            </Button>
-                        </CardHeader>
-                        <CardContent>
+                        <CardContent className="p-6">
                             {modifierGroups.length === 0 ? (
                                 <div className="text-center text-muted-foreground py-8">
                                     <p>No modifier groups found. Create one to get started.</p>

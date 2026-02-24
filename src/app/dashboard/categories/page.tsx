@@ -10,14 +10,15 @@ import { Category } from "@/lib/types";
 
 import { ArrowLeft, Edit, PlusCircle, Trash } from "lucide-react";
 import { TokoCepatLogo } from "@/components/TokoCepatLogo";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { DashboardPageHeader } from "@/components/DashboardPageHeader";
 
 export default function CategoriesPage() {
     const { categories } = useStore();
@@ -84,44 +85,42 @@ export default function CategoriesPage() {
                     <TokoCepatLogo />
                 </header>
                 <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
+                    <DashboardPageHeader
+                        title="Category Management"
+                        description="Add, edit, and manage your product categories."
+                    >
+                         <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+                            <DialogTrigger asChild>
+                                <Button>
+                                    <PlusCircle className="mr-2 h-4 w-4" /> Add Category
+                                </Button>
+                            </DialogTrigger>
+                            <DialogContent>
+                                <DialogHeader>
+                                    <DialogTitle>Add New Category</DialogTitle>
+                                    <DialogDescription>
+                                        Enter the name for the new category.
+                                    </DialogDescription>
+                                </DialogHeader>
+                                <div className="py-4">
+                                    <Label htmlFor="category-name">Category Name</Label>
+                                    <Input 
+                                        id="category-name" 
+                                        value={newCategoryName} 
+                                        onChange={(e) => setNewCategoryName(e.target.value)}
+                                        autoFocus
+                                    />
+                                </div>
+                                <DialogFooter>
+                                    <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>Cancel</Button>
+                                    <Button onClick={handleAddCategory}>Save Category</Button>
+                                </DialogFooter>
+                            </DialogContent>
+                        </Dialog>
+                    </DashboardPageHeader>
+
                     <Card>
-                        <CardHeader className="flex flex-row items-center justify-between">
-                            <div>
-                                <CardTitle>Category Management</CardTitle>
-                                <CardDescription>
-                                    Add, edit, and manage your product categories.
-                                </CardDescription>
-                            </div>
-                            <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-                                <DialogTrigger asChild>
-                                    <Button>
-                                        <PlusCircle className="mr-2 h-4 w-4" /> Add Category
-                                    </Button>
-                                </DialogTrigger>
-                                <DialogContent>
-                                    <DialogHeader>
-                                        <DialogTitle>Add New Category</DialogTitle>
-                                        <DialogDescription>
-                                            Enter the name for the new category.
-                                        </DialogDescription>
-                                    </DialogHeader>
-                                    <div className="py-4">
-                                        <Label htmlFor="category-name">Category Name</Label>
-                                        <Input 
-                                            id="category-name" 
-                                            value={newCategoryName} 
-                                            onChange={(e) => setNewCategoryName(e.target.value)}
-                                            autoFocus
-                                        />
-                                    </div>
-                                    <DialogFooter>
-                                        <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>Cancel</Button>
-                                        <Button onClick={handleAddCategory}>Save Category</Button>
-                                    </DialogFooter>
-                                </DialogContent>
-                            </Dialog>
-                        </CardHeader>
-                        <CardContent>
+                        <CardContent className="p-6">
                             <Table>
                                 <TableHeader>
                                     <TableRow>

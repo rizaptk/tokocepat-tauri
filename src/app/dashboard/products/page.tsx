@@ -3,12 +3,13 @@
 
 import Link from "next/link";
 import { useStore } from "@/lib/store";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
+import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { TokoCepatLogo } from "@/components/TokoCepatLogo";
 import { Button } from "@/components/ui/button";
 import { Library, PlusCircle, SlidersHorizontal } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { DashboardPageHeader } from "@/components/DashboardPageHeader";
 
 export default function ProductsManagementPage() {
     const products = useStore((state) => state.products);
@@ -29,33 +30,28 @@ export default function ProductsManagementPage() {
               </Link>
            </header>
           <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
+            <DashboardPageHeader
+                title="Stock & Product Management"
+                description="Here you can manage products, categories, modifiers, and view stock levels."
+            >
+                <Button variant="outline" asChild>
+                    <Link href="/dashboard/categories">
+                        <Library className="mr-2 h-4 w-4" /> Manage Categories
+                    </Link>
+                </Button>
+                <Button variant="outline" asChild>
+                    <Link href="/dashboard/modifiers">
+                        <SlidersHorizontal className="mr-2 h-4 w-4" /> Manage Modifiers
+                    </Link>
+                </Button>
+                <Button asChild>
+                    <Link href="/dashboard/products/new">
+                        <PlusCircle className="mr-2 h-4 w-4" /> Add New Product
+                    </Link>
+                </Button>
+            </DashboardPageHeader>
             <Card>
-                <CardHeader className="flex flex-row items-center justify-between">
-                    <div>
-                        <CardTitle>Stock & Product Management</CardTitle>
-                        <CardDescription>
-                            Here you can manage products, categories, modifiers, and view stock levels.
-                        </CardDescription>
-                    </div>
-                    <div className="flex gap-2">
-                        <Button variant="outline" asChild>
-                            <Link href="/dashboard/categories">
-                                <Library className="mr-2 h-4 w-4" /> Manage Categories
-                            </Link>
-                        </Button>
-                        <Button variant="outline" asChild>
-                            <Link href="/dashboard/modifiers">
-                                <SlidersHorizontal className="mr-2 h-4 w-4" /> Manage Modifiers
-                            </Link>
-                        </Button>
-                        <Button asChild>
-                            <Link href="/dashboard/products/new">
-                                <PlusCircle className="mr-2 h-4 w-4" /> Add New Product
-                            </Link>
-                        </Button>
-                    </div>
-                </CardHeader>
-                <CardContent>
+                <CardContent className="p-6">
                     <Table>
                         <TableHeader>
                             <TableRow>
