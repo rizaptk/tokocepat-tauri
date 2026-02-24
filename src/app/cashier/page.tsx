@@ -49,7 +49,7 @@ export default function CashierPage() {
 
     const setupData = async () => {
       try {
-        const { collection, onSnapshot, getDocs, doc, setDoc } = firesqlite;
+        const { collection, onSnapshot, getDocs, getDoc, doc, setDoc } = firesqlite;
         
         const storedVersion = localStorage.getItem(DB_VERSION_KEY);
         if (storedVersion !== CURRENT_DB_VERSION) {
@@ -92,8 +92,8 @@ export default function CashierPage() {
         }
         
         const storeConfigRef = doc(db, 'store_config', 'main');
-        const configSnap = await getDocs(collection(db, 'store_config'));
-        if (configSnap.docs.length === 0) {
+        const configSnap = await getDoc(storeConfigRef);
+        if (!configSnap.exists()) {
             console.log('Seeding initial store config...');
             const initialConfig: StoreConfig = {
                 id: 'main',
@@ -105,11 +105,10 @@ export default function CashierPage() {
             await setDoc(storeConfigRef, initialConfig);
         }
 
-        unsubStoreConfig = onSnapshot(collection(db, 'store_config'), (snapshot: any) => {
-          const configDoc = snapshot.docs.find((d: any) => d.id === 'main');
-          if (configDoc) {
-              setStoreConfig(configDoc.data() as StoreConfig);
-          }
+        unsubStoreConfig = onSnapshot(storeConfigRef, (docSnap: any) => {
+            if (docSnap.exists()) {
+                setStoreConfig(docSnap.data() as StoreConfig);
+            }
         });
         
         unsubProducts = onSnapshot(collection(db, 'products'), (snapshot: any) => {
