@@ -1,3 +1,4 @@
+
 import { CartItem, Transaction, Shift, StoreConfig } from '@/lib/types';
 import { useDbStore } from '@/lib/db-store';
 import { toast } from '@/hooks/use-toast';
@@ -45,6 +46,7 @@ export const createTransaction = async (cart: CartItem[], activeShift: Shift, st
             sku: item.sku,
             barcode: item.barcode,
         },
+        selected_modifiers_snapshot: item.selectedModifiers,
         price_snapshot: item.price,
         cost_snapshot: item.cost_price,
         qty: item.quantity,

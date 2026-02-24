@@ -6,7 +6,7 @@ import { Header } from '@/components/Header';
 import { CartDisplay } from '@/components/CartDisplay';
 import { useStore } from '@/lib/store';
 import { useDbStore } from '@/lib/db-store';
-import { Product, ProductVariant, ModifierGroup, Transaction, Shift, StoreConfig, Category } from '@/lib/types';
+import { Product, ProductVariant, ModifierGroup, Transaction, Shift, StoreConfig, Category, CartItem, SelectedModifier } from '@/lib/types';
 import { TokoCepatLogo } from '@/components/TokoCepatLogo';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -18,12 +18,13 @@ import { ProductSearchBar } from '@/components/ProductSearchBar';
 import { ProductList } from '@/components/ProductList';
 import { useToast } from '@/hooks/use-toast';
 import { ModifierPanel } from '@/components/ModifierPanel';
+import { cn } from '@/lib/utils';
 
 export type ViewMode = 'card' | 'thumbnail' | 'list';
 
 export default function CashierPage() {
   // Global state
-  const { products, setProducts, setProductVariants, setModifierGroups, setTransactions, setShifts, setStoreConfig, setCategories, activeShift, openShift, cart, addToCart } = useStore();
+  const { products, setProducts, setProductVariants, setModifierGroups, setTransactions, setShifts, setStoreConfig, setCategories, activeShift, openShift, cart, saveItemToCart } = useStore();
   const { isInitialized, db, firesqlite } = useDbStore();
   const { toast } = useToast();
   
@@ -31,16 +32,21 @@ export default function CashierPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [isDataLoading, setIsDataLoading] = useState(true);
   const [openingCash, setOpeningCash] = useState(0);
-  const [productToModify, setProductToModify] = useState<Product | null>(null);
+  const [itemToModify, setItemToModify] = useState<Product | CartItem | null>(null);
 
   // Responsive and view state
   const [viewMode, setViewMode] = useState<ViewMode>('thumbnail');
+  const [isMobile, setIsMobile] = useState(false);
+  const [isCartVisible, setIsCartVisible] = useState(true);
 
   useEffect(() => {
     // Set default view mode based on screen size
     const handleResize = () => {
-        const isMobile = window.innerWidth < 768;
-        setViewMode(isMobile ? 'thumbnail' : 'card');
+        const mobile = window.innerWidth < 768;
+        setIsMobile(mobile);
+        setViewMode(mobile ? 'thumbnail' : 'card');
+        if (!mobile) setIsCartVisible(true);
+        else setIsCartVisible(false);
     };
     window.addEventListener('resize', handleResize);
     handleResize(); // Set initial view mode
@@ -132,7 +138,7 @@ export default function CashierPage() {
     setOpeningCash(0);
   }
 
-  const handleItemAddedToCart = () => {
+  const handleItemAdded = () => {
     setSearchTerm('');
   }
 
@@ -141,20 +147,40 @@ export default function CashierPage() {
         toast({
             variant: "destructive",
             title: "Shift Not Open",
-            description: "Please open a shift before processing a payment.",
+            description: "Please open a shift before making a sale.",
         });
         return;
     }
-    if (product.has_modifier && product.product_type === 'food_and_beverage') {
-        setProductToModify(product);
+    if (product.has_modifier) {
+        setItemToModify(product);
     } else {
-        addToCart(product);
+        saveItemToCart(product);
     }
     
     if (isAutocompleteVisible) {
-        handleItemAddedToCart();
+        handleItemAdded();
     }
   };
+
+  const handleModifierConfirm = (selectedModifiers: SelectedModifier[]) => {
+    if (!itemToModify) return;
+    saveItemToCart(itemToModify, selectedModifiers);
+    setItemToModify(null);
+    if (!('cartItemId' in itemToModify)) {
+       handleItemAdded();
+    }
+  };
+
+  const handleEditCartItem = (item: CartItem) => {
+      if (item.has_modifier) {
+        setItemToModify(item);
+      } else {
+          toast({
+              title: "No modifiers",
+              description: "This item does not have any modifiers to edit."
+          })
+      }
+  }
 
   if (!isInitialized) {
       return (
@@ -226,13 +252,13 @@ export default function CashierPage() {
           <ProductList products={filteredProducts.length > 0 ? filteredProducts : products} viewMode={viewMode} isLoading={isDataLoading} onItemAdded={handleProductSelect}/>
         </main>
         <aside className="col-span-2 lg:col-span-1 border-l bg-background flex flex-col">
-            <CartDisplay />
+            <CartDisplay onEditItem={handleEditCartItem} />
         </aside>
       </div>
 
-      {/* Mobile Layout: Cart First with Search */}
+      {/* Mobile Layout: Toggle between Cart and Product List */}
       <div className="md:hidden flex flex-col flex-1 overflow-hidden relative">
-            <div className="p-4 border-b shrink-0">
+            <div className="p-4 border-b shrink-0 bg-background">
                  <ProductSearchBar 
                     searchTerm={searchTerm} 
                     onSearchTermChange={setSearchTerm}
@@ -240,22 +266,26 @@ export default function CashierPage() {
                     onViewModeChange={setViewMode}
                 />
             </div>
-             {isAutocompleteVisible && (
+            
+            {isAutocompleteVisible && (
                 <div className="absolute top-20 left-4 right-4 z-20 bg-background border rounded-lg shadow-lg max-h-[60vh] overflow-y-auto">
                     <ProductList products={filteredProducts} viewMode="thumbnail" isLoading={isDataLoading} onItemAdded={handleProductSelect} />
                 </div>
             )}
-            <CartDisplay />
+            
+            <div className={cn("flex-1 flex flex-col", isAutocompleteVisible ? 'opacity-20 pointer-events-none' : 'opacity-100')}>
+                <CartDisplay onEditItem={handleEditCartItem}/>
+            </div>
       </div>
 
        <ModifierPanel 
-            product={productToModify} 
+            item={itemToModify} 
             onOpenChange={(isOpen) => {
                 if (!isOpen) {
-                    setProductToModify(null);
+                    setItemToModify(null);
                 }
             }}
-            onItemAdded={handleItemAddedToCart}
+            onConfirm={handleModifierConfirm}
         />
     </div>
   );

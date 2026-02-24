@@ -10,8 +10,14 @@ import { ShoppingCart, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { PaymentModal } from "./PaymentModal";
 import { useToast } from "@/hooks/use-toast";
+import { CartItem } from "@/lib/types";
+import { cn } from "@/lib/utils";
 
-export function CartDisplay() {
+interface CartDisplayProps {
+    onEditItem?: (item: CartItem) => void;
+}
+
+export function CartDisplay({ onEditItem }: CartDisplayProps) {
   const cart = useStore((state) => state.cart);
   const activeShift = useStore((state) => state.activeShift);
   const storeConfig = useStore((state) => state.storeConfig);
@@ -47,7 +53,7 @@ export function CartDisplay() {
 
   return (
     <div className="flex flex-col flex-1 bg-background h-full">
-      <header className="flex h-16 items-center justify-between border-b px-6 shrink-0">
+      <header className="hidden md:flex h-16 items-center justify-between border-b px-6 shrink-0">
         <h2 className="text-lg font-semibold">Cart</h2>
         <div className="relative">
           <ShoppingCart className="h-6 w-6" />
@@ -68,43 +74,44 @@ export function CartDisplay() {
       ) : (
         <>
           <ScrollArea className="flex-1">
-            <div className="flex flex-col gap-4 p-4">
+            <div className="flex flex-col gap-0">
               {cart.map(item => (
-                <div key={item.cartItemId} className="flex items-start gap-4">
+                <div key={item.cartItemId} className={cn("flex items-start gap-4 p-4", onEditItem && item.has_modifier && "cursor-pointer hover:bg-accent")} onClick={() => onEditItem && onEditItem(item)}>
                     <div className="flex-1 space-y-1">
                         <p className="font-medium leading-tight">{item.name}</p>
                         {item.selectedModifiers && item.selectedModifiers.length > 0 && (
-                            <ul className="text-xs text-muted-foreground">
+                            <ul className="text-xs text-muted-foreground pl-4">
                                 {item.selectedModifiers.map(mod => (
-                                    <li key={mod.item.id}>- {mod.item.name} {mod.item.additional_price > 0 ? `+${formatCurrency(mod.item.additional_price)}` : ''}</li>
+                                    <li key={mod.item.id}>- {mod.item.name} {mod.item.additional_price > 0 ? `(+${formatCurrency(mod.item.additional_price)})` : ''}</li>
                                 ))}
                             </ul>
                         )}
-                        <p className="text-sm text-muted-foreground">
-                            {formatCurrency(item.price)}
+                        <p className="text-sm text-muted-foreground md:hidden">
+                            {item.quantity} x {formatCurrency(item.price)}
                         </p>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="hidden md:flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                         <Input
                             type="number"
                             value={item.quantity}
                             onChange={e => updateQuantity(item.cartItemId, parseInt(e.target.value))}
                             className="h-8 w-16 text-center"
                             min="1"
-                            max={item.stock}
                         />
                     </div>
                     <div className="w-24 text-right">
                         <p className="font-semibold">{formatCurrency(item.price * item.quantity)}</p>
                     </div>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive" onClick={() => removeFromCart(item.cartItemId)}>
-                        <Trash2 className="h-4 w-4" />
-                    </Button>
+                    <div onClick={(e) => e.stopPropagation()}>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive" onClick={() => removeFromCart(item.cartItemId)}>
+                          <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                 </div>
               ))}
             </div>
           </ScrollArea>
-          <footer className="border-t p-6 shrink-0">
+          <footer className="border-t p-4 md:p-6 shrink-0 bg-background">
             <div className="space-y-2">
               <div className="flex justify-between">
                 <span>Subtotal</span>
@@ -114,7 +121,7 @@ export function CartDisplay() {
                 <span>Tax ({Math.round(taxRate * 100)}%)</span>
                 <span>{formatCurrency(tax)}</span>
               </div>
-              <Separator />
+              <Separator className="my-2"/>
               <div className="flex justify-between text-lg font-bold">
                 <span>Total</span>
                 <span>{formatCurrency(total)}</span>

@@ -76,6 +76,7 @@ export interface TransactionItem {
     id: string;
     transaction_id: string;
     product_snapshot: Omit<Product, 'stock' | 'track_stock' | 'has_variant' | 'has_modifier' | 'is_active' | 'low_stock_alert'>;
+    selected_modifiers_snapshot?: SelectedModifier[];
     price_snapshot: number;
     cost_snapshot?: number;
     qty: number;

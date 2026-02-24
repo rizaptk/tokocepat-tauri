@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from 'react';
-import { Product, ModifierGroup, ModifierItem, SelectedModifier } from '@/lib/types';
+import { Product, ModifierGroup, ModifierItem, SelectedModifier, CartItem } from '@/lib/types';
 import { useStore } from '@/lib/store';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
@@ -13,27 +13,42 @@ import { Label } from '@/components/ui/label';
 import { Separator } from './ui/separator';
 
 interface ModifierPanelProps {
-    product: Product | null;
+    item: Product | CartItem | null;
     onOpenChange: (isOpen: boolean) => void;
-    onItemAdded?: () => void;
+    onConfirm: (selectedModifiers: SelectedModifier[]) => void;
 }
 
-export function ModifierPanel({ product, onOpenChange, onItemAdded }: ModifierPanelProps) {
-    const { modifierGroups: allModifierGroups, addToCart } = useStore();
+export function ModifierPanel({ item, onOpenChange, onConfirm }: ModifierPanelProps) {
+    const { modifierGroups: allModifierGroups } = useStore();
     const [selectedModifiers, setSelectedModifiers] = useState<Record<string, ModifierItem[]>>({});
     const [isDesktop, setIsDesktop] = useState(false);
 
+    const isEditing = item && 'cartItemId' in item;
+    const productData = item as Product; // Treat both Product and CartItem as Product for data access
+
     const productModifierGroups = useMemo(() => {
-        if (!product || !product.modifier_group_ids) return [];
-        return allModifierGroups.filter(g => product.modifier_group_ids?.includes(g.id));
-    }, [product, allModifierGroups]);
+        if (!productData || !productData.modifier_group_ids) return [];
+        return allModifierGroups.filter(g => productData.modifier_group_ids?.includes(g.id));
+    }, [productData, allModifierGroups]);
 
     useEffect(() => {
-        // Reset state when product changes
-        if (product) {
-            setSelectedModifiers({});
+        if (item) {
+            if (isEditing) {
+                // Pre-populate from cart item
+                const initialSelections: Record<string, ModifierItem[]> = {};
+                (item as CartItem).selectedModifiers.forEach(mod => {
+                    if (!initialSelections[mod.groupId]) {
+                        initialSelections[mod.groupId] = [];
+                    }
+                    initialSelections[mod.groupId].push(mod.item);
+                });
+                setSelectedModifiers(initialSelections);
+            } else {
+                // Reset for new product
+                setSelectedModifiers({});
+            }
         }
-    }, [product]);
+    }, [item, isEditing]);
 
     useEffect(() => {
         const mediaQuery = window.matchMedia("(min-width: 768px)");
@@ -43,11 +58,14 @@ export function ModifierPanel({ product, onOpenChange, onItemAdded }: ModifierPa
         return () => mediaQuery.removeEventListener('change', handler);
     }, []);
 
-    const handleSingleSelect = (group: ModifierGroup, item: ModifierItem) => {
-        setSelectedModifiers(prev => ({
-            ...prev,
-            [group.id]: [item]
-        }));
+    const handleSingleSelect = (group: ModifierGroup, itemValue: string) => {
+        const selectedItem = group.items.find(i => i.id === itemValue);
+        if (selectedItem) {
+            setSelectedModifiers(prev => ({
+                ...prev,
+                [group.id]: [selectedItem]
+            }));
+        }
     };
 
     const handleMultiSelect = (group: ModifierGroup, item: ModifierItem, checked: boolean) => {
@@ -71,7 +89,7 @@ export function ModifierPanel({ product, onOpenChange, onItemAdded }: ModifierPa
     };
 
     const validation = useMemo(() => {
-        if (!product) return { isValid: false, errors: [] };
+        if (!productData) return { isValid: false, errors: [] };
         let isValid = true;
         const errors: string[] = [];
 
@@ -83,18 +101,18 @@ export function ModifierPanel({ product, onOpenChange, onItemAdded }: ModifierPa
             }
         }
         return { isValid, errors };
-    }, [product, productModifierGroups, selectedModifiers]);
+    }, [productData, productModifierGroups, selectedModifiers]);
 
     const finalPrice = useMemo(() => {
-        if (!product) return 0;
+        if (!productData) return 0;
         const modifierPrice = Object.values(selectedModifiers)
             .flat()
             .reduce((sum, item) => sum + item.additional_price, 0);
-        return product.price + modifierPrice;
-    }, [product, selectedModifiers]);
+        return productData.price + modifierPrice;
+    }, [productData, selectedModifiers]);
 
-    const handleAddToCart = () => {
-        if (!product || !validation.isValid) return;
+    const handleConfirm = () => {
+        if (!productData || !validation.isValid) return;
 
         const flattenedModifiers: SelectedModifier[] = Object.entries(selectedModifiers)
             .flatMap(([groupId, items]) => {
@@ -106,11 +124,7 @@ export function ModifierPanel({ product, onOpenChange, onItemAdded }: ModifierPa
                 }));
             });
         
-        addToCart(product, flattenedModifiers);
-        onOpenChange(false);
-        if (onItemAdded) {
-            onItemAdded();
-        }
+        onConfirm(flattenedModifiers);
     };
 
     const formatCurrency = (amount: number) => {
@@ -122,13 +136,13 @@ export function ModifierPanel({ product, onOpenChange, onItemAdded }: ModifierPa
       };
 
     return (
-        <Sheet open={!!product} onOpenChange={onOpenChange}>
+        <Sheet open={!!item} onOpenChange={onOpenChange}>
             <SheetContent side={isDesktop ? 'right' : 'bottom'} className={isDesktop ? "w-[400px] sm:w-[540px] flex flex-col" : "h-[90vh] flex flex-col"}>
-                {product && (
+                {productData && (
                     <>
                         <SheetHeader>
-                            <SheetTitle>{product.name}</SheetTitle>
-                            <SheetDescription>Customize your item. Base price: {formatCurrency(product.price)}</SheetDescription>
+                            <SheetTitle>{isEditing ? `Edit ${productData.name}` : productData.name}</SheetTitle>
+                            <SheetDescription>Customize your item. Base price: {formatCurrency(productData.price)}</SheetDescription>
                         </SheetHeader>
                         <ScrollArea className="flex-1 -mx-6 px-6">
                             <div className="space-y-6 py-4">
@@ -142,7 +156,7 @@ export function ModifierPanel({ product, onOpenChange, onItemAdded }: ModifierPa
                                             </p>
                                         </div>
                                         {group.max_select === 1 ? (
-                                            <RadioGroup onValueChange={(value) => handleSingleSelect(group, group.items.find(i => i.id === value)!)}>
+                                            <RadioGroup onValueChange={(value) => handleSingleSelect(group, value)} value={selectedModifiers[group.id]?.[0]?.id}>
                                                 {group.items.map(item => (
                                                     <div key={item.id} className="flex items-center space-x-2">
                                                         <RadioGroupItem value={item.id} id={`${group.id}-${item.id}`} />
@@ -187,7 +201,9 @@ export function ModifierPanel({ product, onOpenChange, onItemAdded }: ModifierPa
                                     <span>Total Price</span>
                                     <span>{formatCurrency(finalPrice)}</span>
                                 </div>
-                                <Button onClick={handleAddToCart} disabled={!validation.isValid} className="w-full" size="lg">Add to Cart</Button>
+                                <Button onClick={handleConfirm} disabled={!validation.isValid} className="w-full" size="lg">
+                                    {isEditing ? 'Update Item' : 'Add to Cart'}
+                                </Button>
                            </div>
                         </SheetFooter>
                     </>

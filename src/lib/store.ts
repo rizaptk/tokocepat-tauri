@@ -27,7 +27,7 @@ interface StoreState {
   setTransactions: (transactions: Transaction[]) => void;
   setShifts: (shifts: Shift[]) => void;
   setStoreConfig: (config: StoreConfig) => void;
-  addToCart: (product: Product, selectedModifiers?: SelectedModifier[]) => void;
+  saveItemToCart: (itemData: Product | CartItem, selectedModifiers?: SelectedModifier[]) => void;
   removeFromCart: (cartItemId: string) => void;
   updateQuantity: (cartItemId: string, quantity: number) => void;
   clearCart: () => void;
@@ -61,7 +61,7 @@ export const useStore = create<StoreState>()(
       },
       setStoreConfig: (config) => set({ storeConfig: config }),
     
-      addToCart: (product: Product, selectedModifiers: SelectedModifier[] = []) => {
+      saveItemToCart: (itemData: Product | CartItem, selectedModifiers: SelectedModifier[] = []) => {
         const { products, cart, activeShift } = get();
 
         if (!activeShift) {
@@ -73,50 +73,70 @@ export const useStore = create<StoreState>()(
           return;
         }
 
-        const productInState = products.find(p => p.id === product.id);
+        const isEditing = 'cartItemId' in itemData;
 
-        if (!productInState || !productInState.is_active) {
-          toast({ variant: 'destructive', description: `${product.name} is not available.` });
-          return;
-        }
-    
-        if (productInState.track_stock && productInState.stock <= 0) {
-          toast({ variant: 'destructive', description: `${product.name} is out of stock.` });
-          return;
-        }
-
-        const isModified = selectedModifiers && selectedModifiers.length > 0;
-    
         // For simple products (no modifiers), check if it already exists and stack it.
-        if (!isModified) {
-            const existingItem = cart.find(item => item.id === product.id && (!item.selectedModifiers || item.selectedModifiers.length === 0));
+        const isModified = selectedModifiers.length > 0;
+        if (!isModified && !isEditing) {
+            const existingItem = cart.find(item => item.id === itemData.id && item.selectedModifiers.length === 0);
             if (existingItem) {
                 get().updateQuantity(existingItem.cartItemId, existingItem.quantity + 1);
+                toast({
+                  title: "Quantity Updated",
+                  description: `${itemData.name} quantity increased to ${existingItem.quantity + 1}.`,
+                });
                 return;
             }
         }
         
-        // If it's a new simple item or ANY modified item, add it as a new line.
-        // Modified items are never stacked to preserve their unique modifier combinations.
-        let finalPrice = product.price;
+        let finalPrice = itemData.price;
+        if ('cartItemId' in itemData) { // If editing, use the base product price, not the old cart item price
+            const originalProduct = products.find(p => p.id === itemData.id);
+            finalPrice = originalProduct?.price || itemData.price;
+        } else {
+            finalPrice = itemData.price;
+        }
+
         if (isModified) {
             finalPrice += selectedModifiers.reduce((sum, mod) => sum + mod.item.additional_price, 0);
         }
 
-        const newCartItem: CartItem = {
-            ...product,
-            cartItemId: `cart-item-${new Date().getTime()}-${Math.random()}`,
-            quantity: 1,
-            price: finalPrice, // Overwrite original price with the final calculated price
-            selectedModifiers: selectedModifiers,
-        };
+        if (isEditing) {
+             set(state => ({
+                cart: state.cart.map(item =>
+                    item.cartItemId === (itemData as CartItem).cartItemId
+                    ? { ...item, selectedModifiers, price: finalPrice }
+                    : item
+                ),
+            }));
+            toast({
+              title: "Item Updated",
+              description: `${itemData.name} has been updated in your cart.`,
+            });
+        } else {
+            const productInState = products.find(p => p.id === itemData.id);
+            if (!productInState || !productInState.is_active) {
+              toast({ variant: 'destructive', description: `${itemData.name} is not available.` });
+              return;
+            }
+            if (productInState.track_stock && productInState.stock <= 0) {
+              toast({ variant: 'destructive', description: `${itemData.name} is out of stock.` });
+              return;
+            }
 
-        toast({
-          title: "Added to cart",
-          description: `${product.name} has been added to your cart.`,
-        });
-    
-        set({ cart: [...cart, newCartItem] });
+            const newCartItem: CartItem = {
+                ...productInState,
+                cartItemId: `cart-item-${new Date().getTime()}-${Math.random()}`,
+                quantity: 1,
+                price: finalPrice,
+                selectedModifiers: selectedModifiers,
+            };
+            set({ cart: [...cart, newCartItem] });
+            toast({
+              title: "Added to cart",
+              description: `${itemData.name} has been added to your cart.`,
+            });
+        }
       },
     
       removeFromCart: (cartItemId: string) => {
