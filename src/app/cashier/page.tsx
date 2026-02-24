@@ -3,7 +3,6 @@
 
 import { useState, useEffect } from 'react';
 import { Header } from '@/components/Header';
-import { ProductGrid } from '@/components/ProductGrid';
 import { CartDisplay } from '@/components/CartDisplay';
 import { useStore } from '@/lib/store';
 import { useDbStore } from '@/lib/db-store';
@@ -13,29 +12,32 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { LogIn, Search } from 'lucide-react';
+import { LogIn, ShoppingCart } from 'lucide-react';
 import { seedDatabase } from '@/lib/database';
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, } from "@/components/ui/sheet";
 import { ProductSearchBar } from '@/components/ProductSearchBar';
+import { ProductList } from '@/components/ProductList';
+
+export type ViewMode = 'card' | 'thumbnail' | 'list';
 
 export default function CashierPage() {
-  const products = useStore((state) => state.products);
-  const setProducts = useStore((state) => state.setProducts);
-  const setProductVariants = useStore((state) => state.setProductVariants);
-  const setModifierGroups = useStore((state) => state.setModifierGroups);
-  const setTransactions = useStore((state) => state.setTransactions);
-  const setShifts = useStore((state) => state.setShifts);
-  const setStoreConfig = useStore((state) => state.setStoreConfig);
-  const setCategories = useStore((state) => state.setCategories);
-  const activeShift = useStore((state) => state.activeShift);
-  const openShift = useStore((state) => state.openShift);
-
+  // Global state
+  const { products, setProducts, setProductVariants, setModifierGroups, setTransactions, setShifts, setStoreConfig, setCategories, activeShift, openShift, cart } = useStore();
+  const { isInitialized, db, firesqlite } = useDbStore();
+  
+  // Local state
   const [searchTerm, setSearchTerm] = useState('');
   const [isDataLoading, setIsDataLoading] = useState(true);
   const [openingCash, setOpeningCash] = useState(0);
-  const [isProductSheetOpen, setIsProductSheetOpen] = useState(false);
 
-  const { isInitialized, db, firesqlite } = useDbStore();
+  // Responsive and view state
+  const [mobileView, setMobileView] = useState<'products' | 'cart'>('products');
+  const [viewMode, setViewMode] = useState<ViewMode>('thumbnail');
+
+  useEffect(() => {
+    // Set default view mode based on screen size
+    const isMobile = window.innerWidth < 768;
+    setViewMode(isMobile ? 'thumbnail' : 'card');
+  }, []);
 
   useEffect(() => {
     if (!isInitialized || !db || !firesqlite) return;
@@ -118,6 +120,8 @@ export default function CashierPage() {
     openShift(openingCash);
     setOpeningCash(0);
   }
+
+  const cartItemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
   
   if (!isInitialized) {
       return (
@@ -170,51 +174,48 @@ export default function CashierPage() {
     <div className="h-screen w-full bg-muted/40 flex flex-col">
       <Header />
 
-      {/* Desktop Layout: Split View */}
-      <div className="hidden md:grid md:grid-cols-3 flex-1 overflow-hidden">
-        <main className="col-span-2 flex flex-col p-4 overflow-y-auto">
+      {/* Desktop & Tablet Layout: Split View */}
+      <div className="hidden md:grid md:grid-cols-5 lg:grid-cols-3 flex-1 overflow-hidden">
+        <main className="col-span-3 lg:col-span-2 flex flex-col p-4 overflow-y-auto">
             <div className="mb-4">
-               <ProductSearchBar searchTerm={searchTerm} onSearchTermChange={setSearchTerm} />
+               <ProductSearchBar 
+                  searchTerm={searchTerm} 
+                  onSearchTermChange={setSearchTerm}
+                  viewMode={viewMode}
+                  onViewModeChange={setViewMode}
+                />
             </div>
-          <ProductGrid products={filteredProducts} isLoading={isDataLoading} />
+          <ProductList products={filteredProducts} viewMode={viewMode} isLoading={isDataLoading} />
         </main>
-        <aside className="col-span-1 border-l bg-background flex flex-col">
+        <aside className="col-span-2 lg:col-span-1 border-l bg-background flex flex-col">
             <CartDisplay />
         </aside>
       </div>
 
-      {/* Mobile Layout: Cart First */}
+      {/* Mobile Layout: Toggle View */}
       <div className="md:hidden flex flex-col flex-1 overflow-hidden">
-        <div className="p-4 border-b">
-            <div 
-                className="relative flex items-center"
-                onClick={() => setIsProductSheetOpen(true)}
-            >
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                <div className="w-full pl-10 pr-4 py-2 rounded-md border border-input bg-background cursor-pointer text-muted-foreground">
-                    Search products to add...
-                </div>
-            </div>
-        </div>
-
-        <div className="flex-1 overflow-y-auto">
-            <CartDisplay />
-        </div>
-        
-        <Sheet open={isProductSheetOpen} onOpenChange={setIsProductSheetOpen}>
-            <SheetContent side="bottom" className="h-5/6 flex flex-col p-0">
-                <SheetHeader className="p-4">
-                    <SheetTitle>Select Products</SheetTitle>
-                    <SheetDescription>Search and tap a product to add it to the cart.</SheetDescription>
-                </SheetHeader>
-                 <div className="px-4 pb-4 border-b">
-                    <ProductSearchBar searchTerm={searchTerm} onSearchTermChange={setSearchTerm} />
+        {mobileView === 'products' ? (
+            <>
+                <div className="p-4 border-b">
+                     <ProductSearchBar 
+                        searchTerm={searchTerm} 
+                        onSearchTermChange={setSearchTerm}
+                        viewMode={viewMode}
+                        onViewModeChange={setViewMode}
+                    />
                 </div>
                 <div className="flex-1 overflow-y-auto p-4">
-                     <ProductGrid products={filteredProducts} isLoading={isDataLoading} />
+                    <ProductList products={filteredProducts} viewMode={viewMode} isLoading={isDataLoading} />
                 </div>
-            </SheetContent>
-        </Sheet>
+                <div className="p-4 border-t bg-background/95">
+                    <Button className="w-full" onClick={() => setMobileView('cart')}>
+                        <ShoppingCart className="mr-2" /> View Cart ({cartItemCount})
+                    </Button>
+                </div>
+            </>
+        ) : (
+            <CartDisplay onBackToProducts={() => setMobileView('products')} />
+        )}
       </div>
     </div>
   );
