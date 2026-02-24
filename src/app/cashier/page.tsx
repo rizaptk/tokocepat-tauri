@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -12,10 +13,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { LogIn, Search, Barcode, SlidersHorizontal } from 'lucide-react';
+import { LogIn, Search } from 'lucide-react';
 import { seedDatabase } from '@/lib/database';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger, } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, } from "@/components/ui/sheet";
+import { ProductSearchBar } from '@/components/ProductSearchBar';
 
 export default function CashierPage() {
   const products = useStore((state) => state.products);
@@ -172,37 +173,8 @@ export default function CashierPage() {
       {/* Desktop Layout: Split View */}
       <div className="hidden md:grid md:grid-cols-3 flex-1 overflow-hidden">
         <main className="col-span-2 flex flex-col p-4 overflow-y-auto">
-            <div className="flex items-center gap-4 mb-4">
-                <div className="relative flex-1">
-                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input
-                        type="search"
-                        placeholder="Search products..."
-                        className="w-full pl-8"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                    />
-                </div>
-                <Dialog>
-                    <DialogTrigger asChild>
-                        <Button variant="outline" size="icon">
-                            <Barcode className="h-5 w-5" />
-                        </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                        <DialogHeader>
-                        <DialogTitle>Barcode Scanner</DialogTitle>
-                        <DialogDescription>
-                            This feature is for demonstration purposes. In a real app, this would open the device's camera to scan product barcodes.
-                        </DialogDescription>
-                        </DialogHeader>
-                        <div className="flex flex-col items-center justify-center gap-4 py-8">
-                        <Barcode className="h-24 w-24 text-muted-foreground" />
-                        <p className="text-muted-foreground">Ready to scan</p>
-                        </div>
-                    </DialogContent>
-                </Dialog>
-                <Button variant="outline"><SlidersHorizontal className="mr-2 h-4 w-4" /> Filters</Button>
+            <div className="mb-4">
+               <ProductSearchBar searchTerm={searchTerm} onSearchTermChange={setSearchTerm} />
             </div>
           <ProductGrid products={filteredProducts} isLoading={isDataLoading} />
         </main>
@@ -230,42 +202,13 @@ export default function CashierPage() {
         </div>
         
         <Sheet open={isProductSheetOpen} onOpenChange={setIsProductSheetOpen}>
-            <SheetContent side="bottom" className="h-5/6 flex flex-col">
+            <SheetContent side="bottom" className="h-5/6 flex flex-col p-0">
                 <SheetHeader className="p-4">
                     <SheetTitle>Select Products</SheetTitle>
                     <SheetDescription>Search and tap a product to add it to the cart.</SheetDescription>
                 </SheetHeader>
-                 <div className="flex items-center gap-4 px-4 pb-4 border-b">
-                    <div className="relative flex-1">
-                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                        <Input
-                            type="search"
-                            placeholder="Search products..."
-                            className="w-full pl-8"
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            autoFocus
-                        />
-                    </div>
-                     <Dialog>
-                        <DialogTrigger asChild>
-                            <Button variant="outline" size="icon">
-                                <Barcode className="h-5 w-5" />
-                            </Button>
-                        </DialogTrigger>
-                        <DialogContent>
-                            <DialogHeader>
-                            <DialogTitle>Barcode Scanner</DialogTitle>
-                            <DialogDescription>
-                                Feature coming soon.
-                            </DialogDescription>
-                            </DialogHeader>
-                            <div className="flex flex-col items-center justify-center gap-4 py-8">
-                            <Barcode className="h-24 w-24 text-muted-foreground" />
-                            <p className="text-muted-foreground">Ready to scan</p>
-                            </div>
-                        </DialogContent>
-                    </Dialog>
+                 <div className="px-4 pb-4 border-b">
+                    <ProductSearchBar searchTerm={searchTerm} onSearchTermChange={setSearchTerm} />
                 </div>
                 <div className="flex-1 overflow-y-auto p-4">
                      <ProductGrid products={filteredProducts} isLoading={isDataLoading} />
