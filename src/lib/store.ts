@@ -59,7 +59,17 @@ export const useStore = create<StoreState>()(
       },
     
       addToCart: (product: Product) => {
-        const { products, cart } = get();
+        const { products, cart, activeShift } = get();
+
+        if (!activeShift) {
+          toast({
+            variant: 'destructive',
+            title: 'Shift Not Open',
+            description: 'Please open a shift before making a sale.',
+          });
+          return;
+        }
+
         const productInState = products.find(p => p.id === product.id);
 
         if (!productInState || !productInState.is_active) {

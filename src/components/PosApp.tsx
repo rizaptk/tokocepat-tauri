@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -10,6 +11,11 @@ import { useDbStore } from '@/lib/db-store';
 import { initialProducts, initialVariants, initialModifierGroups } from '@/lib/products';
 import { Product, ProductVariant, ModifierGroup, Transaction, Shift } from '@/lib/types';
 import { TokoCepatLogo } from './TokoCepatLogo';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
+import { Label } from './ui/label';
+import { Input } from './ui/input';
+import { Button } from './ui/button';
+import { LogIn } from 'lucide-react';
 
 const DB_VERSION_KEY = 'tokoc_db_version';
 const CURRENT_DB_VERSION = '1.0.3'; // Incremented version
@@ -21,9 +27,12 @@ export default function PosApp() {
   const setModifierGroups = useStore((state) => state.setModifierGroups);
   const setTransactions = useStore((state) => state.setTransactions);
   const setShifts = useStore((state) => state.setShifts);
+  const activeShift = useStore((state) => state.activeShift);
+  const openShift = useStore((state) => state.openShift);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [isDataLoading, setIsDataLoading] = useState(true);
+  const [openingCash, setOpeningCash] = useState(0);
 
   const { isInitialized, db, firesqlite } = useDbStore();
 
@@ -126,6 +135,11 @@ export default function PosApp() {
   const filteredProducts = products.filter(product =>
     product.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const handleOpenShift = () => {
+    openShift(openingCash);
+    setOpeningCash(0);
+  }
   
   if (!isInitialized) {
       return (
@@ -139,6 +153,39 @@ export default function PosApp() {
           </div>
         </div>
       )
+  }
+
+  if (!activeShift) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center bg-muted/40 p-4">
+        <Card className="w-full max-w-md">
+            <CardHeader>
+                <CardTitle>Open a New Shift</CardTitle>
+                <CardDescription>Enter the starting cash amount in your drawer to begin making sales.</CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col sm:flex-row items-center gap-4">
+                <div className="flex-1 w-full">
+                    <Label htmlFor="opening-cash" className="sr-only">Opening Cash</Label>
+                    <div className="relative">
+                        <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">Rp</span>
+                        <Input 
+                            id="opening-cash"
+                            type="number" 
+                            placeholder="Enter opening cash amount" 
+                            value={openingCash || ''}
+                            onChange={(e) => setOpeningCash(Number(e.target.value))}
+                            className="pl-10 text-lg"
+                            autoFocus
+                        />
+                    </div>
+                </div>
+                <Button onClick={handleOpenShift} className="w-full sm:w-auto" disabled={openingCash <= 0}>
+                    <LogIn className="mr-2 h-4 w-4" /> Start Shift
+                </Button>
+            </CardContent>
+        </Card>
+      </div>
+    )
   }
 
   return (

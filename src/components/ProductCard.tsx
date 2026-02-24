@@ -1,3 +1,4 @@
+
 "use client";
 
 import Image from 'next/image';
@@ -14,6 +15,7 @@ type ProductCardProps = {
 
 export function ProductCard({ product }: ProductCardProps) {
   const addToCart = useStore((state) => state.addToCart);
+  const activeShift = useStore((state) => state.activeShift);
   const { toast } = useToast();
 
   const formatCurrency = (amount: number) => {
@@ -25,6 +27,14 @@ export function ProductCard({ product }: ProductCardProps) {
   };
   
   const handleAddToCart = () => {
+    if (!activeShift) {
+      toast({
+        variant: 'destructive',
+        title: 'Shift Not Open',
+        description: 'Please open a shift to start a sale.',
+      });
+      return;
+    }
     addToCart(product);
     toast({
       title: "Added to cart",

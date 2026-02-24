@@ -1,3 +1,4 @@
+
 "use client";
     
 import { useStore } from "@/lib/store";
@@ -9,12 +10,15 @@ import { ShoppingCart, Trash2 } from "lucide-react";
 import Image from "next/image";
 import { useState } from "react";
 import { PaymentModal } from "./PaymentModal";
+import { useToast } from "@/hooks/use-toast";
 
 export function CartDisplay({ onCheckout }: { onCheckout?: () => void }) {
   const cart = useStore((state) => state.cart);
+  const activeShift = useStore((state) => state.activeShift);
   const removeFromCart = useStore((state) => state.removeFromCart);
   const updateQuantity = useStore((state) => state.updateQuantity);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const { toast } = useToast();
 
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const tax = subtotal * 0.11;
@@ -29,6 +33,14 @@ export function CartDisplay({ onCheckout }: { onCheckout?: () => void }) {
   };
 
   const handleProcessPayment = () => {
+    if (!activeShift) {
+      toast({
+        variant: "destructive",
+        title: "Shift Not Open",
+        description: "Please open a shift before processing a payment.",
+      });
+      return;
+    }
     setIsPaymentModalOpen(true);
     if (onCheckout) {
         onCheckout();
@@ -101,7 +113,7 @@ export function CartDisplay({ onCheckout }: { onCheckout?: () => void }) {
                 <span>{formatCurrency(total)}</span>
               </div>
             </div>
-            <Button className="mt-4 w-full" size="lg" onClick={handleProcessPayment}>
+            <Button className="mt-4 w-full" size="lg" onClick={handleProcessPayment} disabled={!activeShift}>
               Process Payment
             </Button>
           </footer>
