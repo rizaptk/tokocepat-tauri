@@ -75,7 +75,7 @@ export interface CartItem extends Product {
 export interface TransactionItem {
     id: string;
     transaction_id: string;
-    product_snapshot: Omit<Product, 'stock' | 'track_stock' | 'has_variant' | 'has_modifier' | 'is_active' | 'low_stock_alert'>;
+    product_snapshot: Omit<Product, 'stock' | 'track_stock' | 'has_variant' | 'has_modifier' | 'is_active' | 'low_stock_alert' | 'modifier_group_ids'>;
     selected_modifiers_snapshot?: SelectedModifier[];
     price_snapshot: number;
     cost_snapshot?: number;
@@ -96,12 +96,16 @@ export interface Transaction {
   shift_id?: string;
 }
 
+export type StockMovementType = 'sale' | 'restock' | 'correction' | 'lost' | 'damaged' | 'initial_balance';
+
 export interface StockMovement {
     id: string;
     product_id: string;
-    type: 'sale' | 'adjustment' | 'lost' | 'initial_balance';
-    qty_change: number; // will be negative for sales
-    reference_id: string; // transaction_id for sales
+    product_name_snapshot: string;
+    type: StockMovementType;
+    qty_change: number; // can be negative
+    reason?: string;
+    reference_id: string; // transaction_id for sales, or a unique ID for manual adjustments
     created_at: string;
 }
 

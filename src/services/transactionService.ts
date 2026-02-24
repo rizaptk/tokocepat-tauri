@@ -1,5 +1,5 @@
 
-import { CartItem, Transaction, Shift, StoreConfig } from '@/lib/types';
+import { CartItem, Transaction, Shift, StoreConfig, StockMovement } from '@/lib/types';
 import { useDbStore } from '@/lib/db-store';
 import { toast } from '@/hooks/use-toast';
 
@@ -73,18 +73,19 @@ export const createTransaction = async (cart: CartItem[], activeShift: Shift, st
             if (productSnap.exists()) {
                 const currentStock = productSnap.data().stock;
                 await updateDoc(productRef, { stock: currentStock - cartItem.quantity });
-            }
 
-            const movementId = `${transactionId}-${cartItem.id}-sale`;
-            const stockMovement = {
-                id: movementId,
-                product_id: cartItem.id,
-                type: 'sale',
-                qty_change: -cartItem.quantity,
-                reference_id: transactionId,
-                created_at: transactionId,
-            };
-            await setDoc(doc(db, 'stock_movements', movementId), stockMovement);
+                const movementId = `${transactionId}-${cartItem.id}-sale`;
+                const stockMovement: StockMovement = {
+                    id: movementId,
+                    product_id: cartItem.id,
+                    product_name_snapshot: cartItem.name,
+                    type: 'sale',
+                    qty_change: -cartItem.quantity,
+                    reference_id: transactionId,
+                    created_at: transactionId,
+                };
+                await setDoc(doc(db, 'stock_movements', movementId), stockMovement);
+            }
         }
     }
     
