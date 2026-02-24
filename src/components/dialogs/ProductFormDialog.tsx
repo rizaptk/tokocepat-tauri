@@ -40,6 +40,7 @@ import {
 import { useStore } from "@/lib/store";
 import { Product } from "@/lib/types";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
+import { Checkbox } from "../ui/checkbox";
 
 
 const productFormSchema = z.object({
@@ -58,6 +59,7 @@ const productFormSchema = z.object({
   is_active: z.boolean().default(true),
   has_variant: z.boolean().default(false),
   has_modifier: z.boolean().default(false),
+  modifier_group_ids: z.array(z.string()).optional(),
 });
 
 type ProductFormValues = z.infer<typeof productFormSchema>;
@@ -70,7 +72,7 @@ interface ProductFormDialogProps {
 
 export function ProductFormDialog({ isOpen, onOpenChange, product }: ProductFormDialogProps) {
   const { toast } = useToast();
-  const categories = useStore((state) => state.categories);
+  const { categories, modifierGroups } = useStore();
   const isEditing = !!product;
 
   const form = useForm<ProductFormValues>({
@@ -86,6 +88,7 @@ export function ProductFormDialog({ isOpen, onOpenChange, product }: ProductForm
       is_active: true,
       has_variant: false,
       has_modifier: false,
+      modifier_group_ids: [],
     },
   });
 
@@ -103,6 +106,7 @@ export function ProductFormDialog({ isOpen, onOpenChange, product }: ProductForm
         is_active: product.is_active,
         has_variant: product.has_variant,
         has_modifier: product.has_modifier,
+        modifier_group_ids: product.modifier_group_ids || [],
       });
     } else {
       form.reset(form.formState.defaultValues);
@@ -317,6 +321,88 @@ export function ProductFormDialog({ isOpen, onOpenChange, product }: ProductForm
                                         )}
                                     />
                                 </div>
+                            </CardContent>
+                        </Card>
+
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Customization</CardTitle>
+                            </CardHeader>
+                             <CardContent className="space-y-6">
+                                <FormField
+                                    control={form.control}
+                                    name="has_modifier"
+                                    render={({ field }) => (
+                                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                                            <div className="space-y-0.5">
+                                                <FormLabel className="text-base">Enable Modifiers</FormLabel>
+                                                <FormDescription>
+                                                    Allow add-ons like toppings or sugar levels.
+                                                </FormDescription>
+                                            </div>
+                                            <FormControl>
+                                                <Switch
+                                                    checked={field.value}
+                                                    onCheckedChange={field.onChange}
+                                                    disabled={form.watch('product_type') === 'retail'}
+                                                />
+                                            </FormControl>
+                                        </FormItem>
+                                    )}
+                                />
+
+                                {form.watch('has_modifier') && form.watch('product_type') === 'food_and_beverage' && (
+                                    <FormField
+                                        control={form.control}
+                                        name="modifier_group_ids"
+                                        render={() => (
+                                            <FormItem className="rounded-lg border p-4">
+                                                <div className="mb-4">
+                                                    <FormLabel className="text-base">Modifier Groups</FormLabel>
+                                                    <FormDescription>
+                                                        Select which modifier groups can be applied.
+                                                    </FormDescription>
+                                                </div>
+                                                <div className="space-y-2">
+                                                    {modifierGroups.map((group) => (
+                                                        <FormField
+                                                            key={group.id}
+                                                            control={form.control}
+                                                            name="modifier_group_ids"
+                                                            render={({ field }) => {
+                                                                return (
+                                                                    <FormItem
+                                                                        key={group.id}
+                                                                        className="flex flex-row items-start space-x-3 space-y-0"
+                                                                    >
+                                                                        <FormControl>
+                                                                            <Checkbox
+                                                                                checked={field.value?.includes(group.id)}
+                                                                                onCheckedChange={(checked) => {
+                                                                                    return checked
+                                                                                    ? field.onChange([...(field.value || []), group.id])
+                                                                                    : field.onChange(
+                                                                                        field.value?.filter(
+                                                                                            (value) => value !== group.id
+                                                                                        )
+                                                                                        )
+                                                                                }}
+                                                                            />
+                                                                        </FormControl>
+                                                                        <FormLabel className="font-normal">
+                                                                            {group.name}
+                                                                        </FormLabel>
+                                                                    </FormItem>
+                                                                )
+                                                            }}
+                                                        />
+                                                    ))}
+                                                </div>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                )}
                             </CardContent>
                         </Card>
 

@@ -16,6 +16,7 @@ export type ProductFormData = {
     low_stock_alert?: number;
     has_variant: boolean;
     has_modifier: boolean;
+    modifier_group_ids?: string[];
 }
 
 export const addProduct = async (productData: ProductFormData): Promise<Product | null> => {
@@ -30,6 +31,7 @@ export const addProduct = async (productData: ProductFormData): Promise<Product 
     const newProduct: Product = {
         id: newId,
         ...productData,
+        modifier_group_ids: productData.has_modifier ? productData.modifier_group_ids : [],
         imageUrl: placeholder.imageUrl,
         imageHint: placeholder.imageHint,
     };
@@ -45,6 +47,10 @@ export const updateProduct = async (id: string, productData: ProductFormData): P
 
     const { doc, updateDoc } = firesqlite;
     
-    // We only pass the fields that can be edited from the form
-    await updateDoc(doc(db, 'products', id), productData);
+    const dataToUpdate = {
+        ...productData,
+        modifier_group_ids: productData.has_modifier ? productData.modifier_group_ids : [],
+    };
+    
+    await updateDoc(doc(db, 'products', id), dataToUpdate);
 };

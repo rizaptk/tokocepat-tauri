@@ -8,13 +8,13 @@ import { ModifierGroup, ModifierItem } from "@/lib/types";
 import { addModifierGroup, updateModifierGroup, deleteModifierGroup, addModifierItem, updateModifierItem, deleteModifierItem } from "@/services/modifierService";
 
 import { Edit, PlusCircle, SlidersHorizontal, Trash } from "lucide-react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -25,6 +25,12 @@ const defaultGroupState = {
     min_select: 1,
     max_select: 1,
     required: true,
+};
+
+// Form state for adding/editing a modifier item
+const defaultItemState = {
+    name: "",
+    additional_price: 0,
 };
 
 export default function ModifiersPage() {
@@ -39,28 +45,19 @@ export default function ModifiersPage() {
     const [groupToEdit, setGroupToEdit] = useState<ModifierGroup | null>(null);
     const [groupFormData, setGroupFormData] = useState(defaultGroupState);
 
-    const handleAddGroup = async () => {
-        if (!groupFormData.name.trim()) return;
-        try {
-            await addModifierGroup(groupFormData);
-            toast({ title: "Modifier group added" });
-            setIsGroupDialogOpen(false);
-        } catch (error) {
-            toast({ variant: "destructive", title: "Error", description: "Could not add modifier group." });
-        }
+    const [itemToEdit, setItemToEdit] = useState<ModifierItem | null>(null);
+    const [activeGroupId, setActiveGroupId] = useState<string | null>(null); // To know which group to add item to
+    const [itemFormData, setItemFormData] = useState(defaultItemState);
+
+    const formatCurrency = (amount: number) => {
+        return new Intl.NumberFormat('id-ID', {
+          style: 'currency',
+          currency: 'IDR',
+          minimumFractionDigits: 0,
+        }).format(amount);
     };
 
-    const handleUpdateGroup = async () => {
-        if (!groupToEdit || !groupFormData.name.trim()) return;
-        try {
-            await updateModifierGroup(groupToEdit.id, groupFormData);
-            toast({ title: "Modifier group updated" });
-            setIsGroupDialogOpen(false);
-        } catch (error) {
-            toast({ variant: "destructive", title: "Error", description: "Could not update modifier group." });
-        }
-    }
-
+    // --- GROUP MANAGEMENT ---
     const openGroupDialog = (group: ModifierGroup | null) => {
         if (group) {
             setGroupToEdit(group);
@@ -77,87 +74,131 @@ export default function ModifiersPage() {
         setIsGroupDialogOpen(true);
     };
 
-    const handleDeleteGroup = async (id: string) => {
+    const handleGroupSubmit = async () => {
+        if (!groupFormData.name.trim()) return;
         try {
-            // Note: Add check for product associations before deleting
-            await deleteModifierGroup(id);
-            toast({ title: "Modifier group deleted" });
+            if (groupToEdit) {
+                await updateModifierGroup(groupToEdit.id, groupFormData);
+                toast({ title: "Modifier group updated" });
+            } else {
+                await addModifierGroup(groupFormData);
+                toast({ title: "Modifier group added" });
+            }
+            setIsGroupDialogOpen(false);
         } catch (error) {
-            toast({ variant: "destructive", title: "Error", description: "Could not delete modifier group." });
+            toast({ variant: "destructive", title: "Error", description: `Could not save modifier group.` });
         }
     };
 
-    // Placeholder functions for items
+    const handleDeleteGroup = async (id: string) => {
+        try {
+            await deleteModifierGroup(id);
+            toast({ title: "Modifier group deleted" });
+        } catch (error) {
+            toast({ variant: "destructive", title: "Error", description: "Could not delete modifier group. It might be in use by a product." });
+        }
+    };
+    
+    // --- ITEM MANAGEMENT ---
     const openItemDialog = (group: ModifierGroup, item: ModifierItem | null) => {
-        // TODO: Implement item dialog logic
-        toast({title: "Coming Soon!", description: "Managing modifier items will be implemented next."})
-    }
+        setActiveGroupId(group.id);
+        if (item) {
+            setItemToEdit(item);
+            setItemFormData({
+                name: item.name,
+                additional_price: item.additional_price,
+            });
+        } else {
+            setItemToEdit(null);
+            setItemFormData(defaultItemState);
+        }
+        setIsItemDialogOpen(true);
+    };
 
-    const formatCurrency = (amount: number) => {
-        return new Intl.NumberFormat('id-ID', {
-          style: 'currency',
-          currency: 'IDR',
-          minimumFractionDigits: 0,
-        }).format(amount);
-      };
+    const handleItemSubmit = async () => {
+        if (!activeGroupId || !itemFormData.name.trim()) return;
+        try {
+             if (itemToEdit) {
+                await updateModifierItem(activeGroupId, itemToEdit.id, itemFormData.name, itemFormData.additional_price);
+                toast({ title: "Modifier item updated" });
+            } else {
+                await addModifierItem(activeGroupId, itemFormData.name, itemFormData.additional_price);
+                toast({ title: "Modifier item added" });
+            }
+            setIsItemDialogOpen(false);
+        } catch (error) {
+            toast({ variant: "destructive", title: "Error", description: "Could not save modifier item." });
+        }
+    };
+    
+    const handleDeleteItem = async (groupId: string, itemId: string) => {
+        try {
+            await deleteModifierItem(groupId, itemId);
+            toast({ title: "Modifier item deleted" });
+        } catch (error) {
+            toast({ variant: "destructive", title: "Error", description: "Could not delete modifier item." });
+        }
+    };
+
 
     return (
         <>
             <Card>
                 <CardHeader className="flex flex-row items-center justify-between">
-                    <CardTitle>Modifier Groups</CardTitle>
+                    <div>
+                        <CardTitle>Modifier Groups</CardTitle>
+                        <CardDescription>Create groups like "Sugar Level" or "Toppings" to customize products.</CardDescription>
+                    </div>
                     <Button onClick={() => openGroupDialog(null)} size="sm">
                         <PlusCircle className="mr-2 h-4 w-4" /> Add Group
                     </Button>
                 </CardHeader>
                 <CardContent>
                     {modifierGroups.length === 0 ? (
-                        <div className="text-center text-muted-foreground py-8">
+                        <div className="text-center text-muted-foreground py-12">
                             <SlidersHorizontal className="mx-auto h-12 w-12" />
-                            <h3 className="mt-4 text-lg font-semibold">No Modifier Groups</h3>
-                            <p>Create groups like "Sugar Level" or "Toppings" to customize products.</p>
+                            <h3 className="mt-4 text-lg font-semibold">No Modifier Groups Yet</h3>
+                            <p>Get started by creating your first modifier group.</p>
                         </div>
                     ) : (
                         <Accordion type="single" collapsible className="w-full">
                             {modifierGroups.map(group => (
                                 <AccordionItem value={group.id} key={group.id}>
                                     <AccordionTrigger>
-                                        <div className="flex items-center gap-4">
-                                            <span className="font-medium text-lg">{group.name}</span>
-                                            <Badge variant="secondary">{group.items.length} items</Badge>
+                                        <div className="flex flex-1 items-center justify-between pr-4">
+                                            <div className="flex items-center gap-4">
+                                                <span className="font-medium text-lg">{group.name}</span>
+                                                <Badge variant="secondary">{group.items.length} items</Badge>
+                                            </div>
+                                            <div className="text-sm text-muted-foreground">
+                                                {group.required ? "Required" : "Optional"} ({group.min_select}-{group.max_select})
+                                            </div>
                                         </div>
                                     </AccordionTrigger>
                                     <AccordionContent className="space-y-4">
-                                        <div className="flex justify-between items-start p-4 bg-muted/50 rounded-lg">
-                                            <div className="grid grid-cols-3 gap-x-8 gap-y-2 text-sm">
-                                                <div><span className="font-semibold">Required:</span> {group.required ? 'Yes' : 'No'}</div>
-                                                <div><span className="font-semibold">Min Select:</span> {group.min_select}</div>
-                                                <div><span className="font-semibold">Max Select:</span> {group.max_select}</div>
-                                            </div>
-                                            <div className="flex gap-2">
-                                                <Button variant="outline" size="sm" onClick={() => openGroupDialog(group)}>
-                                                    <Edit className="mr-2 h-3 w-3"/> Edit Group
-                                                </Button>
-                                                <AlertDialog>
-                                                    <AlertDialogTrigger asChild>
-                                                        <Button variant="destructive" size="sm">
-                                                            <Trash className="mr-2 h-3 w-3"/> Delete Group
-                                                        </Button>
-                                                    </AlertDialogTrigger>
-                                                    <AlertDialogContent>
-                                                        <AlertDialogHeader>
-                                                            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                                                            <AlertDialogDescription>
-                                                                This action cannot be undone. This will permanently delete the "{group.name}" modifier group.
-                                                            </AlertDialogDescription>
-                                                        </AlertDialogHeader>
-                                                        <AlertDialogFooter>
-                                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                            <AlertDialogAction onClick={() => handleDeleteGroup(group.id)}>Confirm Delete</AlertDialogAction>
-                                                        </AlertDialogFooter>
-                                                    </AlertDialogContent>
-                                                </AlertDialog>
-                                            </div>
+                                        <div className="flex justify-end items-center p-2 bg-muted/50 rounded-lg gap-2">
+                                            <Button variant="outline" size="sm" onClick={() => openGroupDialog(group)}>
+                                                <Edit className="mr-2 h-3 w-3"/> Edit Group
+                                            </Button>
+                                            <AlertDialog>
+                                                <AlertDialogTrigger asChild>
+                                                    <Button variant="destructive" size="sm">
+                                                        <Trash className="mr-2 h-3 w-3"/> Delete Group
+                                                    </Button>
+                                                </AlertDialogTrigger>
+                                                <AlertDialogContent>
+                                                    <AlertDialogHeader>
+                                                        <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                                        <AlertDialogDescription>
+                                                            This action cannot be undone. This will permanently delete the "{group.name}" modifier group and all its items.
+                                                        </AlertDialogDescription>
+                                                    </AlertDialogHeader>
+                                                    <AlertDialogFooter>
+                                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                        <AlertDialogAction onClick={() => handleDeleteGroup(group.id)}>Confirm Delete</AlertDialogAction>
+                                                    </AlertDialogFooter>
+                                                </AlertDialogContent>
+                                            </AlertDialog>
                                         </div>
                                         
                                         <div className="border rounded-lg">
@@ -167,7 +208,7 @@ export default function ModifiersPage() {
                                                         <TableHead>Item Name</TableHead>
                                                         <TableHead>Additional Price</TableHead>
                                                         <TableHead className="text-right">
-                                                             <Button variant="ghost" size="sm" onClick={() => openItemDialog(group, null)}>
+                                                             <Button variant="outline" size="sm" onClick={() => openItemDialog(group, null)}>
                                                                 <PlusCircle className="mr-2 h-4 w-4"/> Add Item
                                                             </Button>
                                                         </TableHead>
@@ -182,9 +223,25 @@ export default function ModifiersPage() {
                                                                 <Button variant="ghost" size="icon" onClick={() => openItemDialog(group, item)}>
                                                                     <Edit className="h-4 w-4" />
                                                                 </Button>
-                                                                <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => toast({title: "Coming Soon!", description: "Item deletion will be implemented soon."})}>
-                                                                    <Trash className="h-4 w-4" />
-                                                                </Button>
+                                                                 <AlertDialog>
+                                                                    <AlertDialogTrigger asChild>
+                                                                        <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
+                                                                            <Trash className="h-4 w-4" />
+                                                                        </Button>
+                                                                    </AlertDialogTrigger>
+                                                                    <AlertDialogContent>
+                                                                        <AlertDialogHeader>
+                                                                            <AlertDialogTitle>Delete "{item.name}"?</AlertDialogTitle>
+                                                                            <AlertDialogDescription>
+                                                                                This action cannot be undone.
+                                                                            </AlertDialogDescription>
+                                                                        </AlertDialogHeader>
+                                                                        <AlertDialogFooter>
+                                                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                                            <AlertDialogAction onClick={() => handleDeleteItem(group.id, item.id)}>Delete</AlertDialogAction>
+                                                                        </AlertDialogFooter>
+                                                                    </AlertDialogContent>
+                                                                </AlertDialog>
                                                             </TableCell>
                                                         </TableRow>
                                                     ))}
@@ -235,7 +292,44 @@ export default function ModifiersPage() {
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setIsGroupDialogOpen(false)}>Cancel</Button>
-                        <Button onClick={groupToEdit ? handleUpdateGroup : handleAddGroup}>Save Group</Button>
+                        <Button onClick={handleGroupSubmit}>Save Group</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+             {/* Item Add/Edit Dialog */}
+            <Dialog open={isItemDialogOpen} onOpenChange={setIsItemDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>{itemToEdit ? 'Edit' : 'Add'} Modifier Item</DialogTitle>
+                    </DialogHeader>
+                    <div className="py-4 space-y-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="item-name">Item Name</Label>
+                            <Input 
+                                id="item-name" 
+                                value={itemFormData.name} 
+                                onChange={(e) => setItemFormData({...itemFormData, name: e.target.value})}
+                                autoFocus
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="item-price">Additional Price</Label>
+                             <div className="relative">
+                                <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">Rp</span>
+                                <Input 
+                                    id="item-price" 
+                                    type="number"
+                                    value={itemFormData.additional_price || ''}
+                                    onChange={(e) => setItemFormData({...itemFormData, additional_price: Number(e.target.value)})}
+                                    className="pl-10"
+                                />
+                            </div>
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsItemDialogOpen(false)}>Cancel</Button>
+                        <Button onClick={handleItemSubmit}>Save Item</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
