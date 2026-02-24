@@ -164,7 +164,7 @@ export default function CashierPage() {
   }
 
   return (
-    <div className="flex h-screen w-full bg-muted/40">
+    <div className="h-full w-full bg-muted/40">
       <div className="flex flex-col flex-1">
         <Header searchTerm={searchTerm} setSearchTerm={setSearchTerm} />
         <main className="flex-1 p-4 md:p-6 overflow-y-auto">
