@@ -10,12 +10,12 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutGrid },
   { href: '/cashier', label: 'Cashier', icon: ShoppingCart },
-  { href: '/dashboard/products', label: 'Products', icon: Package },
+  { href: '/product', label: 'Products', icon: Package },
 ];
 
 const moreNavItems = [
-    { href: '/dashboard/categories', label: 'Categories', icon: Library },
-    { href: '/dashboard/modifiers', label: 'Modifiers', icon: SlidersHorizontal },
+    { href: '/product/categories', label: 'Categories', icon: Library },
+    { href: '/product/modifiers', label: 'Modifiers', icon: SlidersHorizontal },
 ]
 
 export function BottomNav() {
