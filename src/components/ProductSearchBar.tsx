@@ -24,20 +24,29 @@ export function ProductSearchBar({ searchTerm, onSearchTermChange, viewMode, onV
     const handleScanSuccess = (barcode: string) => {
         if (onBarcodeScan) {
             onBarcodeScan(barcode);
+            onSearchTermChange('');
         }
         setIsScannerOpen(false);
     }
     
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === 'Enter' && searchTerm.trim() && onBarcodeScan) {
+            e.preventDefault(); // Prevent any default form submission
+            handleScanSuccess(searchTerm.trim());
+        }
+    };
+
     return (
         <div className="flex items-center gap-2 w-full">
             <div className="relative flex-1">
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
                     type="search"
-                    placeholder="Search products..."
+                    placeholder="Search products or scan barcode..."
                     className="w-full pl-8"
                     value={searchTerm}
                     onChange={(e) => onSearchTermChange(e.target.value)}
+                    onKeyDown={handleKeyDown}
                 />
             </div>
             {onBarcodeScan && (
