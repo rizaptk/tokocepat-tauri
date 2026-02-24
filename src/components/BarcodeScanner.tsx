@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from 'react';
-import { Scanner } from 'react-zxing';
+import { BarcodeScanner as Scanner } from 'react-zxing';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Camera } from 'lucide-react';
