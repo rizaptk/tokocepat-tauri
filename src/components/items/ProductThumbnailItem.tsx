@@ -2,18 +2,24 @@
 "use client";
 
 import Image from 'next/image';
-import { Product } from '@/lib/types';
+import { Product, Category } from '@/lib/types';
+import { useStore } from '@/lib/store';
 import { cn } from '@/lib/utils';
 import { Badge } from '../ui/badge';
+import { SlidersHorizontal } from 'lucide-react';
+import { useMemo } from 'react';
 
 type ProductThumbnailItemProps = {
   product: Product;
   onItemClick?: (product: Product) => void;
   isSelected?: boolean;
+  context?: 'cashier' | 'product' | 'inventory';
 };
 
-export function ProductThumbnailItem({ product, onItemClick, isSelected }: ProductThumbnailItemProps) {
-
+export function ProductThumbnailItem({ product, onItemClick, isSelected, context = 'cashier' }: ProductThumbnailItemProps) {
+  const { categories } = useStore();
+  const category = useMemo(() => categories.find(c => c.id === product.category_id), [categories, product.category_id]);
+  
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('id-ID', {
       style: 'currency',
@@ -29,6 +35,7 @@ export function ProductThumbnailItem({ product, onItemClick, isSelected }: Produ
   }
 
   const isOutOfStock = product.track_stock && product.stock <= 0;
+  const isLowStock = product.track_stock && product.low_stock_alert != null && product.stock > 0 && product.stock <= product.low_stock_alert;
 
   return (
     <div 
@@ -43,7 +50,7 @@ export function ProductThumbnailItem({ product, onItemClick, isSelected }: Produ
       role="button"
       tabIndex={isOutOfStock ? -1 : 0}
       onKeyDown={(e) => !isOutOfStock && e.key === 'Enter' && handleSelect()}
-      aria-label={`Add ${product.name} to cart`}
+      aria-label={`Select ${product.name}`}
       aria-disabled={isOutOfStock}
     >
         <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-md">
@@ -52,7 +59,7 @@ export function ProductThumbnailItem({ product, onItemClick, isSelected }: Produ
                 alt={product.name}
                 fill
                 sizes="64px"
-                className="object-cover"
+                className={cn("object-cover", isOutOfStock && "grayscale")}
                 data-ai-hint={product.imageHint}
             />
              {isOutOfStock && (
@@ -61,13 +68,19 @@ export function ProductThumbnailItem({ product, onItemClick, isSelected }: Produ
                 </div>
             )}
         </div>
-        <div className="flex-1">
-            <p className="font-medium line-clamp-2">{product.name}</p>
-            <p className="font-semibold text-sm text-foreground">{formatCurrency(product.price)}</p>
+        <div className="flex-1 space-y-1">
+            <p className="font-medium line-clamp-2 flex items-center gap-2">
+                {product.name}
+                {product.has_modifier && context === 'product' && <SlidersHorizontal className="h-3 w-3 text-muted-foreground" />}
+            </p>
+            <div className="flex items-center gap-2">
+                {category && <Badge variant="outline" className="text-xs">{category.name}</Badge>}
+                <p className="font-semibold text-sm text-foreground">{formatCurrency(product.price)}</p>
+            </div>
         </div>
-        {product.track_stock && (
+        {context !== 'cashier' && product.track_stock && (
             <div className="text-right">
-                <p className={cn("text-sm font-medium", product.stock < (product.low_stock_alert || 10) ? "text-destructive" : "text-muted-foreground")}>
+                <p className={cn("text-lg font-bold", isLowStock ? "text-destructive" : "text-foreground")}>
                     {product.stock}
                 </p>
                 <p className="text-xs text-muted-foreground">in stock</p>

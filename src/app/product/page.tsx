@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
@@ -554,6 +555,7 @@ export default function ProductManagementPage() {
                         viewMode={viewMode}
                         onItemClick={handleSelectProduct}
                         selectedProductId={selectedProductId}
+                        context="product"
                     />
                 </ScrollArea>
                 <div className="p-4 border-t md:hidden flex gap-2">

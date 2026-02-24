@@ -1,6 +1,7 @@
+
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import * as z from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -18,10 +19,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { ProductSearchBar } from "@/components/ProductSearchBar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
-import Image from "next/image";
 import { cn } from "@/lib/utils";
-import { Badge } from "@/components/ui/badge";
-import { SlidersHorizontal, PlusCircle } from "lucide-react";
+import { PlusCircle } from "lucide-react";
+import { ProductList } from "@/components/ProductList";
+import type { ViewMode } from "@/app/cashier/page";
 
 // Form for the right panel / sheet content
 const adjustmentFormSchema = z.object({
@@ -160,46 +161,22 @@ const AdjustmentForm = ({ onSave }: { onSave?: () => void }) => {
     )
 }
 
-// List item for the left panel
-const InventoryListItem = ({ product, category }: { product: Product, category?: Category }) => {
-    const isLowStock = product.low_stock_alert ? product.stock <= product.low_stock_alert : false;
-    return (
-        <div className="flex items-center gap-4 p-3 border-b">
-            <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-md">
-                <Image
-                    src={product.imageUrl}
-                    alt={product.name}
-                    fill
-                    sizes="64px"
-                    className="object-cover"
-                    data-ai-hint={product.imageHint}
-                />
-            </div>
-            <div className="flex-1">
-                <p className="font-medium line-clamp-2">{product.name}</p>
-                {category && <Badge variant="outline" className="mt-1">{category.name}</Badge>}
-            </div>
-            <div className="text-right">
-                <p className={cn("text-xl font-bold", isLowStock ? "text-destructive" : "text-foreground")}>
-                    {product.stock}
-                </p>
-                <p className="text-xs text-muted-foreground">in stock</p>
-            </div>
-        </div>
-    )
-}
-
 export default function InventoryPage() {
-    const { products, categories } = useStore();
+    const { products } = useStore();
     const [searchTerm, setSearchTerm] = useState("");
     const [isSheetOpen, setIsSheetOpen] = useState(false);
+    const [viewMode, setViewMode] = useState<ViewMode>('thumbnail');
 
-    const categoryMap = useMemo(() => 
-        categories.reduce((acc, cat) => {
-            acc[cat.id] = cat;
-            return acc;
-        }, {} as Record<string, Category>), 
-    [categories]);
+     useEffect(() => {
+        // Set default view mode based on screen size
+        const handleResize = () => {
+            const mobile = window.innerWidth < 768;
+            setViewMode(mobile ? 'thumbnail' : 'list');
+        };
+        window.addEventListener('resize', handleResize);
+        handleResize(); // Set initial view mode
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
 
     const filteredProducts = useMemo(() => {
         return products
@@ -216,6 +193,8 @@ export default function InventoryPage() {
                         <ProductSearchBar
                             searchTerm={searchTerm}
                             onSearchTermChange={setSearchTerm}
+                            viewMode={viewMode}
+                            onViewModeChange={setViewMode}
                         />
                     </div>
                      <div className="md:hidden">
@@ -225,19 +204,12 @@ export default function InventoryPage() {
                     </div>
                 </div>
                 <ScrollArea className="flex-grow bg-background">
-                    {filteredProducts.length > 0 ? (
-                        <div>
-                            {filteredProducts.map(product => (
-                                <InventoryListItem key={product.id} product={product} category={product.category_id ? categoryMap[product.category_id] : undefined} />
-                            ))}
-                        </div>
-                    ) : (
-                         <div className="text-center text-muted-foreground py-24">
-                            <SlidersHorizontal className="mx-auto h-12 w-12" />
-                            <h3 className="mt-4 text-lg font-semibold">No Stock-Tracked Products</h3>
-                            <p>Enable stock tracking for products to see them here.</p>
-                        </div>
-                    )}
+                    <ProductList 
+                        products={filteredProducts}
+                        viewMode={viewMode}
+                        context="inventory"
+                        isLoading={products.length === 0}
+                    />
                 </ScrollArea>
             </div>
 

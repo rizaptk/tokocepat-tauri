@@ -15,13 +15,14 @@ type ProductListProps = {
   isLoading?: boolean;
   onItemClick?: (product: Product) => void;
   selectedProductId?: string | null;
+  context?: 'cashier' | 'product' | 'inventory';
 };
 
 const LoadingSkeleton = ({ viewMode }: { viewMode: ViewMode }) => {
     const itemCount = 12;
     if (viewMode === 'list' || viewMode === 'thumbnail') {
         return (
-             <div className="flex flex-col gap-2">
+             <div className="flex flex-col gap-2 p-2">
                 {Array.from({ length: itemCount }).map((_, index) => (
                     <Skeleton key={index} className="h-20 w-full" />
                 ))}
@@ -30,7 +31,7 @@ const LoadingSkeleton = ({ viewMode }: { viewMode: ViewMode }) => {
     }
     // card view
     return (
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 p-4">
             {Array.from({ length: itemCount }).map((_, index) => (
             <div key={index} className="flex flex-col gap-2">
                 <Skeleton className="aspect-square w-full rounded-lg" />
@@ -43,7 +44,7 @@ const LoadingSkeleton = ({ viewMode }: { viewMode: ViewMode }) => {
 }
 
 
-export function ProductList({ products, viewMode, isLoading, onItemClick, selectedProductId }: ProductListProps) {
+export function ProductList({ products, viewMode, isLoading, onItemClick, selectedProductId, context = 'cashier' }: ProductListProps) {
   if (isLoading) {
     return <LoadingSkeleton viewMode={viewMode} />;
   }
@@ -59,9 +60,9 @@ export function ProductList({ products, viewMode, isLoading, onItemClick, select
 
   if (viewMode === 'list') {
     return (
-        <div className="flex flex-col divide-y divide-border rounded-md border">
+        <div className="flex flex-col divide-y divide-border rounded-md border m-4">
             {products.map(product => (
-                <ProductListItem key={product.id} product={product} onItemClick={onItemClick} isSelected={product.id === selectedProductId} />
+                <ProductListItem key={product.id} product={product} onItemClick={onItemClick} isSelected={product.id === selectedProductId} context={context} />
             ))}
         </div>
     )
@@ -71,7 +72,7 @@ export function ProductList({ products, viewMode, isLoading, onItemClick, select
     return (
         <div className="flex flex-col gap-2 p-2">
             {products.map(product => (
-                <ProductThumbnailItem key={product.id} product={product} onItemClick={onItemClick} isSelected={product.id === selectedProductId} />
+                <ProductThumbnailItem key={product.id} product={product} onItemClick={onItemClick} isSelected={product.id === selectedProductId} context={context} />
             ))}
         </div>
     )
@@ -81,7 +82,7 @@ export function ProductList({ products, viewMode, isLoading, onItemClick, select
   return (
     <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 p-4">
       {products.map(product => (
-        <ProductCard key={product.id} product={product} onItemClick={onItemClick} isSelected={product.id === selectedProductId} />
+        <ProductCard key={product.id} product={product} onItemClick={onItemClick} isSelected={product.id === selectedProductId} context={context} />
       ))}
     </div>
   );
