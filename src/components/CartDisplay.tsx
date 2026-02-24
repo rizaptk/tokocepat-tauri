@@ -12,7 +12,7 @@ import { useState } from "react";
 import { PaymentModal } from "./PaymentModal";
 import { useToast } from "@/hooks/use-toast";
 
-export function CartDisplay({ onCheckout }: { onCheckout?: () => void }) {
+export function CartDisplay() {
   const cart = useStore((state) => state.cart);
   const activeShift = useStore((state) => state.activeShift);
   const storeConfig = useStore((state) => state.storeConfig);
@@ -44,9 +44,6 @@ export function CartDisplay({ onCheckout }: { onCheckout?: () => void }) {
       return;
     }
     setIsPaymentModalOpen(true);
-    if (onCheckout) {
-        onCheckout();
-    }
   }
 
   return (
