@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from 'react';
-import { BarcodeScanner as ZxingScanner } from 'react-zxing';
+import { useZxing } from 'react-zxing';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Camera } from 'lucide-react';
@@ -12,32 +12,29 @@ interface BarcodeScannerProps {
 
 export function BarcodeScanner({ onScanSuccess }: BarcodeScannerProps) {
     const { toast } = useToast();
-    const [hasPermission, setHasPermission] = useState<boolean | null>(null);
+    const [permissionDenied, setPermissionDenied] = useState(false);
 
-    const handleScan = (result: any) => {
-        if (result) {
+    const { ref } = useZxing({
+        onDecodeResult(result) {
             onScanSuccess(result.getText());
-        }
-    };
-
-    const handleError = (error: any) => {
-        // The 'NotAllowedError' is the one we most care about for permissions.
-        if (error.name === 'NotAllowedError') {
-            setHasPermission(false);
-        } else {
-            // For other errors, we can show a generic toast.
-            console.error(error);
-            toast({
-                variant: 'destructive',
-                title: 'Scanner Error',
-                description: error.message || 'An unknown error occurred with the camera.',
-            });
-        }
-    };
+        },
+        onError(error) {
+            if (error?.name === 'NotAllowedError') {
+                setPermissionDenied(true);
+            } else {
+                console.error(error);
+                toast({
+                    variant: 'destructive',
+                    title: 'Scanner Error',
+                    description: error?.message || 'An unknown error occurred with the camera.',
+                });
+            }
+        },
+    });
 
     return (
         <div className="flex flex-col items-center justify-center gap-4 py-4">
-            {hasPermission === false ? (
+            {permissionDenied ? (
                  <Alert variant="destructive">
                     <Camera className="h-4 w-4" />
                     <AlertTitle>Camera Access Denied</AlertTitle>
@@ -46,20 +43,14 @@ export function BarcodeScanner({ onScanSuccess }: BarcodeScannerProps) {
                     </AlertDescription>
                 </Alert>
             ) : (
-                <div className="relative w-full max-w-sm aspect-square bg-muted rounded-lg overflow-hidden">
-                    <ZxingScanner
-                        onResult={handleScan}
-                        onError={handleError}
-                        constraints={{
-                            video: {
-                                facingMode: 'environment'
-                            }
-                        }}
-                    />
-                    <div className="absolute inset-0 border-4 border-primary/50 rounded-lg pointer-events-none" />
-                </div>
+                <>
+                    <div className="relative w-full max-w-sm aspect-square bg-muted rounded-lg overflow-hidden">
+                        <video ref={ref} className="w-full h-full object-cover" />
+                        <div className="absolute inset-0 border-4 border-primary/50 rounded-lg pointer-events-none" />
+                    </div>
+                    <p className="text-sm text-muted-foreground">Point the camera at a barcode</p>
+                </>
             )}
-             <p className="text-sm text-muted-foreground">Point the camera at a barcode</p>
         </div>
     );
 }
