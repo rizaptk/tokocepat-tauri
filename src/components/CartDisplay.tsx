@@ -70,19 +70,25 @@ export function CartDisplay() {
           <ScrollArea className="flex-1">
             <div className="flex flex-col gap-4 p-4">
               {cart.map(item => (
-                <div key={item.id} className="flex items-start gap-4">
+                <div key={item.cartItemId} className="flex items-start gap-4">
                     <div className="flex-1 space-y-1">
                         <p className="font-medium leading-tight">{item.name}</p>
+                        {item.selectedModifiers && item.selectedModifiers.length > 0 && (
+                            <ul className="text-xs text-muted-foreground">
+                                {item.selectedModifiers.map(mod => (
+                                    <li key={mod.item.id}>- {mod.item.name} {mod.item.additional_price > 0 ? `+${formatCurrency(mod.item.additional_price)}` : ''}</li>
+                                ))}
+                            </ul>
+                        )}
                         <p className="text-sm text-muted-foreground">
                             {formatCurrency(item.price)}
                         </p>
-                        {/* Placeholder for variants/modifiers */}
                     </div>
                     <div className="flex items-center gap-2">
                         <Input
                             type="number"
                             value={item.quantity}
-                            onChange={e => updateQuantity(item.id, parseInt(e.target.value))}
+                            onChange={e => updateQuantity(item.cartItemId, parseInt(e.target.value))}
                             className="h-8 w-16 text-center"
                             min="1"
                             max={item.stock}
@@ -91,7 +97,7 @@ export function CartDisplay() {
                     <div className="w-24 text-right">
                         <p className="font-semibold">{formatCurrency(item.price * item.quantity)}</p>
                     </div>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive" onClick={() => removeFromCart(item.id)}>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive" onClick={() => removeFromCart(item.cartItemId)}>
                         <Trash2 className="h-4 w-4" />
                     </Button>
                 </div>

@@ -16,18 +16,22 @@ import { LogIn } from 'lucide-react';
 import { seedDatabase } from '@/lib/database';
 import { ProductSearchBar } from '@/components/ProductSearchBar';
 import { ProductList } from '@/components/ProductList';
+import { useToast } from '@/hooks/use-toast';
+import { ModifierPanel } from '@/components/ModifierPanel';
 
 export type ViewMode = 'card' | 'thumbnail' | 'list';
 
 export default function CashierPage() {
   // Global state
-  const { products, setProducts, setProductVariants, setModifierGroups, setTransactions, setShifts, setStoreConfig, setCategories, activeShift, openShift, cart } = useStore();
+  const { products, setProducts, setProductVariants, setModifierGroups, setTransactions, setShifts, setStoreConfig, setCategories, activeShift, openShift, cart, addToCart } = useStore();
   const { isInitialized, db, firesqlite } = useDbStore();
+  const { toast } = useToast();
   
   // Local state
   const [searchTerm, setSearchTerm] = useState('');
   const [isDataLoading, setIsDataLoading] = useState(true);
   const [openingCash, setOpeningCash] = useState(0);
+  const [productToModify, setProductToModify] = useState<Product | null>(null);
 
   // Responsive and view state
   const [viewMode, setViewMode] = useState<ViewMode>('thumbnail');
@@ -132,6 +136,26 @@ export default function CashierPage() {
     setSearchTerm('');
   }
 
+  const handleProductSelect = (product: Product) => {
+    if (!activeShift) {
+        toast({
+            variant: "destructive",
+            title: "Shift Not Open",
+            description: "Please open a shift before processing a payment.",
+        });
+        return;
+    }
+    if (product.has_modifier && product.product_type === 'food_and_beverage') {
+        setProductToModify(product);
+    } else {
+        addToCart(product);
+    }
+    
+    if (isAutocompleteVisible) {
+        handleItemAddedToCart();
+    }
+  };
+
   if (!isInitialized) {
       return (
         <div className="flex h-screen w-full items-center justify-center bg-background">
@@ -196,10 +220,10 @@ export default function CashierPage() {
             </div>
             {isAutocompleteVisible && (
                 <div className="absolute top-20 left-4 right-4 z-20 bg-background border rounded-lg shadow-lg max-h-[60vh] overflow-y-auto">
-                     <ProductList products={filteredProducts} viewMode={viewMode} isLoading={isDataLoading} onItemAdded={handleItemAddedToCart} />
+                     <ProductList products={filteredProducts} viewMode="list" isLoading={isDataLoading} onItemAdded={handleProductSelect} />
                 </div>
             )}
-          <ProductList products={filteredProducts.length > 0 ? filteredProducts : products} viewMode={viewMode} isLoading={isDataLoading} onItemAdded={handleItemAddedToCart}/>
+          <ProductList products={filteredProducts.length > 0 ? filteredProducts : products} viewMode={viewMode} isLoading={isDataLoading} onItemAdded={handleProductSelect}/>
         </main>
         <aside className="col-span-2 lg:col-span-1 border-l bg-background flex flex-col">
             <CartDisplay />
@@ -218,11 +242,21 @@ export default function CashierPage() {
             </div>
              {isAutocompleteVisible && (
                 <div className="absolute top-20 left-4 right-4 z-20 bg-background border rounded-lg shadow-lg max-h-[60vh] overflow-y-auto">
-                    <ProductList products={filteredProducts} viewMode={viewMode} isLoading={isDataLoading} onItemAdded={handleItemAddedToCart} />
+                    <ProductList products={filteredProducts} viewMode="thumbnail" isLoading={isDataLoading} onItemAdded={handleProductSelect} />
                 </div>
             )}
             <CartDisplay />
       </div>
+
+       <ModifierPanel 
+            product={productToModify} 
+            onOpenChange={(isOpen) => {
+                if (!isOpen) {
+                    setProductToModify(null);
+                }
+            }}
+            onItemAdded={handleItemAddedToCart}
+        />
     </div>
   );
 }

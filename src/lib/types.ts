@@ -59,8 +59,17 @@ export interface Product {
   low_stock_alert?: number;
 }
 
+export interface SelectedModifier {
+    groupId: string;
+    groupName: string;
+    item: ModifierItem;
+}
+
 export interface CartItem extends Product {
+  cartItemId: string; // A unique ID for this specific instance in the cart
   quantity: number;
+  // `price` in a CartItem will now represent the final calculated price including modifiers
+  selectedModifiers: SelectedModifier[];
 }
 
 export interface TransactionItem {

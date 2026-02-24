@@ -13,7 +13,7 @@ type ProductListProps = {
   products: Product[];
   viewMode: ViewMode;
   isLoading?: boolean;
-  onItemAdded?: () => void;
+  onItemAdded?: (product: Product) => void;
 };
 
 const LoadingSkeleton = ({ viewMode }: { viewMode: ViewMode }) => {

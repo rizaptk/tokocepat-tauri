@@ -3,20 +3,15 @@
 
 import Image from 'next/image';
 import { Product } from '@/lib/types';
-import { useStore } from '@/lib/store';
-import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Badge } from '../ui/badge';
 
 type ProductThumbnailItemProps = {
   product: Product;
-  onItemAdded?: () => void;
+  onItemAdded?: (product: Product) => void;
 };
 
 export function ProductThumbnailItem({ product, onItemAdded }: ProductThumbnailItemProps) {
-  const addToCart = useStore((state) => state.addToCart);
-  const activeShift = useStore((state) => state.activeShift);
-  const { toast } = useToast();
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('id-ID', {
@@ -26,22 +21,9 @@ export function ProductThumbnailItem({ product, onItemAdded }: ProductThumbnailI
     }).format(amount);
   };
   
-  const handleAddToCart = () => {
-    if (!activeShift) {
-      toast({
-        variant: 'destructive',
-        title: 'Shift Not Open',
-        description: 'Please open a shift to start a sale.',
-      });
-      return;
-    }
-    addToCart(product);
-    toast({
-      title: "Added to cart",
-      description: `${product.name} has been added to your cart.`,
-    });
+  const handleSelect = () => {
     if (onItemAdded) {
-      onItemAdded();
+      onItemAdded(product);
     }
   }
 
@@ -55,10 +37,10 @@ export function ProductThumbnailItem({ product, onItemAdded }: ProductThumbnailI
             ? "bg-card cursor-not-allowed opacity-60" 
             : "bg-card hover:bg-accent cursor-pointer"
       )}
-      onClick={!isOutOfStock ? handleAddToCart : undefined}
+      onClick={!isOutOfStock ? handleSelect : undefined}
       role="button"
       tabIndex={isOutOfStock ? -1 : 0}
-      onKeyDown={(e) => !isOutOfStock && e.key === 'Enter' && handleAddToCart()}
+      onKeyDown={(e) => !isOutOfStock && e.key === 'Enter' && handleSelect()}
       aria-label={`Add ${product.name} to cart`}
       aria-disabled={isOutOfStock}
     >
