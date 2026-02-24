@@ -41,7 +41,7 @@ const adjustmentTypes: { value: StockMovementType, label: string }[] = [
     { value: 'damaged', label: 'Damaged (-)' },
 ];
 
-const AdjustmentForm = ({ onSave }: { onSave?: () => void }) => {
+const AdjustmentForm = ({ onSave, selectedProductId }: { onSave?: () => void, selectedProductId: string | null }) => {
     const { products } = useStore();
     const { toast } = useToast();
     const stockTrackedProducts = products.filter(p => p.track_stock);
@@ -49,10 +49,23 @@ const AdjustmentForm = ({ onSave }: { onSave?: () => void }) => {
     const form = useForm<AdjustmentFormValues>({
         resolver: zodResolver(adjustmentFormSchema),
         defaultValues: {
+            product_id: "",
             qty_change: 0,
             reason: "",
         },
     });
+
+    useEffect(() => {
+        if (selectedProductId) {
+            form.setValue('product_id', selectedProductId, { shouldValidate: true });
+        } else {
+             form.reset({
+                product_id: "",
+                qty_change: 0,
+                reason: "",
+            });
+        }
+    }, [selectedProductId, form]);
 
     async function onSubmit(data: AdjustmentFormValues) {
         try {
@@ -77,7 +90,7 @@ const AdjustmentForm = ({ onSave }: { onSave?: () => void }) => {
         <Card className="h-full border-0 md:border shadow-none md:shadow-sm bg-transparent md:bg-card">
             <CardHeader>
                 <CardTitle>Manual Stock Adjustment</CardTitle>
-                <CardDescription>Record a change in stock for any product.</CardDescription>
+                <CardDescription>Select a product from the list to begin, or scan its barcode.</CardDescription>
             </CardHeader>
             <CardContent>
                 <Form {...form}>
@@ -88,10 +101,10 @@ const AdjustmentForm = ({ onSave }: { onSave?: () => void }) => {
                             render={({ field }) => (
                                 <FormItem>
                                     <FormLabel>Product</FormLabel>
-                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                    <Select onValueChange={field.onChange} value={field.value || ""} disabled={!selectedProductId}>
                                         <FormControl>
                                             <SelectTrigger>
-                                                <SelectValue placeholder="Select a product to adjust" />
+                                                <SelectValue placeholder="Select a product from the list" />
                                             </SelectTrigger>
                                         </FormControl>
                                         <SelectContent>
@@ -110,7 +123,7 @@ const AdjustmentForm = ({ onSave }: { onSave?: () => void }) => {
                             render={({ field }) => (
                                 <FormItem>
                                     <FormLabel>Adjustment Type</FormLabel>
-                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                    <Select onValueChange={field.onChange} value={field.value} disabled={!selectedProductId}>
                                         <FormControl>
                                             <SelectTrigger>
                                                 <SelectValue placeholder="Select a type" />
@@ -133,7 +146,7 @@ const AdjustmentForm = ({ onSave }: { onSave?: () => void }) => {
                                 <FormItem>
                                     <FormLabel>Quantity Change</FormLabel>
                                     <FormControl>
-                                        <Input type="number" placeholder="e.g., 10 or -5" {...field} />
+                                        <Input type="number" placeholder="e.g., 10 or -5" {...field} disabled={!selectedProductId}/>
                                     </FormControl>
                                     <FormDescription>Use a negative number to decrease stock.</FormDescription>
                                     <FormMessage />
@@ -147,13 +160,13 @@ const AdjustmentForm = ({ onSave }: { onSave?: () => void }) => {
                                 <FormItem>
                                     <FormLabel>Reason</FormLabel>
                                     <FormControl>
-                                        <Textarea placeholder="e.g., 'End of month stock count correction'" {...field} />
+                                        <Textarea placeholder="e.g., 'End of month stock count correction'" {...field} disabled={!selectedProductId}/>
                                     </FormControl>
                                     <FormMessage />
                                 </FormItem>
                             )}
                         />
-                        <Button type="submit" className="w-full">Save Adjustment</Button>
+                        <Button type="submit" className="w-full" disabled={!selectedProductId}>Save Adjustment</Button>
                     </form>
                 </Form>
             </CardContent>
@@ -165,28 +178,31 @@ export default function InventoryPage() {
     const { products } = useStore();
     const { toast } = useToast();
     const [searchTerm, setSearchTerm] = useState("");
+    const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
     const [isSheetOpen, setIsSheetOpen] = useState(false);
     const [viewMode, setViewMode] = useState<ViewMode>('thumbnail');
 
      useEffect(() => {
-        // Set default view mode based on screen size
         const handleResize = () => {
             const mobile = window.innerWidth < 768;
             setViewMode(mobile ? 'thumbnail' : 'list');
         };
         window.addEventListener('resize', handleResize);
-        handleResize(); // Set initial view mode
+        handleResize(); 
         return () => window.removeEventListener('resize', handleResize);
     }, []);
 
     const handleBarcodeScan = (barcode: string) => {
         const product = products.find(p => p.barcode === barcode);
         if (product) {
-            setSearchTerm(product.name);
+            setSelectedProductId(product.id);
              toast({
                 title: "Product Found",
-                description: `Showing results for "${product.name}".`,
+                description: `Selected "${product.name}" for adjustment.`,
             });
+            if (window.innerWidth < 768) {
+                setIsSheetOpen(true);
+            }
         } else {
             toast({
                 variant: "destructive",
@@ -195,6 +211,25 @@ export default function InventoryPage() {
             });
         }
     };
+
+    const handleProductSelect = (product: Product) => {
+        setSelectedProductId(product.id);
+        if (window.innerWidth < 768) {
+            setIsSheetOpen(true);
+        }
+    };
+
+    const handleOpenAdjustmentSheet = () => {
+        setSelectedProductId(null);
+        setIsSheetOpen(true);
+    };
+
+    const handleSheetOpenChange = (isOpen: boolean) => {
+        setIsSheetOpen(isOpen);
+        if (!isOpen) {
+            setSelectedProductId(null);
+        }
+    }
 
     const filteredProducts = useMemo(() => {
         return products
@@ -217,7 +252,7 @@ export default function InventoryPage() {
                         />
                     </div>
                      <div className="md:hidden">
-                        <Button onClick={() => setIsSheetOpen(true)}>
+                        <Button onClick={handleOpenAdjustmentSheet}>
                             <PlusCircle className="mr-2 h-4 w-4" /> Adjustment
                         </Button>
                     </div>
@@ -228,19 +263,21 @@ export default function InventoryPage() {
                         viewMode={viewMode}
                         context="inventory"
                         isLoading={products.length === 0}
+                        onItemClick={handleProductSelect}
+                        selectedProductId={selectedProductId}
                     />
                 </ScrollArea>
             </div>
 
             {/* Right Panel: Adjustment Form (Desktop) */}
             <aside className="hidden md:block col-span-4 lg:col-span-3 h-full p-4 bg-background">
-               <AdjustmentForm />
+               <AdjustmentForm onSave={() => setSelectedProductId(null)} selectedProductId={selectedProductId} />
             </aside>
             
             {/* Adjustment Form Sheet (Mobile) */}
-             <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+             <Sheet open={isSheetOpen} onOpenChange={handleSheetOpenChange}>
                 <SheetContent side="right" className="w-full sm:w-[500px] p-0">
-                    <AdjustmentForm onSave={() => setIsSheetOpen(false)} />
+                    <AdjustmentForm onSave={() => setIsSheetOpen(false)} selectedProductId={selectedProductId} />
                 </SheetContent>
             </Sheet>
         </div>
