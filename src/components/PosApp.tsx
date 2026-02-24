@@ -8,44 +8,42 @@ import { MobileCart } from '@/components/MobileCart';
 import { useStore } from '@/lib/store';
 import { useDbStore } from '@/lib/db-store';
 import { initialProducts, initialVariants, initialModifierGroups } from '@/lib/products';
-import { Product, ProductVariant, ModifierGroup } from '@/lib/types';
+import { Product, ProductVariant, ModifierGroup, Transaction } from '@/lib/types';
 import { Skeleton } from './ui/skeleton';
 import { TokoCepatLogo } from './TokoCepatLogo';
 
 const DB_VERSION_KEY = 'tokoc_db_version';
-const CURRENT_DB_VERSION = '1.0.1';
+const CURRENT_DB_VERSION = '1.0.2'; // Incremented version
 
 export default function PosApp() {
   const products = useStore((state) => state.products);
   const setProducts = useStore((state) => state.setProducts);
   const setProductVariants = useStore((state) => state.setProductVariants);
   const setModifierGroups = useStore((state) => state.setModifierGroups);
+  const setTransactions = useStore((state) => state.setTransactions);
+
 
   const [searchTerm, setSearchTerm] = useState('');
   const [isDataLoading, setIsDataLoading] = useState(true);
 
-  // Use the new DB store
   const { isInitialized, db, firesqlite } = useDbStore();
 
   useEffect(() => {
-    // Wait for the DB to be initialized
     if (!isInitialized || !db || !firesqlite) return;
 
     let unsubProducts: (() => void) | undefined;
     let unsubVariants: (() => void) | undefined;
     let unsubModifiers: (() => void) | undefined;
+    let unsubTransactions: (() => void) | undefined;
 
     const setupData = async () => {
       try {
-        // De-structure firesqlite functions
         const { collection, onSnapshot, getDocs, doc, setDoc } = firesqlite;
         
-        // Seeding logic
         const storedVersion = localStorage.getItem(DB_VERSION_KEY);
         if (storedVersion !== CURRENT_DB_VERSION) {
           console.log('Database version mismatch or not set. Seeding data...');
           
-          // Products
           const productsCollectionRef = collection(db, 'products');
           const existingProds = await getDocs(productsCollectionRef);
           if (existingProds.docs.length === 0) {
@@ -56,7 +54,6 @@ export default function PosApp() {
             await Promise.all(seedPromises);
           }
           
-          // Variants
           const variantsCollectionRef = collection(db, 'product_variants');
           const existingVariants = await getDocs(variantsCollectionRef);
           if (existingVariants.docs.length === 0) {
@@ -67,7 +64,6 @@ export default function PosApp() {
             await Promise.all(seedPromises);
           }
 
-          // Modifiers
           const modifiersCollectionRef = collection(db, 'modifier_groups');
           const existingModifiers = await getDocs(modifiersCollectionRef);
           if (existingModifiers.docs.length === 0) {
@@ -84,7 +80,6 @@ export default function PosApp() {
           console.log("Database version is up to date.");
         }
         
-        // Snapshot listeners
         unsubProducts = onSnapshot(collection(db, 'products'), (snapshot: any) => {
           const productList = snapshot.docs.map((doc: any) => doc.data() as Product);
           setProducts(productList);
@@ -101,6 +96,11 @@ export default function PosApp() {
             setModifierGroups(groupList);
         });
 
+        unsubTransactions = onSnapshot(collection(db, 'transactions'), (snapshot: any) => {
+            const transactionList = snapshot.docs.map((doc: any) => doc.data() as Transaction);
+            setTransactions(transactionList);
+        });
+
       } catch (error: any) {
         console.error("Failed to subscribe to data:", error);
         setIsDataLoading(false);
@@ -110,18 +110,17 @@ export default function PosApp() {
     setupData();
 
     return () => {
-      // Cleanup subscriptions on component unmount
       if (unsubProducts) unsubProducts();
       if (unsubVariants) unsubVariants();
       if (unsubModifiers) unsubModifiers();
+      if (unsubTransactions) unsubTransactions();
     };
-  }, [isInitialized, db, firesqlite, setProducts, setProductVariants, setModifierGroups, isDataLoading]);
+  }, [isInitialized, db, firesqlite, setProducts, setProductVariants, setModifierGroups, setTransactions, isDataLoading]);
 
   const filteredProducts = products.filter(product =>
     product.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
   
-  // Show a global loading state until DB is ready
   if (!isInitialized) {
       return (
         <div className="flex h-screen w-full items-center justify-center bg-background">

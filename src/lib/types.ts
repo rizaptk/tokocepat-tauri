@@ -49,13 +49,34 @@ export interface CartItem extends Product {
   quantity: number;
 }
 
+export interface TransactionItem {
+    id: string;
+    transaction_id: string;
+    product_snapshot: Omit<Product, 'stock' | 'track_stock' | 'has_variant' | 'has_modifier' | 'is_active'>;
+    price_snapshot: number;
+    cost_snapshot?: number;
+    qty: number;
+    subtotal: number;
+}
+
 export interface Transaction {
-  id: string;
-  items: CartItem[];
-  total: number;
-  tax: number;
+  id: string; // Will be invoice number or unique ID
+  invoice_number: string;
+  items: TransactionItem[];
   subtotal: number;
-  cashReceived: number;
+  tax_amount: number;
+  total: number;
+  cash_paid: number;
   change: number;
-  date: string;
+  created_at: string;
+  shift_id?: string;
+}
+
+export interface StockMovement {
+    id: string;
+    product_id: string;
+    type: 'sale' | 'adjustment' | 'lost' | 'initial_balance';
+    qty_change: number; // will be negative for sales
+    reference_id: string; // transaction_id for sales
+    created_at: string;
 }

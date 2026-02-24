@@ -15,6 +15,7 @@ import { Label } from '@/components/ui/label';
 import { useStore } from '@/lib/store';
 import { useToast } from '@/hooks/use-toast';
 import { CheckCircle, XCircle } from 'lucide-react';
+import { Transaction } from '@/lib/types';
 
 type PaymentModalProps = {
   isOpen: boolean;
@@ -41,7 +42,7 @@ export function PaymentModal({ isOpen, setIsOpen, total }: PaymentModalProps) {
     }).format(amount);
   };
 
-  const handlePayment = () => {
+  const handlePayment = async () => {
     const cash = parseFloat(cashReceived);
     if (isNaN(cash) || cash < total) {
       toast({
@@ -53,7 +54,7 @@ export function PaymentModal({ isOpen, setIsOpen, total }: PaymentModalProps) {
       return;
     }
 
-    const transaction = checkout(cash);
+    const transaction = await checkout(cash);
     if (transaction) {
       setStatus('success');
       setTransactionDetails({ change: transaction.change, total: transaction.total });
