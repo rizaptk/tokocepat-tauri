@@ -1,4 +1,3 @@
-
 "use client";
     
 import { useStore } from "@/lib/store";
@@ -82,7 +81,7 @@ export function CartDisplay({ onEditItem }: CartDisplayProps) {
                         {item.selectedModifiers && item.selectedModifiers.length > 0 && (
                             <ul className="text-xs text-muted-foreground pl-4">
                                 {item.selectedModifiers.map(mod => (
-                                    <li key={mod.item.id}>- {mod.item.name} {mod.item.additional_price > 0 ? `(+${formatCurrency(mod.item.additional_price)})` : ''}</li>
+                                    <li key={`${mod.groupId}-${mod.item.id}`}>- {mod.item.name} {mod.item.additional_price > 0 ? `(+${formatCurrency(mod.item.additional_price)})` : ''}</li>
                                 ))}
                             </ul>
                         )}
