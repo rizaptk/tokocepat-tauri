@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from 'react';
-import { BarcodeScanner as Scanner } from 'react-zxing';
+import { BarcodeScanner } from 'react-zxing';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Camera } from 'lucide-react';
@@ -47,7 +47,7 @@ export function BarcodeScanner({ onScanSuccess }: BarcodeScannerProps) {
                 </Alert>
             ) : (
                 <div className="relative w-full max-w-sm aspect-square bg-muted rounded-lg overflow-hidden">
-                    <Scanner
+                    <BarcodeScanner
                         onResult={handleScan}
                         onError={handleError}
                         constraints={{
