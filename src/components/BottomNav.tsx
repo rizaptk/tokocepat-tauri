@@ -40,7 +40,7 @@ export function BottomNav() {
             )}
           >
             <item.icon className="h-5 w-5" />
-            <span className="text-[11px] font-medium md:text-sm">{item.label}</span>
+            <span className="hidden font-medium md:inline md:text-sm">{item.label}</span>
           </Link>
         ))}
         <Popover>
@@ -50,7 +50,7 @@ export function BottomNav() {
               className="flex h-full w-full flex-col items-center justify-center gap-1 rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-primary md:h-auto md:w-auto md:flex-row md:gap-2 md:px-4 md:py-2"
             >
               <Menu className="h-5 w-5" />
-              <span className="text-[11px] font-medium md:text-sm">More</span>
+              <span className="hidden font-medium md:inline md:text-sm">More</span>
             </Button>
           </PopoverTrigger>
           <PopoverContent side="top" align="center" className="mb-2 w-48 p-1">
