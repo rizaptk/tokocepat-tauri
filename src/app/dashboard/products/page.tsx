@@ -7,7 +7,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { TokoCepatLogo } from "@/components/TokoCepatLogo";
 import { Button } from "@/components/ui/button";
-import { PlusCircle } from "lucide-react";
+import { Library, PlusCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 export default function ProductsManagementPage() {
@@ -37,11 +37,18 @@ export default function ProductsManagementPage() {
                             Here you can manage products, categories, modifiers, and view stock levels.
                         </CardDescription>
                     </div>
-                    <Button asChild>
-                        <Link href="/dashboard/products/new">
-                            <PlusCircle className="mr-2 h-4 w-4" /> Add New Product
-                        </Link>
-                    </Button>
+                    <div className="flex gap-2">
+                        <Button variant="outline" asChild>
+                            <Link href="/dashboard/categories">
+                                <Library className="mr-2 h-4 w-4" /> Manage Categories
+                            </Link>
+                        </Button>
+                        <Button asChild>
+                            <Link href="/dashboard/products/new">
+                                <PlusCircle className="mr-2 h-4 w-4" /> Add New Product
+                            </Link>
+                        </Button>
+                    </div>
                 </CardHeader>
                 <CardContent>
                     <Table>
