@@ -1,5 +1,5 @@
 
-import { Product } from '@/lib/types';
+import { Product, ProductType } from '@/lib/types';
 import { useDbStore } from '@/lib/db-store';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 
@@ -10,6 +10,10 @@ type NewProductData = {
     stock: number;
     track_stock: boolean;
     is_active: boolean;
+    product_type: ProductType;
+    category_id?: string;
+    cost_price?: number;
+    low_stock_alert?: number;
     has_variant: boolean;
     has_modifier: boolean;
 }
