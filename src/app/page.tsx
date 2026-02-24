@@ -1,29 +1,36 @@
-'use client';
 
-import dynamic from 'next/dynamic';
-import { Skeleton } from '@/components/ui/skeleton';
+import { TokoCepatLogo } from "@/components/TokoCepatLogo";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { LayoutDashboard, ShoppingCart } from "lucide-react";
+import Link from "next/link";
 
-const PosApp = dynamic(() => import('@/components/PosApp'), { 
-  ssr: false,
-  loading: () => (
-    <div className="flex h-screen w-full bg-muted/40 p-4 gap-4 md:p-6">
-      <div className="flex flex-col flex-1 gap-4 md:gap-6">
-        <Skeleton className="h-16 w-full" />
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-          {Array.from({ length: 18 }).map((_, index) => (
-            <div key={index} className="flex flex-col gap-2">
-              <Skeleton className="aspect-square w-full rounded-lg" />
-              <Skeleton className="h-5 w-3/4" />
-              <Skeleton className="h-5 w-1/2" />
-            </div>
-          ))}
-        </div>
+export default function HomePage() {
+  return (
+    <div className="flex min-h-screen w-full flex-col items-center justify-center bg-muted/40 p-4">
+      <div className="flex flex-col items-center gap-6">
+        <TokoCepatLogo />
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle>Welcome to TokoCepat</CardTitle>
+            <CardDescription>Your fast and reliable point-of-sale solution.</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-4">
+            <Button asChild size="lg">
+              <Link href="/cashier">
+                <ShoppingCart className="mr-2" />
+                Go to Cashier
+              </Link>
+            </Button>
+            <Button asChild variant="outline" size="lg">
+              <Link href="/dashboard">
+                <LayoutDashboard className="mr-2" />
+                Go to Dashboard
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
       </div>
-      <Skeleton className="hidden md:flex h-full w-full max-w-sm rounded-lg" />
     </div>
-  )
-});
-
-export default function PosPage() {
-  return <PosApp />;
+  );
 }

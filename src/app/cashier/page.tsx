@@ -10,17 +10,17 @@ import { useStore } from '@/lib/store';
 import { useDbStore } from '@/lib/db-store';
 import { initialProducts, initialVariants, initialModifierGroups } from '@/lib/products';
 import { Product, ProductVariant, ModifierGroup, Transaction, Shift } from '@/lib/types';
-import { TokoCepatLogo } from './TokoCepatLogo';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
-import { Label } from './ui/label';
-import { Input } from './ui/input';
-import { Button } from './ui/button';
+import { TokoCepatLogo } from '@/components/TokoCepatLogo';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import { LogIn } from 'lucide-react';
 
 const DB_VERSION_KEY = 'tokoc_db_version';
-const CURRENT_DB_VERSION = '1.0.3'; // Incremented version
+const CURRENT_DB_VERSION = '1.0.3';
 
-export default function PosApp() {
+export default function CashierPage() {
   const products = useStore((state) => state.products);
   const setProducts = useStore((state) => state.setProducts);
   const setProductVariants = useStore((state) => state.setProductVariants);
