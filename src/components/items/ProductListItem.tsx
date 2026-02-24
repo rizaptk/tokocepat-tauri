@@ -8,9 +8,10 @@ import { cn } from '@/lib/utils';
 
 type ProductListItemProps = {
   product: Product;
+  onItemAdded?: () => void;
 };
 
-export function ProductListItem({ product }: ProductListItemProps) {
+export function ProductListItem({ product, onItemAdded }: ProductListItemProps) {
   const addToCart = useStore((state) => state.addToCart);
   const activeShift = useStore((state) => state.activeShift);
   const { toast } = useToast();
@@ -36,7 +37,10 @@ export function ProductListItem({ product }: ProductListItemProps) {
     toast({
       title: "Added to cart",
       description: `${product.name} has been added to your cart.`,
-    })
+    });
+    if (onItemAdded) {
+      onItemAdded();
+    }
   }
   
   const isOutOfStock = product.track_stock && product.stock <= 0;

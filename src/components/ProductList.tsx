@@ -13,6 +13,7 @@ type ProductListProps = {
   products: Product[];
   viewMode: ViewMode;
   isLoading?: boolean;
+  onItemAdded?: () => void;
 };
 
 const LoadingSkeleton = ({ viewMode }: { viewMode: ViewMode }) => {
@@ -41,7 +42,7 @@ const LoadingSkeleton = ({ viewMode }: { viewMode: ViewMode }) => {
 }
 
 
-export function ProductList({ products, viewMode, isLoading }: ProductListProps) {
+export function ProductList({ products, viewMode, isLoading, onItemAdded }: ProductListProps) {
   if (isLoading) {
     return <LoadingSkeleton viewMode={viewMode} />;
   }
@@ -59,7 +60,7 @@ export function ProductList({ products, viewMode, isLoading }: ProductListProps)
     return (
         <div className="flex flex-col divide-y divide-border rounded-md border">
             {products.map(product => (
-                <ProductListItem key={product.id} product={product} />
+                <ProductListItem key={product.id} product={product} onItemAdded={onItemAdded} />
             ))}
         </div>
     )
@@ -67,9 +68,9 @@ export function ProductList({ products, viewMode, isLoading }: ProductListProps)
 
   if (viewMode === 'thumbnail') {
     return (
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-2 p-2">
             {products.map(product => (
-                <ProductThumbnailItem key={product.id} product={product} />
+                <ProductThumbnailItem key={product.id} product={product} onItemAdded={onItemAdded} />
             ))}
         </div>
     )
@@ -77,9 +78,9 @@ export function ProductList({ products, viewMode, isLoading }: ProductListProps)
 
   // Default to 'card' view
   return (
-    <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+    <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 p-4">
       {products.map(product => (
-        <ProductCard key={product.id} product={product} />
+        <ProductCard key={product.id} product={product} onItemAdded={onItemAdded} />
       ))}
     </div>
   );

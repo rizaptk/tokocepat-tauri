@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Header } from '@/components/Header';
 import { CartDisplay } from '@/components/CartDisplay';
 import { useStore } from '@/lib/store';
@@ -12,7 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { LogIn, ShoppingCart } from 'lucide-react';
+import { LogIn } from 'lucide-react';
 import { seedDatabase } from '@/lib/database';
 import { ProductSearchBar } from '@/components/ProductSearchBar';
 import { ProductList } from '@/components/ProductList';
@@ -30,13 +30,17 @@ export default function CashierPage() {
   const [openingCash, setOpeningCash] = useState(0);
 
   // Responsive and view state
-  const [mobileView, setMobileView] = useState<'products' | 'cart'>('products');
   const [viewMode, setViewMode] = useState<ViewMode>('thumbnail');
 
   useEffect(() => {
     // Set default view mode based on screen size
-    const isMobile = window.innerWidth < 768;
-    setViewMode(isMobile ? 'thumbnail' : 'card');
+    const handleResize = () => {
+        const isMobile = window.innerWidth < 768;
+        setViewMode(isMobile ? 'thumbnail' : 'card');
+    };
+    window.addEventListener('resize', handleResize);
+    handleResize(); // Set initial view mode
+    return () => window.removeEventListener('resize', handleResize);
   }, []);
 
   useEffect(() => {
@@ -112,17 +116,22 @@ export default function CashierPage() {
     };
   }, [isInitialized, db, firesqlite, setProducts, setProductVariants, setModifierGroups, setTransactions, setShifts, setStoreConfig, setCategories, isDataLoading]);
 
-  const filteredProducts = products.filter(product =>
-    product.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredProducts = useMemo(() => 
+    products.filter(product =>
+      product.name.toLowerCase().includes(searchTerm.toLowerCase())
+    ), [products, searchTerm]);
+
+  const isAutocompleteVisible = searchTerm.length > 0;
 
   const handleOpenShift = () => {
     openShift(openingCash);
     setOpeningCash(0);
   }
 
-  const cartItemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
-  
+  const handleItemAddedToCart = () => {
+    setSearchTerm('');
+  }
+
   if (!isInitialized) {
       return (
         <div className="flex h-screen w-full items-center justify-center bg-background">
@@ -176,8 +185,8 @@ export default function CashierPage() {
 
       {/* Desktop & Tablet Layout: Split View */}
       <div className="hidden md:grid md:grid-cols-5 lg:grid-cols-3 flex-1 overflow-hidden">
-        <main className="col-span-3 lg:col-span-2 flex flex-col p-4 overflow-y-auto">
-            <div className="mb-4">
+        <main className="col-span-3 lg:col-span-2 flex flex-col p-4 overflow-y-auto relative">
+            <div className="mb-4 sticky top-0 bg-muted/40 py-2 z-10">
                <ProductSearchBar 
                   searchTerm={searchTerm} 
                   onSearchTermChange={setSearchTerm}
@@ -185,37 +194,34 @@ export default function CashierPage() {
                   onViewModeChange={setViewMode}
                 />
             </div>
-          <ProductList products={filteredProducts} viewMode={viewMode} isLoading={isDataLoading} />
+            {isAutocompleteVisible && (
+                <div className="absolute top-20 left-4 right-4 z-20 bg-background border rounded-lg shadow-lg max-h-[60vh] overflow-y-auto">
+                     <ProductList products={filteredProducts} viewMode={viewMode} isLoading={isDataLoading} onItemAdded={handleItemAddedToCart} />
+                </div>
+            )}
+          <ProductList products={filteredProducts.length > 0 ? filteredProducts : products} viewMode={viewMode} isLoading={isDataLoading} onItemAdded={handleItemAddedToCart}/>
         </main>
         <aside className="col-span-2 lg:col-span-1 border-l bg-background flex flex-col">
             <CartDisplay />
         </aside>
       </div>
 
-      {/* Mobile Layout: Toggle View */}
-      <div className="md:hidden flex flex-col flex-1 overflow-hidden">
-        {mobileView === 'products' ? (
-            <>
-                <div className="p-4 border-b">
-                     <ProductSearchBar 
-                        searchTerm={searchTerm} 
-                        onSearchTermChange={setSearchTerm}
-                        viewMode={viewMode}
-                        onViewModeChange={setViewMode}
-                    />
+      {/* Mobile Layout: Cart First with Search */}
+      <div className="md:hidden flex flex-col flex-1 overflow-hidden relative">
+            <div className="p-4 border-b shrink-0">
+                 <ProductSearchBar 
+                    searchTerm={searchTerm} 
+                    onSearchTermChange={setSearchTerm}
+                    viewMode={viewMode}
+                    onViewModeChange={setViewMode}
+                />
+            </div>
+             {isAutocompleteVisible && (
+                <div className="absolute top-20 left-4 right-4 z-20 bg-background border rounded-lg shadow-lg max-h-[60vh] overflow-y-auto">
+                    <ProductList products={filteredProducts} viewMode={viewMode} isLoading={isDataLoading} onItemAdded={handleItemAddedToCart} />
                 </div>
-                <div className="flex-1 overflow-y-auto p-4">
-                    <ProductList products={filteredProducts} viewMode={viewMode} isLoading={isDataLoading} />
-                </div>
-                <div className="p-4 border-t bg-background/95">
-                    <Button className="w-full" onClick={() => setMobileView('cart')}>
-                        <ShoppingCart className="mr-2" /> View Cart ({cartItemCount})
-                    </Button>
-                </div>
-            </>
-        ) : (
-            <CartDisplay onBackToProducts={() => setMobileView('products')} />
-        )}
+            )}
+            <CartDisplay />
       </div>
     </div>
   );

@@ -10,9 +10,10 @@ import { Badge } from '../ui/badge';
 
 type ProductThumbnailItemProps = {
   product: Product;
+  onItemAdded?: () => void;
 };
 
-export function ProductThumbnailItem({ product }: ProductThumbnailItemProps) {
+export function ProductThumbnailItem({ product, onItemAdded }: ProductThumbnailItemProps) {
   const addToCart = useStore((state) => state.addToCart);
   const activeShift = useStore((state) => state.activeShift);
   const { toast } = useToast();
@@ -38,7 +39,10 @@ export function ProductThumbnailItem({ product }: ProductThumbnailItemProps) {
     toast({
       title: "Added to cart",
       description: `${product.name} has been added to your cart.`,
-    })
+    });
+    if (onItemAdded) {
+      onItemAdded();
+    }
   }
 
   const isOutOfStock = product.track_stock && product.stock <= 0;

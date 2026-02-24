@@ -6,14 +6,15 @@ import { Product } from '@/lib/types';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useStore } from '@/lib/store';
-import { PlusCircle, ShoppingCart } from 'lucide-react';
+import { ShoppingCart } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 type ProductCardProps = {
   product: Product;
+  onItemAdded?: () => void;
 };
 
-export function ProductCard({ product }: ProductCardProps) {
+export function ProductCard({ product, onItemAdded }: ProductCardProps) {
   const addToCart = useStore((state) => state.addToCart);
   const activeShift = useStore((state) => state.activeShift);
   const { toast } = useToast();
@@ -39,7 +40,10 @@ export function ProductCard({ product }: ProductCardProps) {
     toast({
       title: "Added to cart",
       description: `${product.name} has been added to your cart.`,
-    })
+    });
+    if (onItemAdded) {
+      onItemAdded();
+    }
   }
 
   return (

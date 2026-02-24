@@ -6,17 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { ArrowLeft, ShoppingCart, Trash2 } from "lucide-react";
+import { ShoppingCart, Trash2 } from "lucide-react";
 import Image from "next/image";
 import { useState } from "react";
 import { PaymentModal } from "./PaymentModal";
 import { useToast } from "@/hooks/use-toast";
 
-interface CartDisplayProps {
-    onBackToProducts?: () => void;
-}
-
-export function CartDisplay({ onBackToProducts }: CartDisplayProps) {
+export function CartDisplay() {
   const cart = useStore((state) => state.cart);
   const activeShift = useStore((state) => state.activeShift);
   const storeConfig = useStore((state) => state.storeConfig);
@@ -53,14 +49,7 @@ export function CartDisplay({ onBackToProducts }: CartDisplayProps) {
   return (
     <>
       <header className="flex h-16 items-center justify-between border-b px-6 shrink-0">
-        <div className="flex items-center gap-4">
-            {onBackToProducts && (
-                <Button variant="ghost" size="icon" className="md:hidden" onClick={onBackToProducts}>
-                    <ArrowLeft />
-                </Button>
-            )}
-            <h2 className="text-lg font-semibold">Cart</h2>
-        </div>
+        <h2 className="text-lg font-semibold">Cart</h2>
         <div className="relative">
           <ShoppingCart className="h-6 w-6" />
           {cart.length > 0 && (
