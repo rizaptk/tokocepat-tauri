@@ -6,6 +6,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { ProductCard } from '@/components/ProductCard';
 import { ProductThumbnailItem } from './items/ProductThumbnailItem';
 import { ProductListItem } from './items/ProductListItem';
+import { Card } from './ui/card';
 
 type ViewMode = 'card' | 'thumbnail' | 'list';
 
@@ -60,10 +61,12 @@ export function ProductList({ products, viewMode, isLoading, onItemClick, select
 
   if (viewMode === 'list') {
     return (
-        <div className="flex flex-col divide-y divide-border rounded-md border m-4">
-            {products.map(product => (
-                <ProductListItem key={product.id} product={product} onItemClick={onItemClick} isSelected={product.id === selectedProductId} context={context} />
-            ))}
+        <div className="m-4">
+          <Card className='flex flex-col divide-y divide-border'>
+                {products.map(product => (
+                    <ProductListItem key={product.id} product={product} onItemClick={onItemClick} isSelected={product.id === selectedProductId} context={context} />
+                ))}
+          </Card>
         </div>
     )
   }

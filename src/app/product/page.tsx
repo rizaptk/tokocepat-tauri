@@ -693,6 +693,7 @@ const ProductEditor = ({ selectedProductId, onProductUpdate, activeTab, onTabCha
 // ========= MAIN PAGE COMPONENT =========
 export default function ProductManagementPage() {
     const { products } = useStore();
+    const { toast } = useToast();
     const [viewMode, setViewMode] = useState<"card" | "thumbnail" | "list">('card');
     const [searchTerm, setSearchTerm] = useState("");
     const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
@@ -716,6 +717,23 @@ export default function ProductManagementPage() {
         }
     };
     
+    const handleBarcodeScan = (barcode: string) => {
+        const product = products.find(p => p.barcode === barcode || p.sku === barcode);
+        if (product) {
+            handleSelectProduct(product);
+            toast({
+                title: "Product Found",
+                description: `Now editing "${product.name}".`,
+            });
+        } else {
+            toast({
+                variant: "destructive",
+                title: "Product Not Found",
+                description: `No product found with barcode/SKU: ${barcode}`,
+            });
+        }
+    };
+
     const handleAddNew = () => {
         setSelectedProductId(null);
         setActiveTab("product");
@@ -741,6 +759,7 @@ export default function ProductManagementPage() {
                             onSearchTermChange={setSearchTerm}
                             viewMode={viewMode}
                             onViewModeChange={setViewMode}
+                            onBarcodeScan={handleBarcodeScan}
                         />
                         {/* <Button onClick={handleAddNew} className="hidden md:inline-flex">
                            <PlusCircle className="mr-2 h-4 w-4"/> Add Product
