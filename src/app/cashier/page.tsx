@@ -105,10 +105,11 @@ export default function CashierPage() {
             await setDoc(storeConfigRef, initialConfig);
         }
 
-        unsubStoreConfig = onSnapshot(storeConfigRef, (docSnap: any) => {
-            if (docSnap.exists()) {
-                setStoreConfig(docSnap.data() as StoreConfig);
-            }
+        unsubStoreConfig = onSnapshot(collection(db, 'store_config'), (snapshot: any) => {
+          const configDoc = snapshot.docs.find((d: any) => d.id === 'main');
+          if (configDoc) {
+              setStoreConfig(configDoc.data() as StoreConfig);
+          }
         });
         
         unsubProducts = onSnapshot(collection(db, 'products'), (snapshot: any) => {
