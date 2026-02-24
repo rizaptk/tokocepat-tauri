@@ -2,7 +2,7 @@
 "use client";
 
 import Link from "next/link";
-import { History } from "lucide-react";
+import { History, TriangleAlert, CheckCircle } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -15,6 +15,10 @@ export default function DashboardPage() {
   const products = useStore((state) => state.products);
   const shifts = useStore((state) => state.shifts);
   const closedShifts = shifts.filter(s => s.status === 'closed');
+  
+  const lowStockItems = products.filter(
+    p => p.track_stock && p.low_stock_alert != null && p.stock <= p.low_stock_alert
+  );
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('id-ID', {
@@ -35,28 +39,38 @@ export default function DashboardPage() {
         <div className="grid gap-4 md:grid-cols-2">
             <Card>
                 <CardHeader>
-                    <CardTitle>Stock Control</CardTitle>
-                    <CardDescription>Real-time inventory levels for all products.</CardDescription>
+                    <CardTitle className="flex items-center gap-2">
+                      <TriangleAlert className="text-destructive"/>
+                      Low Stock Items
+                    </CardTitle>
+                    <CardDescription>Products that need to be restocked soon.</CardDescription>
                 </CardHeader>
                 <CardContent>
+                   {lowStockItems.length === 0 ? (
+                     <div className="text-center text-muted-foreground py-8">
+                       <CheckCircle className="mx-auto h-10 w-10 mb-2 text-green-500"/>
+                       <p className="font-medium">All items are well-stocked.</p>
+                     </div>
+                   ) : (
                     <Table>
                         <TableHeader>
                             <TableRow>
-                            <TableHead>Product</TableHead>
-                            <TableHead>Price</TableHead>
-                            <TableHead className="text-right">Stock</TableHead>
+                              <TableHead>Product</TableHead>
+                              <TableHead>Remaining</TableHead>
+                              <TableHead className="text-right">Alert Level</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {products.map(product => (
-                                <TableRow key={product.id}>
-                                    <TableCell className="font-medium">{product.name}</TableCell>
-                                    <TableCell>{formatCurrency(product.price)}</TableCell>
-                                    <TableCell className={`text-right font-medium ${product.stock < 10 ? 'text-destructive' : ''}`}>{product.stock}</TableCell>
+                            {lowStockItems.map(product => (
+                                <TableRow key={product.id} className="text-destructive font-medium">
+                                    <TableCell>{product.name}</TableCell>
+                                    <TableCell className="font-bold">{product.stock}</TableCell>
+                                    <TableCell className="text-right">{product.low_stock_alert}</TableCell>
                                 </TableRow>
                             ))}
                         </TableBody>
                     </Table>
+                   )}
                 </CardContent>
             </Card>
             <Card>

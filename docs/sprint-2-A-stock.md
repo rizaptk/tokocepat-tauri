@@ -49,7 +49,7 @@
     - [x] Create an immutable record in the `StockMovements` table for every adjustment, capturing the reason and quantity change.
 
 #### 6️⃣ UI/UX Polish & Integration
-- [ ] On the main `/dashboard` page, add a "Low Stock Items" card that lists all products at or below their `low_stock_alert` threshold.
+- [x] On the main `/dashboard` page, add a "Low Stock Items" card that lists all products at or below their `low_stock_alert` threshold.
 - [x] In the POS/Cashier grid view, add a visual indicator (e.g., a red border or badge) for products that are out of stock or low on stock.
 - [x] Update the product list on the main stock management page (`/dashboard/products`) to show stock status more clearly (e.g., quantity for tracked items, "Untracked" for others).
 
