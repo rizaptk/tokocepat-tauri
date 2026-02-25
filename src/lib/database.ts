@@ -3,7 +3,7 @@ import { Product, ProductVariant, ModifierGroup, StoreConfig, Category } from '@
 import { initialProducts, initialVariants, initialModifierGroups, initialCategories } from '@/lib/products';
 
 const DB_VERSION_KEY = 'tokoc_db_version';
-const CURRENT_DB_VERSION = '1.0.9'; // Incremented version to force re-seed
+const CURRENT_DB_VERSION = '1.0.12'; // Incremented version to force re-seed
 
 export const seedDatabase = async (firesqlite: any, db: any) => {
     if (!firesqlite || !db) return;
@@ -49,13 +49,17 @@ export const seedDatabase = async (firesqlite: any, db: any) => {
             await categoryBatch.commit();
         }
         
-        // Seed Products using writeBatch for efficiency
-        console.log(`Seeding ${initialProducts.length} products...`);
-        const productBatch = writeBatch(db);
-        initialProducts.forEach((p: Product) => {
-            productBatch.set(doc(db, 'products', p.id), p);
-        });
-        await productBatch.commit();
+        // Seed Products in chunks
+        console.log(`Seeding ${initialProducts.length} products in chunks...`);
+        const CHUNK_SIZE = 100;
+        for (let i = 0; i < initialProducts.length; i += CHUNK_SIZE) {
+            const chunk = initialProducts.slice(i, i + CHUNK_SIZE);
+            const productBatch = writeBatch(db);
+            chunk.forEach((p: Product) => {
+                productBatch.set(doc(db, 'products', p.id), p);
+            });
+            await productBatch.commit();
+        }
         console.log('Product seeding complete.');
         
         // Seed Variants
