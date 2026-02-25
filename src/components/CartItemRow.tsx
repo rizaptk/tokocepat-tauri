@@ -1,0 +1,89 @@
+
+"use client";
+
+import { motion } from 'framer-motion';
+import { useStore } from '@/lib/store';
+import { CartItem } from '@/lib/types';
+import { cn } from '@/lib/utils';
+import { Input } from './ui/input';
+import { Button } from './ui/button';
+import { Trash2 } from 'lucide-react';
+import { useIsMobile } from '@/lib/ismobile-store';
+
+interface CartItemRowProps {
+    item: CartItem;
+    onEditItem?: (item: CartItem) => void;
+}
+
+const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('id-ID', {
+      style: 'currency',
+      currency: 'IDR',
+      minimumFractionDigits: 0,
+    }).format(amount);
+};
+
+export const CartItemRow = ({ item, onEditItem }: CartItemRowProps) => {
+    const removeFromCart = useStore((state) => state.removeFromCart);
+    const updateQuantity = useStore((state) => state.updateQuantity);
+    const { isMobile } = useIsMobile();
+
+    return (
+        <motion.div
+            layout
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, x: '-100%', transition: { duration: 0.2 } }}
+            className="relative border-b"
+        >
+            {isMobile && (
+                <div className="absolute inset-y-0 right-0 flex items-center justify-center bg-destructive px-6">
+                    <Trash2 className="h-5 w-5 text-destructive-foreground" />
+                </div>
+            )}
+            <motion.div
+                drag={isMobile ? "x" : false}
+                dragConstraints={{ left: 0, right: 0 }}
+                dragElastic={{ left: 0.5, right: 0 }}
+                onDragEnd={(event, info) => {
+                    if (isMobile && info.offset.x < -100) {
+                        removeFromCart(item.cartItemId);
+                    }
+                }}
+                className={cn("flex items-start gap-4 p-4 bg-background relative z-10", onEditItem && (item.has_modifier || item.has_variant) && "cursor-pointer hover:bg-accent")}
+                onClick={() => onEditItem && onEditItem(item)}
+            >
+                <div className="flex-1 space-y-1">
+                    <p className="font-medium leading-tight">{item.name} {item.selectedVariant ? `(${item.selectedVariant.name})` : ''}</p>
+                    {item.selectedModifiers && item.selectedModifiers.length > 0 && (
+                        <ul className="text-xs text-muted-foreground pl-4">
+                            {item.selectedModifiers.map(mod => (
+                                <li key={`${mod.groupId}-${mod.item.id}`}>- {mod.item.name} {mod.item.additional_price > 0 ? `(+${formatCurrency(mod.item.additional_price)})` : ''}</li>
+                            ))}
+                        </ul>
+                    )}
+                    <p className="text-sm text-muted-foreground md:hidden">
+                        {item.quantity} x {formatCurrency(item.price)}
+                    </p>
+                </div>
+                <div className="hidden md:flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                    <Input
+                        type="number"
+                        value={item.quantity}
+                        onChange={e => updateQuantity(item.cartItemId, parseInt(e.target.value))}
+                        className="h-8 w-16 text-center"
+                        min="1"
+                    />
+                </div>
+                <div className="w-24 text-right">
+                    <p className="font-semibold">{formatCurrency(item.price * item.quantity)}</p>
+                </div>
+                <div className="hidden md:block" onClick={(e) => e.stopPropagation()}>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive" onClick={() => removeFromCart(item.cartItemId)}>
+                      <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+            </motion.div>
+        </motion.div>
+    );
+};

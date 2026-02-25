@@ -3,15 +3,15 @@
     
 import { useStore } from "@/lib/store";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { ShoppingCart, Trash2 } from "lucide-react";
+import { ShoppingCart } from "lucide-react";
 import { useState } from "react";
 import { PaymentModal } from "./PaymentModal";
 import { useToast } from "@/hooks/use-toast";
 import { CartItem } from "@/lib/types";
-import { cn } from "@/lib/utils";
+import { AnimatePresence } from 'framer-motion';
+import { CartItemRow } from './CartItemRow';
 
 interface CartDisplayProps {
     onEditItem?: (item: CartItem) => void;
@@ -21,8 +21,6 @@ export function CartDisplay({ onEditItem }: CartDisplayProps) {
   const cart = useStore((state) => state.cart);
   const activeShift = useStore((state) => state.activeShift);
   const storeConfig = useStore((state) => state.storeConfig);
-  const removeFromCart = useStore((state) => state.removeFromCart);
-  const updateQuantity = useStore((state) => state.updateQuantity);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const { toast } = useToast();
 
@@ -75,40 +73,11 @@ export function CartDisplay({ onEditItem }: CartDisplayProps) {
         <>
           <ScrollArea className="flex-1">
             <div className="flex flex-col gap-0">
-              {cart.map(item => (
-                <div key={item.cartItemId} className={cn("flex items-start gap-4 p-4", onEditItem && (item.has_modifier || item.has_variant) && "cursor-pointer hover:bg-accent")} onClick={() => onEditItem && onEditItem(item)}>
-                    <div className="flex-1 space-y-1">
-                        <p className="font-medium leading-tight">{item.name} {item.selectedVariant ? `(${item.selectedVariant.name})` : ''}</p>
-                        {item.selectedModifiers && item.selectedModifiers.length > 0 && (
-                            <ul className="text-xs text-muted-foreground pl-4">
-                                {item.selectedModifiers.map(mod => (
-                                    <li key={`${mod.groupId}-${mod.item.id}`}>- {mod.item.name} {mod.item.additional_price > 0 ? `(+${formatCurrency(mod.item.additional_price)})` : ''}</li>
-                                ))}
-                            </ul>
-                        )}
-                        <p className="text-sm text-muted-foreground md:hidden">
-                            {item.quantity} x {formatCurrency(item.price)}
-                        </p>
-                    </div>
-                    <div className="hidden md:flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                        <Input
-                            type="number"
-                            value={item.quantity}
-                            onChange={e => updateQuantity(item.cartItemId, parseInt(e.target.value))}
-                            className="h-8 w-16 text-center"
-                            min="1"
-                        />
-                    </div>
-                    <div className="w-24 text-right">
-                        <p className="font-semibold">{formatCurrency(item.price * item.quantity)}</p>
-                    </div>
-                    <div onClick={(e) => e.stopPropagation()}>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive" onClick={() => removeFromCart(item.cartItemId)}>
-                          <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                </div>
-              ))}
+                <AnimatePresence initial={false}>
+                    {cart.map(item => (
+                       <CartItemRow key={item.cartItemId} item={item} onEditItem={onEditItem} />
+                    ))}
+                </AnimatePresence>
             </div>
           </ScrollArea>
           <footer className="border-t p-4 md:p-6 shrink-0 bg-background">
