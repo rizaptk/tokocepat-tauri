@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { useStore } from '@/lib/store';
-import { endOfDay, startOfDay, subDays, format } from 'date-fns';
+import { endOfDay, startOfDay, subDays, format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import { ArrowLeft, BarChart2, DollarSign, ReceiptText, Landmark, FileDown, MoreVertical, FileText } from 'lucide-react';
 import { exportSalesToExcel, exportSalesToPdf } from '@/lib/export';
 
@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 
 
-type DateRangePreset = 'today' | 'last7' | 'last30';
+type DateRangePreset = 'today' | 'last7' | 'last30' | 'lastMonth';
 
 const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('id-ID', {
@@ -46,6 +46,9 @@ export default function SalesReportPage() {
                 return { from: startOfDay(subDays(now, 6)), to: endOfDay(now) };
             case 'last30':
                 return { from: startOfDay(subDays(now, 29)), to: endOfDay(now) };
+            case 'lastMonth':
+                const lastMonthDate = subMonths(now, 1);
+                return { from: startOfMonth(lastMonthDate), to: endOfMonth(lastMonthDate) };
             default:
                 return { from: startOfDay(now), to: endOfDay(now) };
         }
@@ -109,6 +112,7 @@ export default function SalesReportPage() {
                     <Button variant={range === 'today' ? 'default' : 'outline'} size="sm" onClick={() => setRange('today')}>Today</Button>
                     <Button variant={range === 'last7' ? 'default' : 'outline'} size="sm" onClick={() => setRange('last7')}>Last 7 Days</Button>
                     <Button variant={range === 'last30' ? 'default' : 'outline'} size="sm" onClick={() => setRange('last30')}>Last 30 Days</Button>
+                    <Button variant={range === 'lastMonth' ? 'default' : 'outline'} size="sm" onClick={() => setRange('lastMonth')}>Last Month</Button>
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                             <Button variant="outline" size="sm" disabled={filteredTransactions.length === 0}>
@@ -141,6 +145,7 @@ export default function SalesReportPage() {
                                 <DropdownMenuRadioItem value="today">Today</DropdownMenuRadioItem>
                                 <DropdownMenuRadioItem value="last7">Last 7 Days</DropdownMenuRadioItem>
                                 <DropdownMenuRadioItem value="last30">Last 30 Days</DropdownMenuRadioItem>
+                                <DropdownMenuRadioItem value="lastMonth">Last Month</DropdownMenuRadioItem>
                             </DropdownMenuRadioGroup>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem onSelect={handleExcelExport} disabled={filteredTransactions.length === 0}>
