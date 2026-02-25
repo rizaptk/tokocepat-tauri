@@ -47,13 +47,14 @@ export default function SalesReportPage() {
     });
 
     const totalRevenue = filteredTransactions.reduce((sum, tx) => sum + tx.total, 0);
+    const totalSubtotal = filteredTransactions.reduce((sum, tx) => sum + tx.subtotal, 0);
     const totalTax = filteredTransactions.reduce((sum, tx) => sum + tx.tax_amount, 0);
     const totalCost = filteredTransactions.reduce((sum, tx) => {
         return sum + tx.items.reduce((itemSum, item) => {
             return itemSum + ((item.cost_snapshot || 0) * item.qty);
         }, 0);
     }, 0);
-    const totalProfit = totalRevenue - totalCost - totalTax;
+    const totalProfit = totalSubtotal - totalCost;
 
     const stats = [
         { title: 'Total Revenue', value: formatCurrency(totalRevenue), icon: DollarSign },
@@ -112,12 +113,16 @@ export default function SalesReportPage() {
                                 <TableHead>Invoice</TableHead>
                                 <TableHead className="text-right">Items</TableHead>
                                 <TableHead className="text-right">Tax</TableHead>
+                                <TableHead className="text-right">Profit</TableHead>
                                 <TableHead className="text-right">Total</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {filteredTransactions.length > 0 ? (
-                                filteredTransactions.map((tx: Transaction) => (
+                                filteredTransactions.map((tx: Transaction) => {
+                                    const txCost = tx.items.reduce((itemSum, item) => itemSum + ((item.cost_snapshot || 0) * item.qty), 0);
+                                    const txProfit = tx.subtotal - txCost;
+                                    return (
                                     <TableRow key={tx.id}>
                                         <TableCell>
                                             <div className="font-medium">{format(new Date(tx.created_at), 'PP')}</div>
@@ -126,12 +131,14 @@ export default function SalesReportPage() {
                                         <TableCell className="font-mono text-xs">{tx.invoice_number}</TableCell>
                                         <TableCell className="text-right">{tx.items.reduce((sum, item) => sum + item.qty, 0)}</TableCell>
                                         <TableCell className="text-right font-medium">{formatCurrency(tx.tax_amount)}</TableCell>
+                                        <TableCell className="text-right font-medium text-green-600">{formatCurrency(txProfit)}</TableCell>
                                         <TableCell className="text-right font-medium">{formatCurrency(tx.total)}</TableCell>
                                     </TableRow>
-                                ))
+                                    )
+                                })
                             ) : (
                                 <TableRow>
-                                    <TableCell colSpan={5} className="h-24 text-center">
+                                    <TableCell colSpan={6} className="h-24 text-center">
                                         No transactions in this period.
                                     </TableCell>
                                 </TableRow>
