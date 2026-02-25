@@ -1,71 +1,81 @@
+
 import { Product, ProductVariant, ModifierGroup, StoreConfig, Category } from '@/lib/types';
 import { initialProducts, initialVariants, initialModifierGroups, initialCategories } from '@/lib/products';
 
 const DB_VERSION_KEY = 'tokoc_db_version';
-const CURRENT_DB_VERSION = '1.0.8';
+const CURRENT_DB_VERSION = '1.0.9'; // Incremented version to force re-seed
 
 export const seedDatabase = async (firesqlite: any, db: any) => {
     if (!firesqlite || !db) return;
 
     try {
-        const { collection, doc, getDocs, setDoc, deleteDoc, query, where } = firesqlite;
+        const { collection, doc, getDocs, setDoc, deleteDoc, writeBatch } = firesqlite;
         
         const storedVersion = localStorage.getItem(DB_VERSION_KEY);
         if (storedVersion === CURRENT_DB_VERSION) {
-            // console.log("Database version is up to date.");
             return;
         }
 
-        console.log('Database version mismatch or not set. Seeding data...');
+        console.log('Database version mismatch or not set. Seeding new data...');
 
-        // Seed Categories
-        const categoriesCollectionRef = collection(db, 'categories');
-        const existingCats = await getDocs(categoriesCollectionRef);
-        if (existingCats.docs.length === 0) {
-            console.log('Seeding initial categories...');
-            const categoryPromises = initialCategories.map((c: Category) => setDoc(doc(db, 'categories', c.id), c));
-            await Promise.all(categoryPromises);
-        }
-        
-        // Seed Products in chunks
+        // Clear existing data before seeding
+        console.log('Clearing existing product data...');
         const productsCollectionRef = collection(db, 'products');
-        
-        // Clear existing products to ensure a clean seed
-        console.log('Clearing existing products...');
         const existingProdsSnapshot = await getDocs(productsCollectionRef);
         if (existingProdsSnapshot.docs.length > 0) {
             const deletePromises = existingProdsSnapshot.docs.map((d: any) => deleteDoc(doc(db, 'products', d.id)));
             await Promise.all(deletePromises);
             console.log(`${deletePromises.length} existing products cleared.`);
         }
-
-        // Seed in chunks to avoid overwhelming the database worker
-        console.log(`Seeding ${initialProducts.length} initial products in chunks...`);
-        const chunkSize = 100;
-        for (let i = 0; i < initialProducts.length; i += chunkSize) {
-            const chunk = initialProducts.slice(i, i + chunkSize);
-            const productPromises = chunk.map((p: Product) => setDoc(doc(db, 'products', p.id), p));
-            await Promise.all(productPromises);
-            console.log(`Seeded chunk ${Math.floor(i / chunkSize) + 1} of ${Math.ceil(initialProducts.length/chunkSize)}`);
+        
+        const variantsCollectionRef = collection(db, 'product_variants');
+        const existingVariantsSnapshot = await getDocs(variantsCollectionRef);
+        if (existingVariantsSnapshot.docs.length > 0) {
+            const deletePromises = existingVariantsSnapshot.docs.map((d: any) => deleteDoc(doc(db, 'product_variants', d.id)));
+            await Promise.all(deletePromises);
+            console.log(`${deletePromises.length} existing variants cleared.`);
         }
+
+
+        // Seed Categories
+        const categoriesCollectionRef = collection(db, 'categories');
+        const existingCats = await getDocs(categoriesCollectionRef);
+        if (existingCats.docs.length === 0) {
+            console.log('Seeding initial categories...');
+            const categoryBatch = writeBatch(db);
+            initialCategories.forEach((c: Category) => {
+                categoryBatch.set(doc(db, 'categories', c.id), c);
+            });
+            await categoryBatch.commit();
+        }
+        
+        // Seed Products using writeBatch for efficiency
+        console.log(`Seeding ${initialProducts.length} products...`);
+        const productBatch = writeBatch(db);
+        initialProducts.forEach((p: Product) => {
+            productBatch.set(doc(db, 'products', p.id), p);
+        });
+        await productBatch.commit();
         console.log('Product seeding complete.');
         
         // Seed Variants
-        const variantsCollectionRef = collection(db, 'product_variants');
-        const existingVariants = await getDocs(variantsCollectionRef);
-        if (existingVariants.docs.length === 0) {
-            console.log('Seeding initial variants...');
-            const variantPromises = initialVariants.map((v: ProductVariant) => setDoc(doc(db, 'product_variants', v.id), v));
-            await Promise.all(variantPromises);
-        }
+        console.log('Seeding initial variants...');
+        const variantBatch = writeBatch(db);
+        initialVariants.forEach((v: ProductVariant) => {
+            variantBatch.set(doc(db, 'product_variants', v.id), v);
+        });
+        await variantBatch.commit();
 
         // Seed Modifiers
         const modifiersCollectionRef = collection(db, 'modifier_groups');
         const existingModifiers = await getDocs(modifiersCollectionRef);
         if (existingModifiers.docs.length === 0) {
             console.log('Seeding initial modifiers...');
-            const modifierPromises = initialModifierGroups.map((g: ModifierGroup) => setDoc(doc(db, 'modifier_groups', g.id), g));
-            await Promise.all(modifierPromises);
+            const modifierBatch = writeBatch(db);
+            initialModifierGroups.forEach((g: ModifierGroup) => {
+                modifierBatch.set(doc(db, 'modifier_groups', g.id), g);
+            });
+            await modifierBatch.commit();
         }
 
         // Seed Store Config
@@ -84,7 +94,7 @@ export const seedDatabase = async (firesqlite: any, db: any) => {
         }
 
         localStorage.setItem(DB_VERSION_KEY, CURRENT_DB_VERSION);
-        console.log('Seeding complete.');
+        console.log('Database seeding process complete.');
 
     } catch (error) {
         console.error("Database seeding failed:", error);
