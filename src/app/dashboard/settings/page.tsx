@@ -96,8 +96,7 @@ export default function SettingsPage() {
 
       try {
           toast({ title: 'Restoring...', description: 'Please do not close this window.' });
-          const buffer = await file.arrayBuffer();
-          await firesqlite.importFullBinary(buffer);
+          await firesqlite.importFullBinary(file);
           toast({ title: 'Restore Complete', description: 'Database has been restored. The app will now reload.' });
           
           setTimeout(() => window.location.reload(), 1500);
