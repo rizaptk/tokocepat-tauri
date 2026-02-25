@@ -2,13 +2,13 @@ import { Product, ProductVariant, ModifierGroup, StoreConfig, Category } from '@
 import { initialProducts, initialVariants, initialModifierGroups, initialCategories } from '@/lib/products';
 
 const DB_VERSION_KEY = 'tokoc_db_version';
-const CURRENT_DB_VERSION = '1.0.6';
+const CURRENT_DB_VERSION = '1.0.7';
 
 export const seedDatabase = async (firesqlite: any, db: any) => {
     if (!firesqlite || !db) return;
 
     try {
-        const { collection, doc, getDocs, setDoc } = firesqlite;
+        const { collection, doc, getDocs, setDoc, deleteDoc, query, where } = firesqlite;
         
         const storedVersion = localStorage.getItem(DB_VERSION_KEY);
         if (storedVersion === CURRENT_DB_VERSION) {
@@ -27,15 +27,28 @@ export const seedDatabase = async (firesqlite: any, db: any) => {
             await Promise.all(categoryPromises);
         }
         
-        // Seed Products
+        // Seed Products in chunks
         const productsCollectionRef = collection(db, 'products');
-        // Forcing a re-seed of products due to schema changes
-        // const existingProds = await getDocs(productsCollectionRef);
-        // if (existingProds.docs.length === 0) {
-            console.log('Seeding initial products...');
-            const productPromises = initialProducts.map((p: Product) => setDoc(doc(db, 'products', p.id), p));
+        
+        // Clear existing products to ensure a clean seed
+        console.log('Clearing existing products...');
+        const existingProdsSnapshot = await getDocs(productsCollectionRef);
+        if (existingProdsSnapshot.docs.length > 0) {
+            const deletePromises = existingProdsSnapshot.docs.map((d: any) => deleteDoc(d.ref));
+            await Promise.all(deletePromises);
+            console.log(`${deletePromises.length} existing products cleared.`);
+        }
+
+        // Seed in chunks to avoid overwhelming the database worker
+        console.log(`Seeding ${initialProducts.length} initial products in chunks...`);
+        const chunkSize = 100;
+        for (let i = 0; i < initialProducts.length; i += chunkSize) {
+            const chunk = initialProducts.slice(i, i + chunkSize);
+            const productPromises = chunk.map((p: Product) => setDoc(doc(db, 'products', p.id), p));
             await Promise.all(productPromises);
-        // }
+            console.log(`Seeded chunk ${Math.floor(i / chunkSize) + 1} of ${Math.ceil(initialProducts.length/chunkSize)}`);
+        }
+        console.log('Product seeding complete.');
         
         // Seed Variants
         const variantsCollectionRef = collection(db, 'product_variants');
