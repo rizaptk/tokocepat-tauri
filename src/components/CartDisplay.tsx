@@ -1,3 +1,4 @@
+
 "use client";
     
 import { useStore } from "@/lib/store";
@@ -75,9 +76,9 @@ export function CartDisplay({ onEditItem }: CartDisplayProps) {
           <ScrollArea className="flex-1">
             <div className="flex flex-col gap-0">
               {cart.map(item => (
-                <div key={item.cartItemId} className={cn("flex items-start gap-4 p-4", onEditItem && item.has_modifier && "cursor-pointer hover:bg-accent")} onClick={() => onEditItem && onEditItem(item)}>
+                <div key={item.cartItemId} className={cn("flex items-start gap-4 p-4", onEditItem && (item.has_modifier || item.has_variant) && "cursor-pointer hover:bg-accent")} onClick={() => onEditItem && onEditItem(item)}>
                     <div className="flex-1 space-y-1">
-                        <p className="font-medium leading-tight">{item.name}</p>
+                        <p className="font-medium leading-tight">{item.name} {item.selectedVariant ? `(${item.selectedVariant.name})` : ''}</p>
                         {item.selectedModifiers && item.selectedModifiers.length > 0 && (
                             <ul className="text-xs text-muted-foreground pl-4">
                                 {item.selectedModifiers.map(mod => (

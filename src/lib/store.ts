@@ -8,6 +8,9 @@ import { toast } from '@/hooks/use-toast';
 import { openShift as openShiftService, closeShift as closeShiftService } from '@/services/shiftService';
 import { createTransaction } from '@/services/transactionService';
 
+// This represents an item that has had a variant selected but is not yet in the cart
+type ItemWithVariant = Product & { _selectedVariant: ProductVariant };
+
 interface StoreState {
   products: Product[];
   categories: Category[];
@@ -27,7 +30,7 @@ interface StoreState {
   setTransactions: (transactions: Transaction[]) => void;
   setShifts: (shifts: Shift[]) => void;
   setStoreConfig: (config: StoreConfig) => void;
-  saveItemToCart: (itemData: Product | CartItem, selectedModifiers?: SelectedModifier[]) => void;
+  saveItemToCart: (itemData: Product | CartItem | ItemWithVariant, selectedModifiers?: SelectedModifier[], selectedVariant?: ProductVariant) => void;
   removeFromCart: (cartItemId: string) => void;
   updateQuantity: (cartItemId: string, quantity: number) => void;
   clearCart: () => void;
@@ -61,7 +64,7 @@ export const useStore = create<StoreState>()(
       },
       setStoreConfig: (config) => set({ storeConfig: config }),
     
-      saveItemToCart: (itemData: Product | CartItem, selectedModifiers: SelectedModifier[] = []) => {
+      saveItemToCart: (itemData: Product | CartItem | ItemWithVariant, selectedModifiers: SelectedModifier[] = [], selectedVariant?: ProductVariant) => {
         const { products, cart, activeShift } = get();
 
         if (!activeShift) {
@@ -74,11 +77,12 @@ export const useStore = create<StoreState>()(
         }
 
         const isEditing = 'cartItemId' in itemData;
+        const finalVariant = selectedVariant || (isEditing ? (itemData as CartItem).selectedVariant : undefined);
 
-        // For simple products (no modifiers), check if it already exists and stack it.
-        const isModified = selectedModifiers.length > 0;
+        // For simple products (no modifiers/variants), check if it already exists and stack it.
+        const isModified = selectedModifiers.length > 0 || !!finalVariant;
         if (!isModified && !isEditing) {
-            const existingItem = cart.find(item => item.id === itemData.id && (!item.selectedModifiers || item.selectedModifiers.length === 0));
+            const existingItem = cart.find(item => item.id === itemData.id && !item.selectedVariant && (!item.selectedModifiers || item.selectedModifiers.length === 0));
             if (existingItem) {
                 get().updateQuantity(existingItem.cartItemId, existingItem.quantity + 1);
                 toast({
@@ -90,14 +94,17 @@ export const useStore = create<StoreState>()(
         }
         
         let finalPrice = itemData.price;
-        if ('cartItemId' in itemData) { // If editing, use the base product price, not the old cart item price
+        if ('cartItemId' in itemData) {
             const originalProduct = products.find(p => p.id === itemData.id);
             finalPrice = originalProduct?.price || itemData.price;
-        } else {
-            finalPrice = itemData.price;
-        }
 
-        if (isModified) {
+            // Recalculate price based on variant and modifiers
+            if (finalVariant) finalPrice += finalVariant.additional_price;
+            finalPrice += selectedModifiers.reduce((sum, mod) => sum + mod.item.additional_price, 0);
+
+        } else {
+            // Price is already calculated with variant in cashier page, now add modifiers
+            finalPrice = itemData.price;
             finalPrice += selectedModifiers.reduce((sum, mod) => sum + mod.item.additional_price, 0);
         }
 
@@ -105,7 +112,7 @@ export const useStore = create<StoreState>()(
              set(state => ({
                 cart: state.cart.map(item =>
                     item.cartItemId === (itemData as CartItem).cartItemId
-                    ? { ...item, selectedModifiers, price: finalPrice }
+                    ? { ...item, selectedModifiers, price: finalPrice, selectedVariant: finalVariant }
                     : item
                 ),
             }));
@@ -119,9 +126,13 @@ export const useStore = create<StoreState>()(
               toast({ variant: 'destructive', description: `${itemData.name} is not available.` });
               return;
             }
-            if (productInState.track_stock && productInState.stock <= 0) {
+            if (productInState.track_stock && !finalVariant && productInState.stock <= 0) {
               toast({ variant: 'destructive', description: `${itemData.name} is out of stock.` });
               return;
+            }
+            if (finalVariant && finalVariant.stock <=0) {
+                toast({ variant: 'destructive', description: `Variant ${finalVariant.name} is out of stock.` });
+                return;
             }
 
             const newCartItem: CartItem = {
@@ -129,6 +140,7 @@ export const useStore = create<StoreState>()(
                 cartItemId: `cart-item-${new Date().getTime()}-${Math.random()}`,
                 quantity: 1,
                 price: finalPrice,
+                selectedVariant: finalVariant,
                 selectedModifiers: selectedModifiers,
             };
             set({ cart: [...cart, newCartItem] });
@@ -146,7 +158,7 @@ export const useStore = create<StoreState>()(
       },
     
       updateQuantity: (cartItemId: string, quantity: number) => {
-        const { cart } = get();
+        const { cart, productVariants } = get();
         const itemToUpdate = cart.find(item => item.cartItemId === cartItemId);
         if (!itemToUpdate) return;
     
@@ -156,9 +168,15 @@ export const useStore = create<StoreState>()(
         }
     
         let newQuantity = quantity;
-        if (itemToUpdate.track_stock && quantity > itemToUpdate.stock) {
-            toast({ variant: 'destructive', description: `Only ${itemToUpdate.stock} items of ${itemToUpdate.name} in stock.`});
-            newQuantity = itemToUpdate.stock;
+        const stockLimit = itemToUpdate.selectedVariant 
+            ? itemToUpdate.selectedVariant.stock 
+            : itemToUpdate.stock;
+        
+        const isStockTracked = itemToUpdate.has_variant || itemToUpdate.track_stock;
+
+        if (isStockTracked && quantity > stockLimit) {
+            toast({ variant: 'destructive', description: `Only ${stockLimit} items of ${itemToUpdate.name} in stock.`});
+            newQuantity = stockLimit;
         }
         
         set({

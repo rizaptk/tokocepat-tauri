@@ -5,7 +5,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { Header } from '@/components/Header';
 import { CartDisplay } from '@/components/CartDisplay';
 import { useStore } from '@/lib/store';
-import { Product, CartItem } from '@/lib/types';
+import { Product, CartItem, ProductVariant } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -15,12 +15,16 @@ import { ProductSearchBar } from '@/components/ProductSearchBar';
 import { ProductList } from '@/components/ProductList';
 import { useToast } from '@/hooks/use-toast';
 import { ModifierPanel } from '@/components/ModifierPanel';
+import { VariantPanel } from '@/components/VariantPanel';
 import { cn } from '@/lib/utils';
 import { SelectedModifier } from '@/lib/types';
 import { useIsMobile } from '@/lib/ismobile-store';
 import { useGlobalBarcodeScanner } from '@/hooks/use-global-barcode-scanner';
 
 export type ViewMode = 'card' | 'thumbnail' | 'list';
+
+// This represents an item that has had a variant selected but is not yet in the cart
+type ItemWithVariant = Product & { _selectedVariant: ProductVariant };
 
 export default function CashierPage() {
   // Global state from Zustand
@@ -31,10 +35,11 @@ export default function CashierPage() {
   // Local state for UI
   const [searchTerm, setSearchTerm] = useState('');
   const [openingCash, setOpeningCash] = useState(0);
-  const [itemToModify, setItemToModify] = useState<Product | CartItem | null>(null);
+  const [itemToSelectVariant, setItemToSelectVariant] = useState<Product | null>(null);
+  const [itemToModify, setItemToModify] = useState<Product | CartItem | ItemWithVariant | null>(null);
 
   // Responsive and view state
-  const [viewMode, setViewMode] = useState<ViewMode>('thumbnail');
+  const [viewMode, setViewMode] = useState<ViewMode>('card');
   const isAutocompleteVisible = searchTerm.length > 0;
 
   useEffect(() => {
@@ -71,7 +76,10 @@ export default function CashierPage() {
         });
         return;
     }
-    if (product.has_modifier) {
+
+    if (product.has_variant) {
+        setItemToSelectVariant(product);
+    } else if (product.has_modifier) {
         setItemToModify(product);
     } else {
         saveItemToCart(product);
@@ -79,6 +87,28 @@ export default function CashierPage() {
     
     if (isAutocompleteVisible) {
         handleItemAdded();
+    }
+  };
+
+  const handleVariantConfirm = (selectedVariant: ProductVariant) => {
+    const item = itemToSelectVariant;
+    setItemToSelectVariant(null);
+    if (!item) return;
+
+    // Create a temporary "composite" item that holds the original product data
+    // plus the selected variant, with an updated price.
+    const compositeItem: ItemWithVariant = {
+        ...item,
+        price: item.price + selectedVariant.additional_price,
+        _selectedVariant: selectedVariant,
+    };
+
+    if (item.has_modifier) {
+        // Pass this composite item to the modifier panel
+        setItemToModify(compositeItem);
+    } else {
+        // No modifiers, save directly to cart
+        saveItemToCart(compositeItem, [], selectedVariant);
     }
   };
 
@@ -100,7 +130,11 @@ export default function CashierPage() {
 
   const handleModifierConfirm = (selectedModifiers: SelectedModifier[]) => {
     if (!itemToModify) return;
-    saveItemToCart(itemToModify, selectedModifiers);
+
+    const item = itemToModify;
+    const selectedVariant = '_selectedVariant' in item ? (item as ItemWithVariant)._selectedVariant : undefined;
+
+    saveItemToCart(item, selectedModifiers, selectedVariant);
     setItemToModify(null);
     // If we were adding a new item (not editing from cart), clear search
     if (!('cartItemId' in itemToModify)) {
@@ -109,12 +143,13 @@ export default function CashierPage() {
   };
 
   const handleEditCartItem = (item: CartItem) => {
+      // For now, only allow editing modifiers. Variant editing can be added later.
       if (item.has_modifier) {
         setItemToModify(item);
       } else {
           toast({
-              title: "No modifiers",
-              description: "This item does not have any modifiers to edit."
+              title: "No custom options",
+              description: "This item does not have any variants or modifiers to edit."
           })
       }
   }
@@ -174,7 +209,7 @@ export default function CashierPage() {
                   onBarcodeScan={handleBarcodeScan}
                 />
             </div>
-          <div className="flex-1">
+          <div className="flex-1 bg-background">
             <ProductList products={filteredProducts.length > 0 ? filteredProducts : []} viewMode={viewMode} isLoading={products.length === 0} onItemClick={handleProductSelect} context="cashier"/>
           </div>
         </main>
@@ -212,6 +247,15 @@ export default function CashierPage() {
         </div>
       }
 
+       <VariantPanel
+            item={itemToSelectVariant}
+            onOpenChange={(isOpen) => {
+                if (!isOpen) {
+                    setItemToSelectVariant(null);
+                }
+            }}
+            onConfirm={handleVariantConfirm}
+       />
        <ModifierPanel 
             item={itemToModify} 
             onOpenChange={(isOpen) => {
