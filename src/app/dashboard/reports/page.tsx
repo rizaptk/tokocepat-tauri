@@ -19,7 +19,7 @@ const reportLinks = [
         description: 'View stock levels, value, and movement history.',
         href: '/dashboard/reports/inventory',
         icon: Warehouse,
-        comingSoon: true,
+        comingSoon: false,
     },
     {
         title: 'Shift History',
