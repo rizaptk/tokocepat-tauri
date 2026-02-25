@@ -2,13 +2,14 @@
 "use client";
 
 import Link from "next/link";
-import { History, TriangleAlert, CheckCircle, TrendingUp, ShoppingBag, BarChart as BarChartIcon } from "lucide-react";
+import { History, TriangleAlert, CheckCircle, TrendingUp, ShoppingBag, BarChart as BarChartIcon, ArrowRight } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { TokoCepatLogo } from "@/components/TokoCepatLogo";
 import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts"
 import {
   ChartContainer,
@@ -19,10 +20,11 @@ import {
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { products, shifts, transactions } = useStore((state) => ({
+  const { products, shifts, transactions, activeShift } = useStore((state) => ({
     products: state.products,
     shifts: state.shifts,
     transactions: state.transactions,
+    activeShift: state.activeShift,
   }));
   const closedShifts = shifts.filter(s => s.status === 'closed');
   
@@ -78,6 +80,12 @@ export default function DashboardPage() {
     }).format(amount);
   };
   
+  // --- Active Shift Calculations ---
+  const activeShiftTransactions = activeShift
+    ? transactions.filter(t => t.shift_id === activeShift.id && t.status === 'paid')
+    : [];
+  const activeShiftRevenue = activeShiftTransactions.reduce((sum, t) => sum + t.total, 0);
+
   return (
     <div className="flex min-h-screen w-full flex-col bg-muted/40">
        <header className="sticky top-0 flex h-16 items-center gap-4 border-b bg-background px-4 md:px-6 z-10">
@@ -86,6 +94,37 @@ export default function DashboardPage() {
           </Link>
        </header>
       <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
+        {activeShift && (
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <div>
+                  <CardTitle>Active Shift Summary</CardTitle>
+                  <CardDescription>
+                      Shift started at {new Date(activeShift.opened_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </CardDescription>
+                </div>
+                <Button asChild>
+                    <Link href="/cashier">
+                        Go to Cashier <ArrowRight className="ml-2 h-4 w-4" />
+                    </Link>
+                </Button>
+            </CardHeader>
+            <CardContent className="grid gap-4 pt-4 sm:grid-cols-3">
+                <div className="flex flex-col space-y-1">
+                    <p className="text-sm text-muted-foreground">Opening Cash</p>
+                    <p className="text-2xl font-bold">{formatCurrency(activeShift.opening_cash)}</p>
+                </div>
+                <div className="flex flex-col space-y-1">
+                    <p className="text-sm text-muted-foreground">Current Sales</p>
+                    <p className="text-2xl font-bold">{formatCurrency(activeShiftRevenue)}</p>
+                </div>
+                <div className="flex flex-col space-y-1">
+                    <p className="text-sm text-muted-foreground">Transactions</p>
+                    <p className="text-2xl font-bold">{activeShiftTransactions.length}</p>
+                </div>
+            </CardContent>
+          </Card>
+        )}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <Card className="lg:col-span-2">
                 <CardHeader>
@@ -247,3 +286,5 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+    
