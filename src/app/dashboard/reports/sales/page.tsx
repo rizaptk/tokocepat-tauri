@@ -1,10 +1,11 @@
+
 'use client';
 
 import Link from 'next/link';
 import { useState, useMemo } from 'react';
 import { useStore } from '@/lib/store';
 import { endOfDay, startOfDay, subDays, format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
-import { ArrowLeft, BarChart2, DollarSign, ReceiptText, Landmark, FileDown, MoreVertical, FileText, Search } from 'lucide-react';
+import { ArrowLeft, BarChart2, DollarSign, ReceiptText, Landmark, Search } from 'lucide-react';
 import { exportSalesToExcel, exportSalesToPdf } from '@/lib/export';
 
 import { Button } from '@/components/ui/button';
@@ -12,20 +13,9 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Transaction } from '@/lib/types';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { TransactionDetailDialog } from '@/components/TransactionDetailDialog';
+import { DateRangeFilter, DateRangePreset } from '@/components/DateRangeFilter';
 
-
-type DateRangePreset = 'today' | 'last7' | 'last30' | 'lastMonth';
 
 const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('id-ID', {
@@ -115,59 +105,13 @@ export default function SalesReportPage() {
                         <BarChart2 className="h-5 w-5" /> Sales Report
                     </h1>
                 </div>
-                
-                {/* Desktop Buttons */}
-                <div className="hidden md:flex items-center gap-2">
-                    <Button variant={range === 'today' ? 'default' : 'outline'} size="sm" onClick={() => setRange('today')}>Today</Button>
-                    <Button variant={range === 'last7' ? 'default' : 'outline'} size="sm" onClick={() => setRange('last7')}>Last 7 Days</Button>
-                    <Button variant={range === 'last30' ? 'default' : 'outline'} size="sm" onClick={() => setRange('last30')}>Last 30 Days</Button>
-                    <Button variant={range === 'lastMonth' ? 'default' : 'outline'} size="sm" onClick={() => setRange('lastMonth')}>Last Month</Button>
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button variant="outline" size="sm" disabled={filteredTransactions.length === 0}>
-                                <FileDown className="mr-2 h-4 w-4" />
-                                <span>Export</span>
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                            <DropdownMenuItem onSelect={handleExcelExport}>
-                                <FileDown className="mr-2 h-4 w-4"/> Excel (.xlsx)
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onSelect={handlePdfExport}>
-                                <FileText className="mr-2 h-4 w-4"/> PDF (.pdf)
-                            </DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
-                </div>
-                
-                {/* Mobile Dropdown */}
-                <div className="md:hidden">
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button variant="outline" size="icon">
-                                <MoreVertical className="h-4 w-4" />
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                            <DropdownMenuLabel>Date Range</DropdownMenuLabel>
-                            <DropdownMenuRadioGroup value={range} onValueChange={(value) => setRange(value as DateRangePreset)}>
-                                <DropdownMenuRadioItem value="today">Today</DropdownMenuRadioItem>
-                                <DropdownMenuRadioItem value="last7">Last 7 Days</DropdownMenuRadioItem>
-                                <DropdownMenuRadioItem value="last30">Last 30 Days</DropdownMenuRadioItem>
-                                <DropdownMenuRadioItem value="lastMonth">Last Month</DropdownMenuRadioItem>
-                            </DropdownMenuRadioGroup>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem onSelect={handleExcelExport} disabled={filteredTransactions.length === 0}>
-                                <FileDown className="mr-2 h-4 w-4" />
-                                Export to Excel
-                            </DropdownMenuItem>
-                             <DropdownMenuItem onSelect={handlePdfExport} disabled={filteredTransactions.length === 0}>
-                                <FileText className="mr-2 h-4 w-4" />
-                                Export to PDF
-                            </DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
-                </div>
+                <DateRangeFilter
+                    range={range}
+                    onRangeChange={setRange}
+                    onExportExcel={handleExcelExport}
+                    onExportPdf={handlePdfExport}
+                    hasData={filteredTransactions.length > 0}
+                />
            </header>
           <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
