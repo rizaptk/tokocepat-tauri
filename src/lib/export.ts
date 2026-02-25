@@ -1,4 +1,5 @@
 
+
 import * as XLSX from 'xlsx';
 import { Transaction, Product, StoreConfig } from '@/lib/types';
 import { format } from 'date-fns';
@@ -23,8 +24,9 @@ export const exportSalesToExcel = (transactions: Transaction[], dateRange: { fro
             'Invoice #': tx.invoice_number,
             'Items': tx.items.reduce((sum, item) => sum + item.qty, 0),
             'Subtotal': tx.subtotal,
-            'Tax': tx.tax_amount,
+            'Cost': txCost,
             'Profit': txProfit,
+            'Tax': tx.tax_amount,
             'Total': tx.total,
         };
     });
@@ -34,14 +36,16 @@ export const exportSalesToExcel = (transactions: Transaction[], dateRange: { fro
     const totalProfit = dataForExport.reduce((sum, row) => sum + row.Profit, 0);
     const totalTax = transactions.reduce((sum, tx) => sum + tx.tax_amount, 0);
     const totalSubtotal = transactions.reduce((sum, tx) => sum + tx.subtotal, 0);
+    const totalCost = dataForExport.reduce((sum, row) => sum + row.Cost, 0);
 
     const summary = {
         'Date': 'TOTAL',
         'Invoice #': '',
         'Items': '',
         'Subtotal': totalSubtotal,
-        'Tax': totalTax,
+        'Cost': totalCost,
         'Profit': totalProfit,
+        'Tax': totalTax,
         'Total': totalRevenue,
     };
     
@@ -139,8 +143,8 @@ export const exportSalesToPdf = async (transactions: Transaction[], dateRange: {
     y -= 30;
 
     // Table Header
-    const tableHeaders = ['Date', 'Invoice', 'Items', 'Tax', 'Profit', 'Total'];
-    const colWidths = [100, 110, 40, 70, 70, 80];
+    const tableHeaders = ['Date', 'Invoice', 'Items', 'Subtotal', 'Cost', 'Profit', 'Tax', 'Total'];
+    const colWidths = [70, 80, 30, 60, 60, 60, 60, 70];
     let x = margin;
     tableHeaders.forEach((header, i) => {
         page.drawText(header, { x, y, font: boldFont, size: fontSize });
@@ -164,11 +168,13 @@ export const exportSalesToPdf = async (transactions: Transaction[], dateRange: {
         const txCost = tx.items.reduce((itemSum, item) => itemSum + ((item.cost_snapshot || 0) * item.qty), 0);
         const txProfit = tx.subtotal - txCost;
         const row = [
-            format(new Date(tx.created_at), 'yyyy-MM-dd'),
+            format(new Date(tx.created_at), 'yyyy-MM-dd HH:mm'),
             tx.invoice_number,
             tx.items.reduce((sum, item) => sum + item.qty, 0).toString(),
-            formatCurrency(tx.tax_amount),
+            formatCurrency(tx.subtotal),
+            formatCurrency(txCost),
             formatCurrency(txProfit),
+            formatCurrency(tx.tax_amount),
             formatCurrency(tx.total)
         ];
 
