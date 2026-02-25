@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -119,8 +118,11 @@ export function ProductList({ products, viewMode, isLoading, onItemClick, select
   const columnCount = width < 500 ? 2 : Math.max(1, Math.floor(width / CARD_WIDTH));
   const isSingleColumn = columnCount === 1;
   const dynamicCardHeight = isSingleColumn ? 380 : CARD_HEIGHT;
-  const rowCount = Math.ceil(products.length / columnCount);
   const columnWidth = Math.floor(width / columnCount);
+  const rowCount = Math.ceil(products.length / columnCount);
+  // Calculate the exact grid width to prevent overflow.
+  const gridWidth = columnCount * columnWidth;
+
 
   const Cell = ({ columnIndex, rowIndex, style }: { columnIndex: number; rowIndex: number; style: React.CSSProperties }) => {
       const index = rowIndex * columnCount + columnIndex;
@@ -139,7 +141,7 @@ export function ProductList({ products, viewMode, isLoading, onItemClick, select
   
   return (
     <div ref={containerRef} className="w-full h-full">
-      <FixedSizeGrid columnCount={columnCount} columnWidth={columnWidth} height={height} rowCount={rowCount} rowHeight={dynamicCardHeight} width={width}>
+      <FixedSizeGrid columnCount={columnCount} columnWidth={columnWidth} height={height} rowCount={rowCount} rowHeight={dynamicCardHeight} width={gridWidth}>
         {Cell}
       </FixedSizeGrid>
     </div>
