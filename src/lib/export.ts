@@ -199,12 +199,22 @@ export const exportSalesToPdf = async (transactions: Transaction[], dateRange: {
     document.body.removeChild(link);
 };
 
-export const exportStockMovementToExcel = (movements: (StockMovement & { referenceDisplay: string })[], dateRange: { from: Date, to: Date }, storeName: string) => {
+type ReportRow = StockMovement & {
+    referenceDisplay: string;
+    openingStock: number;
+    resultingStock: number;
+    productType: 'Product' | 'Ingredient';
+};
+
+export const exportStockMovementToExcel = (movements: ReportRow[], dateRange: { from: Date, to: Date }, storeName: string) => {
     const dataForExport = movements.map(m => ({
         'Date': format(new Date(m.created_at), 'yyyy-MM-dd HH:mm:ss'),
         'Product': m.product_name_snapshot,
-        'Type': m.type,
+        'Product Type': m.productType,
+        'Movement Type': m.type,
+        'Opening Stock': m.openingStock,
         'Quantity Change': m.qty_change,
+        'Resulting Stock': m.resultingStock,
         'Reason / Reference': m.referenceDisplay,
     }));
 
@@ -216,7 +226,7 @@ export const exportStockMovementToExcel = (movements: (StockMovement & { referen
     XLSX.writeFile(workbook, `stock_movement_report_${storeName.replace(/\s+/g, '_')}_${range}.xlsx`);
 };
 
-export const exportStockMovementToPdf = async (movements: (StockMovement & { referenceDisplay: string })[], dateRange: { from: Date, to: Date }, storeName: string) => {
+export const exportStockMovementToPdf = async (movements: ReportRow[], dateRange: { from: Date, to: Date }, storeName: string) => {
     const pdfDoc = await PDFDocument.create();
     let page = pdfDoc.addPage();
     const { width, height } = page.getSize();
@@ -235,8 +245,8 @@ export const exportStockMovementToPdf = async (movements: (StockMovement & { ref
     
     drawHeader();
     
-    const tableHeaders = ['Date', 'Product', 'Type', 'Qty', 'Reason / Ref'];
-    const colWidths = [100, 150, 60, 40, 180];
+    const tableHeaders = ['Date', 'Product', 'Type', 'Open', 'Qty', 'Result', 'Ref'];
+    const colWidths = [70, 130, 55, 40, 40, 45, 150];
     let x = margin;
     
     // Draw table header
@@ -264,10 +274,12 @@ export const exportStockMovementToPdf = async (movements: (StockMovement & { ref
         }
 
         const row = [
-            format(new Date(m.created_at), 'yyyy-MM-dd HH:mm'),
+            format(new Date(m.created_at), 'yy-MM-dd HH:mm'),
             m.product_name_snapshot,
             m.type,
+            m.openingStock.toString(),
             m.qty_change.toString(),
+            m.resultingStock.toString(),
             m.referenceDisplay,
         ];
         
