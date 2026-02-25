@@ -1,4 +1,4 @@
-# 🍲 SPRINT 6-A – F&B Ingredient & Recipe Reporting (In Progress)
+# 🍲 SPRINT 6-A – F&B Ingredient & Recipe Reporting (Completed)
 
 🎯 **Goal:** Implement an ingredient-based inventory system for F&B products and create a dedicated report for tracking raw material consumption and waste.
 
@@ -27,19 +27,19 @@
 - [x] In the `stockService`, update the manual adjustment form to also support adjustments for `RawIngredients`.
 
 #### 4️⃣ F&B Consumption Report
-- [ ] Create a new report page at `/dashboard/reports/consumption`.
-- [ ] This report will allow filtering by date range.
-- [ ] It will display a list of all raw ingredients and show:
-    - [ ] Opening stock for the period.
-    - [ ] Total consumed in sales.
-    - [ ] Total adjusted (waste, restock).
-    - [ ] Closing stock.
-- [ ] Add a visualization (e.g., a pie chart) showing the cost breakdown of the most-consumed ingredients.
+- [x] Create a new report page at `/dashboard/reports/consumption`.
+- [x] This report will allow filtering by date range.
+- [x] It will display a list of all raw ingredients and show:
+    - [x] Opening stock for the period.
+    - [x] Total consumed in sales.
+    - [x] Total adjusted (waste, restock).
+    - [x] Closing stock.
+- [s] Add a visualization (e.g., a pie chart) showing the cost breakdown of the most-consumed ingredients. (Skipped to prioritize core reporting features).
 
 ---
 
 ### Definition of Done
 - [x] Users can create and manage raw ingredients and link them to finished F&B products via a recipe.
 - [x] Selling a composite product correctly deducts stock from the associated ingredients.
-- [ ] A new consumption report provides a clear audit trail of all ingredient usage, adjustments, and current levels.
-- [ ] The system accurately tracks the cost of goods sold for composite products based on their ingredients.
+- [x] A new consumption report provides a clear audit trail of all ingredient usage, adjustments, and current levels.
+- [x] The system accurately tracks the cost of goods sold for composite products based on their ingredients.
