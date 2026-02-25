@@ -95,10 +95,10 @@ export function ProductCard({ product, onItemClick, isSelected, context = 'cashi
             )}
         </div>
       </CardHeader>
-      <CardContent className="flex-grow p-4 space-y-1.5">
+      <CardContent className="p-4 space-y-1.5">
         <CardTitle className="text-base font-medium line-clamp-2">{product.name}</CardTitle>
       </CardContent>
-      <CardFooter className="flex items-center justify-between p-4 pt-0">
+      <CardFooter className="flex items-center justify-between p-4 pt-0 mt-auto">
         <p className="font-semibold text-foreground">{formatCurrency(product.price)}</p>
       </CardFooter>
     </Card>
