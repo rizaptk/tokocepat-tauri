@@ -304,3 +304,97 @@ export const exportStockMovementToPdf = async (movements: ReportRow[], dateRange
     link.click();
     document.body.removeChild(link);
 }
+
+export const exportConsumptionToExcel = (reportData: any[], dateRange: { from: Date, to: Date }, storeName: string) => {
+    const dataForExport = reportData.map(item => ({
+        'Ingredient': item.name,
+        'Opening Stock': item.openingStock,
+        'Consumed (Sales)': item.consumed,
+        'Adjusted (Manual)': item.adjusted,
+        'Closing Stock': item.closingStock,
+        'Unit': item.unit_type,
+        'Value (Cost)': item.closingStock * item.cost_per_unit,
+    }));
+    
+    const worksheet = XLSX.utils.json_to_sheet(dataForExport);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Consumption Report');
+
+    const range = format(dateRange.from, 'yyyy-MM-dd') + '_to_' + format(dateRange.to, 'yyyy-MM-dd');
+    XLSX.writeFile(workbook, `consumption_report_${storeName.replace(/\s+/g, '_')}_${range}.xlsx`);
+};
+
+export const exportConsumptionToPdf = async (reportData: any[], dateRange: { from: Date, to: Date }, storeName: string) => {
+    const pdfDoc = await PDFDocument.create();
+    let page = pdfDoc.addPage();
+    const { width, height } = page.getSize();
+    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+    const fontSize = 9;
+    const margin = 40;
+    let y = height - margin;
+
+    const drawHeader = () => {
+        page.drawText(`${storeName} - Ingredient Consumption Report`, { x: margin, y, font: boldFont, size: 16 });
+        y -= 20;
+        page.drawText(`Period: ${format(dateRange.from, 'PPP')} to ${format(dateRange.to, 'PPP')}`, { x: margin, y, font, size: 10 });
+        y -= 25;
+    };
+    
+    drawHeader();
+    
+    const tableHeaders = ['Ingredient', 'Opening', 'Consumed', 'Adjusted', 'Closing', 'Cost Value'];
+    const colWidths = [150, 70, 70, 70, 70, 80];
+    let x = margin;
+    
+    tableHeaders.forEach((header, i) => {
+        page.drawText(header, { x, y, font: boldFont, size: fontSize });
+        x += colWidths[i];
+    });
+    y -= 5;
+    page.drawLine({ start: { x: margin, y }, end: { x: width - margin, y }, thickness: 1 });
+    y -= 15;
+    
+    for (const item of reportData) {
+        if (y < margin) {
+            page = pdfDoc.addPage();
+            y = height - margin;
+            drawHeader();
+            let x = margin;
+            tableHeaders.forEach((header, i) => {
+                page.drawText(header, { x, y, font: boldFont, size: fontSize });
+                x += colWidths[i];
+            });
+            y -= 5;
+            page.drawLine({ start: { x: margin, y }, end: { x: width - margin, y }, thickness: 1 });
+            y -= 15;
+        }
+
+        const row = [
+            item.name,
+            `${item.openingStock.toLocaleString()} ${item.unit_type}`,
+            `${item.consumed > 0 ? `-${item.consumed.toLocaleString()}` : 0}`,
+            `${item.adjusted > 0 ? `+${item.adjusted.toLocaleString()}` : item.adjusted.toLocaleString()}`,
+            `${item.closingStock.toLocaleString()} ${item.unit_type}`,
+            formatCurrency(item.closingStock * item.cost_per_unit),
+        ];
+        
+        x = margin;
+        row.forEach((cell, i) => {
+            page.drawText(cell, { x, y, font, size: 8 });
+            x += colWidths[i];
+        });
+        y -= 12;
+    }
+
+    const pdfBytes = await pdfDoc.save();
+    
+    const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    const range = format(dateRange.from, 'yyyy-MM-dd') + '_to_' + format(dateRange.to, 'yyyy-MM-dd');
+    link.download = `consumption_report_${storeName.replace(/\s+/g, '_')}_${range}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+};

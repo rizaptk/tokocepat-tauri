@@ -4,8 +4,10 @@
 import Link from 'next/link';
 import { useStore } from '@/lib/store';
 import { useState, useMemo } from 'react';
-import { ArrowLeft, Beaker, FileDown, MoreVertical } from 'lucide-react';
+import { ArrowLeft, Beaker, FileDown, MoreVertical, FileText } from 'lucide-react';
 import { format, startOfDay, endOfDay, subDays, startOfMonth, endOfMonth, subMonths } from 'date-fns';
+import { exportConsumptionToExcel, exportConsumptionToPdf } from '@/lib/export';
+import { useToast } from '@/hooks/use-toast';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -15,7 +17,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 type DateRangePreset = 'today' | 'last7' | 'last30' | 'lastMonth';
 
 export default function ConsumptionReportPage() {
-    const { rawIngredients, stockMovements } = useStore();
+    const { rawIngredients, stockMovements, storeConfig } = useStore();
+    const { toast } = useToast();
     const [range, setRange] = useState<DateRangePreset>('today');
 
     const dateRange = useMemo(() => {
@@ -72,6 +75,22 @@ export default function ConsumptionReportPage() {
         }).format(amount);
     };
 
+    const handleExcelExport = () => {
+        if (storeConfig) {
+            exportConsumptionToExcel(reportData, dateRange, storeConfig.store_name);
+        } else {
+            toast({ variant: 'destructive', title: 'Error', description: 'Store configuration not found.' });
+        }
+    };
+
+    const handlePdfExport = () => {
+        if (storeConfig) {
+            exportConsumptionToPdf(reportData, dateRange, storeConfig.store_name);
+        } else {
+            toast({ variant: 'destructive', title: 'Error', description: 'Store configuration not found.' });
+        }
+    };
+
     return (
         <div className="flex min-h-screen w-full flex-col bg-muted/40">
            <header className="sticky top-0 flex h-16 items-center gap-4 border-b bg-background px-4 md:px-6 z-10">
@@ -92,10 +111,22 @@ export default function ConsumptionReportPage() {
                     <Button variant={range === 'last7' ? 'default' : 'outline'} size="sm" onClick={() => setRange('last7')}>Last 7 Days</Button>
                     <Button variant={range === 'last30' ? 'default' : 'outline'} size="sm" onClick={() => setRange('last30')}>Last 30 Days</Button>
                     <Button variant={range === 'lastMonth' ? 'default' : 'outline'} size="sm" onClick={() => setRange('lastMonth')}>Last Month</Button>
-                    <Button variant="outline" size="sm" disabled>
-                        <FileDown className="mr-2 h-4 w-4" />
-                        <span>Export</span>
-                    </Button>
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="outline" size="sm" disabled={reportData.length === 0}>
+                                <FileDown className="mr-2 h-4 w-4" />
+                                <span>Export</span>
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            <DropdownMenuItem onSelect={handleExcelExport}>
+                                <FileDown className="mr-2 h-4 w-4"/> Excel (.xlsx)
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onSelect={handlePdfExport}>
+                                <FileText className="mr-2 h-4 w-4"/> PDF (.pdf)
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
                 </div>
                  {/* Mobile Dropdown */}
                 <div className="md:hidden">
@@ -114,9 +145,13 @@ export default function ConsumptionReportPage() {
                                 <DropdownMenuRadioItem value="lastMonth">Last Month</DropdownMenuRadioItem>
                             </DropdownMenuRadioGroup>
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem disabled>
+                            <DropdownMenuItem onSelect={handleExcelExport} disabled={reportData.length === 0}>
                                 <FileDown className="mr-2 h-4 w-4" />
-                                Export
+                                Export to Excel
+                            </DropdownMenuItem>
+                             <DropdownMenuItem onSelect={handlePdfExport} disabled={reportData.length === 0}>
+                                <FileText className="mr-2 h-4 w-4" />
+                                Export to PDF
                             </DropdownMenuItem>
                         </DropdownMenuContent>
                     </DropdownMenu>
