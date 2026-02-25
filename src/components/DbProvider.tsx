@@ -33,12 +33,12 @@ export function DbProvider({ children }: { children: React.ReactNode }) {
         if (!isInitialized || !db || !firesqlite) return;
 
         // for debuging purpuse, do not remove
-        if (typeof window !== 'undefined') {
-            // @ts-ignore
-            window.db = db;
-            // @ts-ignore
-            window.firesqlite = firesqlite;
-        }
+        // if (typeof window !== 'undefined') {
+        //     // @ts-ignore
+        //     window.db = db;
+        //     // @ts-ignore
+        //     window.firesqlite = firesqlite;
+        // }
 
         let unsubProducts: (() => void) | undefined;
         let unsubVariants: (() => void) | undefined;
