@@ -1,9 +1,9 @@
 
-import { Product, ProductVariant, ModifierGroup, StoreConfig, Category, RawIngredient } from '@/lib/types';
+import { Product, ProductVariant, ModifierGroup, StoreConfig, Category, RawIngredient, Recipe } from '@/lib/types';
 import { initialProducts, initialVariants, initialModifierGroups, initialCategories, initialRawIngredients } from '@/lib/products';
 
 const DB_VERSION_KEY = 'tokoc_db_version';
-const CURRENT_DB_VERSION = '1.0.15'; // Added raw ingredients
+const CURRENT_DB_VERSION = '1.0.16'; // Added recipes
 
 export const seedDatabase = async (firesqlite: any, db: any) => {
     if (!firesqlite || !db) return;
@@ -92,6 +92,23 @@ export const seedDatabase = async (firesqlite: any, db: any) => {
                 ingredientBatch.set(doc(db, 'raw_ingredients', ing.id), ing);
             });
             await ingredientBatch.commit();
+        }
+
+        // Seed Recipes
+        const recipesCollectionRef = collection(db, 'recipes');
+        const existingRecipes = await getDocs(recipesCollectionRef);
+        if (existingRecipes.docs.length === 0) {
+            console.log('Seeding initial recipes...');
+            const recipeBatch = writeBatch(db);
+            const coffeeRecipe: Recipe = {
+                product_id: '9', // Kopi Seduh
+                items: [
+                    { ingredient_id: 'ing-1', quantity: 18 }, // Biji Kopi Arabika
+                    { ingredient_id: 'ing-3', quantity: 10 }, // Gula Pasir
+                ]
+            };
+            recipeBatch.set(doc(db, 'recipes', coffeeRecipe.product_id), coffeeRecipe);
+            await recipeBatch.commit();
         }
 
         // Seed Store Config

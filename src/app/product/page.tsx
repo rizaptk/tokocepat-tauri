@@ -6,7 +6,7 @@ import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useStore } from "@/lib/store";
-import { Product, Category, ModifierGroup, ModifierItem, ProductType, ProductVariant, RawIngredient } from "@/lib/types";
+import { Product, Category, ModifierGroup, ModifierItem, ProductType, ProductVariant, RawIngredient, RecipeItem } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
@@ -31,7 +31,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogD
 import { Label } from "@/components/ui/label";
 
 // Icons
-import { PlusCircle, Edit, Trash, SlidersHorizontal, Library, Package, Menu, Scan, Barcode, Zap, Beaker } from "lucide-react";
+import { PlusCircle, Edit, Trash, SlidersHorizontal, Library, Package, Menu, Scan, Barcode, Zap, Beaker, Sandwich } from "lucide-react";
 
 // Services
 import { addProduct, updateProduct } from "@/services/productService";
@@ -52,6 +52,11 @@ const variantSchema = z.object({
     stock: z.coerce.number().min(0, "Stock cannot be negative."),
 });
 
+const recipeItemSchema = z.object({
+    ingredient_id: z.string().min(1, "Please select an ingredient."),
+    quantity: z.coerce.number().min(0.01, "Quantity must be greater than 0."),
+});
+
 const productFormSchema = z.object({
   name: z.string().min(2, { message: "Product name must be at least 2 characters." }),
   product_type: z.enum(["retail", "food_and_beverage"], { required_error: "You need to select a product type." }),
@@ -66,8 +71,10 @@ const productFormSchema = z.object({
   is_active: z.boolean().default(true),
   has_variant: z.boolean().default(false),
   has_modifier: z.boolean().default(false),
+  is_composite: z.boolean().default(false),
   modifier_group_ids: z.array(z.string()).optional(),
   variants: z.array(variantSchema).optional(),
+  recipe_items: z.array(recipeItemSchema).optional(),
 });
   
 type ProductFormValues = z.infer<typeof productFormSchema>;
@@ -91,7 +98,7 @@ const BarcodeScanner = ({ onScanSuccess }: { onScanSuccess: (text: string) => vo
 };
 
 const ProductForm = ({ productId, onSave }: { productId: string | null, onSave: () => void }) => {
-    const { products, categories, modifierGroups, productVariants } = useStore();
+    const { products, categories, modifierGroups, productVariants, rawIngredients, recipes } = useStore();
     const { toast } = useToast();
     const isEditing = !!productId;
     const product = useMemo(() => products.find(p => p.id === productId), [productId, products]);
@@ -102,33 +109,44 @@ const ProductForm = ({ productId, onSave }: { productId: string | null, onSave: 
         defaultValues: {
             name: "", product_type: "retail", price: 0, cost_price: 0, stock: 0,
             low_stock_alert: 0, track_stock: true, is_active: true, has_variant: false,
-            has_modifier: false, modifier_group_ids: [], sku: "", barcode: "", variants: [],
+            has_modifier: false, is_composite: false, modifier_group_ids: [], sku: "", barcode: "", 
+            variants: [], recipe_items: []
         },
     });
 
-    const { fields, append, remove } = useFieldArray({
+    const { fields: variantFields, append: appendVariant, remove: removeVariant } = useFieldArray({
         control: form.control,
         name: "variants",
     });
 
+    const { fields: recipeFields, append: appendRecipeItem, remove: removeRecipeItem } = useFieldArray({
+        control: form.control,
+        name: "recipe_items",
+    });
+
     const hasVariant = form.watch('has_variant');
+    const productType = form.watch('product_type');
+    const isComposite = form.watch('is_composite');
 
     useEffect(() => {
         if (product) {
             const variantsForProduct = productVariants.filter(v => v.product_id === product.id);
+            const recipeForProduct = recipes.find(r => r.product_id === product.id);
             form.reset({
                 name: product.name, product_type: product.product_type, category_id: product.category_id,
                 sku: product.sku, barcode: product.barcode,
                 price: product.price, cost_price: product.cost_price, stock: product.stock,
                 low_stock_alert: product.low_stock_alert, track_stock: product.track_stock,
                 is_active: product.is_active, has_variant: product.has_variant, has_modifier: product.has_modifier,
+                is_composite: product.is_composite || false,
                 modifier_group_ids: product.modifier_group_ids || [],
                 variants: variantsForProduct,
+                recipe_items: recipeForProduct ? recipeForProduct.items : [],
             });
         } else {
             form.reset(form.formState.defaultValues);
         }
-    }, [product, form, productVariants]);
+    }, [product, form, productVariants, recipes]);
 
     const handleScanSuccess = (barcode: string) => {
         form.setValue('barcode', barcode, { shouldValidate: true });
@@ -241,24 +259,24 @@ const ProductForm = ({ productId, onSave }: { productId: string | null, onSave: 
                                     control={form.control}
                                     name="track_stock"
                                     render={({ field }) => (
-                                        <FormItem className={cn("flex flex-row items-center justify-between rounded-lg border p-4", hasVariant && "opacity-50")}>
+                                        <FormItem className={cn("flex flex-row items-center justify-between rounded-lg border p-4", (hasVariant || isComposite) && "opacity-50")}>
                                             <div className="space-y-0.5">
                                                 <FormLabel className="text-base">Track Stock (Parent)</FormLabel>
                                                 <FormDescription>
-                                                {hasVariant ? "Disabled. Stock is tracked per variant." : "Automatically deduct stock for each sale."}
+                                                {hasVariant ? "Disabled. Stock is tracked per variant." : isComposite ? "Disabled. Stock is tracked by recipe ingredients." : "Automatically deduct stock for each sale."}
                                                 </FormDescription>
                                             </div>
                                             <FormControl>
                                                 <Switch
-                                                    checked={hasVariant ? false : field.value}
+                                                    checked={(hasVariant || isComposite) ? false : field.value}
                                                     onCheckedChange={field.onChange}
-                                                    disabled={hasVariant}
+                                                    disabled={hasVariant || isComposite}
                                                 />
                                             </FormControl>
                                         </FormItem>
                                     )}
                                 />
-                                <div className={cn("grid grid-cols-1 md:grid-cols-2 gap-6", hasVariant && "opacity-50")}>
+                                <div className={cn("grid grid-cols-1 md:grid-cols-2 gap-6", (hasVariant || isComposite) && "opacity-50")}>
                                     <FormField
                                         control={form.control}
                                         name="stock"
@@ -266,7 +284,7 @@ const ProductForm = ({ productId, onSave }: { productId: string | null, onSave: 
                                             <FormItem>
                                                 <FormLabel>Initial Stock</FormLabel>
                                                 <FormControl>
-                                                    <Input type="number" placeholder="50" {...field} disabled={hasVariant || !form.watch('track_stock')} />
+                                                    <Input type="number" placeholder="50" {...field} disabled={hasVariant || isComposite || !form.watch('track_stock')} />
                                                 </FormControl>
                                                 <FormMessage />
                                             </FormItem>
@@ -279,7 +297,7 @@ const ProductForm = ({ productId, onSave }: { productId: string | null, onSave: 
                                             <FormItem>
                                                 <FormLabel>Low Stock Alert</FormLabel>
                                                 <FormControl>
-                                                    <Input type="number" placeholder="10" {...field} disabled={hasVariant || !form.watch('track_stock')} />
+                                                    <Input type="number" placeholder="10" {...field} disabled={hasVariant || isComposite || !form.watch('track_stock')} />
                                                 </FormControl>
                                                 <FormMessage />
                                             </FormItem>
@@ -319,7 +337,7 @@ const ProductForm = ({ productId, onSave }: { productId: string | null, onSave: 
                                 />
                                 {hasVariant && (
                                     <div className="space-y-4 pt-4">
-                                        {fields.map((field, index) => (
+                                        {variantFields.map((field, index) => (
                                             <div key={field.id} className="flex gap-2 items-end p-3 border rounded-lg bg-muted/50">
                                                 <div className="flex-grow grid grid-cols-2 md:grid-cols-4 gap-4">
                                                     <FormField
@@ -371,12 +389,12 @@ const ProductForm = ({ productId, onSave }: { productId: string | null, onSave: 
                                                         )}
                                                     />
                                                 </div>
-                                                <Button type="button" variant="ghost" size="icon" className="shrink-0 text-muted-foreground hover:text-destructive" onClick={() => remove(index)}>
+                                                <Button type="button" variant="ghost" size="icon" className="shrink-0 text-muted-foreground hover:text-destructive" onClick={() => removeVariant(index)}>
                                                     <Trash className="h-4 w-4" />
                                                 </Button>
                                             </div>
                                         ))}
-                                        <Button type="button" variant="outline" size="sm" onClick={() => append({ name: '', additional_price: 0, stock: 0, sku: '' })}>
+                                        <Button type="button" variant="outline" size="sm" onClick={() => appendVariant({ name: '', additional_price: 0, stock: 0, sku: '' })}>
                                             <PlusCircle className="mr-2 h-4 w-4" /> Add Variant
                                         </Button>
                                     </div>
@@ -388,7 +406,7 @@ const ProductForm = ({ productId, onSave }: { productId: string | null, onSave: 
                              <CardHeader>
                                 <CardTitle>Customization</CardTitle>
                             </CardHeader>
-                            <CardContent>
+                            <CardContent className="space-y-4">
                                 <FormField control={form.control} name="has_modifier" render={({ field }) => (
                                     <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
                                         <div className="space-y-0.5">
@@ -415,6 +433,79 @@ const ProductForm = ({ productId, onSave }: { productId: string | null, onSave: 
                                             </div><FormMessage />
                                         </FormItem>
                                     )} />
+                                )}
+                             </CardContent>
+                        </Card>
+                        
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Recipe</CardTitle>
+                                <CardDescription>For F&B products that consume raw ingredients.</CardDescription>
+                            </CardHeader>
+                             <CardContent className="space-y-4">
+                                <FormField
+                                    control={form.control}
+                                    name="is_composite"
+                                    render={({ field }) => (
+                                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                                            <div className="space-y-0.5">
+                                                <FormLabel className="text-base">Composite Product</FormLabel>
+                                                <FormDescription>
+                                                    Deduct raw ingredients from stock instead of the final product.
+                                                </FormDescription>
+                                            </div>
+                                            <FormControl>
+                                                <Switch
+                                                    checked={field.value}
+                                                    onCheckedChange={field.onChange}
+                                                    disabled={productType !== 'food_and_beverage'}
+                                                />
+                                            </FormControl>
+                                        </FormItem>
+                                    )}
+                                />
+                                {isComposite && productType === 'food_and_beverage' && (
+                                     <div className="space-y-4 pt-4">
+                                        {recipeFields.map((field, index) => (
+                                            <div key={field.id} className="flex gap-2 items-end p-3 border rounded-lg bg-muted/50">
+                                                <div className="flex-grow grid grid-cols-2 gap-4">
+                                                    <FormField
+                                                        control={form.control}
+                                                        name={`recipe_items.${index}.ingredient_id`}
+                                                        render={({ field }) => (
+                                                            <FormItem>
+                                                                <FormLabel className="text-xs">Ingredient</FormLabel>
+                                                                 <Select onValueChange={field.onChange} value={field.value}>
+                                                                    <FormControl><SelectTrigger><SelectValue placeholder="Select ingredient" /></SelectTrigger></FormControl>
+                                                                    <SelectContent>{rawIngredients.map(ing => (<SelectItem key={ing.id} value={ing.id}>{ing.name}</SelectItem>))}</SelectContent>
+                                                                </Select>
+                                                                <FormMessage/>
+                                                            </FormItem>
+                                                        )}
+                                                    />
+                                                     <FormField
+                                                        control={form.control}
+                                                        name={`recipe_items.${index}.quantity`}
+                                                        render={({ field }) => (
+                                                            <FormItem>
+                                                                <FormLabel className="text-xs">Quantity</FormLabel>
+                                                                <FormControl>
+                                                                    <Input type="number" placeholder="e.g. 18" {...field} />
+                                                                </FormControl>
+                                                                <FormMessage/>
+                                                            </FormItem>
+                                                        )}
+                                                    />
+                                                </div>
+                                                 <Button type="button" variant="ghost" size="icon" className="shrink-0 text-muted-foreground hover:text-destructive" onClick={() => removeRecipeItem(index)}>
+                                                    <Trash className="h-4 w-4" />
+                                                </Button>
+                                            </div>
+                                        ))}
+                                         <Button type="button" variant="outline" size="sm" onClick={() => appendRecipeItem({ ingredient_id: '', quantity: 0 })}>
+                                            <PlusCircle className="mr-2 h-4 w-4" /> Add Ingredient
+                                        </Button>
+                                     </div>
                                 )}
                              </CardContent>
                         </Card>

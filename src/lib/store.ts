@@ -3,7 +3,7 @@
 
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { Product, CartItem, Transaction, Category, ModifierGroup, ProductVariant, Shift, StoreConfig, SelectedModifier, PendingCart, RawIngredient } from '@/lib/types';
+import { Product, CartItem, Transaction, Category, ModifierGroup, ProductVariant, Shift, StoreConfig, SelectedModifier, PendingCart, RawIngredient, Recipe } from '@/lib/types';
 import { toast } from '@/hooks/use-toast';
 import { openShift as openShiftService, closeShift as closeShiftService } from '@/services/shiftService';
 import { createTransaction } from '@/services/transactionService';
@@ -19,6 +19,7 @@ interface StoreState {
   modifierGroups: ModifierGroup[];
   productVariants: ProductVariant[];
   rawIngredients: RawIngredient[];
+  recipes: Recipe[];
   cart: CartItem[];
   transactions: Transaction[];
   shifts: Shift[];
@@ -32,6 +33,7 @@ interface StoreState {
   setModifierGroups: (modifierGroups: ModifierGroup[]) => void;
   setProductVariants: (productVariants: ProductVariant[]) => void;
   setRawIngredients: (ingredients: RawIngredient[]) => void;
+  setRecipes: (recipes: Recipe[]) => void;
   setTransactions: (transactions: Transaction[]) => void;
   setShifts: (shifts: Shift[]) => void;
   setStoreConfig: (config: StoreConfig) => void;
@@ -56,6 +58,7 @@ export const useStore = create<StoreState>()(
       modifierGroups: [],
       productVariants: [],
       rawIngredients: [],
+      recipes: [],
       cart: [],
       transactions: [],
       shifts: [],
@@ -68,6 +71,7 @@ export const useStore = create<StoreState>()(
       setModifierGroups: (modifierGroups) => set({ modifierGroups }),
       setProductVariants: (productVariants) => set({ productVariants }),
       setRawIngredients: (ingredients) => set({ rawIngredients: ingredients.sort((a,b) => a.name.localeCompare(b.name)) }),
+      setRecipes: (recipes) => set({ recipes }),
       setTransactions: (transactions) => set({ transactions: transactions.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()) }),
       setShifts: (shifts) => {
         const sortedShifts = shifts.sort((a, b) => new Date(b.opened_at).getTime() - new Date(a.opened_at).getTime());
@@ -306,7 +310,7 @@ export const useStore = create<StoreState>()(
       storage: createJSONStorage(() => localStorage),
        partialize: (state) =>
         Object.fromEntries(
-          Object.entries(state).filter(([key]) => !['products', 'transactions', 'modifierGroups', 'productVariants', 'categories', 'shifts', 'activeShift', 'storeConfig', 'pendingCarts', 'rawIngredients'].includes(key))
+          Object.entries(state).filter(([key]) => !['products', 'transactions', 'modifierGroups', 'productVariants', 'categories', 'shifts', 'activeShift', 'storeConfig', 'pendingCarts', 'rawIngredients', 'recipes'].includes(key))
         ),
     }
   )

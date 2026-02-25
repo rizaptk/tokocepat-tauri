@@ -58,6 +58,7 @@ export interface Product {
   is_active: boolean;
   product_type: ProductType;
   low_stock_alert?: number;
+  is_composite?: boolean;
 }
 
 export interface SelectedModifier {

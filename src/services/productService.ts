@@ -1,9 +1,10 @@
 
-import { Product, ProductType, ProductVariant } from '@/lib/types';
+import { Product, ProductType, ProductVariant, RecipeItem } from '@/lib/types';
 import { useDbStore } from '@/lib/db-store';
 import { useStore } from '@/lib/store';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { setProductVariants, type VariantFormData } from './variantService';
+import { setRecipeForProduct } from './recipeService';
 
 // This type should match the Zod schema in the form dialog
 export type ProductFormData = {
@@ -18,6 +19,8 @@ export type ProductFormData = {
     low_stock_alert?: number;
     has_variant: boolean;
     has_modifier: boolean;
+    is_composite?: boolean;
+    recipe_items?: RecipeItem[];
     modifier_group_ids?: string[];
     sku?: string;
     barcode?: string;
@@ -88,8 +91,9 @@ export const addProduct = async (productData: ProductFormData): Promise<Product 
     // -----------------------------
 
     const { doc, setDoc } = firesqlite;
-    const { variants, ...restOfProductData } = productData;
+    const { variants, recipe_items, ...restOfProductData } = productData;
     const hasVariant = !!(variants && variants.length > 0);
+    const isComposite = restOfProductData.product_type === 'food_and_beverage' && (restOfProductData.is_composite || false);
 
     const newId = new Date().getTime().toString();
     const placeholder = PlaceHolderImages[parseInt(newId) % PlaceHolderImages.length];
@@ -97,8 +101,8 @@ export const addProduct = async (productData: ProductFormData): Promise<Product 
     const newProduct: Product = {
         id: newId,
         ...restOfProductData,
-        // If variants exist, parent does not track stock.
-        track_stock: hasVariant ? false : restOfProductData.track_stock,
+        is_composite: isComposite,
+        track_stock: hasVariant || isComposite ? false : restOfProductData.track_stock,
         has_variant: hasVariant,
         modifier_group_ids: restOfProductData.has_modifier ? restOfProductData.modifier_group_ids : [],
         imageUrl: placeholder.imageUrl,
@@ -109,6 +113,12 @@ export const addProduct = async (productData: ProductFormData): Promise<Product 
 
     if (hasVariant && variants) {
         await setProductVariants(newProduct.id, variants);
+    }
+
+    if (isComposite && recipe_items) {
+        await setRecipeForProduct(newProduct.id, recipe_items);
+    } else {
+        await setRecipeForProduct(newProduct.id, []);
     }
     
     return newProduct;
@@ -127,13 +137,14 @@ export const updateProduct = async (id: string, productData: ProductFormData): P
     
     const { doc, updateDoc } = firesqlite;
     
-    const { variants, ...restOfProductData } = productData;
+    const { variants, recipe_items, ...restOfProductData } = productData;
     const hasVariant = !!(variants && variants.length > 0);
+    const isComposite = restOfProductData.product_type === 'food_and_beverage' && (restOfProductData.is_composite || false);
 
     const dataToUpdate = {
         ...restOfProductData,
-         // If variants exist, parent does not track stock.
-        track_stock: hasVariant ? false : restOfProductData.track_stock,
+        is_composite: isComposite,
+        track_stock: hasVariant || isComposite ? false : restOfProductData.track_stock,
         has_variant: hasVariant,
         modifier_group_ids: restOfProductData.has_modifier ? restOfProductData.modifier_group_ids : [],
     };
@@ -143,7 +154,12 @@ export const updateProduct = async (id: string, productData: ProductFormData): P
     if (hasVariant && variants) {
         await setProductVariants(id, variants);
     } else {
-        // If has_variant is false, ensure all variants are removed.
         await setProductVariants(id, []);
+    }
+
+    if (isComposite && recipe_items) {
+        await setRecipeForProduct(id, recipe_items);
+    } else {
+        await setRecipeForProduct(id, []);
     }
 };
