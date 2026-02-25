@@ -12,7 +12,7 @@ const reportLinks = [
         description: 'Analyze sales, profit, and trends over time.',
         href: '/dashboard/reports/sales',
         icon: BarChart2,
-        comingSoon: true,
+        comingSoon: false,
     },
     {
         title: 'Inventory Report',
