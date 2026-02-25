@@ -4,8 +4,8 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { useStore } from '@/lib/store';
 import { endOfDay, startOfDay, subDays, format } from 'date-fns';
-import { ArrowLeft, BarChart2, DollarSign, ReceiptText, Landmark, FileDown, MoreVertical } from 'lucide-react';
-import { exportSalesToExcel } from '@/lib/export';
+import { ArrowLeft, BarChart2, DollarSign, ReceiptText, Landmark, FileDown, MoreVertical, FileText } from 'lucide-react';
+import { exportSalesToExcel, exportSalesToPdf } from '@/lib/export';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -73,13 +73,21 @@ export default function SalesReportPage() {
         { title: 'Transactions', value: filteredTransactions.length, icon: ReceiptText },
     ];
     
-    const handleExport = () => {
+    const handleExcelExport = () => {
         if (storeConfig) {
             exportSalesToExcel(filteredTransactions, dateRange, storeConfig.store_name);
         } else {
             alert("Store configuration not found.");
         }
     };
+    
+    const handlePdfExport = () => {
+        if (storeConfig) {
+            exportSalesToPdf(filteredTransactions, dateRange, storeConfig.store_name);
+        } else {
+            alert("Store configuration not found.");
+        }
+    }
 
     return (
         <div className="flex min-h-screen w-full flex-col bg-muted/40">
@@ -101,10 +109,22 @@ export default function SalesReportPage() {
                     <Button variant={range === 'today' ? 'default' : 'outline'} size="sm" onClick={() => setRange('today')}>Today</Button>
                     <Button variant={range === 'last7' ? 'default' : 'outline'} size="sm" onClick={() => setRange('last7')}>Last 7 Days</Button>
                     <Button variant={range === 'last30' ? 'default' : 'outline'} size="sm" onClick={() => setRange('last30')}>Last 30 Days</Button>
-                     <Button variant="outline" size="sm" onClick={handleExport} disabled={filteredTransactions.length === 0}>
-                        <FileDown className="mr-2 h-4 w-4" />
-                        <span>Export</span>
-                    </Button>
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="outline" size="sm" disabled={filteredTransactions.length === 0}>
+                                <FileDown className="mr-2 h-4 w-4" />
+                                <span>Export</span>
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            <DropdownMenuItem onSelect={handleExcelExport}>
+                                <FileDown className="mr-2 h-4 w-4"/> Excel (.xlsx)
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onSelect={handlePdfExport}>
+                                <FileText className="mr-2 h-4 w-4"/> PDF (.pdf)
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
                 </div>
                 
                 {/* Mobile Dropdown */}
@@ -123,9 +143,13 @@ export default function SalesReportPage() {
                                 <DropdownMenuRadioItem value="last30">Last 30 Days</DropdownMenuRadioItem>
                             </DropdownMenuRadioGroup>
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem onSelect={handleExport} disabled={filteredTransactions.length === 0}>
+                            <DropdownMenuItem onSelect={handleExcelExport} disabled={filteredTransactions.length === 0}>
                                 <FileDown className="mr-2 h-4 w-4" />
                                 Export to Excel
+                            </DropdownMenuItem>
+                             <DropdownMenuItem onSelect={handlePdfExport} disabled={filteredTransactions.length === 0}>
+                                <FileText className="mr-2 h-4 w-4" />
+                                Export to PDF
                             </DropdownMenuItem>
                         </DropdownMenuContent>
                     </DropdownMenu>
