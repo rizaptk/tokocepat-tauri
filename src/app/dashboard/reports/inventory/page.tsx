@@ -4,7 +4,8 @@
 import Link from 'next/link';
 import { useStore } from '@/lib/store';
 import { useMemo } from 'react';
-import { ArrowLeft, Warehouse, DollarSign, Package } from 'lucide-react';
+import { ArrowLeft, Warehouse, DollarSign, Package, FileDown } from 'lucide-react';
+import { exportInventoryToExcel } from '@/lib/export';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -20,17 +21,22 @@ const formatCurrency = (amount: number) => {
 };
 
 export default function InventoryReportPage() {
-    const { products, categories } = useStore();
+    const { products, categories, storeConfig } = useStore();
 
-    const stockTrackedProducts = useMemo(() => 
-        products.filter(p => p.track_stock), 
-    [products]);
-    
     const getCategoryName = (categoryId?: string) => {
         if (!categoryId) return 'N/A';
         return categories.find(c => c.id === categoryId)?.name || 'N/A';
     }
 
+    const stockTrackedProducts = useMemo(() => 
+        products
+            .filter(p => p.track_stock)
+            .map(p => ({
+                ...p,
+                categoryName: getCategoryName(p.category_id),
+            })),
+    [products, categories]);
+    
     const totalUnits = stockTrackedProducts.reduce((sum, p) => sum + p.stock, 0);
     const totalValueCost = stockTrackedProducts.reduce((sum, p) => sum + (p.stock * (p.cost_price || 0)), 0);
     const totalValueRetail = stockTrackedProducts.reduce((sum, p) => sum + (p.stock * p.price), 0);
@@ -40,6 +46,14 @@ export default function InventoryReportPage() {
         { title: 'Total Value (Cost)', value: formatCurrency(totalValueCost), icon: DollarSign },
         { title: 'Total Value (Retail)', value: formatCurrency(totalValueRetail), icon: DollarSign },
     ];
+
+    const handleExport = () => {
+        if (storeConfig) {
+            exportInventoryToExcel(stockTrackedProducts, storeConfig.store_name);
+        } else {
+            alert("Store configuration not found.");
+        }
+    };
 
     return (
         <div className="flex min-h-screen w-full flex-col bg-muted/40">
@@ -55,6 +69,10 @@ export default function InventoryReportPage() {
                         <Warehouse className="h-5 w-5" /> Inventory Report
                     </h1>
                 </div>
+                <Button variant="outline" size="sm" onClick={handleExport} disabled={stockTrackedProducts.length === 0}>
+                    <FileDown className="mr-2 h-4 w-4" />
+                    <span>Export</span>
+                </Button>
            </header>
           <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
             <div className="grid gap-4 md:grid-cols-3">
@@ -91,7 +109,7 @@ export default function InventoryReportPage() {
                                 stockTrackedProducts.map(p => (
                                     <TableRow key={p.id}>
                                         <TableCell className="font-medium">{p.name}</TableCell>
-                                        <TableCell><Badge variant="outline">{getCategoryName(p.category_id)}</Badge></TableCell>
+                                        <TableCell><Badge variant="outline">{p.categoryName}</Badge></TableCell>
                                         <TableCell className="text-right font-bold">{p.stock}</TableCell>
                                         <TableCell className="text-right">{formatCurrency(p.stock * (p.cost_price || 0))}</TableCell>
                                         <TableCell className="text-right">{formatCurrency(p.stock * p.price)}</TableCell>
