@@ -1,13 +1,14 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useStore } from '@/lib/store';
 import { endOfDay, startOfDay, subDays, format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
-import { ArrowLeft, BarChart2, DollarSign, ReceiptText, Landmark, FileDown, MoreVertical, FileText } from 'lucide-react';
+import { ArrowLeft, BarChart2, DollarSign, ReceiptText, Landmark, FileDown, MoreVertical, FileText, Search } from 'lucide-react';
 import { exportSalesToExcel, exportSalesToPdf } from '@/lib/export';
 
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Transaction } from '@/lib/types';
@@ -20,7 +21,8 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+} from "@/components/ui/dropdown-menu";
+import { TransactionDetailDialog } from '@/components/TransactionDetailDialog';
 
 
 type DateRangePreset = 'today' | 'last7' | 'last30' | 'lastMonth';
@@ -35,9 +37,11 @@ const formatCurrency = (amount: number) => {
 
 export default function SalesReportPage() {
     const [range, setRange] = useState<DateRangePreset>('today');
+    const [searchTerm, setSearchTerm] = useState('');
+    const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
     const { transactions, storeConfig } = useStore();
 
-    const dateRange = (() => {
+    const dateRange = useMemo(() => {
         const now = new Date();
         switch (range) {
             case 'today':
@@ -52,12 +56,16 @@ export default function SalesReportPage() {
             default:
                 return { from: startOfDay(now), to: endOfDay(now) };
         }
-    })();
+    }, [range]);
 
-    const filteredTransactions = transactions.filter(tx => {
-        const txDate = new Date(tx.created_at);
-        return txDate >= dateRange.from && txDate <= dateRange.to && tx.status === 'paid';
-    });
+    const filteredTransactions = useMemo(() => {
+        return transactions.filter(tx => {
+            const txDate = new Date(tx.created_at);
+            const isInDateRange = txDate >= dateRange.from && txDate <= dateRange.to;
+            const matchesSearch = searchTerm.trim() === '' || tx.invoice_number.toLowerCase().includes(searchTerm.toLowerCase());
+            return tx.status === 'paid' && isInDateRange && matchesSearch;
+        });
+    }, [transactions, dateRange, searchTerm]);
 
     const totalRevenue = filteredTransactions.reduce((sum, tx) => sum + tx.total, 0);
     const totalSubtotal = filteredTransactions.reduce((sum, tx) => sum + tx.subtotal, 0);
@@ -93,6 +101,7 @@ export default function SalesReportPage() {
     }
 
     return (
+        <>
         <div className="flex min-h-screen w-full flex-col bg-muted/40">
            <header className="sticky top-0 flex h-16 items-center gap-4 border-b bg-background px-4 md:px-6 z-10">
                 <Button variant="outline" size="icon" className="shrink-0" asChild>
@@ -177,10 +186,24 @@ export default function SalesReportPage() {
 
             <Card>
                 <CardHeader>
-                    <CardTitle>Transaction Details</CardTitle>
-                    <CardDescription>
-                        Showing {filteredTransactions.length} transactions from {format(dateRange.from, 'PPP')} to {format(dateRange.to, 'PPP')}.
-                    </CardDescription>
+                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                        <div>
+                            <CardTitle>Transaction Details</CardTitle>
+                            <CardDescription>
+                                Showing {filteredTransactions.length} transactions from {format(dateRange.from, 'PPP')} to {format(dateRange.to, 'PPP')}.
+                            </CardDescription>
+                        </div>
+                         <div className="relative w-full md:w-64">
+                            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                            <Input
+                                type="search"
+                                placeholder="Search by invoice number..."
+                                className="w-full pl-8"
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                            />
+                        </div>
+                    </div>
                 </CardHeader>
                 <CardContent>
                     <Table>
@@ -201,7 +224,7 @@ export default function SalesReportPage() {
                                     const txCost = tx.items.reduce((itemSum, item) => itemSum + ((item.cost_snapshot || 0) * item.qty), 0);
                                     const txProfit = tx.subtotal - txCost;
                                     return (
-                                    <TableRow key={tx.id}>
+                                    <TableRow key={tx.id} onClick={() => setSelectedTx(tx)} className="cursor-pointer">
                                         <TableCell>
                                             <div className="font-medium">{format(new Date(tx.created_at), 'PP')}</div>
                                             <div className="text-sm text-muted-foreground">{format(new Date(tx.created_at), 'p')}</div>
@@ -228,5 +251,7 @@ export default function SalesReportPage() {
             </Card>
           </main>
         </div>
+        <TransactionDetailDialog transaction={selectedTx} onOpenChange={(isOpen) => !isOpen && setSelectedTx(null)} />
+        </>
     );
 }
