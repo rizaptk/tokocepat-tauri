@@ -1,4 +1,4 @@
-# 🖨 SPRINT 7 – Hardware Integration
+# 🖨 SPRINT 7 – Hardware Integration (Completed)
 
 🎯 **Goal:** Connect the application to real-world hardware for a complete POS experience.
 

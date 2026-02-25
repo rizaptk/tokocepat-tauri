@@ -1,4 +1,4 @@
-# 📈 SPRINT 6-B – Detailed Stock Movement Report (Pending)
+# 📈 SPRINT 6-B – Detailed Stock Movement Report (Completed)
 
 🎯 **Goal:** Provide a comprehensive, auditable report detailing all historical inventory movements for any given period, including sales, manual adjustments, and returns.
 
@@ -19,7 +19,9 @@
     - **Movement Type**: The type of change (e.g., `sale`, `restock`, `correction`, `lost`, `damaged`).
     - **Quantity Change**: The amount the stock changed by (e.g., -1 for a sale, +50 for a restock).
     - **Reason/Reference**: The reason for manual adjustments or the invoice number for sales.
-    - **Resulting Stock**: The stock quantity of the product *after* the movement occurred. (Pending Implementation)
+    - **Product Type**: To distinguish between finished goods and raw ingredients. (Completed)
+    - **Opening Stock**: The stock quantity of the product *before* the movement occurred. (Completed)
+    - **Resulting Stock**: The stock quantity of the product *after* the movement occurred. (Completed)
 - [x] Add the ability to filter the report by a specific product to see its complete history.
 
 #### 3️⃣ Data Export Functionality
