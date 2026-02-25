@@ -5,7 +5,7 @@ import { useDbStore } from "@/lib/db-store";
 import { useStore } from "@/lib/store";
 import { seedDatabase } from "@/lib/database";
 import { useEffect, useState } from "react";
-import { Product, ProductVariant, ModifierGroup, Transaction, Shift, StoreConfig, Category, PendingCart, RawIngredient, Recipe } from '@/lib/types';
+import { Product, ProductVariant, ModifierGroup, Transaction, Shift, StoreConfig, Category, PendingCart, RawIngredient, Recipe, StockMovement } from '@/lib/types';
 import { TokoCepatLogo } from "./TokoCepatLogo";
 
 export function DbProvider({ children }: { children: React.ReactNode }) {
@@ -20,7 +20,8 @@ export function DbProvider({ children }: { children: React.ReactNode }) {
         setCategories,
         setPendingCarts,
         setRawIngredients,
-        setRecipes
+        setRecipes,
+        setStockMovements
     } = useStore();
     
     // We only need to know if the initial data has been loaded, not for subsequent updates.
@@ -53,6 +54,7 @@ export function DbProvider({ children }: { children: React.ReactNode }) {
         let unsubPendingCarts: (() => void) | undefined;
         let unsubIngredients: (() => void) | undefined;
         let unsubRecipes: (() => void) | undefined;
+        let unsubStockMovements: (() => void) | undefined;
 
 
         const setupData = async () => {
@@ -112,6 +114,11 @@ export function DbProvider({ children }: { children: React.ReactNode }) {
                     const recipeList = snapshot.docs.map((doc: any) => doc.data() as Recipe);
                     setRecipes(recipeList);
                 });
+                
+                unsubStockMovements = onSnapshot(collection(db, 'stock_movements'), (snapshot: any) => {
+                    const movementList = snapshot.docs.map((doc: any) => doc.data() as StockMovement);
+                    setStockMovements(movementList);
+                });
 
             } catch (error: any) {
                 console.error("Failed to subscribe to data:", error);
@@ -132,10 +139,11 @@ export function DbProvider({ children }: { children: React.ReactNode }) {
             if (unsubPendingCarts) unsubPendingCarts();
             if (unsubIngredients) unsubIngredients();
             if (unsubRecipes) unsubRecipes();
+            if (unsubStockMovements) unsubStockMovements();
         };
     // isDataLoaded is not a dependency, we only want to run this once.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isInitialized, db, firesqlite, setProducts, setProductVariants, setModifierGroups, setTransactions, setShifts, setStoreConfig, setCategories, setPendingCarts, setRawIngredients, setRecipes]);
+    }, [isInitialized, db, firesqlite, setProducts, setProductVariants, setModifierGroups, setTransactions, setShifts, setStoreConfig, setCategories, setPendingCarts, setRawIngredients, setRecipes, setStockMovements]);
 
     if (!isInitialized || !isDataLoaded) {
         return (

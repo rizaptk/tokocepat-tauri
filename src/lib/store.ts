@@ -3,7 +3,7 @@
 
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { Product, CartItem, Transaction, Category, ModifierGroup, ProductVariant, Shift, StoreConfig, SelectedModifier, PendingCart, RawIngredient, Recipe } from '@/lib/types';
+import { Product, CartItem, Transaction, Category, ModifierGroup, ProductVariant, Shift, StoreConfig, SelectedModifier, PendingCart, RawIngredient, Recipe, StockMovement } from '@/lib/types';
 import { toast } from '@/hooks/use-toast';
 import { openShift as openShiftService, closeShift as closeShiftService } from '@/services/shiftService';
 import { createTransaction } from '@/services/transactionService';
@@ -26,6 +26,7 @@ interface StoreState {
   activeShift: Shift | null | undefined;
   storeConfig: StoreConfig | null;
   pendingCarts: PendingCart[];
+  stockMovements: StockMovement[];
   
   // Actions
   setProducts: (products: Product[]) => void;
@@ -38,6 +39,7 @@ interface StoreState {
   setShifts: (shifts: Shift[]) => void;
   setStoreConfig: (config: StoreConfig) => void;
   setPendingCarts: (carts: PendingCart[]) => void;
+  setStockMovements: (movements: StockMovement[]) => void;
   saveItemToCart: (itemData: Product | CartItem | ItemWithVariant, selectedModifiers?: SelectedModifier[], selectedVariant?: ProductVariant) => void;
   removeFromCart: (cartItemId: string) => void;
   updateQuantity: (cartItemId: string, quantity: number) => void;
@@ -65,6 +67,7 @@ export const useStore = create<StoreState>()(
       activeShift: undefined,
       storeConfig: null,
       pendingCarts: [],
+      stockMovements: [],
     
       setProducts: (products) => set({ products }),
       setCategories: (categories) => set({ categories }),
@@ -80,6 +83,7 @@ export const useStore = create<StoreState>()(
       },
       setStoreConfig: (config) => set({ storeConfig: config }),
       setPendingCarts: (carts) => set({ pendingCarts: carts.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()) }),
+      setStockMovements: (movements) => set({ stockMovements: movements.sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()) }),
     
       saveItemToCart: (itemData: Product | CartItem | ItemWithVariant, selectedModifiers: SelectedModifier[] = [], selectedVariant?: ProductVariant) => {
         const { products, cart, activeShift } = get();
@@ -310,7 +314,7 @@ export const useStore = create<StoreState>()(
       storage: createJSONStorage(() => localStorage),
        partialize: (state) =>
         Object.fromEntries(
-          Object.entries(state).filter(([key]) => !['products', 'transactions', 'modifierGroups', 'productVariants', 'categories', 'shifts', 'activeShift', 'storeConfig', 'pendingCarts', 'rawIngredients', 'recipes'].includes(key))
+          Object.entries(state).filter(([key]) => !['products', 'transactions', 'modifierGroups', 'productVariants', 'categories', 'shifts', 'activeShift', 'storeConfig', 'pendingCarts', 'rawIngredients', 'recipes', 'stockMovements'].includes(key))
         ),
     }
   )

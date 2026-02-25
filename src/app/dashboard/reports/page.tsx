@@ -4,7 +4,7 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, ArrowRight, BarChart2, BookOpen, Warehouse, ArchiveX } from 'lucide-react';
+import { ArrowLeft, ArrowRight, BarChart2, BookOpen, Warehouse, ArchiveX, Beaker } from 'lucide-react';
 
 const reportLinks = [
     {
@@ -19,6 +19,13 @@ const reportLinks = [
         description: 'View stock levels, value, and movement history.',
         href: '/dashboard/reports/inventory',
         icon: Warehouse,
+        comingSoon: false,
+    },
+    {
+        title: 'Consumption Report',
+        description: 'Track raw ingredient usage and waste.',
+        href: '/dashboard/reports/consumption',
+        icon: Beaker,
         comingSoon: false,
     },
     {
