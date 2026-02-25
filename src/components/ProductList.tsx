@@ -44,7 +44,7 @@ const LoadingSkeleton = ({ viewMode }: { viewMode: ViewMode }) => {
     )
 }
 
-const CARD_WIDTH = 220; 
+const CARD_WIDTH = 210; 
 const CARD_HEIGHT = 290;
 const THUMBNAIL_HEIGHT = 88;
 const LIST_ITEM_HEIGHT = 76;
@@ -120,7 +120,7 @@ export function ProductList({ products, viewMode, isLoading, onItemClick, select
   const isSingleColumn = columnCount === 1;
   const dynamicCardHeight = isSingleColumn ? 380 : CARD_HEIGHT;
   const rowCount = Math.ceil(products.length / columnCount);
-  const columnWidth = width / columnCount;
+  const columnWidth = Math.floor(width / columnCount);
 
   const Cell = ({ columnIndex, rowIndex, style }: { columnIndex: number; rowIndex: number; style: React.CSSProperties }) => {
       const index = rowIndex * columnCount + columnIndex;
