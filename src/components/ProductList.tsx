@@ -116,7 +116,7 @@ export function ProductList({ products, viewMode, isLoading, onItemClick, select
   }
 
   // Card View
-  const columnCount = Math.max(1, Math.floor(width / CARD_WIDTH));
+  const columnCount = width < 500 ? 2 : Math.max(1, Math.floor(width / CARD_WIDTH));
   const isSingleColumn = columnCount === 1;
   const dynamicCardHeight = isSingleColumn ? 380 : CARD_HEIGHT;
   const rowCount = Math.ceil(products.length / columnCount);
