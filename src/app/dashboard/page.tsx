@@ -2,7 +2,7 @@
 "use client";
 
 import Link from "next/link";
-import { History, TriangleAlert, CheckCircle } from "lucide-react";
+import { History, TriangleAlert, CheckCircle, TrendingUp, ShoppingBag } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -12,13 +12,36 @@ import { Badge } from "@/components/ui/badge";
 
 export default function DashboardPage() {
   const router = useRouter();
-  const products = useStore((state) => state.products);
-  const shifts = useStore((state) => state.shifts);
+  const { products, shifts, transactions } = useStore((state) => ({
+    products: state.products,
+    shifts: state.shifts,
+    transactions: state.transactions,
+  }));
   const closedShifts = shifts.filter(s => s.status === 'closed');
   
   const lowStockItems = products.filter(
     p => p.track_stock && p.low_stock_alert != null && p.stock <= p.low_stock_alert
   );
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const todaysTransactions = transactions.filter(t => new Date(t.created_at) >= today && t.status === 'paid');
+
+  const productSales = new Map<string, { name: string; quantity: number }>();
+
+  todaysTransactions.forEach(tx => {
+    tx.items.forEach(item => {
+        const productId = item.product_snapshot.id;
+        const currentSale = productSales.get(productId) || { name: item.product_snapshot.name, quantity: 0 };
+        currentSale.quantity += item.qty;
+        productSales.set(productId, currentSale);
+    });
+  });
+
+  const topSellingProducts = Array.from(productSales.values())
+    .sort((a, b) => b.quantity - a.quantity)
+    .slice(0, 5);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('id-ID', {
@@ -36,7 +59,7 @@ export default function DashboardPage() {
           </Link>
        </header>
       <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             <Card>
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2">
@@ -73,7 +96,41 @@ export default function DashboardPage() {
                    )}
                 </CardContent>
             </Card>
-            <Card>
+             <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <TrendingUp className="text-primary"/>
+                      Today's Top Sellers
+                    </CardTitle>
+                    <CardDescription>Top 5 most sold products today.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                   {topSellingProducts.length === 0 ? (
+                     <div className="text-center text-muted-foreground py-8">
+                       <ShoppingBag className="mx-auto h-10 w-10 mb-2"/>
+                       <p>No sales recorded today.</p>
+                     </div>
+                   ) : (
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                              <TableHead>Product</TableHead>
+                              <TableHead className="text-right">Quantity Sold</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {topSellingProducts.map(product => (
+                                <TableRow key={product.name}>
+                                    <TableCell className="font-medium">{product.name}</TableCell>
+                                    <TableCell className="text-right font-bold">{product.quantity}</TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                   )}
+                </CardContent>
+            </Card>
+            <Card className="lg:col-span-3">
                 <CardHeader>
                     <CardTitle>Shift History</CardTitle>
                     <CardDescription>Review previously closed shifts. Click a row to see details.</CardDescription>
