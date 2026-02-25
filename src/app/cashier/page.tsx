@@ -164,7 +164,7 @@ export default function CashierPage() {
 
       {/* Desktop & Tablet Layout: Split View */}
       <div className="hidden md:grid md:grid-cols-5 lg:grid-cols-3 flex-1 overflow-hidden">
-        <main className="col-span-3 lg:col-span-2 flex flex-col overflow-y-auto relative">
+        <main className="col-span-3 lg:col-span-2 flex flex-col overflow-hidden relative">
             <div className="bg-muted/40 z-10 border-b p-4">
                <ProductSearchBar 
                   searchTerm={searchTerm} 
@@ -174,7 +174,9 @@ export default function CashierPage() {
                   onBarcodeScan={handleBarcodeScan}
                 />
             </div>
-          <ProductList products={filteredProducts.length > 0 ? filteredProducts : products} viewMode={viewMode} isLoading={products.length === 0} onItemClick={handleProductSelect} context="cashier"/>
+          <div className="flex-1">
+            <ProductList products={filteredProducts.length > 0 ? filteredProducts : products} viewMode={viewMode} isLoading={products.length === 0} onItemClick={handleProductSelect} context="cashier"/>
+          </div>
         </main>
         <aside className="col-span-2 lg:col-span-1 border-l bg-background flex flex-col">
             <CartDisplay onEditItem={handleEditCartItem} />

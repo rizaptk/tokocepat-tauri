@@ -9,15 +9,17 @@ import { Badge } from '@/components/ui/badge';
 import { ShoppingCart, SlidersHorizontal, TriangleAlert } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useMemo } from 'react';
+import React from 'react';
 
 type ProductCardProps = {
   product: Product;
   onItemClick?: (product: Product) => void;
   isSelected?: boolean;
   context?: 'cashier' | 'product' | 'inventory';
+  style?: React.CSSProperties;
 };
 
-export function ProductCard({ product, onItemClick, isSelected, context = 'cashier' }: ProductCardProps) {
+export function ProductCard({ product, onItemClick, isSelected, context = 'cashier', style }: ProductCardProps) {
   const { categories } = useStore();
   const category = useMemo(() => categories.find(c => c.id === product.category_id), [categories, product.category_id]);
 
@@ -40,8 +42,9 @@ export function ProductCard({ product, onItemClick, isSelected, context = 'cashi
 
   return (
     <Card 
+      style={style}
       className={cn(
-        "flex flex-col overflow-hidden transition-all hover:shadow-lg",
+        "flex flex-col h-full overflow-hidden transition-all hover:shadow-lg",
         isSelected && "ring-2 ring-primary ring-offset-2",
         isOutOfStock ? "cursor-not-allowed" : "cursor-pointer",
       )}

@@ -17,7 +17,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { ProductSearchBar } from "@/components/ProductSearchBar";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import { PlusCircle } from "lucide-react";
@@ -260,7 +259,7 @@ export default function InventoryPage() {
                         </Button>
                     </div>
                 </div>
-                <ScrollArea className="flex-grow bg-background">
+                <div className="flex-grow bg-background">
                     <ProductList 
                         products={filteredProducts}
                         viewMode={viewMode}
@@ -269,7 +268,7 @@ export default function InventoryPage() {
                         onItemClick={handleProductSelect}
                         selectedProductId={selectedProductId}
                     />
-                </ScrollArea>
+                </div>
             </div>
 
             {/* Right Panel: Adjustment Form (Desktop) */}

@@ -791,7 +791,7 @@ export default function ProductManagementPage() {
                         </Button> */}
                     </div>
                 </div>
-                <ScrollArea className="flex-grow">
+                <div className="flex-grow">
                     <ProductList
                         products={filteredProducts}
                         viewMode={viewMode}
@@ -799,7 +799,7 @@ export default function ProductManagementPage() {
                         selectedProductId={selectedProductId}
                         context="product"
                     />
-                </ScrollArea>
+                </div>
                 <div className="p-4 border-t md:hidden flex gap-2">
                     <Button onClick={handleAddNew} className="w-full">
                         <PlusCircle className="mr-2 h-4 w-4" /> Add Product

@@ -7,15 +7,17 @@ import { cn } from '@/lib/utils';
 import { Badge } from '../ui/badge';
 import { SlidersHorizontal, TriangleAlert } from 'lucide-react';
 import { useMemo } from 'react';
+import React from 'react';
 
 type ProductListItemProps = {
   product: Product;
   onItemClick?: (product: Product) => void;
   isSelected?: boolean;
   context?: 'cashier' | 'product' | 'inventory';
+  style?: React.CSSProperties;
 };
 
-export function ProductListItem({ product, onItemClick, isSelected, context = 'cashier' }: ProductListItemProps) {
+export function ProductListItem({ product, onItemClick, isSelected, context = 'cashier', style }: ProductListItemProps) {
   const { categories } = useStore();
   const category = useMemo(() => categories.find(c => c.id === product.category_id), [categories, product.category_id]);
   
@@ -38,8 +40,9 @@ export function ProductListItem({ product, onItemClick, isSelected, context = 'c
 
   return (
     <div 
+      style={style}
       className={cn(
-        "flex items-center gap-4 p-3 transition-colors",
+        "flex items-center gap-4 p-3 transition-colors border-b",
         isOutOfStock 
             ? "bg-muted/50 cursor-not-allowed opacity-60" 
             : "hover:bg-accent cursor-pointer",

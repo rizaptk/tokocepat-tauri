@@ -1,12 +1,13 @@
 
 "use client";
 
+import React, { useState, useEffect, useRef } from 'react';
 import { Product } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ProductCard } from '@/components/ProductCard';
 import { ProductThumbnailItem } from './items/ProductThumbnailItem';
 import { ProductListItem } from './items/ProductListItem';
-import { Card } from './ui/card';
+import { FixedSizeGrid, FixedSizeList } from 'react-window';
 
 type ViewMode = 'card' | 'thumbnail' | 'list';
 
@@ -30,7 +31,6 @@ const LoadingSkeleton = ({ viewMode }: { viewMode: ViewMode }) => {
              </div>
         )
     }
-    // card view
     return (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 p-4">
             {Array.from({ length: itemCount }).map((_, index) => (
@@ -44,49 +44,102 @@ const LoadingSkeleton = ({ viewMode }: { viewMode: ViewMode }) => {
     )
 }
 
+const CARD_WIDTH = 220; 
+const CARD_HEIGHT = 290;
+const THUMBNAIL_HEIGHT = 88;
+const LIST_ITEM_HEIGHT = 76;
 
 export function ProductList({ products, viewMode, isLoading, onItemClick, selectedProductId, context = 'cashier' }: ProductListProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [size, setSize] = useState({ width: 0, height: 0 });
+
+  useEffect(() => {
+    if (containerRef.current) {
+      const observer = new ResizeObserver(entries => {
+        if (entries[0]) {
+          const { width, height } = entries[0].contentRect;
+          setSize({ width, height });
+        }
+      });
+      observer.observe(containerRef.current);
+      return () => observer.disconnect();
+    }
+  }, []);
+
   if (isLoading) {
-    return <LoadingSkeleton viewMode={viewMode} />;
+    return <div className="h-full w-full"><LoadingSkeleton viewMode={viewMode} /></div>;
   }
   
-  if (products.length === 0) {
+  if (products.length === 0 && !isLoading) {
     return (
-      <div className="text-center py-16">
-        <h2 className="text-xl font-semibold">No Products Found</h2>
-        <p className="text-muted-foreground">Try adjusting your search term.</p>
+      <div className="flex items-center justify-center h-full text-center">
+        <div>
+          <h2 className="text-xl font-semibold">No Products Found</h2>
+          <p className="text-muted-foreground">Try adjusting your search term.</p>
+        </div>
       </div>
     )
   }
 
+  const { width, height } = size;
+  
+  if (width === 0 || height === 0) {
+    return <div ref={containerRef} className="w-full h-full" />;
+  }
+  
   if (viewMode === 'list') {
+    const Row = ({ index, style }: { index: number; style: React.CSSProperties }) => {
+        const product = products[index];
+        return <div style={style} className="px-4"><ProductListItem key={product.id} product={product} onItemClick={onItemClick} isSelected={product.id === selectedProductId} context={context} /></div>;
+    };
     return (
-        <div className="m-4">
-          <Card className='flex flex-col divide-y divide-border'>
-                {products.map(product => (
-                    <ProductListItem key={product.id} product={product} onItemClick={onItemClick} isSelected={product.id === selectedProductId} context={context} />
-                ))}
-          </Card>
+        <div ref={containerRef} className="w-full h-full">
+            <FixedSizeList height={height} width={width} itemCount={products.length} itemSize={LIST_ITEM_HEIGHT}>
+                {Row}
+            </FixedSizeList>
         </div>
-    )
+    );
   }
 
   if (viewMode === 'thumbnail') {
+    const Row = ({ index, style }: { index: number; style: React.CSSProperties }) => {
+        const product = products[index];
+        return <div style={style} className="px-2 py-1"><ProductThumbnailItem key={product.id} product={product} onItemClick={onItemClick} isSelected={product.id === selectedProductId} context={context} /></div>;
+    };
     return (
-        <div className="flex flex-col gap-2 p-2">
-            {products.map(product => (
-                <ProductThumbnailItem key={product.id} product={product} onItemClick={onItemClick} isSelected={product.id === selectedProductId} context={context} />
-            ))}
+        <div ref={containerRef} className="w-full h-full">
+            <FixedSizeList height={height} width={width} itemCount={products.length} itemSize={THUMBNAIL_HEIGHT}>
+                {Row}
+            </FixedSizeList>
         </div>
-    )
+    );
   }
 
-  // Default to 'card' view
+  // Card View
+  const columnCount = Math.max(1, Math.floor(width / CARD_WIDTH));
+  const rowCount = Math.ceil(products.length / columnCount);
+  const columnWidth = width / columnCount;
+
+  const Cell = ({ columnIndex, rowIndex, style }: { columnIndex: number; rowIndex: number; style: React.CSSProperties }) => {
+      const index = rowIndex * columnCount + columnIndex;
+      if (index >= products.length) {
+        return null;
+      }
+      const product = products[index];
+      return (
+        <div style={style}>
+            <div className="p-2 h-full w-full">
+                <ProductCard key={product.id} product={product} onItemClick={onItemClick} isSelected={product.id === selectedProductId} context={context} />
+            </div>
+        </div>
+      );
+  };
+  
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 p-4">
-      {products.map(product => (
-        <ProductCard key={product.id} product={product} onItemClick={onItemClick} isSelected={product.id === selectedProductId} context={context} />
-      ))}
+    <div ref={containerRef} className="w-full h-full">
+      <FixedSizeGrid columnCount={columnCount} columnWidth={columnWidth} height={height} rowCount={rowCount} rowHeight={CARD_HEIGHT} width={width}>
+        {Cell}
+      </FixedSizeGrid>
     </div>
   );
 }
