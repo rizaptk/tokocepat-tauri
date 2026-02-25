@@ -130,7 +130,7 @@ export function ProductList({ products, viewMode, isLoading, onItemClick, select
       const product = products[index];
       return (
         <div style={style}>
-            <div className="p-2 h-full w-full">
+            <div className="p-2 h-full">
                 <ProductCard key={product.id} product={product} onItemClick={onItemClick} isSelected={product.id === selectedProductId} context={context} />
             </div>
         </div>
