@@ -192,7 +192,7 @@ export default function StockMovementReportPage() {
                                         <TableCell className={`font-bold ${m.qty_change > 0 ? 'text-green-600' : 'text-red-600'}`}>
                                             {m.qty_change > 0 ? `+${m.qty_change}` : m.qty_change}
                                         </TableCell>
-                                        <TableCell className="text-xs text-muted-foreground truncate max-w-[200px]">{m.reason || (m.reference_id.startsWith('INV-') ? m.reference_id : 'N/A')}</TableCell>
+                                        <TableCell className="text-xs text-muted-foreground truncate max-w-[200px]">{m.reason || (m.reference_id?.startsWith('INV-') ? m.reference_id : 'N/A')}</TableCell>
                                         <TableCell className="text-right font-mono">---</TableCell>
                                     </TableRow>
                                 ))
