@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useStore } from '@/lib/store';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { TokoCepatLogo } from '@/components/TokoCepatLogo';
 import { ArrowLeft } from 'lucide-react';
@@ -62,7 +63,7 @@ export default function ShiftDetailsPage() {
     
     return (
          <div className="flex min-h-screen w-full flex-col bg-muted/40">
-           <header className="sticky top-0 flex h-16 items-center gap-4 border-b bg-background px-4 md:px-6">
+           <header className="sticky top-0 flex h-16 items-center gap-4 border-b bg-background px-4 md:px-6 z-10">
                 <Button variant="outline" size="icon" asChild>
                     <Link href="/dashboard">
                         <ArrowLeft />
@@ -71,7 +72,7 @@ export default function ShiftDetailsPage() {
               <TokoCepatLogo />
            </header>
           <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8 items-center">
-            <div className="w-full max-w-2xl">
+            <div className="w-full max-w-4xl space-y-8">
                 <Card>
                     <CardHeader>
                         <CardTitle>Shift Summary</CardTitle>
@@ -80,7 +81,7 @@ export default function ShiftDetailsPage() {
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                        <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                             <div>
                                 <p className="text-muted-foreground">Start Time</p>
                                 <p className="font-medium">{new Date(shift.opened_at).toLocaleString()}</p>
@@ -99,44 +100,76 @@ export default function ShiftDetailsPage() {
                             </div>
                         </div>
                         <Separator />
-                        <div className="space-y-2 text-sm">
-                             <div className="flex justify-between">
-                                <span className="text-muted-foreground">Opening Cash</span>
-                                <span className="font-medium">{formatCurrency(shift.opening_cash)}</span>
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-6 pt-2">
+                            <div className="space-y-2 text-sm">
+                                <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Opening Cash</span>
+                                    <span className="font-medium">{formatCurrency(shift.opening_cash)}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Total Sales</span>
+                                    <span className="font-medium">{formatCurrency(totalSales)}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Total Void</span>
+                                    <span className="font-medium text-destructive">{formatCurrency(totalVoid)}</span>
+                                </div>
                             </div>
-                            <div className="flex justify-between">
-                                <span className="text-muted-foreground">Total Sales</span>
-                                <span className="font-medium">{formatCurrency(totalSales)}</span>
+                             <div className="space-y-2 text-sm">
+                                <div className="flex justify-between font-semibold">
+                                    <span>Expected Cash</span>
+                                    <span>{formatCurrency(expectedCash)}</span>
+                                </div>
+                                <div className="flex justify-between font-semibold">
+                                    <span>Declared Cash</span>
+                                    <span>{formatCurrency(shift.declared_cash || 0)}</span>
+                                </div>
                             </div>
-                            <div className="flex justify-between">
-                                <span className="text-muted-foreground">Total Void</span>
-                                <span className="font-medium text-destructive">{formatCurrency(totalVoid)}</span>
+                             <div className={`space-y-2 text-sm p-3 rounded-lg ${shift.variance !== 0 ? 'bg-destructive/10' : 'bg-green-500/10'}`}>
+                                 <div className={`flex justify-between font-bold text-lg ${shift.variance !== 0 ? 'text-destructive' : 'text-green-600'}`}>
+                                    <span>Variance</span>
+                                    <span>{formatCurrency(shift.variance || 0)}</span>
+                                </div>
                             </div>
                         </div>
-                        <Separator />
-                        <div className="space-y-2">
-                             <div className="flex justify-between font-semibold">
-                                <span>Expected Cash</span>
-                                <span>{formatCurrency(expectedCash)}</span>
-                            </div>
-                            <div className="flex justify-between font-semibold">
-                                <span>Declared Cash</span>
-                                <span>{formatCurrency(shift.declared_cash || 0)}</span>
-                            </div>
-                            <div className={`flex justify-between font-bold text-lg ${shift.variance !== 0 ? 'text-destructive' : 'text-green-600'}`}>
-                                <span>Variance</span>
-                                <span>{formatCurrency(shift.variance || 0)}</span>
-                            </div>
-                        </div>
-                         <Separator />
-                         <div className="flex gap-2 pt-4">
-                            <Button variant="outline" disabled>Export PDF</Button>
-                            <Button asChild>
-                                <Link href="/dashboard">Done</Link>
-                            </Button>
-                         </div>
                     </CardContent>
                 </Card>
+
+                 <Card>
+                    <CardHeader>
+                        <CardTitle>Transactions</CardTitle>
+                        <CardDescription>All transactions recorded during this shift.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Time</TableHead>
+                                    <TableHead>Invoice #</TableHead>
+                                    <TableHead>Items</TableHead>
+                                    <TableHead className="text-right">Total</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {shiftTransactions.map(tx => (
+                                    <TableRow key={tx.id}>
+                                        <TableCell>{new Date(tx.created_at).toLocaleTimeString()}</TableCell>
+                                        <TableCell className="font-mono text-xs">{tx.invoice_number}</TableCell>
+                                        <TableCell>{tx.items.reduce((acc, item) => acc + item.qty, 0)}</TableCell>
+                                        <TableCell className="text-right font-medium">{formatCurrency(tx.total)}</TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </CardContent>
+                </Card>
+
+                <div className="flex gap-2 pt-4">
+                    <Button variant="outline" disabled>Export PDF</Button>
+                    <Button asChild>
+                        <Link href="/dashboard">Done</Link>
+                    </Button>
+                </div>
             </div>
           </main>
         </div>
