@@ -40,7 +40,8 @@ export function Header() {
   };
   
   const shiftTransactions = activeShift ? transactions.filter(t => t.shift_id === activeShift.id) : [];
-  const shiftRevenue = shiftTransactions.reduce((sum, t) => sum + t.total, 0);
+  const activeShiftTransactions = shiftTransactions.filter(t => t.status !== 'voided');
+  const shiftRevenue = activeShiftTransactions.reduce((sum, t) => sum + t.total, 0);
   const expectedCash = activeShift ? activeShift.opening_cash + shiftRevenue : 0;
   
   const handleCloseShift = () => {

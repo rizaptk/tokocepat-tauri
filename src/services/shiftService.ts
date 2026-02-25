@@ -23,7 +23,8 @@ export const closeShift = async (activeShift: Shift, transactions: Transaction[]
     const { doc, updateDoc } = firesqlite;
 
     const shiftTransactions = transactions.filter(t => t.shift_id === activeShift.id);
-    const system_cash = activeShift.opening_cash + shiftTransactions.reduce((sum, t) => t.total, 0);
+    const activeTransactions = shiftTransactions.filter(t => t.status !== 'voided');
+    const system_cash = activeShift.opening_cash + activeTransactions.reduce((sum, t) => t.total, 0);
 
     const updatedShift: Partial<Shift> = {
         closed_at: new Date().toISOString(),

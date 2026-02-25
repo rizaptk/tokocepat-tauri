@@ -1,6 +1,5 @@
 
 
-
 export interface Category {
     id: string;
     name: string;
@@ -106,6 +105,9 @@ export interface Transaction {
   change: number;
   created_at: string;
   shift_id?: string;
+  status: 'paid' | 'voided';
+  voided_at?: string;
+  void_reason?: string;
 }
 
 export type StockMovementType = 'sale' | 'restock' | 'correction' | 'lost' | 'damaged' | 'initial_balance';

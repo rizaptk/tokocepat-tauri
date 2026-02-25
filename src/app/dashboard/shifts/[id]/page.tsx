@@ -11,15 +11,42 @@ import { TokoCepatLogo } from '@/components/TokoCepatLogo';
 import { ArrowLeft } from 'lucide-react';
 import { formatDistance, parseISO } from 'date-fns';
 import { Separator } from '@/components/ui/separator';
+import { useState } from 'react';
+import { useToast } from '@/hooks/use-toast';
+import { voidTransaction } from '@/services/transactionService';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { cn } from '@/lib/utils';
 
 export default function ShiftDetailsPage() {
     const params = useParams();
     const shiftId = params.id as string;
     
     const { shifts, transactions } = useStore();
+    const { toast } = useToast();
     
     const shift = shifts.find(s => s.id === shiftId);
     const shiftTransactions = transactions.filter(t => t.shift_id === shiftId);
+
+    const [voidReason, setVoidReason] = useState("");
+
+    const handleVoid = async (transactionId: string, invoiceNumber: string) => {
+        if (!voidReason.trim()) {
+            toast({ variant: 'destructive', title: 'Reason required', description: 'Please provide a reason for voiding.' });
+            return false;
+        }
+        try {
+            await voidTransaction(transactionId, voidReason);
+            toast({ title: 'Transaction Voided', description: `Invoice ${invoiceNumber} has been successfully voided.` });
+            setVoidReason("");
+            return true;
+        } catch (error: any) {
+            console.error("Failed to void transaction:", error);
+            toast({ variant: "destructive", title: "Error", description: error.message || "Could not void the transaction." });
+            return false;
+        }
+    };
 
     const formatCurrency = (amount: number) => {
         return new Intl.NumberFormat('id-ID', {
@@ -55,11 +82,12 @@ export default function ShiftDetailsPage() {
     }
 
     const duration = shift.closed_at ? formatDistance(parseISO(shift.closed_at), parseISO(shift.opened_at)) : 'Still open';
-    const totalSales = shiftTransactions.reduce((sum, t) => sum + t.total, 0);
-    const transactionCount = shiftTransactions.length;
-    // Voids are not implemented yet. So total void is 0.
-    const totalVoid = 0;
-    const expectedCash = shift.opening_cash + totalSales - totalVoid;
+    const activeTransactions = shiftTransactions.filter(t => t.status !== 'voided');
+    const totalSales = activeTransactions.reduce((sum, t) => sum + t.total, 0);
+    const transactionCount = activeTransactions.length;
+    
+    const totalVoid = shiftTransactions.filter(t => t.status === 'voided').reduce((sum, t) => sum + t.total, 0);
+    const expectedCash = shift.opening_cash + totalSales;
     
     return (
          <div className="flex min-h-screen w-full flex-col bg-muted/40">
@@ -148,15 +176,46 @@ export default function ShiftDetailsPage() {
                                     <TableHead>Invoice #</TableHead>
                                     <TableHead>Items</TableHead>
                                     <TableHead className="text-right">Total</TableHead>
+                                    <TableHead className="text-right">Actions</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {shiftTransactions.map(tx => (
-                                    <TableRow key={tx.id}>
+                                    <TableRow key={tx.id} className={cn(tx.status === 'voided' && 'bg-destructive/5 text-muted-foreground line-through hover:bg-destructive/10')}>
                                         <TableCell>{new Date(tx.created_at).toLocaleTimeString()}</TableCell>
                                         <TableCell className="font-mono text-xs">{tx.invoice_number}</TableCell>
                                         <TableCell>{tx.items.reduce((acc, item) => acc + item.qty, 0)}</TableCell>
                                         <TableCell className="text-right font-medium">{formatCurrency(tx.total)}</TableCell>
+                                        <TableCell className="text-right">
+                                            {tx.status !== 'voided' && (
+                                                <AlertDialog>
+                                                    <AlertDialogTrigger asChild>
+                                                        <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive no-underline hover:bg-destructive/10">Void</Button>
+                                                    </AlertDialogTrigger>
+                                                    <AlertDialogContent>
+                                                        <AlertDialogHeader>
+                                                            <AlertDialogTitle>Void Transaction {tx.invoice_number}?</AlertDialogTitle>
+                                                            <AlertDialogDescription>
+                                                                This action cannot be undone. It will reverse the sale and return items to stock.
+                                                            </AlertDialogDescription>
+                                                        </AlertDialogHeader>
+                                                        <div className="py-4">
+                                                            <Label htmlFor="void-reason" className="mb-2 block">Reason for Voiding</Label>
+                                                            <Input id="void-reason" value={voidReason} onChange={(e) => setVoidReason(e.target.value)} placeholder="e.g., Customer canceled order" />
+                                                        </div>
+                                                        <AlertDialogFooter>
+                                                            <AlertDialogCancel onClick={() => setVoidReason('')}>Cancel</AlertDialogCancel>
+                                                            <AlertDialogAction onClick={async (e) => {
+                                                                const success = await handleVoid(tx.id, tx.invoice_number);
+                                                                if (!success) {
+                                                                    e.preventDefault(); // Prevent dialog from closing on failure
+                                                                }
+                                                            }}>Confirm Void</AlertDialogAction>
+                                                        </AlertDialogFooter>
+                                                    </AlertDialogContent>
+                                                </AlertDialog>
+                                            )}
+                                        </TableCell>
                                     </TableRow>
                                 ))}
                             </TableBody>

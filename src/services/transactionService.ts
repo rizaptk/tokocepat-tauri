@@ -32,6 +32,7 @@ export const createTransaction = async (cart: CartItem[], activeShift: Shift, st
       id: transactionId,
       invoice_number: invoiceNumber,
       shift_id: activeShift.id,
+      status: 'paid',
       items: cart.map(item => ({
         id: `${transactionId}-${item.id}`,
         transaction_id: transactionId,
@@ -90,4 +91,60 @@ export const createTransaction = async (cart: CartItem[], activeShift: Shift, st
     }
     
     return newTransaction;
+};
+
+
+export const voidTransaction = async (transactionId: string, reason: string): Promise<void> => {
+    const { db, firesqlite } = useDbStore.getState();
+    if (!db || !firesqlite) throw new Error("Database not initialized");
+
+    const { doc, getDoc, updateDoc, setDoc } = firesqlite;
+    
+    const txRef = doc(db, 'transactions', transactionId);
+    const txSnap = await getDoc(txRef);
+
+    if (!txSnap.exists()) {
+        throw new Error("Transaction not found.");
+    }
+
+    const transaction = txSnap.data() as Transaction;
+    if (transaction.status === 'voided') {
+        throw new Error("Transaction is already voided.");
+    }
+    
+    // 1. Update the transaction status
+    await updateDoc(txRef, {
+        status: 'voided',
+        voided_at: new Date().toISOString(),
+        void_reason: reason,
+    });
+
+    // 2. Reverse stock movements
+    for (const item of transaction.items) {
+        // Find the original product to check if it tracks stock
+        const productRef = doc(db, 'products', item.product_snapshot.id);
+        const productSnap = await getDoc(productRef);
+        if (productSnap.exists() && productSnap.data().track_stock) {
+            const productData = productSnap.data();
+            const currentStock = productData.stock;
+            const quantityToReturn = item.qty;
+
+            // Update the product's stock level
+            await updateDoc(productRef, { stock: currentStock + quantityToReturn });
+
+            // Create a reversing stock movement record for auditing
+            const movementId = `sm-void-${transaction.id}-${item.product_snapshot.id}`;
+            const stockMovement: StockMovement = {
+                id: movementId,
+                product_id: item.product_snapshot.id,
+                product_name_snapshot: item.product_snapshot.name,
+                type: 'correction',
+                qty_change: quantityToReturn,
+                reason: `Void of INV: ${transaction.invoice_number}`,
+                reference_id: transaction.id,
+                created_at: new Date().toISOString(),
+            };
+            await setDoc(doc(db, 'stock_movements', movementId), stockMovement);
+        }
+    }
 };
