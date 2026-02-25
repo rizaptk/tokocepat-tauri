@@ -215,7 +215,7 @@ const ProductForm = ({ productId, onSave }: { productId: string | null, onSave: 
                                 )} />
                                 <FormField control={form.control} name="category_id" render={({ field }) => (
                                     <FormItem><FormLabel>Category</FormLabel>
-                                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                        <Select onValueChange={field.onChange} value={field.value}>
                                             <FormControl><SelectTrigger><SelectValue placeholder="Select a category" /></SelectTrigger></FormControl>
                                             <SelectContent>{categories.map(cat => (<SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>))}</SelectContent>
                                         </Select>
