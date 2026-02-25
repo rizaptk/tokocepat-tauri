@@ -1,7 +1,8 @@
 
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
+import Image from 'next/image';
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -33,7 +34,7 @@ import { Textarea } from "@/components/ui/textarea";
 
 
 // Icons
-import { PlusCircle, Edit, Trash, SlidersHorizontal, Library, Package, Menu, Scan, Barcode, Zap, Beaker, Sandwich } from "lucide-react";
+import { PlusCircle, Edit, Trash, SlidersHorizontal, Library, Package, Menu, Scan, Barcode, Zap, Beaker, Sandwich, Upload } from "lucide-react";
 
 // Services
 import { addProduct, updateProduct } from "@/services/productService";
@@ -79,6 +80,8 @@ const productFormSchema = z.object({
   modifier_group_ids: z.array(z.string()).optional(),
   variants: z.array(variantSchema).optional(),
   recipe_items: z.array(recipeItemSchema).optional(),
+  imageUrl: z.string().optional(),
+  imageHint: z.string().optional(),
 });
   
 type ProductFormValues = z.infer<typeof productFormSchema>;
@@ -107,6 +110,7 @@ const ProductForm = ({ productId, onSave }: { productId: string | null, onSave: 
     const isEditing = !!productId;
     const product = useMemo(() => products.find(p => p.id === productId), [productId, products]);
     const [isScannerOpen, setIsScannerOpen] = useState(false);
+    const imageInputRef = useRef<HTMLInputElement>(null);
 
     const form = useForm<ProductFormValues>({
         resolver: zodResolver(productFormSchema),
@@ -114,7 +118,7 @@ const ProductForm = ({ productId, onSave }: { productId: string | null, onSave: 
             name: "", product_type: "retail", price: 0, cost_price: 0, stock: 0,
             low_stock_alert: 0, track_stock: true, is_active: true, has_variant: false,
             has_modifier: false, is_composite: false, modifier_group_ids: [], sku: "", barcode: "", 
-            variants: [], recipe_items: []
+            variants: [], recipe_items: [], imageUrl: "", imageHint: ""
         },
     });
 
@@ -131,6 +135,7 @@ const ProductForm = ({ productId, onSave }: { productId: string | null, onSave: 
     const hasVariant = form.watch('has_variant');
     const productType = form.watch('product_type');
     const isComposite = form.watch('is_composite');
+    const imageUrl = form.watch('imageUrl');
 
     useEffect(() => {
         if (product) {
@@ -146,6 +151,8 @@ const ProductForm = ({ productId, onSave }: { productId: string | null, onSave: 
                 modifier_group_ids: product.modifier_group_ids || [],
                 variants: variantsForProduct,
                 recipe_items: recipeForProduct ? recipeForProduct.items : [],
+                imageUrl: product.imageUrl,
+                imageHint: product.imageHint,
             });
         } else {
             form.reset(form.formState.defaultValues);
@@ -155,6 +162,19 @@ const ProductForm = ({ productId, onSave }: { productId: string | null, onSave: 
     const handleScanSuccess = (barcode: string) => {
         form.setValue('barcode', barcode, { shouldValidate: true });
         setIsScannerOpen(false);
+    };
+
+    const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const dataUrl = event.target?.result as string;
+            form.setValue('imageUrl', dataUrl, { shouldDirty: true });
+            form.setValue('imageHint', file.name.split('.').slice(0, -1).join('.'), { shouldDirty: true });
+        };
+        reader.readAsDataURL(file);
     };
 
     async function onSubmit(data: ProductFormValues) {
@@ -181,6 +201,24 @@ const ProductForm = ({ productId, onSave }: { productId: string | null, onSave: 
             <form onSubmit={form.handleSubmit(onSubmit)} className="h-full flex flex-col">
                  <ScrollArea className="flex-grow p-1">
                     <div className="space-y-6 p-4">
+                        <Card>
+                            <CardHeader><CardTitle>Product Image</CardTitle></CardHeader>
+                            <CardContent className="flex flex-col items-center gap-4">
+                                <div className="w-48 h-48 relative rounded-lg overflow-hidden border bg-muted">
+                                    <Image 
+                                        src={imageUrl || 'https://placehold.co/400?text=No+Image'} 
+                                        alt={form.getValues('name') || 'Product image'} 
+                                        fill 
+                                        sizes="192px"
+                                        className="object-cover" 
+                                    />
+                                </div>
+                                <input type="file" ref={imageInputRef} hidden accept="image/*" onChange={handleImageSelect} />
+                                <Button type="button" variant="outline" className="w-full" onClick={() => imageInputRef.current?.click()}>
+                                    <Upload className="mr-2 h-4 w-4" /> Upload Image
+                                </Button>
+                            </CardContent>
+                        </Card>
                         <Card>
                             <CardHeader><CardTitle>Product Details</CardTitle></CardHeader>
                             <CardContent className="space-y-6">

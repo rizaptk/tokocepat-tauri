@@ -25,6 +25,8 @@ export type ProductFormData = {
     sku?: string;
     barcode?: string;
     variants?: VariantFormData[];
+    imageUrl?: string;
+    imageHint?: string;
 }
 
 /**
@@ -101,12 +103,12 @@ export const addProduct = async (productData: ProductFormData): Promise<Product 
     const newProduct: Product = {
         id: newId,
         ...restOfProductData,
+        imageUrl: productData.imageUrl || placeholder.imageUrl,
+        imageHint: productData.imageHint || placeholder.imageHint,
         is_composite: isComposite,
         track_stock: hasVariant || isComposite ? false : restOfProductData.track_stock,
         has_variant: hasVariant,
         modifier_group_ids: restOfProductData.has_modifier ? restOfProductData.modifier_group_ids : [],
-        imageUrl: placeholder.imageUrl,
-        imageHint: placeholder.imageHint,
     };
 
     await setDoc(doc(db, 'products', newProduct.id), newProduct);
@@ -147,6 +149,8 @@ export const updateProduct = async (id: string, productData: ProductFormData): P
         track_stock: hasVariant || isComposite ? false : restOfProductData.track_stock,
         has_variant: hasVariant,
         modifier_group_ids: restOfProductData.has_modifier ? restOfProductData.modifier_group_ids : [],
+        imageUrl: productData.imageUrl,
+        imageHint: productData.imageHint,
     };
     
     await updateDoc(doc(db, 'products', id), dataToUpdate);

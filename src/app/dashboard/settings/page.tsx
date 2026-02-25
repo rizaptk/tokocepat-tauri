@@ -5,7 +5,8 @@ import * as z from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useStore } from '@/lib/store';
-import { useEffect } from 'react';
+import { useDbStore } from '@/lib/db-store';
+import { useEffect, useRef, useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { updateStoreConfig } from '@/services/settingsService';
 
@@ -14,7 +15,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Database, HardHat, Info, Trash2 } from 'lucide-react';
 import { TokoCepatLogo } from '@/components/TokoCepatLogo';
 import Link from 'next/link';
@@ -29,7 +30,10 @@ type StoreDetailsValues = z.infer<typeof storeDetailsSchema>;
 
 export default function SettingsPage() {
   const { storeConfig } = useStore();
+  const { firesqlite } = useDbStore();
   const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isRestoreAlertOpen, setIsRestoreAlertOpen] = useState(false);
 
   const form = useForm<StoreDetailsValues>({
     resolver: zodResolver(storeDetailsSchema),
@@ -66,6 +70,49 @@ export default function SettingsPage() {
       });
     }
   }
+
+  const handleBackup = async () => {
+    if (!firesqlite) {
+        toast({ title: 'Error', description: 'Database is not ready. Please try again in a moment.', variant: 'destructive'});
+        return;
+    }
+    try {
+        toast({ title: 'Preparing Download', description: 'Your database backup is being generated...'});
+        await firesqlite.downloadBinaryBackup('tokoc_backup.db');
+    } catch (e: any) {
+        console.error("Backup failed", e);
+        toast({ title: 'Backup Failed', description: e.message || 'An unknown error occurred.', variant: 'destructive'});
+    }
+  };
+
+  const handleRestoreConfirm = () => {
+    setIsRestoreAlertOpen(false);
+    fileInputRef.current?.click();
+  };
+
+  const onFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file || !firesqlite) return;
+
+      try {
+          toast({ title: 'Restoring...', description: 'Please do not close this window.' });
+          const buffer = await file.arrayBuffer();
+          await firesqlite.importFullBinary(buffer);
+          toast({ title: 'Restore Complete', description: 'Database has been restored. The app will now reload.' });
+          
+          setTimeout(() => window.location.reload(), 1500);
+
+      } catch (e: any) {
+          console.error("Restore failed", e);
+          toast({ title: 'Restore Failed', description: e.message || 'The selected file may be invalid.', variant: 'destructive'});
+      } finally {
+          // Reset file input to allow selecting the same file again
+          if (fileInputRef.current) {
+              fileInputRef.current.value = '';
+          }
+      }
+  };
+
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-muted/40">
@@ -149,20 +196,14 @@ export default function SettingsPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                 <Alert>
-                    <HardHat className="h-4 w-4" />
-                    <AlertTitle>Under Construction</AlertTitle>
-                    <AlertDescription>
-                        These database management features are not yet implemented.
-                    </AlertDescription>
-                </Alert>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <Button variant="outline" disabled>
+                    <Button variant="outline" onClick={handleBackup}>
                         <Database className="mr-2" /> Backup Data
                     </Button>
-                     <Button variant="outline" disabled>
+                     <Button variant="outline" onClick={() => setIsRestoreAlertOpen(true)}>
                         <Database className="mr-2" /> Restore Data
                     </Button>
+                     <input type="file" ref={fileInputRef} onChange={onFileSelected} accept=".db,.sqlite,.sqlite3" hidden />
                 </div>
               </CardContent>
             </Card>
@@ -181,6 +222,23 @@ export default function SettingsPage() {
             </Card>
           </div>
         </div>
+         <AlertDialog open={isRestoreAlertOpen} onOpenChange={setIsRestoreAlertOpen}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        This action is irreversible. Restoring from a backup will
+                        completely overwrite all current data in the application.
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleRestoreConfirm}>
+                        Yes, Restore Database
+                    </AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
       </main>
     </div>
   );
