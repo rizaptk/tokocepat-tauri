@@ -32,33 +32,7 @@ const baseProducts: Product[] = [
   { id: '12', name: 'Minyak Goreng', price: 32000, cost_price: 28000, stock: 25, ...getImageData('product-12'), track_stock: true, has_variant: false, has_modifier: false, is_active: true, product_type: 'retail', category_id: 'cat-3', low_stock_alert: 5, sku: 'MINYAK-GRG-2L' },
 ];
 
-const generatedProducts: Product[] = [];
-const productCount = 1000;
-
-for (let i = 0; i < productCount; i++) {
-    const id = (baseProducts.length + i + 1).toString();
-    const placeholder = PlaceHolderImages[parseInt(id) % PlaceHolderImages.length];
-    generatedProducts.push({
-        id,
-        name: `Generated Product ${i + 1}`,
-        price: Math.floor(Math.random() * 100000) + 1000,
-        cost_price: Math.floor(Math.random() * 80000) + 500,
-        stock: Math.floor(Math.random() * 200),
-        imageUrl: placeholder.imageUrl,
-        imageHint: placeholder.imageHint,
-        track_stock: true,
-        has_variant: false,
-        has_modifier: false,
-        is_active: true,
-        product_type: 'retail',
-        category_id: `cat-${(i % initialCategories.length) + 1}`,
-        low_stock_alert: 10,
-        sku: `GEN-PROD-${id.padStart(4, '0')}`,
-        barcode: `999${id.padStart(10, '0')}`
-    });
-}
-
-export const initialProducts: Product[] = [...baseProducts, ...generatedProducts];
+export const initialProducts: Product[] = [...baseProducts];
 
 export const initialVariants: ProductVariant[] = [
     { id: 'pv1', product_id: '9', name: 'Biji Utuh', additional_price: 0, stock: 20, sku: 'COFFEE-BEAN' },
