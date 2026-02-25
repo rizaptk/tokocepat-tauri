@@ -164,17 +164,59 @@ const ProductForm = ({ productId, onSave }: { productId: string | null, onSave: 
         setIsScannerOpen(false);
     };
 
-    const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const resizeImage = (file: File, maxSize: number): Promise<string> => {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = document.createElement('img');
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    let { width, height } = img;
+    
+                    if (width > height) {
+                        if (width > maxSize) {
+                            height *= maxSize / width;
+                            width = maxSize;
+                        }
+                    } else {
+                        if (height > maxSize) {
+                            width *= maxSize / height;
+                            height = maxSize;
+                        }
+                    }
+    
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    if (!ctx) return reject(new Error('Could not get canvas context'));
+    
+                    ctx.drawImage(img, 0, 0, width, height);
+                    resolve(canvas.toDataURL('image/webp', 0.9)); // Use WebP for better compression
+                };
+                img.onerror = reject;
+                img.src = e.target?.result as string;
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+        });
+    };
+
+    const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
 
-        const reader = new FileReader();
-        reader.onload = (event) => {
-            const dataUrl = event.target?.result as string;
-            form.setValue('imageUrl', dataUrl, { shouldDirty: true });
+        try {
+            const resizedDataUrl = await resizeImage(file, 512); // Resize to max 512px
+            form.setValue('imageUrl', resizedDataUrl, { shouldDirty: true });
             form.setValue('imageHint', file.name.split('.').slice(0, -1).join('.'), { shouldDirty: true });
-        };
-        reader.readAsDataURL(file);
+        } catch (error) {
+            console.error("Image resizing failed:", error);
+            toast({
+                variant: "destructive",
+                title: "Image Error",
+                description: "Could not process the selected image."
+            });
+        }
     };
 
     async function onSubmit(data: ProductFormValues) {

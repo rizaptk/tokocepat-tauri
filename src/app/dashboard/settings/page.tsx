@@ -9,6 +9,7 @@ import { useDbStore } from '@/lib/db-store';
 import { useEffect, useRef, useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { updateStoreConfig } from '@/services/settingsService';
+import { clearTransactionData } from '@/services/dataService';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -34,6 +35,7 @@ export default function SettingsPage() {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isRestoreAlertOpen, setIsRestoreAlertOpen] = useState(false);
+  const [isClearDataAlertOpen, setIsClearDataAlertOpen] = useState(false);
 
   const form = useForm<StoreDetailsValues>({
     resolver: zodResolver(storeDetailsSchema),
@@ -111,6 +113,29 @@ export default function SettingsPage() {
           }
       }
   };
+
+    const handleClearData = async () => {
+        try {
+            const result = await clearTransactionData();
+            if (result.success) {
+                toast({
+                    title: 'Data Cleared',
+                    description: 'All transaction data has been successfully removed. The app will now reload.',
+                });
+                setTimeout(() => window.location.reload(), 1500);
+            } else {
+                throw new Error(result.message);
+            }
+        } catch (error: any) {
+            toast({
+                variant: 'destructive',
+                title: 'Error Clearing Data',
+                description: error.message || 'An unexpected error occurred.',
+            });
+        } finally {
+            setIsClearDataAlertOpen(false);
+        }
+    }
 
 
   return (
@@ -214,7 +239,7 @@ export default function SettingsPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <Button variant="destructive" disabled>
+                <Button variant="destructive" onClick={() => setIsClearDataAlertOpen(true)}>
                     <Trash2 className="mr-2" /> Clear All Transaction Data
                 </Button>
               </CardContent>
@@ -234,6 +259,22 @@ export default function SettingsPage() {
                     <AlertDialogCancel>Cancel</AlertDialogCancel>
                     <AlertDialogAction onClick={handleRestoreConfirm}>
                         Yes, Restore Database
+                    </AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
+        <AlertDialog open={isClearDataAlertOpen} onOpenChange={setIsClearDataAlertOpen}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                       This action is permanent and cannot be undone. This will delete all shifts, transactions, and stock movement history. Product and category data will not be affected.
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleClearData}>
+                        Yes, Clear All Data
                     </AlertDialogAction>
                 </AlertDialogFooter>
             </AlertDialogContent>
