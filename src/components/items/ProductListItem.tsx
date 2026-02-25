@@ -46,7 +46,7 @@ export function ProductListItem({ product, onItemClick, isSelected, context = 'c
         isOutOfStock 
             ? "bg-muted/50 cursor-not-allowed opacity-60" 
             : "hover:bg-accent cursor-pointer",
-        isSelected && "bg-accent"
+        isSelected && "ring-2 ring-inset ring-primary"
       )}
       onClick={!isOutOfStock ? handleSelect : undefined}
       role="button"
@@ -59,14 +59,18 @@ export function ProductListItem({ product, onItemClick, isSelected, context = 'c
             <div className="flex items-center gap-2">
                 <span className="font-medium">{product.name}</span>
                 {product.has_modifier && context === 'product' && <SlidersHorizontal className="h-3 w-3 text-muted-foreground" />}
-                {isLowStock && <TriangleAlert className="h-4 w-4 text-yellow-600" />}
             </div>
             {category && <Badge variant="secondary" className="text-xs opacity-80">{category.name}</Badge>}
         </div>
 
         <div className="flex items-center gap-4">
+             {isLowStock && (
+                <Badge variant="destructive" className="bg-yellow-500/80 text-black items-center gap-1">
+                    <TriangleAlert className="h-3 w-3" /> Low
+                </Badge>
+             )}
              {context !== 'cashier' && product.track_stock && (
-                <Badge variant={isLowStock ? "destructive" : "secondary"}>
+                <Badge variant={isOutOfStock ? "destructive" : "secondary"}>
                     {product.stock} in stock
                 </Badge>
             )}

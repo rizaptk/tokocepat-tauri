@@ -6,7 +6,7 @@ import { Product, Category } from '@/lib/types';
 import { useStore } from '@/lib/store';
 import { cn } from '@/lib/utils';
 import { Badge } from '../ui/badge';
-import { SlidersHorizontal } from 'lucide-react';
+import { SlidersHorizontal, TriangleAlert } from 'lucide-react';
 import { useMemo } from 'react';
 import React from 'react';
 
@@ -47,7 +47,7 @@ export function ProductThumbnailItem({ product, onItemClick, isSelected, context
         isOutOfStock 
             ? "bg-card cursor-not-allowed opacity-60" 
             : "bg-card hover:bg-accent cursor-pointer",
-        isSelected && "bg-accent"
+        isSelected && "ring-2 ring-inset ring-primary"
       )}
       onClick={!isOutOfStock ? handleSelect : undefined}
       role="button"
@@ -70,6 +70,13 @@ export function ProductThumbnailItem({ product, onItemClick, isSelected, context
                     <Badge variant="destructive">Sold Out</Badge>
                 </div>
             )}
+             {isLowStock && (
+                <div className="absolute top-1 right-1">
+                    <Badge variant="destructive" className="bg-yellow-500/80 text-black items-center p-1 h-5 w-5 justify-center">
+                        <TriangleAlert className="h-3 w-3" />
+                    </Badge>
+                </div>
+            )}
         </div>
         <div className="flex-1 space-y-1 flex items-center flex-wrap justify-between px-2 grow">
             <p className="font-medium line-clamp-2 flex items-center gap-2">
@@ -83,7 +90,7 @@ export function ProductThumbnailItem({ product, onItemClick, isSelected, context
         </div>
         {context !== 'cashier' && product.track_stock && (
             <div className="text-right">
-                <p className={cn("text-lg font-bold", isLowStock ? "text-destructive" : "text-foreground")}>
+                <p className={cn("text-lg font-bold", isLowStock || isOutOfStock ? "text-destructive" : "text-foreground")}>
                     {product.stock}
                 </p>
                 <p className="text-xs text-muted-foreground">in stock</p>
