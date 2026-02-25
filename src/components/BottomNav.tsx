@@ -1,8 +1,9 @@
+
 "use client";
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutGrid, MoreHorizontal, Package, ShoppingCart, Warehouse, Menu } from 'lucide-react';
+import { LayoutGrid, MoreHorizontal, Package, ShoppingCart, Warehouse, Menu, BarChart as BarChartIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useEffect, useState, useRef } from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -17,6 +18,7 @@ const navItems = [
 
 const moreNavItems = [
   { href: '/product/inventory', label: 'Inventory', icon: Warehouse },
+  { href: '/dashboard/reports', label: 'Reports', icon: BarChartIcon }
 ]
 
 export function BottomNav() {
