@@ -117,6 +117,8 @@ export function ProductList({ products, viewMode, isLoading, onItemClick, select
 
   // Card View
   const columnCount = Math.max(1, Math.floor(width / CARD_WIDTH));
+  const isSingleColumn = columnCount === 1;
+  const dynamicCardHeight = isSingleColumn ? 380 : CARD_HEIGHT;
   const rowCount = Math.ceil(products.length / columnCount);
   const columnWidth = width / columnCount;
 
@@ -137,7 +139,7 @@ export function ProductList({ products, viewMode, isLoading, onItemClick, select
   
   return (
     <div ref={containerRef} className="w-full h-full">
-      <FixedSizeGrid columnCount={columnCount} columnWidth={columnWidth} height={height} rowCount={rowCount} rowHeight={CARD_HEIGHT} width={width}>
+      <FixedSizeGrid columnCount={columnCount} columnWidth={columnWidth} height={height} rowCount={rowCount} rowHeight={dynamicCardHeight} width={width}>
         {Cell}
       </FixedSizeGrid>
     </div>
