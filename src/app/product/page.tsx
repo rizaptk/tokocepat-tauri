@@ -38,6 +38,7 @@ import { addProduct, updateProduct } from "@/services/productService";
 import { addCategory, updateCategory, deleteCategory } from "@/services/categoryService";
 import { addModifierGroup, updateModifierGroup, deleteModifierGroup, addModifierItem, updateModifierItem, deleteModifierItem } from "@/services/modifierService";
 import { BarcodeScanner } from "@/components/BarcodeScanner";
+import { useGlobalBarcodeScanner } from "@/hooks/use-global-barcode-scanner";
 
 
 // ========= PRODUCT FORM =========
@@ -733,6 +734,8 @@ export default function ProductManagementPage() {
             });
         }
     };
+
+    useGlobalBarcodeScanner({ onScan: handleBarcodeScan });
 
     const handleAddNew = () => {
         setSelectedProductId(null);

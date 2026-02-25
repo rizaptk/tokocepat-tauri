@@ -18,6 +18,7 @@ import { ModifierPanel } from '@/components/ModifierPanel';
 import { cn } from '@/lib/utils';
 import { SelectedModifier } from '@/lib/types';
 import { useIsMobile } from '@/lib/ismobile-store';
+import { useGlobalBarcodeScanner } from '@/hooks/use-global-barcode-scanner';
 
 export type ViewMode = 'card' | 'thumbnail' | 'list';
 
@@ -93,6 +94,9 @@ export default function CashierPage() {
         });
     }
   };
+
+  // Setup global scanner
+  useGlobalBarcodeScanner({ onScan: handleBarcodeScan });
 
   const handleModifierConfirm = (selectedModifiers: SelectedModifier[]) => {
     if (!itemToModify) return;

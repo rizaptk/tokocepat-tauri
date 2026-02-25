@@ -23,6 +23,7 @@ import { cn } from "@/lib/utils";
 import { PlusCircle } from "lucide-react";
 import { ProductList } from "@/components/ProductList";
 import type { ViewMode } from "@/app/cashier/page";
+import { useGlobalBarcodeScanner } from "@/hooks/use-global-barcode-scanner";
 
 // Form for the right panel / sheet content
 const adjustmentFormSchema = z.object({
@@ -211,6 +212,8 @@ export default function InventoryPage() {
             });
         }
     };
+
+    useGlobalBarcodeScanner({ onScan: handleBarcodeScan });
 
     const handleProductSelect = (product: Product) => {
         setSelectedProductId(product.id);
