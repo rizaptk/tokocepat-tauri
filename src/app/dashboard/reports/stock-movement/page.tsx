@@ -29,7 +29,7 @@ const movementTypeLabels: Record<string, { label: string, color: string }> = {
 };
 
 export default function StockMovementReportPage() {
-    const { stockMovements, products, rawIngredients } = useStore();
+    const { stockMovements, products, rawIngredients, transactions } = useStore();
     const [range, setRange] = useState<DateRangePreset>('today');
     const [filterProductId, setFilterProductId] = useState<string | null>(null);
 
@@ -72,6 +72,25 @@ export default function StockMovementReportPage() {
         if (!filterProductId) return "All Products";
         return allStockableItems.find(p => p.id === filterProductId)?.name || "Unknown";
     }, [filterProductId, allStockableItems]);
+    
+    const txIdToInvoiceMap = useMemo(() =>
+        new Map(transactions.map(tx => [tx.id, tx.invoice_number])),
+    [transactions]);
+
+    const getReferenceDisplay = (movement: StockMovement): string => {
+        if (movement.reason) {
+            return movement.reason;
+        }
+        if (movement.type === 'sale' && movement.reference_id) {
+            const invoiceNumber = txIdToInvoiceMap.get(movement.reference_id);
+            if (invoiceNumber) {
+                return invoiceNumber;
+            }
+        }
+        // For sales without a found invoice or other types without a reason.
+        return 'N/A';
+    };
+
 
     return (
         <div className="flex min-h-screen w-full flex-col bg-muted/40">
@@ -192,7 +211,7 @@ export default function StockMovementReportPage() {
                                         <TableCell className={`font-bold ${m.qty_change > 0 ? 'text-green-600' : 'text-red-600'}`}>
                                             {m.qty_change > 0 ? `+${m.qty_change}` : m.qty_change}
                                         </TableCell>
-                                        <TableCell className="text-xs text-muted-foreground truncate max-w-[200px]">{m.reason || (m.reference_id?.startsWith('INV-') ? m.reference_id : 'N/A')}</TableCell>
+                                        <TableCell className="text-xs text-muted-foreground truncate max-w-[200px]">{getReferenceDisplay(m)}</TableCell>
                                         <TableCell className="text-right font-mono">---</TableCell>
                                     </TableRow>
                                 ))
