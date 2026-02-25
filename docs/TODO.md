@@ -9,6 +9,7 @@ This document outlines the development roadmap, broken down into sprints.
 - [Sprint 5: Inventory Control System](./sprint-5.md)
 - [Sprint 6: Reports & Analytics](./sprint-6.md)
 - [Sprint 6-A: F&B Ingredient & Recipe Reporting (Pending)](./sprint-6-A.md)
+- [Sprint 6-B: Detailed Stock Movement Report (Pending)](./sprint-6-B.md)
 - [Sprint 7: Hardware Integration](./sprint-7.md)
 - [Sprint 8: Stabilization & Audit Hardening](./sprint-8.md)
 
