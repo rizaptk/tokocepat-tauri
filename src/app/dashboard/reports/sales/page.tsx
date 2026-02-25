@@ -8,7 +8,7 @@ import { endOfDay, startOfDay, subDays, format } from 'date-fns';
 import { ArrowLeft, BarChart2, DollarSign, ReceiptText } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
 import { Transaction } from '@/lib/types';
