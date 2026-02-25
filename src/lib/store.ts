@@ -3,10 +3,12 @@
 
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { Product, CartItem, Transaction, Category, ModifierGroup, ProductVariant, Shift, StoreConfig, SelectedModifier } from '@/lib/types';
+import { Product, CartItem, Transaction, Category, ModifierGroup, ProductVariant, Shift, StoreConfig, SelectedModifier, PendingCart } from '@/lib/types';
 import { toast } from '@/hooks/use-toast';
 import { openShift as openShiftService, closeShift as closeShiftService } from '@/services/shiftService';
 import { createTransaction } from '@/services/transactionService';
+import { parkCartInDb, deletePendingCartFromDb } from '@/services/pendingCartService';
+
 
 // This represents an item that has had a variant selected but is not yet in the cart
 type ItemWithVariant = Product & { _selectedVariant: ProductVariant };
@@ -21,6 +23,7 @@ interface StoreState {
   shifts: Shift[];
   activeShift: Shift | null | undefined;
   storeConfig: StoreConfig | null;
+  pendingCarts: PendingCart[];
   
   // Actions
   setProducts: (products: Product[]) => void;
@@ -30,6 +33,7 @@ interface StoreState {
   setTransactions: (transactions: Transaction[]) => void;
   setShifts: (shifts: Shift[]) => void;
   setStoreConfig: (config: StoreConfig) => void;
+  setPendingCarts: (carts: PendingCart[]) => void;
   saveItemToCart: (itemData: Product | CartItem | ItemWithVariant, selectedModifiers?: SelectedModifier[], selectedVariant?: ProductVariant) => void;
   removeFromCart: (cartItemId: string) => void;
   updateQuantity: (cartItemId: string, quantity: number) => void;
@@ -37,6 +41,9 @@ interface StoreState {
   checkout: (cashReceived: number) => Promise<Transaction | null>;
   openShift: (openingCash: number) => Promise<void>;
   closeShift: (declaredCash: number) => Promise<void>;
+  parkCart: () => Promise<void>;
+  resumeCart: (cartId: string) => Promise<void>;
+  deletePendingCart: (cartId: string) => Promise<void>;
 }
 
 export const useStore = create<StoreState>()(
@@ -51,6 +58,7 @@ export const useStore = create<StoreState>()(
       shifts: [],
       activeShift: undefined,
       storeConfig: null,
+      pendingCarts: [],
     
       setProducts: (products) => set({ products }),
       setCategories: (categories) => set({ categories }),
@@ -63,6 +71,7 @@ export const useStore = create<StoreState>()(
         set({ shifts: sortedShifts, activeShift });
       },
       setStoreConfig: (config) => set({ storeConfig: config }),
+      setPendingCarts: (carts) => set({ pendingCarts: carts.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()) }),
     
       saveItemToCart: (itemData: Product | CartItem | ItemWithVariant, selectedModifiers: SelectedModifier[] = [], selectedVariant?: ProductVariant) => {
         const { products, cart, activeShift } = get();
@@ -232,13 +241,68 @@ export const useStore = create<StoreState>()(
             return null;
         }
       },
+
+      parkCart: async () => {
+        const { cart } = get();
+        if (cart.length === 0) return;
+
+        const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+        const taxRate = get().storeConfig?.tax_rate ?? 0.11;
+        const total = subtotal + (subtotal * taxRate);
+        const itemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
+
+        try {
+            await parkCartInDb(cart, total, itemCount);
+            set({ cart: [] });
+        } catch (error) {
+            console.error("Failed to park cart:", error);
+            toast({ variant: 'destructive', title: 'Error', description: 'Could not park the cart.' });
+        }
+      },
+
+    resumeCart: async (cartId: string) => {
+        const { cart, pendingCarts } = get();
+        if (cart.length > 0) {
+            toast({
+                variant: 'destructive',
+                title: 'Active Cart is Not Empty',
+                description: 'Please process or park the current cart before resuming another.',
+            });
+            return;
+        }
+        const cartToResume = pendingCarts.find(c => c.id === cartId);
+        if (cartToResume) {
+            try {
+                await deletePendingCartFromDb(cartId);
+                set({ cart: cartToResume.items });
+                toast({ title: 'Cart Resumed', description: `"${cartToResume.name}" is now the active cart.` });
+            } catch (error) {
+                console.error("Failed to resume cart:", error);
+                toast({ variant: 'destructive', title: 'Error', description: 'Could not resume the cart.' });
+            }
+        }
+    },
+
+    deletePendingCart: async (cartId: string) => {
+        const pendingCart = get().pendingCarts.find(c => c.id === cartId);
+        if (pendingCart) {
+            try {
+                await deletePendingCartFromDb(cartId);
+                toast({ title: 'Parked Cart Deleted', description: `"${pendingCart.name}" has been removed.` });
+            } catch (error) {
+                console.error("Failed to delete parked cart:", error);
+                toast({ variant: 'destructive', title: 'Error', description: 'Could not delete the parked cart.' });
+            }
+        }
+    },
+
     }),
     {
       name: 'tokoc-storage',
       storage: createJSONStorage(() => localStorage),
        partialize: (state) =>
         Object.fromEntries(
-          Object.entries(state).filter(([key]) => !['products', 'transactions', 'modifierGroups', 'productVariants', 'categories', 'shifts', 'activeShift', 'storeConfig'].includes(key))
+          Object.entries(state).filter(([key]) => !['products', 'transactions', 'modifierGroups', 'productVariants', 'categories', 'shifts', 'activeShift', 'storeConfig', 'pendingCarts'].includes(key))
         ),
     }
   )

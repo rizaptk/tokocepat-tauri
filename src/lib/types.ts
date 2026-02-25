@@ -1,5 +1,6 @@
 
 
+
 export interface Category {
     id: string;
     name: string;
@@ -72,6 +73,15 @@ export interface CartItem extends Product {
   // `price` in a CartItem will now represent the final calculated price including modifiers
   selectedVariant?: ProductVariant;
   selectedModifiers: SelectedModifier[];
+}
+
+export interface PendingCart {
+  id: string;
+  name: string; // e.g. "Order at 14:30"
+  createdAt: string;
+  items: CartItem[];
+  itemCount: number;
+  total: number;
 }
 
 export interface TransactionItem {

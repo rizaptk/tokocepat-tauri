@@ -5,7 +5,7 @@ import { useStore } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { ShoppingCart } from "lucide-react";
+import { ParkingSquare, ShoppingCart } from "lucide-react";
 import { useState } from "react";
 import { PaymentModal } from "./PaymentModal";
 import { useToast } from "@/hooks/use-toast";
@@ -21,6 +21,7 @@ export function CartDisplay({ onEditItem }: CartDisplayProps) {
   const cart = useStore((state) => state.cart);
   const activeShift = useStore((state) => state.activeShift);
   const storeConfig = useStore((state) => state.storeConfig);
+  const parkCart = useStore(state => state.parkCart);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const { toast } = useToast();
 
@@ -96,9 +97,14 @@ export function CartDisplay({ onEditItem }: CartDisplayProps) {
                 <span>{formatCurrency(total)}</span>
               </div>
             </div>
-            <Button className="mt-4 w-full" size="lg" onClick={handleProcessPayment} disabled={!activeShift}>
-              Process Payment
-            </Button>
+             <div className="mt-4 flex gap-2">
+                <Button variant="outline" className="flex-1" onClick={parkCart} disabled={cart.length === 0}>
+                    <ParkingSquare /> Park
+                </Button>
+                <Button className="flex-1" size="lg" onClick={handleProcessPayment} disabled={!activeShift || cart.length === 0}>
+                    Process Payment
+                </Button>
+            </div>
           </footer>
         </>
       )}
