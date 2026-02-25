@@ -4,7 +4,7 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, ArrowRight, BarChart2, BookOpen, Warehouse } from 'lucide-react';
+import { ArrowLeft, ArrowRight, BarChart2, BookOpen, Warehouse, ArchiveX } from 'lucide-react';
 
 const reportLinks = [
     {
@@ -26,6 +26,13 @@ const reportLinks = [
         description: 'Review summaries for all closed shifts.',
         href: '/dashboard', // Links back to dashboard where shift list is.
         icon: BookOpen,
+        comingSoon: false,
+    },
+    {
+        title: 'Void Report',
+        description: 'Review all voided transactions for auditing.',
+        href: '/dashboard/reports/void',
+        icon: ArchiveX,
         comingSoon: false,
     },
 ];
