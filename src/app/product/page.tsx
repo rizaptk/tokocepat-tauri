@@ -37,7 +37,7 @@ import { PlusCircle, Edit, Trash, SlidersHorizontal, Library, Package, Menu, Sca
 import { addProduct, updateProduct } from "@/services/productService";
 import { addCategory, updateCategory, deleteCategory } from "@/services/categoryService";
 import { addModifierGroup, updateModifierGroup, deleteModifierGroup, addModifierItem, updateModifierItem, deleteModifierItem } from "@/services/modifierService";
-import { BarcodeScanner } from "@/components/BarcodeScanner";
+import { useZxing } from "react-zxing";
 import { useGlobalBarcodeScanner } from "@/hooks/use-global-barcode-scanner";
 
 
@@ -69,6 +69,24 @@ const productFormSchema = z.object({
 });
   
 type ProductFormValues = z.infer<typeof productFormSchema>;
+
+const BarcodeScanner = ({ onScanSuccess }: { onScanSuccess: (text: string) => void }) => {
+    const { ref } = useZxing({
+        onDecodeResult(result) {
+            onScanSuccess(result.getText());
+        },
+    });
+
+    return (
+        <div className="flex flex-col items-center justify-center gap-4 py-4">
+            <div className="relative w-full max-w-sm aspect-square bg-muted rounded-lg overflow-hidden">
+                <video ref={ref} className="w-full h-full object-cover" />
+                <div className="absolute inset-0 border-4 border-primary/50 rounded-lg pointer-events-none" />
+            </div>
+            <p className="text-sm text-muted-foreground">Point the camera at a barcode</p>
+        </div>
+    );
+};
 
 const ProductForm = ({ productId, onSave }: { productId: string | null, onSave: () => void }) => {
     const { products, categories, modifierGroups, productVariants } = useStore();
@@ -125,8 +143,12 @@ const ProductForm = ({ productId, onSave }: { productId: string | null, onSave: 
                 toast({ title: "Product Created" });
             }
             onSave();
-        } catch (error) {
-            toast({ variant: "destructive", title: "Error saving product" });
+        } catch (error: any) {
+            toast({
+                variant: "destructive",
+                title: "Error Saving Product",
+                description: error.message,
+            });
         }
     }
 

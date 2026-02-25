@@ -37,7 +37,7 @@
 - [x] Add `barcode` and `sku` fields to the `Product` and `ProductVariant` schemas.
 - [x] Implement a "Scan Barcode" button that opens the camera modal (integration with a scanning library can be a separate task).
 - [x] Add a button to auto-generate a unique internal barcode/SKU if none is provided.
-- [ ] Implement a backend check in `productService` to ensure all barcodes and SKUs are unique across all products and variants.
+- [x] Implement a backend check in `productService` to ensure all barcodes and SKUs are unique across all products and variants.
 
 #### 5️⃣ Inventory & Stock Management
 - [x] Create a new page at `/dashboard/inventory` to serve as the stock management dashboard.
@@ -56,7 +56,7 @@
 ---
 
 ### Definition of Done
-- [ ] All product CRUD operations, including for variants and modifiers, are fully functional and align with `stocks-management.md`.
-- [ ] A complete, auditable trail of all stock changes is recorded in the `StockMovements` table.
-- [ ] The UI provides clear feedback for different product types, stock levels, and configurations.
-- [ ] All new pages are integrated into the main application navigation.
+- [x] All product CRUD operations, including for variants and modifiers, are fully functional and align with `stocks-management.md`.
+- [x] A complete, auditable trail of all stock changes is recorded in the `StockMovements` table.
+- [x] The UI provides clear feedback for different product types, stock levels, and configurations.
+- [x] All new pages are integrated into the main application navigation.

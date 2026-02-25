@@ -71,11 +71,11 @@ export default function NewProductPage() {
                 description: `"${newProduct?.name}" has been successfully added.`,
             });
             router.push("/dashboard/products");
-        } catch (error) {
+        } catch (error: any) {
             toast({
                 variant: "destructive",
                 title: "Error creating product",
-                description: "There was a problem saving the new product.",
+                description: error.message || "There was a problem saving the new product.",
             });
             console.error(error);
         }
