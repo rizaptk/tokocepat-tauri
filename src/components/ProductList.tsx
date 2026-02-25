@@ -6,7 +6,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { ProductCard } from '@/components/ProductCard';
 import { ProductThumbnailItem } from './items/ProductThumbnailItem';
 import { ProductListItem } from './items/ProductListItem';
-import { FixedSizeGrid, FixedSizeList } from 'react-window';
+import { FixedSizeList, VariableSizeGrid } from 'react-window';
 
 type ViewMode = 'card' | 'thumbnail' | 'list';
 
@@ -141,9 +141,16 @@ export function ProductList({ products, viewMode, isLoading, onItemClick, select
   
   return (
     <div ref={containerRef} className="w-full h-full">
-      <FixedSizeGrid columnCount={columnCount} columnWidth={columnWidth} height={height} rowCount={rowCount} rowHeight={dynamicCardHeight} width={gridWidth}>
+      <VariableSizeGrid
+        columnCount={columnCount}
+        columnWidth={() => columnWidth}
+        height={height}
+        rowCount={rowCount}
+        rowHeight={() => dynamicCardHeight}
+        width={gridWidth}
+      >
         {Cell}
-      </FixedSizeGrid>
+      </VariableSizeGrid>
     </div>
   );
 }
