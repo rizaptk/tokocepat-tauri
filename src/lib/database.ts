@@ -2,7 +2,7 @@ import { Product, ProductVariant, ModifierGroup, StoreConfig, Category } from '@
 import { initialProducts, initialVariants, initialModifierGroups, initialCategories } from '@/lib/products';
 
 const DB_VERSION_KEY = 'tokoc_db_version';
-const CURRENT_DB_VERSION = '1.0.5';
+const CURRENT_DB_VERSION = '1.0.6';
 
 export const seedDatabase = async (firesqlite: any, db: any) => {
     if (!firesqlite || !db) return;

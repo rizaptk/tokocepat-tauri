@@ -16,7 +16,7 @@ export const initialCategories: Category[] = [
   { id: 'cat-4', name: 'Kopi & Teh', is_active: true },
 ];
 
-export const initialProducts: Product[] = [
+const baseProducts: Product[] = [
   { id: '1', name: 'Mie Instan', price: 3000, cost_price: 2500, stock: 100, ...getImageData('product-1'), track_stock: true, has_variant: false, has_modifier: false, is_active: true, product_type: 'retail', category_id: 'cat-2', low_stock_alert: 20, sku: 'MI-INSTAN-01', barcode: '8998866101010' },
   { id: '2', name: 'Air Mineral', price: 2500, cost_price: 1800, stock: 150, ...getImageData('product-2'), track_stock: true, has_variant: false, has_modifier: false, is_active: true, product_type: 'retail', category_id: 'cat-1', sku: 'AIR-MIN-600' },
   { id: '3', name: 'Cokelat Batang', price: 8000, cost_price: 6000, stock: 50, ...getImageData('product-3'), track_stock: true, has_variant: false, has_modifier: false, is_active: true, product_type: 'retail', category_id: 'cat-2', low_stock_alert: 10, sku: 'COK-BAT-62' },
@@ -30,6 +30,33 @@ export const initialProducts: Product[] = [
   { id: '11', name: 'Biskuit', price: 9000, cost_price: 6500, stock: 90, ...getImageData('product-11'), track_stock: true, has_variant: false, has_modifier: false, is_active: true, product_type: 'retail', category_id: 'cat-2', sku: 'BISK-CRM-SNDWCH' },
   { id: '12', name: 'Minyak Goreng', price: 32000, cost_price: 28000, stock: 25, ...getImageData('product-12'), track_stock: true, has_variant: false, has_modifier: false, is_active: true, product_type: 'retail', category_id: 'cat-3', low_stock_alert: 5, sku: 'MINYAK-GRG-2L' },
 ];
+
+const generatedProducts: Product[] = [];
+const productCount = 1000;
+
+for (let i = 0; i < productCount; i++) {
+    const id = (baseProducts.length + i + 1).toString();
+    const placeholder = PlaceHolderImages[parseInt(id) % PlaceHolderImages.length];
+    generatedProducts.push({
+        id,
+        name: `Generated Product ${i + 1}`,
+        price: Math.floor(Math.random() * 100000) + 1000,
+        cost_price: Math.floor(Math.random() * 80000) + 500,
+        stock: Math.floor(Math.random() * 200),
+        ...placeholder,
+        track_stock: true,
+        has_variant: false,
+        has_modifier: false,
+        is_active: true,
+        product_type: 'retail',
+        category_id: `cat-${(i % initialCategories.length) + 1}`,
+        low_stock_alert: 10,
+        sku: `GEN-PROD-${id.padStart(4, '0')}`,
+        barcode: `999${id.padStart(10, '0')}`
+    });
+}
+
+export const initialProducts: Product[] = [...baseProducts, ...generatedProducts];
 
 export const initialVariants: ProductVariant[] = [
     { id: 'pv1', product_id: '9', name: 'Biji Utuh', additional_price: 0, stock: 20, sku: 'COFFEE-BEAN' },

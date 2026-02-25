@@ -26,7 +26,7 @@
 
 #### 4️⃣ Performance Optimization
 - [x] Expand the database seed script to generate a large dataset (1,000+ products) for performance testing.
-- [x] Analyze list rendering performance and implement UI virtualization (e.g., `react-window`) or infinite scrolling if needed to maintain responsiveness.
+- [ ] Analyze list rendering performance and implement UI virtualization (e.g., `react-window`) or infinite scrolling if needed to maintain responsiveness.
 
 ---
 
@@ -34,4 +34,4 @@
 - [x] All CRUD operations for products, including variants and modifiers, are fully functional.
 - [x] The POS interface can smoothly switch between all three product listing modes.
 - [x] The search functionality is fast and accurate, with a perceived latency of <300ms on a large dataset.
-- [x] The product list remains responsive and fluid, even when displaying over 1,000 items.
+- [ ] The product list remains responsive and fluid, even when displaying over 1,000 items.
