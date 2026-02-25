@@ -6,7 +6,7 @@ import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useStore } from "@/lib/store";
-import { Product, Category, ModifierGroup, ModifierItem, ProductType, ProductVariant } from "@/lib/types";
+import { Product, Category, ModifierGroup, ModifierItem, ProductType, ProductVariant, RawIngredient } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
@@ -31,12 +31,14 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogD
 import { Label } from "@/components/ui/label";
 
 // Icons
-import { PlusCircle, Edit, Trash, SlidersHorizontal, Library, Package, Menu, Scan, Barcode, Zap } from "lucide-react";
+import { PlusCircle, Edit, Trash, SlidersHorizontal, Library, Package, Menu, Scan, Barcode, Zap, Beaker } from "lucide-react";
 
 // Services
 import { addProduct, updateProduct } from "@/services/productService";
 import { addCategory, updateCategory, deleteCategory } from "@/services/categoryService";
 import { addModifierGroup, updateModifierGroup, deleteModifierGroup, addModifierItem, updateModifierItem, deleteModifierItem } from "@/services/modifierService";
+import { addIngredient, updateIngredient, deleteIngredient } from "@/services/ingredientService";
+
 import { useZxing } from "react-zxing";
 import { useGlobalBarcodeScanner } from "@/hooks/use-global-barcode-scanner";
 
@@ -682,6 +684,130 @@ const ModifierManager = () => {
     );
 };
 
+// ========= INGREDIENT MANAGER =========
+const IngredientManager = () => {
+    const { rawIngredients } = useStore();
+    const { toast } = useToast();
+    const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const [ingredientToEdit, setIngredientToEdit] = useState<RawIngredient | null>(null);
+    
+    const defaultFormState = { name: "", unit_type: 'gram' as RawIngredient['unit_type'], stock_qty: 0, cost_per_unit: 0 };
+    const [formData, setFormData] = useState(defaultFormState);
+
+    const openDialog = (ingredient: RawIngredient | null) => {
+        setIngredientToEdit(ingredient);
+        setFormData(ingredient ? { name: ingredient.name, unit_type: ingredient.unit_type, stock_qty: ingredient.stock_qty, cost_per_unit: ingredient.cost_per_unit } : defaultFormState);
+        setIsDialogOpen(true);
+    };
+
+    const handleSave = async () => {
+        if (!formData.name.trim()) return;
+        try {
+            if (ingredientToEdit) {
+                await updateIngredient(ingredientToEdit.id, formData);
+                toast({ title: "Ingredient Updated" });
+            } else {
+                await addIngredient(formData);
+                toast({ title: "Ingredient Added" });
+            }
+            setIsDialogOpen(false);
+        } catch (error) {
+            toast({ variant: "destructive", title: "Error", description: "Could not save ingredient." });
+        }
+    };
+    
+    const handleDelete = async (id: string) => {
+        try {
+            await deleteIngredient(id);
+            toast({ title: "Ingredient Deleted" });
+        } catch (error) {
+            toast({ variant: "destructive", title: "Error", description: "Could not delete ingredient." });
+        }
+    };
+
+    const formatCurrency = (amount: number) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount);
+
+    return (
+        <div className="p-4 h-full flex flex-col">
+            <div className="flex justify-between items-center mb-4">
+                <h3 className="font-semibold">Manage Raw Ingredients</h3>
+                <Button size="sm" onClick={() => openDialog(null)}><PlusCircle className="mr-2 h-4 w-4" /> Add</Button>
+            </div>
+            <ScrollArea className="flex-grow">
+                <Card>
+                    <CardContent className="pt-6">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Name</TableHead>
+                                    <TableHead>Stock</TableHead>
+                                    <TableHead>Cost</TableHead>
+                                    <TableHead className="text-right">Actions</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {rawIngredients.map(ing => (
+                                    <TableRow key={ing.id}>
+                                        <TableCell className="font-medium">{ing.name}</TableCell>
+                                        <TableCell>{ing.stock_qty.toLocaleString()} {ing.unit_type}</TableCell>
+                                        <TableCell>{formatCurrency(ing.cost_per_unit)} / {ing.unit_type}</TableCell>
+                                        <TableCell className="text-right">
+                                            <Button variant="ghost" size="sm" onClick={() => openDialog(ing)}><Edit className="h-4 w-4" /></Button>
+                                            <AlertDialog>
+                                                <AlertDialogTrigger asChild><Button variant="ghost" size="sm" className="text-destructive hover:text-destructive"><Trash className="h-4 w-4" /></Button></AlertDialogTrigger>
+                                                <AlertDialogContent>
+                                                    <AlertDialogHeader><AlertDialogTitle>Delete "{ing.name}"?</AlertDialogTitle></AlertDialogHeader>
+                                                    <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDelete(ing.id)}>Confirm Delete</AlertDialogAction></AlertDialogFooter>
+                                                </AlertDialogContent>
+                                            </AlertDialog>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </CardContent>
+                </Card>
+            </ScrollArea>
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                <DialogContent>
+                    <DialogHeader><DialogTitle>{ingredientToEdit ? 'Edit' : 'Add'} Ingredient</DialogTitle></DialogHeader>
+                    <div className="py-4 space-y-4">
+                        <div className="space-y-2">
+                            <Label>Name</Label>
+                            <Input value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                             <div className="space-y-2">
+                                <Label>Initial Stock</Label>
+                                <Input type="number" value={formData.stock_qty} onChange={(e) => setFormData({ ...formData, stock_qty: Number(e.target.value) })} />
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Unit</Label>
+                                <Select value={formData.unit_type} onValueChange={(v) => setFormData({ ...formData, unit_type: v as any })}>
+                                    <SelectTrigger><SelectValue/></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="gram">Gram (g)</SelectItem>
+                                        <SelectItem value="ml">Milliliter (ml)</SelectItem>
+                                        <SelectItem value="pcs">Pieces (pcs)</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Cost per Unit</Label>
+                            <Input type="number" value={formData.cost_per_unit} onChange={(e) => setFormData({ ...formData, cost_per_unit: Number(e.target.value) })} />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
+                        <Button onClick={handleSave}>Save</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+        </div>
+    );
+};
+
 
 // ========= EDITOR PANEL (RIGHT SIDE / DRAWER) =========
 const ProductEditor = ({ selectedProductId, onProductUpdate, activeTab, onTabChange }: {
@@ -693,10 +819,11 @@ const ProductEditor = ({ selectedProductId, onProductUpdate, activeTab, onTabCha
     return (
         <Tabs value={activeTab} onValueChange={onTabChange} className="h-full flex flex-col">
             <div className="px-4 pt-4">
-                <TabsList className="grid w-full grid-cols-3">
+                <TabsList className="grid w-full grid-cols-4">
                     <TabsTrigger value="product"><Package className="w-4 h-4 mr-2"/>Product</TabsTrigger>
                     <TabsTrigger value="categories"><Library className="w-4 h-4 mr-2"/>Categories</TabsTrigger>
                     <TabsTrigger value="modifiers"><SlidersHorizontal className="w-4 h-4 mr-2"/>Modifiers</TabsTrigger>
+                     <TabsTrigger value="ingredients"><Beaker className="w-4 h-4 mr-2"/>Ingredients</TabsTrigger>
                 </TabsList>
             </div>
             <TabsContent value="product" className="flex-grow mt-0">
@@ -707,6 +834,9 @@ const ProductEditor = ({ selectedProductId, onProductUpdate, activeTab, onTabCha
             </TabsContent>
             <TabsContent value="modifiers" className="flex-grow mt-0">
                 <ModifierManager />
+            </TabsContent>
+            <TabsContent value="ingredients" className="flex-grow mt-0">
+                <IngredientManager />
             </TabsContent>
         </Tabs>
     );

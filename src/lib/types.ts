@@ -133,3 +133,21 @@ export interface Shift {
     variance?: number;
     status: 'open' | 'closed';
 }
+
+export interface RawIngredient {
+    id: string;
+    name: string;
+    unit_type: 'gram' | 'ml' | 'pcs';
+    stock_qty: number;
+    cost_per_unit: number;
+}
+
+export interface RecipeItem {
+    ingredient_id: string;
+    quantity: number;
+}
+
+export interface Recipe {
+    product_id: string; // The composite product this recipe is for
+    items: RecipeItem[];
+}

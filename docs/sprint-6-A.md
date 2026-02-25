@@ -1,4 +1,4 @@
-# 🍲 SPRINT 6-A – F&B Ingredient & Recipe Reporting (Pending)
+# 🍲 SPRINT 6-A – F&B Ingredient & Recipe Reporting (In Progress)
 
 🎯 **Goal:** Implement an ingredient-based inventory system for F&B products and create a dedicated report for tracking raw material consumption and waste.
 
@@ -7,12 +7,13 @@
 ### Execution Plan
 
 #### 1️⃣ Database & Schema Foundation
-- [ ] Define a new database schema for `RawIngredients` (e.g., Coffee Beans, Milk, Sugar) including fields for `name`, `unit_type` (gram, ml), `stock_qty`, and `cost_per_unit`.
+- [x] Define a new database schema for `RawIngredients` (e.g., Coffee Beans, Milk, Sugar) including fields for `name`, `unit_type` (gram, ml, pcs), `stock_qty`, and `cost_per_unit`.
+- [x] Create a corresponding service (`ingredientService.ts`) for all `RawIngredient` CRUD operations.
 - [ ] Define a new schema for `Recipes` that links a "Composite Product" (like Cappuccino) to a list of `RawIngredients` and the quantity of each required for one serving.
-- [ ] Create corresponding services (`ingredientService.ts`, `recipeService.ts`) for all CRUD operations.
+- [ ] Create a `recipeService.ts` for managing recipe data.
 
 #### 2️⃣ Product Management UI Enhancements
-- [ ] Create a new page at `/product/ingredients` for managing all raw materials.
+- [x] Create a new UI at `/product` for managing all raw materials (as a new tab).
 - [ ] In the "Add/Edit Product" form for 'Food & Beverage' items, add a "Composite Product" toggle.
 - [ ] When "Composite Product" is enabled:
     - [ ] Disable direct stock tracking for the finished product.

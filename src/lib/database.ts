@@ -1,9 +1,9 @@
 
-import { Product, ProductVariant, ModifierGroup, StoreConfig, Category } from '@/lib/types';
-import { initialProducts, initialVariants, initialModifierGroups, initialCategories } from '@/lib/products';
+import { Product, ProductVariant, ModifierGroup, StoreConfig, Category, RawIngredient } from '@/lib/types';
+import { initialProducts, initialVariants, initialModifierGroups, initialCategories, initialRawIngredients } from '@/lib/products';
 
 const DB_VERSION_KEY = 'tokoc_db_version';
-const CURRENT_DB_VERSION = '1.0.14'; // Reverted to normal data size
+const CURRENT_DB_VERSION = '1.0.15'; // Added raw ingredients
 
 export const seedDatabase = async (firesqlite: any, db: any) => {
     if (!firesqlite || !db) return;
@@ -80,6 +80,18 @@ export const seedDatabase = async (firesqlite: any, db: any) => {
                 modifierBatch.set(doc(db, 'modifier_groups', g.id), g);
             });
             await modifierBatch.commit();
+        }
+        
+        // Seed Raw Ingredients
+        const ingredientsCollectionRef = collection(db, 'raw_ingredients');
+        const existingIngredients = await getDocs(ingredientsCollectionRef);
+        if (existingIngredients.docs.length === 0) {
+            console.log('Seeding initial raw ingredients...');
+            const ingredientBatch = writeBatch(db);
+            initialRawIngredients.forEach((ing: RawIngredient) => {
+                ingredientBatch.set(doc(db, 'raw_ingredients', ing.id), ing);
+            });
+            await ingredientBatch.commit();
         }
 
         // Seed Store Config

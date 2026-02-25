@@ -1,5 +1,5 @@
 
-import type { Product, ProductVariant, ModifierGroup, Category } from '@/lib/types';
+import type { Product, ProductVariant, ModifierGroup, Category, RawIngredient } from '@/lib/types';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 
 const getImageData = (id: string) => {
@@ -64,4 +64,11 @@ export const initialModifierGroups: ModifierGroup[] = [
             { id: 'mi5', name: 'Sirup Karamel', additional_price: 3000 },
         ]
     }
+];
+
+export const initialRawIngredients: RawIngredient[] = [
+  { id: 'ing-1', name: 'Biji Kopi Arabika', unit_type: 'gram', stock_qty: 5000, cost_per_unit: 150 },
+  { id: 'ing-2', name: 'Susu Full Cream', unit_type: 'ml', stock_qty: 10000, cost_per_unit: 15 },
+  { id: 'ing-3', name: 'Gula Pasir', unit_type: 'gram', stock_qty: 20000, cost_per_unit: 12 },
+  { id: 'ing-4', name: 'Sirup Karamel', unit_type: 'ml', stock_qty: 2000, cost_per_unit: 50 },
 ];
