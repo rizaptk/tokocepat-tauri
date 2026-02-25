@@ -6,7 +6,7 @@ import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useStore } from "@/lib/store";
-import { Product, Category, ModifierGroup, ModifierItem, ProductType, ProductVariant, RawIngredient, RecipeItem } from "@/lib/types";
+import { Product, Category, ModifierGroup, ModifierItem, ProductType, ProductVariant, RawIngredient, RecipeItem, StockMovementType } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
@@ -29,6 +29,8 @@ import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+
 
 // Icons
 import { PlusCircle, Edit, Trash, SlidersHorizontal, Library, Package, Menu, Scan, Barcode, Zap, Beaker, Sandwich } from "lucide-react";
@@ -38,6 +40,8 @@ import { addProduct, updateProduct } from "@/services/productService";
 import { addCategory, updateCategory, deleteCategory } from "@/services/categoryService";
 import { addModifierGroup, updateModifierGroup, deleteModifierGroup, addModifierItem, updateModifierItem, deleteModifierItem } from "@/services/modifierService";
 import { addIngredient, updateIngredient, deleteIngredient } from "@/services/ingredientService";
+import { adjustIngredientStock } from "@/services/stockService";
+
 
 import { useZxing } from "react-zxing";
 import { useGlobalBarcodeScanner } from "@/hooks/use-global-barcode-scanner";
@@ -776,19 +780,38 @@ const ModifierManager = () => {
 };
 
 // ========= INGREDIENT MANAGER =========
+const adjustmentTypes: { value: StockMovementType, label: string }[] = [
+    { value: 'initial_balance', label: 'Opening Balance (+)' },
+    { value: 'restock', label: 'Purchase / Restock (+)' },
+    { value: 'correction', label: 'Correction (+/-)' },
+    { value: 'lost', label: 'Lost (-)' },
+    { value: 'damaged', label: 'Damaged (-)' },
+];
+
 const IngredientManager = () => {
     const { rawIngredients } = useStore();
     const { toast } = useToast();
-    const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+    const [isAdjustmentDialogOpen, setIsAdjustmentDialogOpen] = useState(false);
     const [ingredientToEdit, setIngredientToEdit] = useState<RawIngredient | null>(null);
+    const [ingredientToAdjust, setIngredientToAdjust] = useState<RawIngredient | null>(null);
     
     const defaultFormState = { name: "", unit_type: 'gram' as RawIngredient['unit_type'], stock_qty: 0, cost_per_unit: 0 };
     const [formData, setFormData] = useState(defaultFormState);
 
+    const defaultAdjustmentState = { type: 'correction' as StockMovementType, qty_change: 0, reason: ''};
+    const [adjustmentData, setAdjustmentData] = useState(defaultAdjustmentState);
+
     const openDialog = (ingredient: RawIngredient | null) => {
         setIngredientToEdit(ingredient);
         setFormData(ingredient ? { name: ingredient.name, unit_type: ingredient.unit_type, stock_qty: ingredient.stock_qty, cost_per_unit: ingredient.cost_per_unit } : defaultFormState);
-        setIsDialogOpen(true);
+        setIsAddDialogOpen(true);
+    };
+
+    const openAdjustmentDialog = (ingredient: RawIngredient) => {
+        setIngredientToAdjust(ingredient);
+        setAdjustmentData(defaultAdjustmentState);
+        setIsAdjustmentDialogOpen(true);
     };
 
     const handleSave = async () => {
@@ -801,7 +824,7 @@ const IngredientManager = () => {
                 await addIngredient(formData);
                 toast({ title: "Ingredient Added" });
             }
-            setIsDialogOpen(false);
+            setIsAddDialogOpen(false);
         } catch (error) {
             toast({ variant: "destructive", title: "Error", description: "Could not save ingredient." });
         }
@@ -813,6 +836,20 @@ const IngredientManager = () => {
             toast({ title: "Ingredient Deleted" });
         } catch (error) {
             toast({ variant: "destructive", title: "Error", description: "Could not delete ingredient." });
+        }
+    };
+
+    const handleAdjustmentSave = async () => {
+        if (!ingredientToAdjust || !adjustmentData.reason.trim() || adjustmentData.qty_change === 0) {
+            toast({ variant: 'destructive', title: 'Invalid Input', description: 'Please fill out all fields and ensure quantity is not zero.' });
+            return;
+        }
+        try {
+            await adjustIngredientStock(ingredientToAdjust.id, adjustmentData.type, adjustmentData.qty_change, adjustmentData.reason);
+            toast({ title: 'Stock Adjusted', description: `${ingredientToAdjust.name} stock has been updated.` });
+            setIsAdjustmentDialogOpen(false);
+        } catch (error: any) {
+            toast({ variant: 'destructive', title: 'Adjustment Failed', description: error.message || "Could not adjust stock." });
         }
     };
 
@@ -843,6 +880,7 @@ const IngredientManager = () => {
                                         <TableCell>{ing.stock_qty.toLocaleString()} {ing.unit_type}</TableCell>
                                         <TableCell>{formatCurrency(ing.cost_per_unit)} / {ing.unit_type}</TableCell>
                                         <TableCell className="text-right">
+                                            <Button variant="ghost" size="sm" onClick={() => openAdjustmentDialog(ing)}>Adjust</Button>
                                             <Button variant="ghost" size="sm" onClick={() => openDialog(ing)}><Edit className="h-4 w-4" /></Button>
                                             <AlertDialog>
                                                 <AlertDialogTrigger asChild><Button variant="ghost" size="sm" className="text-destructive hover:text-destructive"><Trash className="h-4 w-4" /></Button></AlertDialogTrigger>
@@ -859,7 +897,7 @@ const IngredientManager = () => {
                     </CardContent>
                 </Card>
             </ScrollArea>
-            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
                 <DialogContent>
                     <DialogHeader><DialogTitle>{ingredientToEdit ? 'Edit' : 'Add'} Ingredient</DialogTitle></DialogHeader>
                     <div className="py-4 space-y-4">
@@ -890,8 +928,40 @@ const IngredientManager = () => {
                         </div>
                     </div>
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
+                        <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>Cancel</Button>
                         <Button onClick={handleSave}>Save</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+            <Dialog open={isAdjustmentDialogOpen} onOpenChange={setIsAdjustmentDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Adjust Stock: {ingredientToAdjust?.name}</DialogTitle>
+                        <DialogDescription>Current stock: {ingredientToAdjust?.stock_qty.toLocaleString()} {ingredientToAdjust?.unit_type}</DialogDescription>
+                    </DialogHeader>
+                    <div className="py-4 space-y-4">
+                        <div className="space-y-2">
+                            <Label>Adjustment Type</Label>
+                            <Select value={adjustmentData.type} onValueChange={(v) => setAdjustmentData({...adjustmentData, type: v as StockMovementType})}>
+                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                    {adjustmentTypes.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Quantity Change</Label>
+                            <Input type="number" value={adjustmentData.qty_change} onChange={(e) => setAdjustmentData({...adjustmentData, qty_change: Number(e.target.value)})} placeholder="e.g. 10 or -5" />
+                             <p className="text-xs text-muted-foreground">Use a negative number to decrease stock.</p>
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Reason</Label>
+                            <Textarea value={adjustmentData.reason} onChange={(e) => setAdjustmentData({...adjustmentData, reason: e.target.value})} placeholder="e.g. 'End of month stock count'" />
+                        </div>
+                    </div>
+                     <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsAdjustmentDialogOpen(false)}>Cancel</Button>
+                        <Button onClick={handleAdjustmentSave}>Save Adjustment</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
