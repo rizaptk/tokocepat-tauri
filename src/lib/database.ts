@@ -2,7 +2,7 @@ import { Product, ProductVariant, ModifierGroup, StoreConfig, Category } from '@
 import { initialProducts, initialVariants, initialModifierGroups, initialCategories } from '@/lib/products';
 
 const DB_VERSION_KEY = 'tokoc_db_version';
-const CURRENT_DB_VERSION = '1.0.7';
+const CURRENT_DB_VERSION = '1.0.8';
 
 export const seedDatabase = async (firesqlite: any, db: any) => {
     if (!firesqlite || !db) return;
@@ -34,7 +34,7 @@ export const seedDatabase = async (firesqlite: any, db: any) => {
         console.log('Clearing existing products...');
         const existingProdsSnapshot = await getDocs(productsCollectionRef);
         if (existingProdsSnapshot.docs.length > 0) {
-            const deletePromises = existingProdsSnapshot.docs.map((d: any) => deleteDoc(d.ref));
+            const deletePromises = existingProdsSnapshot.docs.map((d: any) => deleteDoc(doc(db, 'products', d.id)));
             await Promise.all(deletePromises);
             console.log(`${deletePromises.length} existing products cleared.`);
         }
