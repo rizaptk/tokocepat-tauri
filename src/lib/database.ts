@@ -3,7 +3,7 @@ import { Product, ProductVariant, ModifierGroup, StoreConfig, Category } from '@
 import { initialProducts, initialVariants, initialModifierGroups, initialCategories } from '@/lib/products';
 
 const DB_VERSION_KEY = 'tokoc_db_version';
-const CURRENT_DB_VERSION = '1.0.12'; // Incremented version to force re-seed
+const CURRENT_DB_VERSION = '1.0.13'; // Incremented version to force re-seed
 
 export const seedDatabase = async (firesqlite: any, db: any) => {
     if (!firesqlite || !db) return;
@@ -50,7 +50,7 @@ export const seedDatabase = async (firesqlite: any, db: any) => {
         }
         
         // Seed Products in chunks
-        console.log(`Seeding ${initialProducts.length} products in chunks...`);
+        console.log(`Seeding ${initialProducts.length} products...`);
         const CHUNK_SIZE = 100;
         for (let i = 0; i < initialProducts.length; i += CHUNK_SIZE) {
             const chunk = initialProducts.slice(i, i + CHUNK_SIZE);

@@ -1,3 +1,4 @@
+
 import type { Product, ProductVariant, ModifierGroup, Category } from '@/lib/types';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 
@@ -43,7 +44,8 @@ for (let i = 0; i < productCount; i++) {
         price: Math.floor(Math.random() * 100000) + 1000,
         cost_price: Math.floor(Math.random() * 80000) + 500,
         stock: Math.floor(Math.random() * 200),
-        ...placeholder,
+        imageUrl: placeholder.imageUrl,
+        imageHint: placeholder.imageHint,
         track_stock: true,
         has_variant: false,
         has_modifier: false,

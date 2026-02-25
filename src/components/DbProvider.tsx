@@ -32,6 +32,14 @@ export function DbProvider({ children }: { children: React.ReactNode }) {
     useEffect(() => {
         if (!isInitialized || !db || !firesqlite) return;
 
+        // for debuging purpuse, do not remove
+        if (typeof window !== 'undefined') {
+            // @ts-ignore
+            window.db = db;
+            // @ts-ignore
+            window.firesqlite = firesqlite;
+        }
+
         let unsubProducts: (() => void) | undefined;
         let unsubVariants: (() => void) | undefined;
         let unsubModifiers: (() => void) | undefined;
