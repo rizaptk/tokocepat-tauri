@@ -23,7 +23,7 @@ type ProductListProps = {
 
 // Constants for layout calculation
 const CARD_MIN_WIDTH = 210;
-const CARD_ROW_HEIGHT = 270;
+const CARD_ROW_HEIGHT = 280;
 const THUMBNAIL_ROW_HEIGHT = 81;
 const LIST_ROW_HEIGHT = 76;
 
