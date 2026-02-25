@@ -43,7 +43,7 @@ export function ProductThumbnailItem({ product, onItemClick, isSelected, context
     <div 
       style={style}
       className={cn(
-        "flex items-center gap-4 p-2 rounded-lg transition-colors",
+        "flex items-center gap-2 p-2 rounded-none transition-colors",
         isOutOfStock 
             ? "bg-card cursor-not-allowed opacity-60" 
             : "bg-card hover:bg-accent cursor-pointer",
@@ -71,13 +71,13 @@ export function ProductThumbnailItem({ product, onItemClick, isSelected, context
                 </div>
             )}
         </div>
-        <div className="flex-1 space-y-1">
+        <div className="flex-1 space-y-1 flex items-center flex-wrap justify-between px-2 grow">
             <p className="font-medium line-clamp-2 flex items-center gap-2">
                 {product.name}
                 {product.has_modifier && context === 'product' && <SlidersHorizontal className="h-3 w-3 text-muted-foreground" />}
             </p>
-            <div className="flex items-center gap-2">
-                {category && <Badge variant="outline" className="text-xs">{category.name}</Badge>}
+            <div className="flex items-center gap-2 justify-between w-full">
+                {category && <Badge variant="secondary" className="text-xs opacity-80">{category.name}</Badge>}
                 <p className="font-semibold text-sm text-foreground">{formatCurrency(product.price)}</p>
             </div>
         </div>

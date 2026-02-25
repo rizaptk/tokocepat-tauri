@@ -23,8 +23,8 @@ type ProductListProps = {
 
 // Constants for layout calculation
 const CARD_MIN_WIDTH = 210;
-const CARD_ROW_HEIGHT = 290;
-const THUMBNAIL_ROW_HEIGHT = 88;
+const CARD_ROW_HEIGHT = 270;
+const THUMBNAIL_ROW_HEIGHT = 81;
 const LIST_ROW_HEIGHT = 76;
 
 // --- Components for Card Grid View ---
@@ -84,7 +84,7 @@ const ListItem = React.memo(({ index, style, data }: { index: number, style: Rea
   const product = products[index];
 
   const content = viewMode === 'thumbnail' ? (
-    <div className="p-1 h-full">
+    <div className="p-0 h-full">
       <ProductThumbnailItem
         product={product}
         onItemClick={onItemClick}
@@ -93,7 +93,7 @@ const ListItem = React.memo(({ index, style, data }: { index: number, style: Rea
       />
     </div>
   ) : (
-    <div className="p-1 h-full">
+    <div className="p-0 h-full bg-card">
       <ProductListItem
         product={product}
         onItemClick={onItemClick}
@@ -156,7 +156,7 @@ export function ProductList({ products, viewMode, isLoading, onItemClick, select
                     if (!width || !height) return null;
 
                     if (viewMode === 'card') {
-                        const columnCount = Math.max(1, Math.floor(width / CARD_MIN_WIDTH));
+                        const columnCount = Math.max(2, Math.floor(width / CARD_MIN_WIDTH));
                         const rowCount = Math.ceil(products.length / columnCount);
                         return (
                             <List

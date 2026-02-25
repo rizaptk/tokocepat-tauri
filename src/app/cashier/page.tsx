@@ -175,7 +175,7 @@ export default function CashierPage() {
                 />
             </div>
           <div className="flex-1">
-            <ProductList products={filteredProducts.length > 0 ? filteredProducts : products} viewMode={viewMode} isLoading={products.length === 0} onItemClick={handleProductSelect} context="cashier"/>
+            <ProductList products={filteredProducts.length > 0 ? filteredProducts : []} viewMode={viewMode} isLoading={products.length === 0} onItemClick={handleProductSelect} context="cashier"/>
           </div>
         </main>
         <aside className="col-span-2 lg:col-span-1 border-l bg-background flex flex-col">
