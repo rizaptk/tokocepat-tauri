@@ -1,15 +1,17 @@
-
 'use client';
 
 import Link from 'next/link';
 import { useStore } from '@/lib/store';
-import { format } from 'date-fns';
+import { format, startOfDay, endOfDay, subDays, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import { ArrowLeft, ArchiveX } from 'lucide-react';
+import { useState, useMemo } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Transaction } from '@/lib/types';
+import { DateRangeFilter, DateRangePreset } from '@/components/DateRangeFilter';
+import { useToast } from '@/hooks/use-toast';
 
 const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('id-ID', {
@@ -20,9 +22,42 @@ const formatCurrency = (amount: number) => {
 };
 
 export default function VoidReportPage() {
-    const { transactions } = useStore();
+    const { transactions, storeConfig } = useStore();
+    const { toast } = useToast();
+    const [range, setRange] = useState<DateRangePreset>('today');
 
-    const voidedTransactions = transactions.filter(tx => tx.status === 'voided');
+    const dateRange = useMemo(() => {
+        const now = new Date();
+        switch (range) {
+            case 'today':
+                return { from: startOfDay(now), to: endOfDay(now) };
+            case 'last7':
+                return { from: startOfDay(subDays(now, 6)), to: endOfDay(now) };
+            case 'last30':
+                return { from: startOfDay(subDays(now, 29)), to: endOfDay(now) };
+            case 'lastMonth':
+                const lastMonthDate = subMonths(now, 1);
+                return { from: startOfMonth(lastMonthDate), to: endOfMonth(lastMonthDate) };
+            default:
+                return { from: startOfDay(now), to: endOfDay(now) };
+        }
+    }, [range]);
+
+    const voidedTransactions = useMemo(() => {
+        return transactions.filter(tx => {
+            if (tx.status !== 'voided' || !tx.voided_at) return false;
+            const txDate = new Date(tx.voided_at);
+            return txDate >= dateRange.from && txDate <= dateRange.to;
+        });
+    }, [transactions, dateRange]);
+    
+    const handleExcelExport = () => {
+        toast({ title: 'Coming Soon', description: 'Excel export for voided transactions is not yet available.' });
+    };
+
+    const handlePdfExport = () => {
+        toast({ title: 'Coming Soon', description: 'PDF export for voided transactions is not yet available.' });
+    };
 
     return (
         <div className="flex min-h-screen w-full flex-col bg-muted/40">
@@ -38,13 +73,20 @@ export default function VoidReportPage() {
                         <ArchiveX className="h-5 w-5" /> Void Report
                     </h1>
                 </div>
+                 <DateRangeFilter
+                    range={range}
+                    onRangeChange={setRange}
+                    onExportExcel={handleExcelExport}
+                    onExportPdf={handlePdfExport}
+                    hasData={voidedTransactions.length > 0}
+                />
            </header>
           <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
             <Card>
                 <CardHeader>
                     <CardTitle>Voided Transactions</CardTitle>
                     <CardDescription>
-                        A log of all transactions that have been voided.
+                        A log of all transactions that have been voided from {format(dateRange.from, 'PPP')} to {format(dateRange.to, 'PPP')}.
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -73,7 +115,7 @@ export default function VoidReportPage() {
                             ) : (
                                 <TableRow>
                                     <TableCell colSpan={4} className="h-24 text-center">
-                                        No voided transactions found.
+                                        No voided transactions found in this period.
                                     </TableCell>
                                 </TableRow>
                             )}
