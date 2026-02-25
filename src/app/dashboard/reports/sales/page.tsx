@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { useStore } from '@/lib/store';
 import { endOfDay, startOfDay, subDays, format } from 'date-fns';
-import { ArrowLeft, BarChart2, DollarSign, ReceiptText } from 'lucide-react';
+import { ArrowLeft, BarChart2, DollarSign, ReceiptText, Landmark } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -47,16 +47,18 @@ export default function SalesReportPage() {
     });
 
     const totalRevenue = filteredTransactions.reduce((sum, tx) => sum + tx.total, 0);
+    const totalTax = filteredTransactions.reduce((sum, tx) => sum + tx.tax_amount, 0);
     const totalCost = filteredTransactions.reduce((sum, tx) => {
         return sum + tx.items.reduce((itemSum, item) => {
             return itemSum + ((item.cost_snapshot || 0) * item.qty);
         }, 0);
     }, 0);
-    const totalProfit = totalRevenue - totalCost;
+    const totalProfit = totalRevenue - totalCost - totalTax;
 
     const stats = [
         { title: 'Total Revenue', value: formatCurrency(totalRevenue), icon: DollarSign },
         { title: 'Total Profit', value: formatCurrency(totalProfit), icon: DollarSign },
+        { title: 'Total Tax', value: formatCurrency(totalTax), icon: Landmark },
         { title: 'Transactions', value: filteredTransactions.length, icon: ReceiptText },
     ];
 
@@ -81,7 +83,7 @@ export default function SalesReportPage() {
                 </div>
            </header>
           <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
-            <div className="grid gap-4 md:grid-cols-3">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                 {stats.map((stat, index) => (
                     <Card key={index}>
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -109,6 +111,7 @@ export default function SalesReportPage() {
                                 <TableHead>Date</TableHead>
                                 <TableHead>Invoice</TableHead>
                                 <TableHead className="text-right">Items</TableHead>
+                                <TableHead className="text-right">Tax</TableHead>
                                 <TableHead className="text-right">Total</TableHead>
                             </TableRow>
                         </TableHeader>
@@ -122,12 +125,13 @@ export default function SalesReportPage() {
                                         </TableCell>
                                         <TableCell className="font-mono text-xs">{tx.invoice_number}</TableCell>
                                         <TableCell className="text-right">{tx.items.reduce((sum, item) => sum + item.qty, 0)}</TableCell>
+                                        <TableCell className="text-right font-medium">{formatCurrency(tx.tax_amount)}</TableCell>
                                         <TableCell className="text-right font-medium">{formatCurrency(tx.total)}</TableCell>
                                     </TableRow>
                                 ))
                             ) : (
                                 <TableRow>
-                                    <TableCell colSpan={4} className="h-24 text-center">
+                                    <TableCell colSpan={5} className="h-24 text-center">
                                         No transactions in this period.
                                     </TableCell>
                                 </TableRow>
