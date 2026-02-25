@@ -9,6 +9,7 @@ export interface Category {
 export interface StoreConfig {
     id: string;
     store_name: string;
+    address?: string;
     tax_rate: number;
     currency: string;
     receipt_footer?: string;

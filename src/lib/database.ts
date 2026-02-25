@@ -119,6 +119,7 @@ export const seedDatabase = async (firesqlite: any, db: any) => {
             const initialConfig: StoreConfig = {
                 id: 'main',
                 store_name: 'TokoCepat',
+                address: 'Jl. Merdeka No. 45, Jakarta',
                 tax_rate: 0.11,
                 currency: 'IDR',
                 receipt_footer: 'Terima kasih telah berbelanja!'

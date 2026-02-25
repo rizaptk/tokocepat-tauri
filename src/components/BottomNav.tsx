@@ -3,7 +3,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutGrid, MoreHorizontal, Package, ShoppingCart, Warehouse, Menu, BarChart as BarChartIcon } from 'lucide-react';
+import { LayoutGrid, MoreHorizontal, Package, ShoppingCart, Warehouse, Menu, BarChart as BarChartIcon, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useEffect, useState, useRef } from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -18,8 +18,9 @@ const navItems = [
 
 const moreNavItems = [
   { href: '/product/inventory', label: 'Inventory', icon: Warehouse },
-  { href: '/dashboard/reports', label: 'Reports', icon: BarChartIcon }
-]
+  { href: '/dashboard/reports', label: 'Reports', icon: BarChartIcon },
+  { href: '/dashboard/settings', label: 'Settings', icon: Settings }
+];
 
 export function BottomNav() {
   const pathname = usePathname();
@@ -69,7 +70,7 @@ export function BottomNav() {
 
   const isActive = (href: string) => {
     if (!isClient) return false;
-    return href === '/dashboard' || href === '/cashier' ? pathname === href : pathname.startsWith(href);
+    return href === '/dashboard' || href === '/cashier' || href === '/dashboard/settings' ? pathname === href : pathname.startsWith(href);
   };
 
   const containerVariants: Variants = {

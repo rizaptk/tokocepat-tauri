@@ -18,7 +18,7 @@ export function generateReceiptText(transaction: Transaction, storeConfig: Store
 
     let text = '';
     text += center(storeConfig.store_name) + '\n';
-    text += center('Jl. Merdeka No. 45, Jakarta') + '\n\n';
+    text += center(storeConfig.address || 'Alamat tidak diatur') + '\n\n';
     
     text += `Inv: ${transaction.invoice_number}\n`;
     text += `Date: ${new Date(transaction.created_at).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' })}\n`;

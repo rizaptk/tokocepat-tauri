@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useMemo } from 'react';
@@ -106,6 +107,13 @@ export function PaymentModal({ isOpen, setIsOpen, total }: PaymentModalProps) {
       });
     }
   };
+
+  useEffect(() => {
+    if (status === 'success' && transactionDetails && storeConfig) {
+        handlePrint();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status, transactionDetails, storeConfig]);
 
 
   return (
