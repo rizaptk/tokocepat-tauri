@@ -5,7 +5,8 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { useStore } from '@/lib/store';
 import { endOfDay, startOfDay, subDays, format } from 'date-fns';
-import { ArrowLeft, BarChart2, DollarSign, ReceiptText, Landmark } from 'lucide-react';
+import { ArrowLeft, BarChart2, DollarSign, ReceiptText, Landmark, FileDown } from 'lucide-react';
+import { exportSalesToExcel } from '@/lib/export';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -25,7 +26,7 @@ const formatCurrency = (amount: number) => {
 
 export default function SalesReportPage() {
     const [range, setRange] = useState<DateRangePreset>('today');
-    const { transactions } = useStore();
+    const { transactions, storeConfig } = useStore();
 
     const dateRange = (() => {
         const now = new Date();
@@ -62,6 +63,14 @@ export default function SalesReportPage() {
         { title: 'Total Tax', value: formatCurrency(totalTax), icon: Landmark },
         { title: 'Transactions', value: filteredTransactions.length, icon: ReceiptText },
     ];
+    
+    const handleExport = () => {
+        if (storeConfig) {
+            exportSalesToExcel(filteredTransactions, dateRange, storeConfig.store_name);
+        } else {
+            alert("Store configuration not found.");
+        }
+    };
 
     return (
         <div className="flex min-h-screen w-full flex-col bg-muted/40">
@@ -81,6 +90,10 @@ export default function SalesReportPage() {
                     <Button variant={range === 'today' ? 'default' : 'outline'} size="sm" onClick={() => setRange('today')}>Today</Button>
                     <Button variant={range === 'last7' ? 'default' : 'outline'} size="sm" onClick={() => setRange('last7')}>Last 7 Days</Button>
                     <Button variant={range === 'last30' ? 'default' : 'outline'} size="sm" onClick={() => setRange('last30')}>Last 30 Days</Button>
+                     <Button variant="outline" size="sm" onClick={handleExport} disabled={filteredTransactions.length === 0}>
+                        <FileDown className="mr-2 h-4 w-4" />
+                        <span>Export</span>
+                    </Button>
                 </div>
            </header>
           <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
