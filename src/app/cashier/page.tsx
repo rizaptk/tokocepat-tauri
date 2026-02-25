@@ -198,7 +198,7 @@ export default function CashierPage() {
                 </div>
                 
                 {isAutocompleteVisible && (
-                    <div className="absolute top-16 left-3 right-3 z-20 bg-background border rounded-lg shadow-lg max-h-[70vh] overflow-y-auto">
+                    <div className="absolute top-20 left-3 right-3 z-20 bg-background border rounded-lg shadow-lg max-h-[70vh] overflow-y-auto">
                         <ProductList products={filteredProducts} viewMode={viewMode} isLoading={products.length === 0} onItemClick={handleProductSelect} context="cashier" />
                     </div>
                 )}
