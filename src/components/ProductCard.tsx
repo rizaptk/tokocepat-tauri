@@ -56,7 +56,7 @@ export function ProductCard({ product, onItemClick, isSelected, context = 'cashi
       aria-disabled={isOutOfStock}
     >
       <CardHeader className="p-0 relative">
-        <div className="relative aspect-square w-full">
+        <div className="relative aspect-[4/3] w-full">
           <Image
             src={product.imageUrl}
             alt={product.name}
