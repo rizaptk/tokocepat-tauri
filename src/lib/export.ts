@@ -1,7 +1,7 @@
 
 
 import * as XLSX from 'xlsx';
-import { Transaction, Product, StoreConfig } from '@/lib/types';
+import { Transaction, Product, StoreConfig, StockMovement } from '@/lib/types';
 import { format } from 'date-fns';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 
@@ -198,3 +198,97 @@ export const exportSalesToPdf = async (transactions: Transaction[], dateRange: {
     link.click();
     document.body.removeChild(link);
 };
+
+export const exportStockMovementToExcel = (movements: (StockMovement & { referenceDisplay: string })[], dateRange: { from: Date, to: Date }, storeName: string) => {
+    const dataForExport = movements.map(m => ({
+        'Date': format(new Date(m.created_at), 'yyyy-MM-dd HH:mm:ss'),
+        'Product': m.product_name_snapshot,
+        'Type': m.type,
+        'Quantity Change': m.qty_change,
+        'Reason / Reference': m.referenceDisplay,
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(dataForExport);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Stock Movements');
+
+    const range = format(dateRange.from, 'yyyy-MM-dd') + '_to_' + format(dateRange.to, 'yyyy-MM-dd');
+    XLSX.writeFile(workbook, `stock_movement_report_${storeName.replace(/\s+/g, '_')}_${range}.xlsx`);
+};
+
+export const exportStockMovementToPdf = async (movements: (StockMovement & { referenceDisplay: string })[], dateRange: { from: Date, to: Date }, storeName: string) => {
+    const pdfDoc = await PDFDocument.create();
+    let page = pdfDoc.addPage();
+    const { width, height } = page.getSize();
+    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+    const fontSize = 9;
+    const margin = 40;
+    let y = height - margin;
+
+    const drawHeader = () => {
+        page.drawText(`${storeName} - Stock Movement Report`, { x: margin, y, font: boldFont, size: 16 });
+        y -= 20;
+        page.drawText(`Period: ${format(dateRange.from, 'PPP')} to ${format(dateRange.to, 'PPP')}`, { x: margin, y, font, size: 10 });
+        y -= 25;
+    };
+    
+    drawHeader();
+    
+    const tableHeaders = ['Date', 'Product', 'Type', 'Qty', 'Reason / Ref'];
+    const colWidths = [100, 150, 60, 40, 180];
+    let x = margin;
+    
+    // Draw table header
+    tableHeaders.forEach((header, i) => {
+        page.drawText(header, { x, y, font: boldFont, size: fontSize });
+        x += colWidths[i];
+    });
+    y -= 5;
+    page.drawLine({ start: { x: margin, y }, end: { x: width - margin, y }, thickness: 1 });
+    y -= 15;
+    
+    for (const m of movements) {
+        if (y < margin) {
+            page = pdfDoc.addPage();
+            y = height - margin;
+            drawHeader();
+            let x = margin;
+            tableHeaders.forEach((header, i) => {
+                page.drawText(header, { x, y, font: boldFont, size: fontSize });
+                x += colWidths[i];
+            });
+            y -= 5;
+            page.drawLine({ start: { x: margin, y }, end: { x: width - margin, y }, thickness: 1 });
+            y -= 15;
+        }
+
+        const row = [
+            format(new Date(m.created_at), 'yyyy-MM-dd HH:mm'),
+            m.product_name_snapshot,
+            m.type,
+            m.qty_change.toString(),
+            m.referenceDisplay,
+        ];
+        
+        x = margin;
+        row.forEach((cell, i) => {
+            const textWidth = font.widthOfTextAtSize(cell, 8);
+            const truncatedCell = textWidth > colWidths[i] - 5 ? cell.substring(0, Math.floor(cell.length * ((colWidths[i] - 5) / textWidth))) + '...' : cell;
+            page.drawText(truncatedCell, { x, y, font, size: 8 });
+            x += colWidths[i];
+        });
+        y -= 12;
+    }
+
+    const pdfBytes = await pdfDoc.save();
+    
+    const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    const range = format(dateRange.from, 'yyyy-MM-dd') + '_to_' + format(dateRange.to, 'yyyy-MM-dd');
+    link.download = `stock_movement_report_${storeName.replace(/\s+/g, '_')}_${range}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}

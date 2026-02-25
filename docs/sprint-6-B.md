@@ -23,9 +23,9 @@
 - [x] Add the ability to filter the report by a specific product to see its complete history.
 
 #### 3️⃣ Data Export Functionality
-- [ ] Integrate the `export` utility (`src/lib/export.ts`) with this new report.
-- [ ] Add an "Export to Excel" button that generates an `.xlsx` file of the filtered stock movement data. The Excel file will include all columns from the on-screen table.
-- [ ] Add an "Export to PDF" button that generates a clean, printable PDF document of the report, suitable for archiving or formal review.
+- [x] Integrate the `export` utility (`src/lib/export.ts`) with this new report.
+- [x] Add an "Export to Excel" button that generates an `.xlsx` file of the filtered stock movement data. The Excel file will include all columns from the on-screen table.
+- [x] Add an "Export to PDF" button that generates a clean, printable PDF document of the report, suitable for archiving or formal review.
 
 ---
 
@@ -33,4 +33,4 @@
 - [x] Users can navigate to and view the Stock Movement Report.
 - [x] The report accurately displays all stock changes from the `StockMovements` table for the selected date range.
 - [x] Filtering by date and by product works correctly.
-- [ ] Both Excel and PDF exports generate accurate and well-formatted files containing the detailed ledger data.
+- [x] Both Excel and PDF exports generate accurate and well-formatted files containing the detailed ledger data.

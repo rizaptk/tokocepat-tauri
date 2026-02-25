@@ -3,9 +3,11 @@
 
 import Link from 'next/link';
 import { useStore } from '@/lib/store';
-import { useState, useMemo } from 'react';
-import { ArrowLeft, History, FileDown, MoreVertical, PackageSearch, Filter, X } from 'lucide-react';
+import { useState, useMemo, useCallback } from 'react';
+import { ArrowLeft, History, FileDown, MoreVertical, PackageSearch, Filter, X, FileText } from 'lucide-react';
 import { format, startOfDay, endOfDay, subDays, startOfMonth, endOfMonth, subMonths } from 'date-fns';
+import { exportStockMovementToExcel, exportStockMovementToPdf } from '@/lib/export';
+import { useToast } from '@/hooks/use-toast';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -29,7 +31,8 @@ const movementTypeLabels: Record<string, { label: string, color: string }> = {
 };
 
 export default function StockMovementReportPage() {
-    const { stockMovements, products, rawIngredients, transactions } = useStore();
+    const { stockMovements, products, rawIngredients, transactions, storeConfig } = useStore();
+    const { toast } = useToast();
     const [range, setRange] = useState<DateRangePreset>('today');
     const [filterProductId, setFilterProductId] = useState<string | null>(null);
 
@@ -49,10 +52,25 @@ export default function StockMovementReportPage() {
                 return { from: startOfDay(now), to: endOfDay(now) };
         }
     }, [range]);
+    
+    const txIdToInvoiceMap = useMemo(() =>
+        new Map(transactions.map(tx => [tx.id, tx.invoice_number])),
+    [transactions]);
 
-    const reportData: (StockMovement & { resultingStock: number })[] = useMemo(() => {
-        // This is a simplified calculation. A real-world scenario would need to calculate resulting stock
-        // by re-playing events, which is more complex. For this view, we'll show a placeholder.
+    const getReferenceDisplay = useCallback((movement: StockMovement): string => {
+        if (movement.reason) {
+            return movement.reason;
+        }
+        if (movement.type === 'sale' && movement.reference_id) {
+            const invoiceNumber = txIdToInvoiceMap.get(movement.reference_id);
+            if (invoiceNumber) {
+                return invoiceNumber;
+            }
+        }
+        return 'N/A';
+    }, [txIdToInvoiceMap]);
+
+    const reportData = useMemo(() => {
         const filtered = stockMovements.filter(m => {
             const movementDate = new Date(m.created_at);
             const inDateRange = movementDate >= dateRange.from && movementDate <= dateRange.to;
@@ -60,8 +78,12 @@ export default function StockMovementReportPage() {
             return inDateRange && productMatch;
         });
 
-        return filtered.map(m => ({...m, resultingStock: 0 })); // Placeholder
-    }, [stockMovements, dateRange, filterProductId]);
+        return filtered.map(m => ({
+            ...m, 
+            resultingStock: 0, // Placeholder
+            referenceDisplay: getReferenceDisplay(m)
+        }));
+    }, [stockMovements, dateRange, filterProductId, getReferenceDisplay]);
 
     const allStockableItems = useMemo(() => [
         ...products.filter(p => p.track_stock), 
@@ -73,22 +95,20 @@ export default function StockMovementReportPage() {
         return allStockableItems.find(p => p.id === filterProductId)?.name || "Unknown";
     }, [filterProductId, allStockableItems]);
     
-    const txIdToInvoiceMap = useMemo(() =>
-        new Map(transactions.map(tx => [tx.id, tx.invoice_number])),
-    [transactions]);
+    const handleExcelExport = () => {
+        if (storeConfig) {
+            exportStockMovementToExcel(reportData, dateRange, storeConfig.store_name);
+        } else {
+            toast({ variant: 'destructive', title: 'Error', description: 'Store configuration not found.' });
+        }
+    };
 
-    const getReferenceDisplay = (movement: StockMovement): string => {
-        if (movement.reason) {
-            return movement.reason;
+    const handlePdfExport = () => {
+        if (storeConfig) {
+            exportStockMovementToPdf(reportData, dateRange, storeConfig.store_name);
+        } else {
+            toast({ variant: 'destructive', title: 'Error', description: 'Store configuration not found.' });
         }
-        if (movement.type === 'sale' && movement.reference_id) {
-            const invoiceNumber = txIdToInvoiceMap.get(movement.reference_id);
-            if (invoiceNumber) {
-                return invoiceNumber;
-            }
-        }
-        // For sales without a found invoice or other types without a reason.
-        return 'N/A';
     };
 
 
@@ -112,10 +132,22 @@ export default function StockMovementReportPage() {
                     <Button variant={range === 'last7' ? 'default' : 'outline'} size="sm" onClick={() => setRange('last7')}>Last 7 Days</Button>
                     <Button variant={range === 'last30' ? 'default' : 'outline'} size="sm" onClick={() => setRange('last30')}>Last 30 Days</Button>
                     <Button variant={range === 'lastMonth' ? 'default' : 'outline'} size="sm" onClick={() => setRange('lastMonth')}>Last Month</Button>
-                    <Button variant="outline" size="sm" disabled>
-                        <FileDown className="mr-2 h-4 w-4" />
-                        <span>Export</span>
-                    </Button>
+                     <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="outline" size="sm" disabled={reportData.length === 0}>
+                                <FileDown className="mr-2 h-4 w-4" />
+                                <span>Export</span>
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            <DropdownMenuItem onSelect={handleExcelExport}>
+                                <FileDown className="mr-2 h-4 w-4"/> Excel (.xlsx)
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onSelect={handlePdfExport}>
+                                <FileText className="mr-2 h-4 w-4"/> PDF (.pdf)
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
                 </div>
                  {/* Mobile Dropdown */}
                 <div className="md:hidden">
@@ -134,9 +166,13 @@ export default function StockMovementReportPage() {
                                 <DropdownMenuRadioItem value="lastMonth">Last Month</DropdownMenuRadioItem>
                             </DropdownMenuRadioGroup>
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem disabled>
+                             <DropdownMenuItem onSelect={handleExcelExport} disabled={reportData.length === 0}>
                                 <FileDown className="mr-2 h-4 w-4" />
-                                Export
+                                Export to Excel
+                            </DropdownMenuItem>
+                             <DropdownMenuItem onSelect={handlePdfExport} disabled={reportData.length === 0}>
+                                <FileText className="mr-2 h-4 w-4" />
+                                Export to PDF
                             </DropdownMenuItem>
                         </DropdownMenuContent>
                     </DropdownMenu>
@@ -211,7 +247,7 @@ export default function StockMovementReportPage() {
                                         <TableCell className={`font-bold ${m.qty_change > 0 ? 'text-green-600' : 'text-red-600'}`}>
                                             {m.qty_change > 0 ? `+${m.qty_change}` : m.qty_change}
                                         </TableCell>
-                                        <TableCell className="text-xs text-muted-foreground truncate max-w-[200px]">{getReferenceDisplay(m)}</TableCell>
+                                        <TableCell className="text-xs text-muted-foreground truncate max-w-[200px]">{m.referenceDisplay}</TableCell>
                                         <TableCell className="text-right font-mono">---</TableCell>
                                     </TableRow>
                                 ))
