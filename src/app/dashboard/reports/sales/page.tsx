@@ -183,9 +183,10 @@ export default function SalesReportPage() {
                             <TableRow>
                                 <TableHead>Date</TableHead>
                                 <TableHead>Invoice</TableHead>
-                                <TableHead className="text-right">Items</TableHead>
-                                <TableHead className="text-right">Tax</TableHead>
+                                <TableHead className="text-right">Subtotal</TableHead>
+                                <TableHead className="text-right">Cost</TableHead>
                                 <TableHead className="text-right">Profit</TableHead>
+                                <TableHead className="text-right">Tax</TableHead>
                                 <TableHead className="text-right">Total</TableHead>
                             </TableRow>
                         </TableHeader>
@@ -201,16 +202,17 @@ export default function SalesReportPage() {
                                             <div className="text-sm text-muted-foreground">{format(new Date(tx.created_at), 'p')}</div>
                                         </TableCell>
                                         <TableCell className="font-mono text-xs">{tx.invoice_number}</TableCell>
-                                        <TableCell className="text-right">{tx.items.reduce((sum, item) => sum + item.qty, 0)}</TableCell>
-                                        <TableCell className="text-right font-medium">{formatCurrency(tx.tax_amount)}</TableCell>
+                                        <TableCell className="text-right font-medium">{formatCurrency(tx.subtotal)}</TableCell>
+                                        <TableCell className="text-right font-medium text-destructive">{formatCurrency(txCost)}</TableCell>
                                         <TableCell className="text-right font-medium text-green-600">{formatCurrency(txProfit)}</TableCell>
-                                        <TableCell className="text-right font-medium">{formatCurrency(tx.total)}</TableCell>
+                                        <TableCell className="text-right font-medium">{formatCurrency(tx.tax_amount)}</TableCell>
+                                        <TableCell className="text-right font-bold">{formatCurrency(tx.total)}</TableCell>
                                     </TableRow>
                                     )
                                 })
                             ) : (
                                 <TableRow>
-                                    <TableCell colSpan={6} className="h-24 text-center">
+                                    <TableCell colSpan={7} className="h-24 text-center">
                                         No transactions in this period.
                                     </TableCell>
                                 </TableRow>
