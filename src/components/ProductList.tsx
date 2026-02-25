@@ -1,13 +1,14 @@
 
 "use client";
 
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React from 'react';
+import { FixedSizeList as List } from 'react-window';
+import AutoSizer from 'react-virtualized-auto-sizer';
 import { Product } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ProductCard } from '@/components/ProductCard';
 import { ProductThumbnailItem } from './items/ProductThumbnailItem';
 import { ProductListItem } from './items/ProductListItem';
-import { cn } from '@/lib/utils';
 
 type ViewMode = 'card' | 'thumbnail' | 'list';
 
@@ -20,6 +21,93 @@ type ProductListProps = {
   context?: 'cashier' | 'product' | 'inventory';
 };
 
+// Constants for layout calculation
+const CARD_MIN_WIDTH = 210;
+const CARD_ROW_HEIGHT = 290;
+const THUMBNAIL_ROW_HEIGHT = 88;
+const LIST_ROW_HEIGHT = 76;
+
+// --- Components for Card Grid View ---
+
+// 1. Memoized item for performance. This is one cell in the grid.
+const CardGridItem = React.memo(({ product, onItemClick, selectedProductId, context, columnCount }: { product: Product, onItemClick?: (product: Product) => void, selectedProductId?: string | null, context?: 'cashier' | 'product' | 'inventory', columnCount: number }) => {
+  if (!product) return null;
+
+  return (
+    <div style={{ flex: `0 0 ${100 / columnCount}%`, padding: '4px', boxSizing: 'border-box', height: '100%' }}>
+      <ProductCard
+        product={product}
+        onItemClick={onItemClick}
+        isSelected={product.id === selectedProductId}
+        context={context}
+      />
+    </div>
+  );
+});
+CardGridItem.displayName = 'CardGridItem';
+
+
+// 2. The Row component that react-window will render.
+const CardRow = ({ index, style, data }: { index: number, style: React.CSSProperties, data: any }) => {
+  const { products, columnCount, totalItems, onItemClick, selectedProductId, context } = data;
+  
+  const itemsInRow = [];
+  const startIndex = index * columnCount;
+  
+  for (let i = 0; i < columnCount; i++) {
+    const itemIndex = startIndex + i;
+    if (itemIndex < totalItems) {
+      itemsInRow.push(
+        <CardGridItem
+          key={itemIndex}
+          product={products[itemIndex]}
+          onItemClick={onItemClick}
+          selectedProductId={selectedProductId}
+          context={context}
+          columnCount={columnCount}
+        />
+      );
+    }
+  }
+
+  return (
+    <div style={{ ...style, display: 'flex' }}>
+      {itemsInRow}
+    </div>
+  );
+};
+
+// --- Component for List/Thumbnail View ---
+
+const ListItem = React.memo(({ index, style, data }: { index: number, style: React.CSSProperties, data: any }) => {
+  const { products, viewMode, onItemClick, selectedProductId, context } = data;
+  const product = products[index];
+
+  const content = viewMode === 'thumbnail' ? (
+    <div className="p-1 h-full">
+      <ProductThumbnailItem
+        product={product}
+        onItemClick={onItemClick}
+        isSelected={product.id === selectedProductId}
+        context={context}
+      />
+    </div>
+  ) : (
+    <div className="p-1 h-full">
+      <ProductListItem
+        product={product}
+        onItemClick={onItemClick}
+        isSelected={product.id === selectedProductId}
+        context={context}
+      />
+    </div>
+  );
+  
+  return <div style={style}>{content}</div>;
+});
+ListItem.displayName = 'ListItem';
+
+// --- Loading Skeleton ---
 const LoadingSkeleton = ({ viewMode }: { viewMode: ViewMode }) => {
     const itemCount = 12;
     if (viewMode === 'list' || viewMode === 'thumbnail') {
@@ -44,78 +132,8 @@ const LoadingSkeleton = ({ viewMode }: { viewMode: ViewMode }) => {
     )
 }
 
-const OVERSCAN = 5; // Number of items to render above and below the viewport
-const CARD_ROW_HEIGHT_MOBILE = 380;
-const CARD_ROW_HEIGHT_DESKTOP = 290;
-const THUMBNAIL_HEIGHT = 88;
-const LIST_ITEM_HEIGHT = 76;
-const CARD_MIN_WIDTH = 210;
-
+// --- Main ProductList Component ---
 export function ProductList({ products, viewMode, isLoading, onItemClick, selectedProductId, context = 'cashier' }: ProductListProps) {
-    const scrollContainerRef = useRef<HTMLDivElement>(null);
-    const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
-    const [scrollTop, setScrollTop] = useState(0);
-
-    // Get container dimensions for calculations
-    useEffect(() => {
-        const container = scrollContainerRef.current;
-        if (!container) return;
-
-        const resizeObserver = new ResizeObserver(entries => {
-            if (entries[0]) {
-                const { width, height } = entries[0].contentRect;
-                setContainerSize({ width, height });
-            }
-        });
-        resizeObserver.observe(container);
-        return () => resizeObserver.disconnect();
-    }, []);
-
-    const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
-        setScrollTop(e.currentTarget.scrollTop);
-    };
-
-    const virtualization = useMemo(() => {
-        if (containerSize.height === 0 || containerSize.width === 0) {
-            return { visibleItems: [], totalHeight: 0, offset: 0, columnCount: 1 };
-        }
-
-        if (viewMode === 'card') {
-            const isMobileView = containerSize.width < 500;
-            const columnCount = isMobileView ? 2 : Math.max(1, Math.floor(containerSize.width / CARD_MIN_WIDTH));
-            const cardRowHeight = columnCount === 1 ? CARD_ROW_HEIGHT_MOBILE : CARD_ROW_HEIGHT_DESKTOP;
-            
-            const rowCount = Math.ceil(products.length / columnCount);
-            const totalHeight = rowCount * cardRowHeight;
-            
-            const startRow = Math.max(0, Math.floor(scrollTop / cardRowHeight) - OVERSCAN);
-            const visibleRowCount = Math.ceil(containerSize.height / cardRowHeight) + (2 * OVERSCAN);
-
-            const startIndex = startRow * columnCount;
-            const endIndex = Math.min(products.length, (startRow + visibleRowCount) * columnCount);
-            
-            const visibleItems = products.slice(startIndex, endIndex);
-            const offset = startRow * cardRowHeight;
-
-            return { visibleItems, totalHeight, offset, columnCount };
-
-        } else {
-            // Logic for 'list' and 'thumbnail'
-            const itemHeight = viewMode === 'list' ? LIST_ITEM_HEIGHT : THUMBNAIL_HEIGHT;
-            const totalHeight = products.length * itemHeight;
-            
-            const startIndex = Math.max(0, Math.floor(scrollTop / itemHeight) - OVERSCAN);
-            const visibleItemCount = Math.ceil(containerSize.height / itemHeight) + (2 * OVERSCAN);
-            const endIndex = Math.min(products.length, startIndex + visibleItemCount);
-
-            const visibleItems = products.slice(startIndex, endIndex);
-            const offset = startIndex * itemHeight;
-
-            return { visibleItems, totalHeight, offset, columnCount: 1 };
-        }
-    }, [products, viewMode, containerSize, scrollTop]);
-
-
     if (isLoading) {
         return <div className="h-full w-full"><LoadingSkeleton viewMode={viewMode} /></div>;
     }
@@ -130,49 +148,56 @@ export function ProductList({ products, viewMode, isLoading, onItemClick, select
             </div>
         );
     }
-    
-    const { visibleItems, totalHeight, offset, columnCount } = virtualization;
 
-    const renderItem = (product: Product) => {
-        const isSelected = product.id === selectedProductId;
-        switch (viewMode) {
-            case 'card':
-                return <ProductCard key={product.id} product={product} onItemClick={onItemClick} isSelected={isSelected} context={context} />;
-            case 'thumbnail':
-                return <ProductThumbnailItem key={product.id} product={product} onItemClick={onItemClick} isSelected={isSelected} context={context} />;
-            case 'list':
-                return <ProductListItem key={product.id} product={product} onItemClick={onItemClick} isSelected={isSelected} context={context} />;
-            default:
-                return null;
-        }
-    };
-    
     return (
-        <div ref={scrollContainerRef} onScroll={handleScroll} className="w-full h-full overflow-y-auto">
-            <div style={{ height: `${totalHeight}px`, position: 'relative' }}>
-                <div 
-                    style={{
-                        position: 'absolute',
-                        top: 0,
-                        left: 0,
-                        width: '100%',
-                        transform: `translateY(${offset}px)`,
-                    }}
-                >
-                    {viewMode === 'card' ? (
-                         <div 
-                            className="grid p-2 gap-2"
-                            style={{ gridTemplateColumns: `repeat(${columnCount}, 1fr)`}}
-                         >
-                            {visibleItems.map(renderItem)}
-                         </div>
-                    ) : (
-                         <div className="flex flex-col p-2 gap-2">
-                             {visibleItems.map(renderItem)}
-                         </div>
-                    )}
-                </div>
-            </div>
+        <div className="w-full h-full">
+            <AutoSizer>
+                {({ height, width }) => {
+                    if (!width || !height) return null;
+
+                    if (viewMode === 'card') {
+                        const columnCount = Math.max(1, Math.floor(width / CARD_MIN_WIDTH));
+                        const rowCount = Math.ceil(products.length / columnCount);
+                        return (
+                            <List
+                                height={height}
+                                width={width}
+                                itemCount={rowCount}
+                                itemSize={CARD_ROW_HEIGHT}
+                                itemData={{
+                                    products,
+                                    columnCount,
+                                    totalItems: products.length,
+                                    onItemClick,
+                                    selectedProductId,
+                                    context
+                                }}
+                            >
+                                {CardRow}
+                            </List>
+                        );
+                    } else { // 'list' or 'thumbnail'
+                        const itemHeight = viewMode === 'list' ? LIST_ROW_HEIGHT : THUMBNAIL_ROW_HEIGHT;
+                        return (
+                            <List
+                                height={height}
+                                width={width}
+                                itemCount={products.length}
+                                itemSize={itemHeight}
+                                itemData={{
+                                    products,
+                                    viewMode,
+                                    onItemClick,
+                                    selectedProductId,
+                                    context
+                                }}
+                            >
+                                {ListItem}
+                            </List>
+                        );
+                    }
+                }}
+            </AutoSizer>
         </div>
     );
 }
