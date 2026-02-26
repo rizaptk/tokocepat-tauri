@@ -25,6 +25,18 @@ export type Enclave = {
 export async function generateDeviceFingerprint(): Promise<string> {
     if (typeof window === 'undefined') return 'server-side-fingerprint';
 
+    const getPlugins = () => {
+        if (!navigator.plugins) return [];
+        const plugins = [];
+        for (let i = 0; i < navigator.plugins.length; i++) {
+            const plugin = navigator.plugins[i];
+            if (plugin) {
+               plugins.push(plugin.name);
+            }
+        }
+        return plugins.sort();
+    };
+
     const components = {
         userAgent: navigator.userAgent,
         language: navigator.language,
@@ -35,7 +47,10 @@ export async function generateDeviceFingerprint(): Promise<string> {
         timezone: new Date().getTimezoneOffset(),
         deviceMemory: (navigator as any).deviceMemory || -1,
         hardwareConcurrency: navigator.hardwareConcurrency || -1,
+        devicePixelRatio: window.devicePixelRatio || -1,
+        plugins: getPlugins(),
     };
+    
     const json = JSON.stringify(components);
     const hashBuffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(json));
     const hashArray = Array.from(new Uint8Array(hashBuffer));
