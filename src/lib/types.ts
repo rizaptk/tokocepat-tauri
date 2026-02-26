@@ -169,7 +169,9 @@ export interface PaymentTicket {
     userNotes?: string;
     createdAt: string; // ISO String
     updatedAt: string; // ISO String
-    licenseId?: string;
+    licenseKey?: string; // The license key generated when this ticket is resolved
+    deviceId?: string; // The unique ID of the client device that submitted the ticket
+    claimedAt?: string; // Timestamp for when the client has claimed the license
 }
 
 export interface SubscriptionPlan {

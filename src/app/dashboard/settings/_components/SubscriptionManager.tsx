@@ -88,6 +88,7 @@ export function SubscriptionManager() {
     const [isOnline, setIsOnline] = useState(false);
     const [selectedPlan, setSelectedPlan] = useState<SubscriptionPlan | null>(null);
     const [isTrialUsed, setIsTrialUsed] = useState(true);
+    const [deviceId, setDeviceId] = useState<string | null>(null);
     
     const formRef = useRef<HTMLFormElement>(null);
     const initialState: FormState = { message: '' };
@@ -96,15 +97,17 @@ export function SubscriptionManager() {
     useEffect(() => {
         async function checkStatusAndFetchSettings() {
             setLoading(true);
+            const generatedDeviceId = await generateDeviceFingerprint();
+            setDeviceId(generatedDeviceId);
+
             const trialHasBeenUsed = localStorage.getItem('tokoc_trial_activated_on_device') === 'true';
             setIsTrialUsed(trialHasBeenUsed);
             
             try {
-                const enclave = await readSecureEnclave();
                 const response = await fetch('/api/heartbeat', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(enclave ? { token: enclave.licenseKey } : {}),
+                    body: JSON.stringify({ deviceId: generatedDeviceId }), // Ping with deviceId
                 });
                 
                 if (response.ok) {
@@ -141,8 +144,11 @@ export function SubscriptionManager() {
     }, [state, toast]);
 
     const handleActivateTrial = async (planId: string) => {
+        if (!deviceId) {
+            toast({ variant: 'destructive', title: 'Error', description: 'Device ID could not be determined.' });
+            return;
+        }
         try {
-            const deviceId = await generateDeviceFingerprint();
             const result = await activateTrialAction(planId, deviceId);
 
             if (result.error) {
@@ -258,6 +264,7 @@ export function SubscriptionManager() {
                         <h3 className="text-lg font-semibold">Step 3: Submit Your Proof</h3>
                         <form ref={formRef} action={formAction} className="space-y-6">
                             <input type="hidden" name="plan" value={selectedPlan.name} />
+                            <input type="hidden" name="deviceId" value={deviceId || ''} />
                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                  <div className="space-y-2">
                                     <Label htmlFor="customerName">Full Name</Label>
@@ -285,6 +292,7 @@ export function SubscriptionManager() {
                                 <Label htmlFor="userNotes">Notes (Optional)</Label>
                                 <Textarea id="userNotes" name="userNotes" placeholder="e.g., Payment for account renewal." />
                             </div>
+                             {state?.errors?.deviceId && <p className="text-sm font-medium text-destructive text-center">{state.errors.deviceId}</p>}
                             {state?.errors?._form && <p className="text-sm font-medium text-destructive text-center">{state.errors._form}</p>}
                             <SubmitButton />
                         </form>

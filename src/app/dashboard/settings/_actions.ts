@@ -1,3 +1,4 @@
+
 'use server';
 
 import { z } from 'zod';
@@ -33,6 +34,7 @@ const SubmitTicketSchema = z.object({
   plan: z.string().min(1, 'Please select a plan.'),
   proofOfPaymentUrl: z.string().url({ message: 'Please enter a valid URL.' }),
   userNotes: z.string().optional(),
+  deviceId: z.string().min(1, 'Device ID is required.'),
 });
 
 export type FormState = {
@@ -44,6 +46,7 @@ export type FormState = {
     plan?: string[];
     proofOfPaymentUrl?: string[];
     userNotes?: string[];
+    deviceId?: string[];
     _form?: string[];
   };
 };
@@ -56,6 +59,7 @@ export async function submitPaymentTicketAction(prevState: FormState, formData: 
     plan: formData.get('plan'),
     proofOfPaymentUrl: formData.get('proofOfPaymentUrl'),
     userNotes: formData.get('userNotes'),
+    deviceId: formData.get('deviceId'),
   });
 
   if (!validatedFields.success) {
@@ -65,7 +69,7 @@ export async function submitPaymentTicketAction(prevState: FormState, formData: 
     };
   }
 
-  const { customerName, customerEmail, customerWhatsapp, plan, proofOfPaymentUrl, userNotes } = validatedFields.data;
+  const { customerName, customerEmail, customerWhatsapp, plan, proofOfPaymentUrl, userNotes, deviceId } = validatedFields.data;
   
   try {
     const customerId = await findOrCreateCustomer(customerEmail, customerName);
@@ -82,6 +86,8 @@ export async function submitPaymentTicketAction(prevState: FormState, formData: 
         status: 'pending',
         createdAt: now,
         updatedAt: now,
+        deviceId, // Save the device ID with the ticket
+        claimedAt: null, // Initialize claimedAt to null
     });
     
     return { message: 'success' };

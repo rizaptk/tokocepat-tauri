@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { ExternalLink, Ticket, AlertTriangle, Loader2, User, Mail, MessageSquare } from 'lucide-react';
+import { ExternalLink, Ticket, AlertTriangle, Loader2, User, Mail, MessageSquare, Monitor } from 'lucide-react';
 
 type TicketStatus = 'pending' | 'processing' | 'resolved' | 'rejected';
 
@@ -56,6 +56,7 @@ function TicketCard({ ticket, onStatusChange }: { ticket: PaymentTicket, onStatu
                 <div className="space-y-1">
                     <div className="flex items-center gap-2 text-muted-foreground"><Mail className="h-4 w-4" /> <span>{ticket.customerEmail}</span></div>
                     <div className="flex items-center gap-2 text-muted-foreground"><MessageSquare className="h-4 w-4" /> <span>{ticket.customerWhatsapp}</span></div>
+                    {ticket.deviceId && <div className="flex items-center gap-2 text-muted-foreground"><Monitor className="h-4 w-4" /> <span className="font-mono text-xs">{ticket.deviceId.substring(0, 16)}...</span></div>}
                 </div>
 
                 <p className="text-muted-foreground italic border-l-2 pl-3">"{ticket.userNotes || 'No notes provided by user.'}"</p>
@@ -67,6 +68,11 @@ function TicketCard({ ticket, onStatusChange }: { ticket: PaymentTicket, onStatu
                         </a>
                     </Button>
                 </div>
+                 {ticket.licenseKey && ticket.status === 'resolved' && (
+                     <div className="text-xs text-muted-foreground pt-2 border-t">
+                        <p>Linked License Key: <span className="font-mono font-semibold">{ticket.licenseKey}</span></p>
+                    </div>
+                )}
             </CardContent>
             <CardFooter className="flex gap-2">
                 {isPending && <Loader2 className="animate-spin h-4 w-4" />}

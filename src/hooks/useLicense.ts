@@ -4,6 +4,7 @@
 import { useState, useEffect } from 'react';
 import { readSecureEnclave, generateDeviceFingerprint, writeSecureEnclave } from '@/lib/security';
 import { decodeJwt } from 'jose';
+import { useToast } from './use-toast';
 
 export type LicenseStatus = 
     | 'VALID'       // Everything is OK
@@ -17,26 +18,43 @@ export type LicenseStatus =
 
 const EXPIRY_WARNING_DAYS = 7;
 
-const sendHeartbeat = async (token: string) => {
-    try {
-        await fetch('/api/heartbeat', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ token }),
-        });
-    } catch (error) {
-        // This is a background task, so we don't need to bother the user if it fails.
-        console.warn("Heartbeat failed. This can happen when offline.", error);
-    }
-};
-
 export function useLicense() {
+    const { toast } = useToast();
     const [status, setStatus] = useState<LicenseStatus>('LOADING');
     const [licenseDetails, setLicenseDetails] = useState<any>(null);
 
     useEffect(() => {
         const checkLicense = async () => {
             const enclave = await readSecureEnclave();
+            const currentDeviceId = await generateDeviceFingerprint();
+
+            // --- Heartbeat and Auto-Activation Logic ---
+            // This runs whether a license is found or not, allowing unlicensed clients to claim a resolved ticket.
+            if (navigator.onLine) {
+                try {
+                    const response = await fetch('/api/heartbeat', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            token: enclave?.licenseKey,
+                            deviceId: currentDeviceId
+                        }),
+                    });
+                    const data = await response.json();
+                    
+                    // If server finds a new resolved license for this device, it sends back a token.
+                    if (data.token) {
+                        await writeSecureEnclave({ licenseKey: data.token, lastKnownTime: new Date().toISOString() });
+                        toast({ title: "License Activated!", description: "Your new license is active. The app will now reload." });
+                        setTimeout(() => window.location.reload(), 1500);
+                        return; // Halt further execution as the page will reload
+                    }
+                } catch (error) {
+                    console.warn("Heartbeat failed. This can happen when offline.", error);
+                }
+            }
+            // --- End Heartbeat Logic ---
+
 
             if (!enclave || !enclave.licenseKey) {
                 setStatus('NOT_FOUND');
@@ -75,7 +93,6 @@ export function useLicense() {
                 return;
             }
 
-            const currentDeviceId = await generateDeviceFingerprint();
             if (currentDeviceId !== payload.deviceId) {
                 setStatus('CLONED');
                 return;
@@ -98,11 +115,6 @@ export function useLicense() {
             setStatus(finalStatus);
             setLicenseDetails(details);
             
-            // --- UPDATED: Send heartbeat AFTER all checks pass ---
-            if (navigator.onLine) {
-                sendHeartbeat(enclave.licenseKey);
-            }
-
             if (payload.isTrial) {
                 localStorage.setItem('tokoc_trial_activated_on_device', 'true');
             }
@@ -111,7 +123,7 @@ export function useLicense() {
         };
 
         checkLicense();
-    }, []);
+    }, [toast]);
 
     const deactivate = async (): Promise<void> => {
         const enclave = await readSecureEnclave();

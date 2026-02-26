@@ -64,7 +64,7 @@ export async function updateTicketStatusAction(data: TicketStatusUpdate): Promis
         const ticketData = ticketSnap.data() as PaymentTicket;
 
         if (newStatus === 'resolved') {
-            const { customerEmail, plan: planName, customerName } = ticketData;
+            const { customerEmail, plan: planName, customerName, deviceId } = ticketData;
 
             // --- Get Plan Details ---
             const plansSnap = await db.collection('app_settings').doc('subscriptionPlans').get();
@@ -81,13 +81,20 @@ export async function updateTicketStatusAction(data: TicketStatusUpdate): Promis
 
             // --- Find existing license to renew, or create new ---
             const licensesRef = db.collection('licenses');
-            const licenseQuery = await licensesRef.where('customerId', '==', customerId).limit(1).get();
+            let licenseQuery;
+            // Prefer finding license by device ID if it was a trial, otherwise by customer
+            if (deviceId) {
+                licenseQuery = await licensesRef.where('activations', 'array-contains', { deviceId: deviceId, isActive: true }).limit(1).get();
+            }
+            if (!licenseQuery || licenseQuery.empty) {
+                licenseQuery = await licensesRef.where('customerId', '==', customerId).limit(1).get();
+            }
 
-            let finalLicenseId: string;
+            let finalLicenseKey: string;
 
             if (!licenseQuery.empty) { // RENEWAL / UPGRADE SCENARIO
                 const licenseDoc = licenseQuery.docs[0];
-                finalLicenseId = licenseDoc.id;
+                finalLicenseKey = licenseDoc.data().key;
                 const licenseData = licenseDoc.data();
                 
                 // If current license is expired, start new period from now. Otherwise, extend from current expiry.
@@ -112,6 +119,7 @@ export async function updateTicketStatusAction(data: TicketStatusUpdate): Promis
 
             } else { // NEW LICENSE SCENARIO
                 const licenseKey = `TKN-${randomBytes(4).toString('hex').toUpperCase()}-${randomBytes(4).toString('hex').toUpperCase()}`;
+                finalLicenseKey = licenseKey;
                 
                 let expiresAt: Date | null = new Date();
                  if (purchasedPlan.durationDays > 0) {
@@ -130,15 +138,21 @@ export async function updateTicketStatusAction(data: TicketStatusUpdate): Promis
                   activations: [], 
                   maxSeats: purchasedPlan.maxSeats,
                 };
-                const newLicenseRef = await db.collection('licenses').add(newLicense);
-                finalLicenseId = newLicenseRef.id;
-
+                await db.collection('licenses').add(newLicense);
+                
                 // Update customer's license count
                 const customerDoc = await db.collection('customers').doc(customerId).get();
                 const currentCount = customerDoc.data()?.licenseCount || 0;
                 await db.collection('customers').doc(customerId).update({ licenseCount: currentCount + 1 });
             }
-             await ticketRef.update({ status: 'resolved', notes, licenseId: finalLicenseId, updatedAt: new Date() });
+            
+            // Link the generated license key back to the ticket
+            await ticketRef.update({ 
+                status: 'resolved', 
+                notes, 
+                licenseKey: finalLicenseKey, 
+                updatedAt: new Date() 
+            });
 
         } else { // For 'processing' or 'rejected'
             await ticketRef.update({ status: newStatus, notes, updatedAt: new Date() });
