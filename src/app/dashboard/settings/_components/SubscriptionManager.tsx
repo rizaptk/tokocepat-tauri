@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Send, Loader2, Check, Star, Banknote, MessageSquare, Info, Shield } from "lucide-react";
+import { Send, Loader2, Check, Info, WifiOff } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { submitPaymentTicketAction, type FormState, getPublicSettings } from '../_actions';
 import { SubscriptionPlan, PaymentInstructions } from '@/lib/types';
@@ -56,6 +56,7 @@ export function SubscriptionManager() {
     const { toast } = useToast();
     const [settings, setSettings] = useState<{ plans: SubscriptionPlan[], instructions: PaymentInstructions } | null>(null);
     const [loading, setLoading] = useState(true);
+    const [isOnline, setIsOnline] = useState(false);
     const [selectedPlan, setSelectedPlan] = useState<SubscriptionPlan | null>(null);
     
     const formRef = useRef<HTMLFormElement>(null);
@@ -63,13 +64,24 @@ export function SubscriptionManager() {
     const [state, formAction] = useActionState(submitPaymentTicketAction, initialState);
 
     useEffect(() => {
-        async function loadData() {
+        async function checkStatusAndFetchSettings() {
             setLoading(true);
-            const data = await getPublicSettings();
-            setSettings(data);
-            setLoading(false);
+            try {
+                const response = await fetch('/api/ping');
+                if (response.ok) {
+                    setIsOnline(true);
+                    const data = await getPublicSettings();
+                    setSettings(data);
+                } else {
+                    setIsOnline(false);
+                }
+            } catch (error) {
+                setIsOnline(false);
+            } finally {
+                setLoading(false);
+            }
         }
-        loadData();
+        checkStatusAndFetchSettings();
     }, []);
 
     useEffect(() => {
@@ -97,13 +109,28 @@ export function SubscriptionManager() {
                     <Skeleton className="h-4 w-3/4" />
                 </CardHeader>
                 <CardContent className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <Skeleton className="h-48 w-full" />
-                        <Skeleton className="h-48 w-full" />
-                    </div>
+                    <Skeleton className="h-24 w-full" />
                 </CardContent>
             </Card>
         )
+    }
+    
+    if (!isOnline) {
+        return (
+            <Card id="subscription">
+                 <CardHeader>
+                    <CardTitle>Subscription</CardTitle>
+                    <CardDescription>Manage your subscription plan.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div className="flex flex-col items-center justify-center gap-4 text-center p-8 bg-muted/50 rounded-lg border border-dashed">
+                        <WifiOff className="h-10 w-10 text-muted-foreground" />
+                        <p className="font-semibold">You are currently offline</p>
+                        <p className="text-sm text-muted-foreground">Please connect to the internet to manage your subscription.</p>
+                    </div>
+                </CardContent>
+            </Card>
+        );
     }
     
     if (!settings || settings.plans.length === 0) {
