@@ -1,15 +1,26 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/firebase-admin';
 import { SubscriptionPlan } from '@/lib/types';
+import * as jose from 'jose';
 
-// A basic Base64URL encoder
-function base64url(source: any) {
-    let encodedSource = Buffer.from(JSON.stringify(source)).toString('base64');
-    encodedSource = encodedSource.replace(/=+$/, '');
-    encodedSource = encodedSource.replace(/\+/g, '-');
-    encodedSource = encodedSource.replace(/\//g, '_');
-    return encodedSource;
+// Helper to find or create a customer and return their ID
+async function findOrCreateCustomer(email: string, name?: string): Promise<string> {
+    const customersRef = db.collection('customers');
+    const customerQuery = await customersRef.where('email', '==', email).limit(1).get();
+
+    if (customerQuery.empty) {
+        const newCustomerRef = await customersRef.add({ email, name: name || '', createdAt: new Date(), licenseCount: 0 });
+        return newCustomerRef.id;
+    } else {
+        // If the customer exists but their name was empty, update it.
+        const customerDoc = customerQuery.docs[0];
+        if (!customerDoc.data().name && name) {
+            await customerDoc.ref.update({ name });
+        }
+        return customerDoc.id;
+    }
 }
+
 
 export async function POST(request: Request) {
     try {
@@ -80,25 +91,29 @@ export async function POST(request: Request) {
         }
         // --- END NEW ---
 
-        // Create JWT payload
-        const now = Math.floor(Date.now() / 1000);
-        let exp = licenseData.expiresAt ? Math.floor(licenseData.expiresAt.toDate().getTime() / 1000) : null;
-        
-        const payload: any = {
+        // --- Create SIGNED JWT ---
+        const secret = new TextEncoder().encode(process.env.JWT_SECRET_KEY);
+        const alg = 'HS256';
+
+        const jwtPayload: any = {
             sub: licenseKey,
             deviceId: deviceId,
             plan: licenseData.plan,
-            iat: now,
-            isTrial: selectedPlan?.isTrial || false, // Add isTrial flag to payload
+            isTrial: selectedPlan?.isTrial || false,
         };
-        if (exp) {
-            payload.exp = exp;
+        
+        const jwtBuilder = new jose.SignJWT(jwtPayload)
+            .setProtectedHeader({ alg })
+            .setIssuedAt()
+            .setSubject(licenseKey);
+
+        if (licenseData.expiresAt) {
+             jwtBuilder.setExpirationTime(Math.floor(licenseData.expiresAt.toDate().getTime() / 1000));
         }
 
-        const header = { alg: 'none', typ: 'JWT' };
-        const pseudoToken = `${base64url(header)}.${base64url(payload)}.`;
-
-        return NextResponse.json({ token: pseudoToken }, { status: 200 });
+        const token = await jwtBuilder.sign(secret);
+        
+        return NextResponse.json({ token }, { status: 200 });
 
     } catch (error: any) {
         console.error('Activation Error:', error.message);

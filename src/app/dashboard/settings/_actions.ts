@@ -4,6 +4,27 @@ import { z } from 'zod';
 import { db } from '@/lib/firebase-admin';
 import { SubscriptionPlan, PaymentInstructions } from '@/lib/types';
 import { randomBytes } from 'crypto';
+import * as jose from 'jose';
+
+
+// --- Helper function to find or create customer ---
+async function findOrCreateCustomer(email: string, name?: string): Promise<string> {
+    const customersRef = db.collection('customers');
+    const customerQuery = await customersRef.where('email', '==', email).limit(1).get();
+
+    if (customerQuery.empty) {
+        const newCustomerRef = await customersRef.add({ email, name: name || '', createdAt: new Date(), licenseCount: 0 });
+        return newCustomerRef.id;
+    } else {
+        const customerDoc = customerQuery.docs[0];
+        // If the customer exists but their name was empty or different, update it.
+        const currentName = customerDoc.data().name || '';
+        if (name && currentName !== name) {
+            await customerDoc.ref.update({ name });
+        }
+        return customerDoc.id;
+    }
+}
 
 const SubmitTicketSchema = z.object({
   customerName: z.string().min(2, 'Please enter your full name.'),
@@ -45,21 +66,10 @@ export async function submitPaymentTicketAction(prevState: FormState, formData: 
   }
 
   const { customerName, customerEmail, customerWhatsapp, plan, proofOfPaymentUrl, userNotes } = validatedFields.data;
-  const now = new Date();
-
+  
   try {
-    const customersRef = db.collection('customers');
-    let customerQuery = await customersRef.where('email', '==', customerEmail).limit(1).get();
-    let customerId: string;
-
-    if (customerQuery.empty) {
-        const newCustomerRef = await customersRef.add({ email: customerEmail, name: customerName, createdAt: now, licenseCount: 0 });
-        customerId = newCustomerRef.id;
-    } else {
-        customerId = customerQuery.docs[0].id;
-        // Optionally update name if it has changed
-        await customerQuery.docs[0].ref.update({ name: customerName });
-    }
+    const customerId = await findOrCreateCustomer(customerEmail, customerName);
+    const now = new Date();
     
     await db.collection('paymentTickets').add({
         customerId,
@@ -155,22 +165,22 @@ export async function activateTrialAction(planId: string, deviceId: string): Pro
             licenseKey: licenseKey,
         });
         
-        const now = Math.floor(Date.now() / 1000);
-        const exp = Math.floor(expiresAt.getTime() / 1000);
+        // --- Create SIGNED JWT ---
+        const secret = new TextEncoder().encode(process.env.JWT_SECRET_KEY);
+        const alg = 'HS256';
         
-        const payload = {
-            sub: licenseKey,
-            deviceId: deviceId,
-            plan: trialPlan.name,
-            iat: now,
-            exp: exp,
-            isTrial: true,
-        };
+        const jwt = await new jose.SignJWT({
+                deviceId: deviceId,
+                plan: trialPlan.name,
+                isTrial: true,
+            })
+            .setProtectedHeader({ alg })
+            .setIssuedAt()
+            .setExpirationTime(Math.floor(expiresAt.getTime() / 1000))
+            .setSubject(licenseKey)
+            .sign(secret);
 
-        const base64url = (source: any) => Buffer.from(JSON.stringify(source)).toString('base64').replace(/=+$/, '').replace(/\+/g, '-').replace(/_/g, '_');
-        const pseudoToken = `${base64url({ alg: 'none', typ: 'JWT' })}.${base64url(payload)}.`;
-
-        return { token: pseudoToken };
+        return { token: jwt };
 
     } catch (error: any) {
         console.error("Trial activation failed:", error);

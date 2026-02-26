@@ -6,6 +6,26 @@ import { PaymentTicket, SubscriptionPlan } from '@/lib/types';
 import { revalidatePath } from 'next/cache';
 import { randomBytes } from 'crypto';
 
+// --- Helper function to find or create customer ---
+async function findOrCreateCustomer(email: string, name?: string): Promise<string> {
+    const customersRef = db.collection('customers');
+    const customerQuery = await customersRef.where('email', '==', email).limit(1).get();
+
+    if (customerQuery.empty) {
+        const newCustomerRef = await customersRef.add({ email, name: name || '', createdAt: new Date(), licenseCount: 0 });
+        return newCustomerRef.id;
+    } else {
+        const customerDoc = customerQuery.docs[0];
+        // If the customer exists but their name was empty or different, update it.
+        const currentName = customerDoc.data().name || '';
+        if (name && currentName !== name) {
+            await customerDoc.ref.update({ name });
+        }
+        return customerDoc.id;
+    }
+}
+
+
 export async function getPaymentTicketsAction(): Promise<{ tickets: PaymentTicket[] } | { error: string }> {
     try {
         const snapshot = await db.collection('paymentTickets').orderBy('createdAt', 'desc').get();
@@ -48,6 +68,8 @@ export async function updateTicketStatusAction(data: TicketStatusUpdate): Promis
 
             // --- Get Plan Details ---
             const plansSnap = await db.collection('app_settings').doc('subscriptionPlans').get();
+            if (!plansSnap.exists) throw new Error("Subscription plans are not configured.");
+            
             const allPlans = (plansSnap.data()?.plans || []) as SubscriptionPlan[];
             const purchasedPlan = allPlans.find(p => p.name === planName);
             if (!purchasedPlan) {
@@ -55,16 +77,7 @@ export async function updateTicketStatusAction(data: TicketStatusUpdate): Promis
             }
 
             // --- Find or Create Customer ---
-            const customersRef = db.collection('customers');
-            let customerQuery = await customersRef.where('email', '==', customerEmail).limit(1).get();
-            let customerId: string;
-             if (customerQuery.empty) {
-                const newCustomerRef = await customersRef.add({ email: customerEmail, name: customerName, createdAt: new Date(), licenseCount: 0 });
-                customerId = newCustomerRef.id;
-            } else {
-                customerId = customerQuery.docs[0].id;
-                await customerQuery.docs[0].ref.update({ name: customerName });
-            }
+            const customerId = await findOrCreateCustomer(customerEmail, customerName);
 
             // --- Find existing license to renew, or create new ---
             const licensesRef = db.collection('licenses');
@@ -72,7 +85,7 @@ export async function updateTicketStatusAction(data: TicketStatusUpdate): Promis
 
             let finalLicenseId: string;
 
-            if (!licenseQuery.empty) { // RENEWAL / UPGRADE / PROLONG
+            if (!licenseQuery.empty) { // RENEWAL / UPGRADE SCENARIO
                 const licenseDoc = licenseQuery.docs[0];
                 finalLicenseId = licenseDoc.id;
                 const licenseData = licenseDoc.data();
@@ -85,7 +98,7 @@ export async function updateTicketStatusAction(data: TicketStatusUpdate): Promis
                 let newExpiresAt: Date | null = startDate;
                 
                 if (purchasedPlan.durationDays > 0) {
-                     newExpiresAt = new Date(startDate.setDate(startDate.getDate() + purchasedPlan.durationDays));
+                     newExpiresAt.setDate(startDate.getDate() + purchasedPlan.durationDays);
                 } else if (purchasedPlan.durationDays === -1) {
                     newExpiresAt = null; // Lifetime plan
                 }
@@ -93,11 +106,11 @@ export async function updateTicketStatusAction(data: TicketStatusUpdate): Promis
                 await licenseDoc.ref.update({
                     status: 'active',
                     expiresAt: newExpiresAt,
-                    plan: purchasedPlan.name, // Update to the new plan name
-                    maxSeats: purchasedPlan.maxSeats, // Update max seats
+                    plan: purchasedPlan.name,
+                    maxSeats: purchasedPlan.maxSeats,
                 });
 
-            } else { // NEW LICENSE
+            } else { // NEW LICENSE SCENARIO
                 const licenseKey = `TKN-${randomBytes(4).toString('hex').toUpperCase()}-${randomBytes(4).toString('hex').toUpperCase()}`;
                 
                 let expiresAt: Date | null = new Date();
@@ -132,6 +145,8 @@ export async function updateTicketStatusAction(data: TicketStatusUpdate): Promis
         }
 
         revalidatePath('/admin/tickets');
+        revalidatePath('/admin/licenses');
+        revalidatePath('/admin/customers');
         return { success: true };
     } catch (error: any) {
         console.error("Failed to update ticket status:", error);

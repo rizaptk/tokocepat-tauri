@@ -1,21 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/firebase-admin';
-
-// A basic, library-free JWT payload decoder.
-function decodeJwtPayload(token: string): any | null {
-    try {
-        const base64Url = token.split('.')[1];
-        if (!base64Url) return null;
-        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-        const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
-            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-        }).join(''));
-        return JSON.parse(jsonPayload);
-    } catch (e) {
-        console.error("Failed to decode JWT payload:", e);
-        return null;
-    }
-}
+import * as jose from 'jose';
 
 export async function POST(request: Request) {
     try {
@@ -25,20 +10,30 @@ export async function POST(request: Request) {
         if (!token) {
             return NextResponse.json({ error: 'License token is required.' }, { status: 400 });
         }
+        
+        const secret = new TextEncoder().encode(process.env.JWT_SECRET_KEY);
 
-        const payload = decodeJwtPayload(token);
-        if (!payload || !payload.sub || !payload.deviceId) {
-            return NextResponse.json({ error: 'Invalid license token.' }, { status: 400 });
+        // Verify the JWT signature and get the payload
+        let payload;
+        try {
+             const { payload: verifiedPayload } = await jose.jwtVerify(token, secret);
+             payload = verifiedPayload;
+        } catch (e: any) {
+             return NextResponse.json({ error: `Invalid license token: ${e.message}` }, { status: 401 });
         }
 
-        const { sub: licenseKey, deviceId } = payload;
+        if (!payload || !payload.sub || !payload.deviceId) {
+            return NextResponse.json({ error: 'Invalid token payload.' }, { status: 400 });
+        }
+
+        const licenseKey = payload.sub as string;
+        const deviceId = payload.deviceId as string;
         
         const licensesRef = db.collection('licenses');
         const query = licensesRef.where('key', '==', licenseKey).limit(1);
         const snapshot = await query.get();
 
         if (snapshot.empty) {
-            // This case is unlikely if the token was valid, but good to have.
             return NextResponse.json({ error: 'License key not found.' }, { status: 404 });
         }
 
