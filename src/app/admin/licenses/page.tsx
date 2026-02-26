@@ -162,7 +162,11 @@ export default async function AdminLicensesPage() {
                                                 {license.status}
                                             </Badge>
                                         </TableCell>
-                                        <TableCell>{license.expiresAt ? new Date(license.expiresAt.toDate()).toLocaleDateString() : 'Never'}</TableCell>
+                                        <TableCell>
+                                            {license.expiresAt && typeof license.expiresAt.toDate === 'function'
+                                                ? new Date(license.expiresAt.toDate()).toLocaleDateString()
+                                                : 'Never'}
+                                        </TableCell>
                                         <TableCell className="text-right">
                                             <DropdownMenu>
                                                 <DropdownMenuTrigger asChild>

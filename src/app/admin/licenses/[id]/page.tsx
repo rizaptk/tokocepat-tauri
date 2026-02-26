@@ -19,7 +19,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { ArrowLeft, KeyRound, User, PowerOff, Laptop, CheckCircle, CircleOff } from 'lucide-react';
+import { ArrowLeft, KeyRound, User, Laptop, CheckCircle, CircleOff } from 'lucide-react';
 import { DeactivateButton } from './_components/DeactivateButton';
 
 async function getLicenseDetails(id: string) {
@@ -36,7 +36,7 @@ async function getLicenseDetails(id: string) {
     const licenseData = licenseSnap.data();
     let customerData = null;
 
-    if (licenseData?.customerId) {
+    if (licenseData?.customerId && licenseData.customerId.length > 0) {
         const customerRef = db.collection('customers').doc(licenseData.customerId);
         const customerSnap = await customerRef.get();
         if (customerSnap.exists) {
@@ -111,11 +111,19 @@ export default async function LicenseDetailsPage({ params }: { params: { id: str
                             </div>
                             <div className="space-y-1">
                                 <p className="text-sm font-medium text-muted-foreground">Created On</p>
-                                <p className="font-medium">{new Date(license.createdAt.toDate()).toLocaleDateString()}</p>
+                                <p className="font-medium">
+                                    {license.createdAt && typeof license.createdAt.toDate === 'function'
+                                        ? new Date(license.createdAt.toDate()).toLocaleDateString()
+                                        : 'N/A'}
+                                </p>
                             </div>
                             <div className="space-y-1">
                                 <p className="text-sm font-medium text-muted-foreground">Expires On</p>
-                                <p className="font-medium">{license.expiresAt ? new Date(license.expiresAt.toDate()).toLocaleDateString() : 'Never'}</p>
+                                <p className="font-medium">
+                                    {license.expiresAt && typeof license.expiresAt.toDate === 'function'
+                                        ? new Date(license.expiresAt.toDate()).toLocaleDateString()
+                                        : 'Never'}
+                                </p>
                             </div>
                         </CardContent>
                     </Card>
@@ -141,7 +149,11 @@ export default async function LicenseDetailsPage({ params }: { params: { id: str
                                         {license.activations.map((act: any) => (
                                             <TableRow key={act.deviceId}>
                                                 <TableCell className="font-mono text-xs">{act.deviceId.substring(0, 12)}...</TableCell>
-                                                <TableCell>{new Date(act.activatedAt.toDate()).toLocaleDateString()}</TableCell>
+                                                <TableCell>
+                                                    {act.activatedAt && typeof act.activatedAt.toDate === 'function'
+                                                        ? new Date(act.activatedAt.toDate()).toLocaleDateString()
+                                                        : 'N/A'}
+                                                </TableCell>
                                                 <TableCell>
                                                     {act.isActive ? (
                                                         <Badge variant="default" className="bg-green-600 hover:bg-green-600/80 text-xs">
