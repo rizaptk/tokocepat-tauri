@@ -14,7 +14,7 @@ import { submitPaymentTicketAction, type FormState, getPublicSettings, activateT
 import { SubscriptionPlan, PaymentInstructions } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
-import { generateDeviceFingerprint, writeSecureEnclave } from '@/lib/security';
+import { generateDeviceFingerprint, writeSecureEnclave, readSecureEnclave } from '@/lib/security';
 
 
 const formatCurrency = (amount: number) => {
@@ -96,10 +96,17 @@ export function SubscriptionManager() {
     useEffect(() => {
         async function checkStatusAndFetchSettings() {
             setLoading(true);
-             const trialHasBeenUsed = localStorage.getItem('tokoc_trial_activated_on_device') === 'true';
-             setIsTrialUsed(trialHasBeenUsed);
+            const trialHasBeenUsed = localStorage.getItem('tokoc_trial_activated_on_device') === 'true';
+            setIsTrialUsed(trialHasBeenUsed);
+            
             try {
-                const response = await fetch('/api/ping');
+                const enclave = await readSecureEnclave();
+                const response = await fetch('/api/heartbeat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(enclave ? { token: enclave.licenseKey } : {}),
+                });
+                
                 if (response.ok) {
                     setIsOnline(true);
                     const data = await getPublicSettings();

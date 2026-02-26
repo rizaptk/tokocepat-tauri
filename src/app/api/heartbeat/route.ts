@@ -1,3 +1,4 @@
+
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/firebase-admin';
 import * as jose from 'jose';
@@ -5,13 +6,15 @@ import * as admin from 'firebase-admin';
 
 export async function POST(request: Request) {
     try {
-        const body = await request.json();
+        const body = await request.json().catch(() => ({})); // Handle cases with no body
         const { token } = body;
 
+        // If no token is provided, this is a simple "ping" to check if the server is up.
         if (!token) {
-            return NextResponse.json({ error: 'Token is required.' }, { status: 400 });
+            return NextResponse.json({ status: 'ok_ping' }, { status: 200 });
         }
         
+        // If a token is provided, proceed with the heartbeat logic to update online status.
         const secret = new TextEncoder().encode(process.env.JWT_SECRET_KEY);
 
         let payload;
@@ -19,46 +22,39 @@ export async function POST(request: Request) {
              const { payload: verifiedPayload } = await jose.jwtVerify(token, secret);
              payload = verifiedPayload;
         } catch (e: any) {
-             return NextResponse.json({ error: `Invalid license token: ${e.message}` }, { status: 401 });
+             // Don't return an error for an invalid token during a heartbeat, just log it.
+             // The main license check will handle enforcement.
+             console.warn(`Heartbeat with invalid token received: ${e.message}`);
+             return NextResponse.json({ status: 'ok_invalid_token' }, { status: 200 });
         }
 
         if (!payload || !payload.sub || !payload.deviceId) {
-            return NextResponse.json({ error: 'Invalid token payload.' }, { status: 400 });
+            console.warn('Heartbeat with invalid payload received.');
+            return NextResponse.json({ status: 'ok_invalid_payload' }, { status: 200 });
         }
 
         const licenseKey = payload.sub as string;
         const deviceId = payload.deviceId as string;
-        const plan = payload.plan as string;
+        const plan = (payload.plan as string) || 'N/A';
 
         // Find license to get customerId
         const licensesRef = db.collection('licenses');
         const query = licensesRef.where('key', '==', licenseKey).limit(1);
         const snapshot = await query.get();
 
-        if (snapshot.empty) {
-            // Don't treat this as a hard error, the license might have been created just now
-            // and Firestore replication isn't instant. The client is valid, so we can just
-            // log the session without full customer details for now.
-             const sessionRef = db.collection('online_sessions').doc(deviceId);
-             await sessionRef.set({
-                customerId: 'unknown',
-                customerEmail: 'unknown',
-                licenseKey,
-                plan,
-                lastSeen: admin.firestore.FieldValue.serverTimestamp(),
-            }, { merge: true });
-            return NextResponse.json({ status: 'ok_no_license_yet' }, { status: 200 });
-        }
+        let customerId = 'unknown';
+        let customerEmail = 'unknown';
 
-        const licenseDoc = snapshot.docs[0];
-        const licenseData = licenseDoc.data();
-        const customerId = licenseData.customerId;
-
-        let customerEmail = 'N/A';
-        if (customerId) {
-            const customerSnap = await db.collection('customers').doc(customerId).get();
-            if (customerSnap.exists) {
-                customerEmail = customerSnap.data()?.email || 'N/A';
+        if (!snapshot.empty) {
+            const licenseDoc = snapshot.docs[0];
+            const licenseData = licenseDoc.data();
+            customerId = licenseData.customerId || 'unknown';
+            
+            if (customerId !== 'unknown') {
+                const customerSnap = await db.collection('customers').doc(customerId).get();
+                if (customerSnap.exists) {
+                    customerEmail = customerSnap.data()?.email || 'unknown';
+                }
             }
         }
 
@@ -76,6 +72,8 @@ export async function POST(request: Request) {
 
     } catch (error: any) {
         console.error('Heartbeat Error:', error.message);
+        // Return a server error, but a 500 status will be caught by the client's .catch() block
         return NextResponse.json({ error: 'Server error during heartbeat.' }, { status: 500 });
     }
 }
+
