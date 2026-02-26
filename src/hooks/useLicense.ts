@@ -80,31 +80,28 @@ export function useLicense() {
                 setStatus('CLONED');
                 return;
             }
-
-            // If we are online, send a heartbeat
-            if (navigator.onLine) {
-                sendHeartbeat(enclave.licenseKey);
-            }
+            
+            let finalStatus: LicenseStatus = 'VALID';
+            const details: any = {
+                ...payload,
+                expiresAt: expiryDate ? expiryDate.toISOString() : 'Never'
+            };
 
             if (expiryDate) {
                 const daysRemaining = Math.ceil((expiryDate.getTime() - currentTime.getTime()) / (1000 * 60 * 60 * 24));
                 if (daysRemaining <= EXPIRY_WARNING_DAYS) {
-                    setStatus('EXPIRES_SOON');
-                    setLicenseDetails({
-                        ...payload,
-                        expiresAt: expiryDate.toISOString(),
-                        daysRemaining,
-                    });
-                     await writeSecureEnclave({ ...enclave, lastKnownTime: currentTime.toISOString() });
-                    return;
+                    finalStatus = 'EXPIRES_SOON';
+                    details.daysRemaining = daysRemaining;
                 }
             }
             
-            setStatus('VALID');
-            setLicenseDetails({
-                ...payload,
-                expiresAt: expiryDate ? expiryDate.toISOString() : 'Never'
-            });
+            setStatus(finalStatus);
+            setLicenseDetails(details);
+            
+            // --- UPDATED: Send heartbeat AFTER all checks pass ---
+            if (navigator.onLine) {
+                sendHeartbeat(enclave.licenseKey);
+            }
 
             if (payload.isTrial) {
                 localStorage.setItem('tokoc_trial_activated_on_device', 'true');
