@@ -17,6 +17,19 @@ export type LicenseStatus =
 
 const EXPIRY_WARNING_DAYS = 7;
 
+const sendHeartbeat = async (token: string) => {
+    try {
+        await fetch('/api/heartbeat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token }),
+        });
+    } catch (error) {
+        // This is a background task, so we don't need to bother the user if it fails.
+        console.warn("Heartbeat failed. This can happen when offline.", error);
+    }
+};
+
 export function useLicense() {
     const [status, setStatus] = useState<LicenseStatus>('LOADING');
     const [licenseDetails, setLicenseDetails] = useState<any>(null);
@@ -68,6 +81,11 @@ export function useLicense() {
                 return;
             }
 
+            // If we are online, send a heartbeat
+            if (navigator.onLine) {
+                sendHeartbeat(enclave.licenseKey);
+            }
+
             if (expiryDate) {
                 const daysRemaining = Math.ceil((expiryDate.getTime() - currentTime.getTime()) / (1000 * 60 * 60 * 24));
                 if (daysRemaining <= EXPIRY_WARNING_DAYS) {
@@ -82,7 +100,6 @@ export function useLicense() {
                 }
             }
             
-
             setStatus('VALID');
             setLicenseDetails({
                 ...payload,

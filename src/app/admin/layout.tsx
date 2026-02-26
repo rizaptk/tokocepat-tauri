@@ -8,7 +8,8 @@ import {
   KeyRound,
   CreditCard,
   Ticket,
-  ClipboardList
+  ClipboardList,
+  Wifi,
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -49,6 +50,13 @@ export default function AdminLayout({
                 >
                   <Home className="h-4 w-4" />
                   Dashboard
+                </Link>
+                <Link
+                  href="/admin/sessions"
+                  className="flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary"
+                >
+                  <Wifi className="h-4 w-4" />
+                  Online Users
                 </Link>
                 <Link
                   href="/admin/customers"
@@ -116,6 +124,13 @@ export default function AdminLayout({
                   >
                     <Home className="h-5 w-5" />
                     Dashboard
+                  </Link>
+                   <Link
+                    href="/admin/sessions"
+                    className="mx-[-0.65rem] flex items-center gap-4 rounded-xl px-3 py-2 text-muted-foreground hover:text-foreground"
+                  >
+                    <Wifi className="h-5 w-5" />
+                    Online Users
                   </Link>
                   <Link
                     href="/admin/customers"
