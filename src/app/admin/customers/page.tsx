@@ -16,6 +16,9 @@ import {
 } from '@/components/ui/table';
 
 async function getCustomers() {
+    if (!db) {
+        return { error: "Firebase Admin SDK is not initialized. Please ensure FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, and FIREBASE_SDK (the Base64 private key) are set in your .env file." };
+    }
     try {
         const customersSnapshot = await db.collection('customers').get();
         if (customersSnapshot.empty) {
@@ -24,17 +27,18 @@ async function getCustomers() {
         return customersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     } catch (error: any) {
         console.error("Error fetching customers: ", error);
-        // Check for specific error indicating missing credentials
-        if (process.env.FIREBASE_PROJECT_ID && error.message.includes('Failed to parse private key')) {
-             return { error: "Firebase Admin credentials are not configured correctly. Please check your .env file and ensure the private key is correctly Base64 encoded." };
+        // Check for a specific error indicating a bad private key format
+        if (error.message.includes('Failed to parse private key')) {
+             return { error: "The Firebase private key (FIREBASE_SDK) is not a valid Base64 string or is malformed. Please check your .env file." };
         }
-        return { error: "Could not connect to the database. Please ensure your Firebase Admin credentials are set in the .env file." };
+        // General connection error
+        return { error: "Could not connect to the database. Please ensure your Firebase Admin credentials are correct and the server has network access." };
     }
 }
 
 export default async function AdminCustomersPage() {
     const customers = await getCustomers();
-    const hasError = Array.isArray(customers) && 'error' in customers;
+    const hasError = !Array.isArray(customers);
 
     return (
         <>
@@ -52,7 +56,7 @@ export default async function AdminCustomersPage() {
                             <p className="font-semibold text-destructive">Connection Error</p>
                             <p className="text-destructive/80 mt-2">{(customers as any).error}</p>
                         </div>
-                    ) : Array.isArray(customers) && customers.length === 0 ? (
+                    ) : customers.length === 0 ? (
                         <div className="border border-dashed rounded-lg p-8 text-center">
                             <p className="text-muted-foreground">No customers found in the database.</p>
                         </div>
@@ -66,7 +70,7 @@ export default async function AdminCustomersPage() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {Array.isArray(customers) && customers.map((customer: any) => (
+                                {customers.map((customer: any) => (
                                     <TableRow key={customer.id}>
                                         <TableCell className="font-medium">{customer.name || 'N/A'}</TableCell>
                                         <TableCell>{customer.email || 'N/A'}</TableCell>
