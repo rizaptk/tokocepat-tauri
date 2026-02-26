@@ -50,7 +50,7 @@ export async function POST(request: Request) {
             const licenseData = licenseDoc.data();
             customerId = licenseData.customerId || 'unknown';
             
-            if (customerId !== 'unknown') {
+            if (customerId !== 'unknown' && customerId.length > 0) { // Check if customerId is a valid non-empty string
                 const customerSnap = await db.collection('customers').doc(customerId).get();
                 if (customerSnap.exists) {
                     customerEmail = customerSnap.data()?.email || 'unknown';
@@ -76,4 +76,3 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Server error during heartbeat.' }, { status: 500 });
     }
 }
-
