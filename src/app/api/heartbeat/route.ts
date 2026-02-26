@@ -6,73 +6,130 @@ import * as admin from 'firebase-admin';
 
 export async function POST(request: Request) {
     try {
-        const body = await request.json().catch(() => ({})); // Handle cases with no body
-        const { token } = body;
+        const body = await request.json().catch(() => ({}));
+        const { token, deviceId } = body;
 
-        // If no token is provided, this is a simple "ping" to check if the server is up.
-        if (!token) {
-            return NextResponse.json({ status: 'ok_ping' }, { status: 200 });
+        // If there's no deviceId, we can't do anything useful.
+        if (!deviceId) {
+            return NextResponse.json({ status: 'ok_ping_no_device' }, { status: 200 });
         }
         
-        // If a token is provided, proceed with the heartbeat logic to update online status.
-        const secret = new TextEncoder().encode(process.env.JWT_SECRET_KEY);
+        // Default session data for unlicensed or invalid-token users
+        let sessionData: any = {
+            customerId: 'unlicensed',
+            customerEmail: 'unlicensed',
+            licenseKey: 'N/A',
+            plan: 'Unlicensed',
+            lastSeen: admin.firestore.FieldValue.serverTimestamp(),
+        };
 
-        let payload;
-        try {
-             const { payload: verifiedPayload } = await jose.jwtVerify(token, secret);
-             payload = verifiedPayload;
-        } catch (e: any) {
-             // Don't return an error for an invalid token during a heartbeat, just log it.
-             // The main license check will handle enforcement.
-             console.warn(`Heartbeat with invalid token received: ${e.message}`);
-             return NextResponse.json({ status: 'ok_invalid_token' }, { status: 200 });
+        let licenseIsStillValid = true;
+
+        if (token) {
+            try {
+                const secret = new TextEncoder().encode(process.env.JWT_SECRET_KEY);
+                const { payload } = await jose.jwtVerify(token, secret);
+                
+                // If token is valid, enrich session data
+                const licenseKey = payload.sub as string;
+                const plan = (payload.plan as string) || 'N/A';
+
+                // Find license to get customerId
+                const licensesRef = db.collection('licenses');
+                const query = licensesRef.where('key', '==', licenseKey).limit(1);
+                const snapshot = await query.get();
+
+                let customerId = 'unknown';
+                let customerEmail = 'unknown';
+
+                if (!snapshot.empty) {
+                    const licenseData = snapshot.docs[0].data();
+                    customerId = licenseData.customerId || 'unknown';
+                    
+                    if (customerId !== 'unknown' && customerId.length > 0) {
+                        const customerSnap = await db.collection('customers').doc(customerId).get();
+                        if (customerSnap.exists) {
+                            customerEmail = customerSnap.data()?.email || 'unknown';
+                        }
+                    }
+                }
+                
+                sessionData = {
+                    ...sessionData,
+                    customerId,
+                    customerEmail,
+                    licenseKey,
+                    plan,
+                };
+
+            } catch (e: any) {
+                licenseIsStillValid = false;
+                console.warn(`Heartbeat with invalid token for device ${deviceId}: ${e.message}`);
+                sessionData.plan = 'Invalid Token'; // Mark session as having an invalid token
+            }
         }
+        
+        // Now, save the session data to Firestore regardless of token validity
+        const sessionRef = db.collection('online_sessions').doc(deviceId);
+        await sessionRef.set(sessionData, { merge: true });
 
-        if (!payload || !payload.sub || !payload.deviceId) {
-            console.warn('Heartbeat with invalid payload received.');
-            return NextResponse.json({ status: 'ok_invalid_payload' }, { status: 200 });
-        }
-
-        const licenseKey = payload.sub as string;
-        const deviceId = payload.deviceId as string;
-        const plan = (payload.plan as string) || 'N/A';
-
-        // Find license to get customerId
-        const licensesRef = db.collection('licenses');
-        const query = licensesRef.where('key', '==', licenseKey).limit(1);
-        const snapshot = await query.get();
-
-        let customerId = 'unknown';
-        let customerEmail = 'unknown';
-
-        if (!snapshot.empty) {
-            const licenseDoc = snapshot.docs[0];
-            const licenseData = licenseDoc.data();
-            customerId = licenseData.customerId || 'unknown';
+        // Check for resolved payment tickets for this device if it's unlicensed or has an invalid token
+        if (!token || !licenseIsStillValid) {
+            const ticketsRef = db.collection('paymentTickets');
+            const ticketQuery = ticketsRef
+                .where('deviceId', '==', deviceId)
+                .where('status', '==', 'resolved')
+                .where('claimedAt', '==', null) // Check if not already claimed
+                .limit(1);
             
-            if (customerId !== 'unknown' && customerId.length > 0) { // Check if customerId is a valid non-empty string
-                const customerSnap = await db.collection('customers').doc(customerId).get();
-                if (customerSnap.exists) {
-                    customerEmail = customerSnap.data()?.email || 'unknown';
+            const ticketSnapshot = await ticketQuery.get();
+            if (!ticketSnapshot.empty) {
+                const ticketDoc = ticketSnapshot.docs[0];
+                const ticketData = ticketDoc.data();
+                const resolvedLicenseKey = ticketData.licenseKey;
+
+                // Find the actual license details
+                const licenseSnap = await db.collection('licenses').where('key', '==', resolvedLicenseKey).limit(1).get();
+                if (!licenseSnap.empty) {
+                    const licenseDoc = licenseSnap.docs[0];
+                    const licenseData = licenseDoc.data();
+                    
+                    // --- Create a NEW SIGNED JWT for the client ---
+                    const secret = new TextEncoder().encode(process.env.JWT_SECRET_KEY);
+                    const alg = 'HS256';
+
+                    const jwtPayload: any = {
+                        sub: licenseData.key,
+                        deviceId: deviceId,
+                        plan: licenseData.plan,
+                        isTrial: false, // Assuming tickets are for non-trial plans
+                    };
+                    
+                    const jwtBuilder = new jose.SignJWT(jwtPayload)
+                        .setProtectedHeader({ alg })
+                        .setIssuedAt()
+                        .setSubject(licenseData.key);
+
+                    if (licenseData.expiresAt) {
+                        jwtBuilder.setExpirationTime(Math.floor(licenseData.expiresAt.toDate().getTime() / 1000));
+                    }
+
+                    const newToken = await jwtBuilder.sign(secret);
+                    
+                    // Mark the ticket as claimed
+                    await ticketDoc.ref.update({ claimedAt: admin.firestore.FieldValue.serverTimestamp() });
+
+                    // Return the new token to the client
+                    return NextResponse.json({ token: newToken, status: 'ok_activated' }, { status: 200 });
                 }
             }
         }
 
-        // Update online status in Firestore
-        const sessionRef = db.collection('online_sessions').doc(deviceId);
-        await sessionRef.set({
-            customerId,
-            customerEmail,
-            licenseKey,
-            plan,
-            lastSeen: admin.firestore.FieldValue.serverTimestamp(),
-        }, { merge: true });
-        
+        // Default response if no new token is issued
         return NextResponse.json({ status: 'ok' }, { status: 200 });
 
     } catch (error: any) {
         console.error('Heartbeat Error:', error.message);
-        // Return a server error, but a 500 status will be caught by the client's .catch() block
         return NextResponse.json({ error: 'Server error during heartbeat.' }, { status: 500 });
     }
 }
