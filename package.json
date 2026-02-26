@@ -44,6 +44,7 @@
     "dotenv": "^16.5.0",
     "embla-carousel-react": "^8.6.0",
     "firebase": "^11.9.1",
+    "firebase-admin": "^12.1.0",
     "firesqlite": "file:firesqlite-0.0.2.tgz",
     "framer-motion": "^12.34.3",
     "genkit": "^1.28.0",
