@@ -1,6 +1,6 @@
 import 'server-only';
 import { SignJWT, jwtVerify } from 'jose';
-import { cookies } from 'next/headers';
+import * as nextHeaders from 'next/headers';
 
 const secretKey = process.env.SESSION_SECRET;
 if (!secretKey) {
@@ -33,7 +33,7 @@ export async function createSession(uid: string, claims: object) {
   const sessionPayload = { uid, ...claims, expires };
   const session = await encrypt(sessionPayload);
 
-  cookies().set('session', session, { 
+  nextHeaders.cookies().set('session', session, { 
     expires, 
     httpOnly: true, 
     secure: process.env.NODE_ENV === 'production',
@@ -42,12 +42,12 @@ export async function createSession(uid: string, claims: object) {
 }
 
 export async function getSession() {
-  const sessionCookie = cookies().get('session')?.value;
+  const sessionCookie = nextHeaders.cookies().get('session')?.value;
   if (!sessionCookie) return null;
   return await decrypt(sessionCookie);
 }
 
 export async function deleteSession() {
   // Set the cookie to an empty value and an expiration date in the past
-  cookies().set('session', '', { httpOnly: true, expires: new Date(0), path: '/' });
+  nextHeaders.cookies().set('session', '', { httpOnly: true, expires: new Date(0), path: '/' });
 }
