@@ -73,6 +73,12 @@ export function BottomNav() {
     if (!isClient) return false;
     return href === '/dashboard' || href === '/cashier' || href === '/dashboard/settings' ? pathname === href : pathname.startsWith(href);
   };
+  
+  // Do not render the bottom navigation on any admin pages.
+  if (pathname.startsWith('/admin')) {
+      return null;
+  }
+
 
   const containerVariants: Variants = {
     docked: {
