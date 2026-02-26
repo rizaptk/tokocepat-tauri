@@ -1,27 +1,15 @@
 import Link from 'next/link';
 import {
-  Bell,
   CircleUser,
   Home,
-  LineChart,
   Menu,
-  Package,
   Package2,
-  ShoppingCart,
   Users,
   KeyRound,
   CreditCard
 } from 'lucide-react';
 
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -30,16 +18,25 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Input } from '@/components/ui/input';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { TokoCepatLogo } from '@/components/TokoCepatLogo';
 import { LogoutButton } from './_components/LogoutButton';
+import { getSession } from '@/lib/session';
 
-export default function AdminLayout({
+export default async function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const session = await getSession();
+
+  // If there's no session, we're on the login page.
+  // Render children directly without the admin layout shell.
+  if (!session) {
+    return <>{children}</>;
+  }
+  
+  // If a session exists, render the full admin dashboard layout.
   return (
     <div className="grid min-h-screen w-full md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]">
       <div className="hidden border-r bg-muted/40 md:block">
