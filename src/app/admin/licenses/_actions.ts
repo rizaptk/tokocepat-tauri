@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { db } from '@/lib/firebase-admin';
 import { revalidatePath } from 'next/cache';
 import { randomBytes } from 'crypto';
+import { format } from 'date-fns';
 
 const CreateLicenseSchema = z.object({
   customerEmail: z.string().email({ message: 'Please enter a valid email.' }),
@@ -156,5 +157,69 @@ export async function deactivateDeviceAction(prevState: DeactivateFormState, for
   } catch (error) {
     console.error("Deactivation failed:", error);
     return { error: 'An unexpected server error occurred.' };
+  }
+}
+
+
+// --- Dashboard Data Action ---
+export async function getDashboardDataAction() {
+  try {
+    const licensesPromise = db.collection('licenses').orderBy('createdAt', 'asc').get();
+    const customersPromise = db.collection('customers').count().get();
+    const paymentsPromise = db.collection('payments').get();
+    const recentPaymentsPromise = db.collection('payments').orderBy('createdAt', 'desc').limit(5).get();
+    
+    const [licensesSnapshot, customersSnapshot, paymentsSnapshot, recentPaymentsSnapshot] = await Promise.all([
+        licensesPromise,
+        customersPromise,
+        paymentsPromise,
+        recentPaymentsPromise,
+    ]);
+
+    const totalLicenses = licensesSnapshot.size;
+    const totalCustomers = customersSnapshot.data().count;
+    const totalRevenue = paymentsSnapshot.docs.reduce((sum, doc) => sum + (doc.data().amount || 0), 0);
+    
+    const recentPayments = recentPaymentsSnapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        ...data,
+        createdAt: data.createdAt.toDate().toISOString(),
+      };
+    });
+
+    // Aggregate license data for chart
+    const monthlyLicenses = licensesSnapshot.docs.reduce((acc: { [key: string]: number }, doc) => {
+        const createdAt = doc.data().createdAt.toDate();
+        const monthKey = format(createdAt, 'yyyy-MM');
+        acc[monthKey] = (acc[monthKey] || 0) + 1;
+        return acc;
+    }, {});
+    
+    const last6Months = Array.from({ length: 6 }).map((_, i) => {
+        const d = new Date();
+        d.setMonth(d.getMonth() - i);
+        return format(d, 'yyyy-MM');
+    }).reverse();
+
+    const licenseChartData = last6Months.map(monthKey => ({
+        month: format(new Date(`${monthKey}-02`), 'MMM'),
+        count: monthlyLicenses[monthKey] || 0
+    }));
+
+    return {
+        totalRevenue,
+        totalCustomers,
+        totalLicenses,
+        recentPayments,
+        licenseChartData,
+    };
+
+  } catch (error: any) {
+    console.error("Failed to fetch dashboard data", error);
+    return {
+        error: "Could not load dashboard data. Please ensure Firestore is enabled and permissions are set."
+    }
   }
 }
