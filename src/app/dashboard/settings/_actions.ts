@@ -1,9 +1,9 @@
-
 'use server';
 
 import { z } from 'zod';
 import { db } from '@/lib/firebase-admin';
 import { SubscriptionPlan, PaymentInstructions } from '@/lib/types';
+import { randomBytes } from 'crypto';
 
 const SubmitTicketSchema = z.object({
   customerName: z.string().min(2, 'Please enter your full name.'),
@@ -97,12 +97,83 @@ export async function getPublicSettings(): Promise<{ instructions: PaymentInstru
         const instructions = instructionsSnap.exists ? (instructionsSnap.data() as PaymentInstructions) : {};
         const plans = plansSnap.exists ? (plansSnap.data()?.plans as SubscriptionPlan[]) : [];
 
-        // Only return non-trial plans to the public
-        const publicPlans = plans.filter(p => !p.isTrial);
-
-        return { instructions, plans: publicPlans };
+        return { instructions, plans };
     } catch (error) {
         console.error("Failed to fetch public settings:", error);
         return { instructions: {}, plans: [] };
+    }
+}
+
+
+export async function activateTrialAction(planId: string, deviceId: string): Promise<{ token?: string, error?: string }> {
+    try {
+        const plansSnap = await db.collection('app_settings').doc('subscriptionPlans').get();
+        if (!plansSnap.exists) {
+            return { error: 'Subscription plans are not configured.' };
+        }
+        const allPlans = (plansSnap.data()?.plans || []) as SubscriptionPlan[];
+        const trialPlan = allPlans.find(p => p.id === planId);
+
+        if (!trialPlan || !trialPlan.isTrial) {
+            return { error: 'Invalid trial plan selected.' };
+        }
+
+        const trialActivationRef = db.collection('trialActivations').doc(deviceId);
+        const trialSnap = await trialActivationRef.get();
+        if (trialSnap.exists) {
+            return { error: 'This device has already used a trial license.' };
+        }
+
+        const licenseKey = `TRIAL-${randomBytes(4).toString('hex').toUpperCase()}-${randomBytes(4).toString('hex').toUpperCase()}`;
+        
+        let expiresAt: Date | null = new Date();
+        if (trialPlan.durationDays > 0) {
+            expiresAt.setDate(expiresAt.getDate() + trialPlan.durationDays);
+        } else {
+            expiresAt.setDate(expiresAt.getDate() + 7); // Default 7 days
+        }
+
+        const newLicense = {
+            key: licenseKey,
+            plan: trialPlan.name,
+            status: 'active',
+            customerId: `TRIAL-${deviceId}`,
+            createdAt: new Date(),
+            expiresAt: expiresAt,
+            maxSeats: trialPlan.maxSeats || 1,
+            activations: [{
+                deviceId: deviceId,
+                isActive: true,
+                activatedAt: new Date(),
+                deactivatedAt: null,
+            }],
+        };
+        await db.collection('licenses').add(newLicense);
+
+        await trialActivationRef.set({
+            activatedAt: new Date(),
+            licenseKey: licenseKey,
+        });
+        
+        const now = Math.floor(Date.now() / 1000);
+        const exp = Math.floor(expiresAt.getTime() / 1000);
+        
+        const payload = {
+            sub: licenseKey,
+            deviceId: deviceId,
+            plan: trialPlan.name,
+            iat: now,
+            exp: exp,
+            isTrial: true,
+        };
+
+        const base64url = (source: any) => Buffer.from(JSON.stringify(source)).toString('base64').replace(/=+$/, '').replace(/\+/g, '-').replace(/_/g, '_');
+        const pseudoToken = `${base64url({ alg: 'none', typ: 'JWT' })}.${base64url(payload)}.`;
+
+        return { token: pseudoToken };
+
+    } catch (error: any) {
+        console.error("Trial activation failed:", error);
+        return { error: 'An unexpected server error occurred.' };
     }
 }

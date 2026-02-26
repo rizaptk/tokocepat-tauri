@@ -8,12 +8,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Send, Loader2, Check, Info, WifiOff } from "lucide-react";
+import { Send, Loader2, Check, Info, WifiOff, Zap } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { submitPaymentTicketAction, type FormState, getPublicSettings } from '../_actions';
+import { submitPaymentTicketAction, type FormState, getPublicSettings, activateTrialAction } from '../_actions';
 import { SubscriptionPlan, PaymentInstructions } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
+import { generateDeviceFingerprint, writeSecureEnclave } from '@/lib/security';
+
 
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat('id-ID', {
@@ -43,6 +45,33 @@ const PlanCard = ({ plan, isSelected, onSelect }: { plan: SubscriptionPlan, isSe
     )
 }
 
+const TrialCard = ({ plan, onActivate }: { plan: SubscriptionPlan, onActivate: () => void }) => {
+    const [isActivating, startTransition] = useTransition();
+
+    return (
+        <Card className="border-primary bg-primary/5">
+            <CardHeader>
+                 <div className="flex justify-between items-center">
+                    <CardTitle className="text-xl text-primary flex items-center gap-2">
+                        <Zap/> {plan.name}
+                    </CardTitle>
+                 </div>
+                 <CardDescription>{plan.description}</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <p className="text-3xl font-bold">Free</p>
+                <p className="text-sm text-muted-foreground">{plan.durationDays} Days / {plan.maxSeats} Device</p>
+            </CardContent>
+            <CardFooter>
+                <Button className="w-full" onClick={() => startTransition(onActivate)} disabled={isActivating}>
+                     {isActivating ? <><Loader2 className="mr-2 h-4 w-4 animate-spin"/> Activating...</> : <><Zap className="mr-2 h-4 w-4"/> Activate Free Trial</>}
+                </Button>
+            </CardFooter>
+        </Card>
+    );
+};
+
+
 const SubmitButton = () => {
     const { pending } = useFormStatus();
     return (
@@ -58,6 +87,7 @@ export function SubscriptionManager() {
     const [loading, setLoading] = useState(true);
     const [isOnline, setIsOnline] = useState(false);
     const [selectedPlan, setSelectedPlan] = useState<SubscriptionPlan | null>(null);
+    const [isTrialUsed, setIsTrialUsed] = useState(true);
     
     const formRef = useRef<HTMLFormElement>(null);
     const initialState: FormState = { message: '' };
@@ -66,6 +96,8 @@ export function SubscriptionManager() {
     useEffect(() => {
         async function checkStatusAndFetchSettings() {
             setLoading(true);
+             const trialHasBeenUsed = localStorage.getItem('tokoc_trial_activated_on_device') === 'true';
+             setIsTrialUsed(trialHasBeenUsed);
             try {
                 const response = await fetch('/api/ping');
                 if (response.ok) {
@@ -101,6 +133,29 @@ export function SubscriptionManager() {
         }
     }, [state, toast]);
 
+    const handleActivateTrial = async (planId: string) => {
+        try {
+            const deviceId = await generateDeviceFingerprint();
+            const result = await activateTrialAction(planId, deviceId);
+
+            if (result.error) {
+                throw new Error(result.error);
+            }
+            if (result.token) {
+                 await writeSecureEnclave({
+                    licenseKey: result.token,
+                    lastKnownTime: new Date().toISOString(),
+                });
+                localStorage.setItem('tokoc_trial_activated_on_device', 'true');
+                toast({ title: 'Trial Activated!', description: 'Your free trial has started. The app will now reload.' });
+                setTimeout(() => window.location.reload(), 1500);
+            }
+        } catch (error: any) {
+            toast({ variant: 'destructive', title: 'Trial Activation Failed', description: error.message });
+        }
+    };
+
+
     if (loading) {
         return (
              <Card>
@@ -133,6 +188,9 @@ export function SubscriptionManager() {
         );
     }
     
+    const trialPlans = settings ? settings.plans.filter(p => p.isTrial) : [];
+    const paidPlans = settings ? settings.plans.filter(p => !p.isTrial) : [];
+
     if (!settings || settings.plans.length === 0) {
         return (
              <Card>
@@ -151,19 +209,29 @@ export function SubscriptionManager() {
                 <CardDescription>Choose a plan to activate or extend your license.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-                 {/* Step 1: Plan Selection */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {settings.plans.map(plan => (
-                        <PlanCard key={plan.id} plan={plan} isSelected={selectedPlan?.id === plan.id} onSelect={() => setSelectedPlan(plan)} />
-                    ))}
-                </div>
+                 {!isTrialUsed && trialPlans.length > 0 && (
+                    <div className="space-y-2">
+                        {trialPlans.map(plan => (
+                            <TrialCard key={plan.id} plan={plan} onActivate={() => handleActivateTrial(plan.id)} />
+                        ))}
+                    </div>
+                 )}
                 
-                {/* Step 2: Payment Instructions & Submission */}
+                {paidPlans.length > 0 && (
+                    <div className="space-y-4 pt-4 border-t">
+                        <h3 className="font-semibold text-lg">Purchase a License</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {paidPlans.map(plan => (
+                                <PlanCard key={plan.id} plan={plan} isSelected={selectedPlan?.id === plan.id} onSelect={() => setSelectedPlan(plan)} />
+                            ))}
+                        </div>
+                    </div>
+                )}
+                
                 {selectedPlan && (
                     <div className="space-y-6 pt-6 border-t">
                         <h3 className="text-lg font-semibold">Step 2: Manual Payment for "{selectedPlan.name}"</h3>
                         
-                        {/* Instructions */}
                         <div className="bg-blue-50 border border-blue-200 text-blue-800 p-4 rounded-lg space-y-4">
                            <div className="flex items-start gap-3">
                                 <Info className="h-5 w-5 mt-0.5 shrink-0" />
