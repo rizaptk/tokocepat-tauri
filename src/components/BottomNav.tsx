@@ -3,7 +3,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutGrid, MoreHorizontal, Package, ShoppingCart, Warehouse, Menu, BarChart as BarChartIcon, Settings } from 'lucide-react';
+import { LayoutGrid, MoreHorizontal, Package, ShoppingCart, Warehouse, Menu, BarChart as BarChartIcon, Settings, Shield } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useEffect, useState, useRef } from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -19,7 +19,8 @@ const navItems = [
 const moreNavItems = [
   { href: '/product/inventory', label: 'Inventory', icon: Warehouse },
   { href: '/dashboard/reports', label: 'Reports', icon: BarChartIcon },
-  { href: '/dashboard/settings', label: 'Settings', icon: Settings }
+  { href: '/dashboard/settings', label: 'Settings', icon: Settings },
+  { href: '/admin', label: 'Admin Panel', icon: Shield },
 ];
 
 export function BottomNav() {
