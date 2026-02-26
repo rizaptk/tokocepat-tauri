@@ -1,9 +1,8 @@
+'use client';
 
-export const dynamic = 'force-dynamic';
-
-import { db } from '@/lib/firebase-admin';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { notFound } from 'next/navigation';
+import { useParams, notFound } from 'next/navigation';
 import {
   Card,
   CardContent,
@@ -21,62 +20,140 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { ArrowLeft, KeyRound, User, Laptop, CheckCircle, CircleOff } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
+import { ArrowLeft, KeyRound, User, Laptop, CheckCircle, CircleOff, AlertTriangle } from 'lucide-react';
 import { DeactivateButton } from './_components/DeactivateButton';
+import { getLicenseDetailsAction } from '../_actions';
 
-async function getLicenseDetails(id: string) {
-    if (!id) {
-        return null;
+// Define a type for the serialized license data
+type LicenseDetails = {
+    id: string;
+    key: string;
+    plan: string;
+    status: string;
+    createdAt: string;
+    expiresAt: string | null;
+    activations: {
+        deviceId: string;
+        activatedAt: string;
+        isActive: boolean;
+    }[];
+    maxSeats: number;
+    customer: {
+        name: string;
+        email: string;
+    } | null;
+}
+
+const getStatusVariant = (status: string) => {
+    switch (status) {
+        case 'active':
+            return 'default';
+        case 'expired':
+            return 'destructive';
+        default:
+            return 'secondary';
     }
-    const licenseRef = db.collection('licenses').doc(id);
-    const licenseSnap = await licenseRef.get();
+};
 
-    if (!licenseSnap.exists) {
-        return null;
-    }
-
-    const licenseData = licenseSnap.data();
-    let customerData = null;
-
-    if (licenseData?.customerId && licenseData.customerId.length > 0) {
-        const customerRef = db.collection('customers').doc(licenseData.customerId);
-        const customerSnap = await customerRef.get();
-        if (customerSnap.exists) {
-            customerData = customerSnap.data();
-        }
-    }
-
-    return {
-        id: licenseSnap.id,
-        ...licenseData,
-        customer: customerData,
-    };
+const getStatusClass = (status: string) => {
+     if (status === 'active') return 'bg-green-600 hover:bg-green-600/80';
+     return '';
 }
 
 
-export default async function LicenseDetailsPage({ params }: { params: { id: string } }) {
-    const license = await getLicenseDetails(params.id);
+function LicenseDetailsSkeleton() {
+    return (
+        <>
+            <div className="flex items-center gap-4">
+                 <Skeleton className="h-7 w-7 rounded-md" />
+                <Skeleton className="h-7 w-48" />
+                <div className="flex-grow" />
+                <Skeleton className="h-6 w-20 rounded-full" />
+            </div>
+            <div className="grid gap-4 md:grid-cols-[1fr_250px] lg:grid-cols-3 lg:gap-8">
+                <div className="grid auto-rows-max items-start gap-4 lg:col-span-2 lg:gap-8">
+                    <Card>
+                        <CardHeader> <Skeleton className="h-6 w-40" /> </CardHeader>
+                        <CardContent className="grid gap-4 sm:grid-cols-2">
+                             <div className="space-y-2"> <Skeleton className="h-4 w-20" /> <Skeleton className="h-6 w-full" /> </div>
+                             <div className="space-y-2"> <Skeleton className="h-4 w-12" /> <Skeleton className="h-6 w-24" /> </div>
+                             <div className="space-y-2"> <Skeleton className="h-4 w-24" /> <Skeleton className="h-6 w-32" /> </div>
+                             <div className="space-y-2"> <Skeleton className="h-4 w-24" /> <Skeleton className="h-6 w-32" /> </div>
+                        </CardContent>
+                    </Card>
+                     <Card>
+                        <CardHeader> <Skeleton className="h-6 w-56" /> </CardHeader>
+                        <CardContent> <Skeleton className="h-40 w-full" /> </CardContent>
+                    </Card>
+                </div>
+                <div className="grid auto-rows-max items-start gap-4 lg:gap-8">
+                    <Card>
+                         <CardHeader> <Skeleton className="h-6 w-24" /> </CardHeader>
+                         <CardContent> <Skeleton className="h-12 w-full" /> </CardContent>
+                    </Card>
+                    <Card>
+                         <CardHeader> <Skeleton className="h-6 w-20" /> </CardHeader>
+                         <CardContent> <Skeleton className="h-10 w-full" /> </CardContent>
+                    </Card>
+                </div>
+            </div>
+        </>
+    )
+}
 
+export default function LicenseDetailsPage() {
+    const params = useParams();
+    const id = params.id as string;
+
+    const [license, setLicense] = useState<LicenseDetails | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (!id) {
+            setError("No license ID provided.");
+            setLoading(false);
+            return;
+        };
+
+        async function fetchData() {
+            setLoading(true);
+            const result = await getLicenseDetailsAction(id);
+            if (result.error) {
+                setError(result.error);
+            } else if (result.license) {
+                setLicense(result.license as LicenseDetails);
+            }
+            setLoading(false);
+        }
+        fetchData();
+    }, [id]);
+
+    if (loading) {
+        return <LicenseDetailsSkeleton />;
+    }
+
+    if (error) {
+        return (
+             <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm">
+                <div className="flex flex-col items-center gap-2 text-center p-8">
+                    <AlertTriangle className="h-12 w-12 text-destructive" />
+                    <h3 className="text-2xl font-bold tracking-tight text-destructive">Error Loading License</h3>
+                    <p className="text-muted-foreground">{error}</p>
+                    <Button asChild variant="outline" className="mt-4">
+                        <Link href="/admin/licenses">Go Back</Link>
+                    </Button>
+                </div>
+             </div>
+        );
+    }
+    
     if (!license) {
+        // This will be caught by Next.js and render the not-found.js file.
         notFound();
     }
     
-    const getStatusVariant = (status: string) => {
-        switch (status) {
-            case 'active':
-                return 'default';
-            case 'expired':
-                return 'destructive';
-            default:
-                return 'secondary';
-        }
-    };
-    
-    const getStatusClass = (status: string) => {
-         if (status === 'active') return 'bg-green-600 hover:bg-green-600/80';
-         return '';
-    }
-
     return (
         <>
             <div className="flex items-center gap-4">
@@ -114,17 +191,13 @@ export default async function LicenseDetailsPage({ params }: { params: { id: str
                             <div className="space-y-1">
                                 <p className="text-sm font-medium text-muted-foreground">Created On</p>
                                 <p className="font-medium">
-                                    {license.createdAt && typeof license.createdAt.toDate === 'function'
-                                        ? new Date(license.createdAt.toDate()).toLocaleDateString()
-                                        : 'N/A'}
+                                    {license.createdAt ? new Date(license.createdAt).toLocaleDateString() : 'N/A'}
                                 </p>
                             </div>
                             <div className="space-y-1">
                                 <p className="text-sm font-medium text-muted-foreground">Expires On</p>
                                 <p className="font-medium">
-                                    {license.expiresAt && typeof license.expiresAt.toDate === 'function'
-                                        ? new Date(license.expiresAt.toDate()).toLocaleDateString()
-                                        : 'Never'}
+                                    {license.expiresAt ? new Date(license.expiresAt).toLocaleDateString() : 'Never'}
                                 </p>
                             </div>
                         </CardContent>
@@ -148,13 +221,11 @@ export default async function LicenseDetailsPage({ params }: { params: { id: str
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {license.activations.map((act: any) => (
+                                        {license.activations.map((act) => (
                                             <TableRow key={act.deviceId}>
                                                 <TableCell className="font-mono text-xs">{act.deviceId.substring(0, 12)}...</TableCell>
                                                 <TableCell>
-                                                    {act.activatedAt && typeof act.activatedAt.toDate === 'function'
-                                                        ? new Date(act.activatedAt.toDate()).toLocaleDateString()
-                                                        : 'N/A'}
+                                                    {act.activatedAt ? new Date(act.activatedAt).toLocaleDateString() : 'N/A'}
                                                 </TableCell>
                                                 <TableCell>
                                                     {act.isActive ? (

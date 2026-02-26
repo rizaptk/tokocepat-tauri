@@ -226,3 +226,62 @@ export async function getDashboardDataAction() {
     }
   }
 }
+
+
+export async function getLicenseDetailsAction(id: string) {
+    if (!id) {
+        return { error: 'License ID is required.' };
+    }
+    try {
+        const licenseRef = db.collection('licenses').doc(id);
+        const licenseSnap = await licenseRef.get();
+
+        if (!licenseSnap.exists) {
+            return { error: 'License not found.' };
+        }
+
+        const licenseData = licenseSnap.data()!;
+        let customerData = null;
+
+        if (licenseData.customerId && typeof licenseData.customerId === 'string' && licenseData.customerId.length > 0) {
+            const customerRef = db.collection('customers').doc(licenseData.customerId);
+            const customerSnap = await customerRef.get();
+            if (customerSnap.exists) {
+                customerData = customerSnap.data();
+            }
+        }
+        
+        // Serialize the data to make it safe for client components (convert Timestamps)
+        const serializeData = (data: any) => {
+            if (!data) return null;
+            const serialized = { ...data };
+            for (const key in serialized) {
+                if (serialized[key] && typeof serialized[key].toDate === 'function') {
+                    serialized[key] = serialized[key].toDate().toISOString();
+                }
+                if (key === 'activations' && Array.isArray(serialized[key])) {
+                    serialized[key] = serialized[key].map(act => serializeData(act));
+                }
+            }
+            return serialized;
+        }
+
+        const serializedLicense = serializeData({
+            id: licenseSnap.id,
+            ...licenseData,
+        });
+
+        return {
+            license: {
+                ...serializedLicense,
+                customer: serializeData(customerData),
+            }
+        };
+
+    } catch (error: any) {
+        console.error("Failed to fetch license details", error);
+        return {
+            error: "Could not load license data. Please ensure Firestore is enabled and permissions are set."
+        }
+    }
+}
