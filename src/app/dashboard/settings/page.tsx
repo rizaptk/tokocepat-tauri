@@ -9,10 +9,11 @@ import { clearTransactionData } from '@/services/dataService';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { Database, HardHat, Info, Trash2, Shield } from 'lucide-react';
+import { Database, HardHat, Info, Trash2, Shield, Send } from 'lucide-react';
 import { TokoCepatLogo } from '@/components/TokoCepatLogo';
 import Link from 'next/link';
 import { LicenseManager } from '@/components/LicenseManager';
+import { ManualPaymentForm } from './_components/ManualPaymentForm';
 
 export default function SettingsPage() {
   const { firesqlite } = useDbStore();
@@ -102,11 +103,15 @@ export default function SettingsPage() {
              <a href="#license-management" className="font-semibold text-primary flex items-center gap-2">
               <Shield className="h-4 w-4"/> License
             </a>
+            <a href="#manual-payment" className="flex items-center gap-2">
+              <Send className="h-4 w-4"/> Manual Payment
+            </a>
             <a href="#database-management" className="flex items-center gap-2"><Database className="h-4 w-4"/> Database</a>
              <a href="#danger-zone" className="flex items-center gap-2"><Trash2 className="h-4 w-4"/> Danger Zone</a>
           </nav>
           <div className="grid gap-6">
             <LicenseManager />
+            <ManualPaymentForm />
             <Card id="database-management">
               <CardHeader>
                 <CardTitle>Database Management</CardTitle>

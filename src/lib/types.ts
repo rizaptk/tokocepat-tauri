@@ -153,3 +153,19 @@ export interface Recipe {
     product_id: string; // The composite product this recipe is for
     items: RecipeItem[];
 }
+
+export type PaymentPlan = 'PRO_MONTHLY' | 'PRO_YEARLY' | 'LIFETIME';
+
+export interface PaymentTicket {
+    id: string;
+    customerId?: string;
+    customerEmail: string;
+    plan: PaymentPlan;
+    status: 'pending' | 'processing' | 'resolved' | 'rejected';
+    proofOfPaymentUrl: string;
+    notes?: string; // Admin notes for rejection, etc.
+    userNotes?: string;
+    createdAt: string; // ISO String
+    updatedAt: string; // ISO String
+    licenseId?: string;
+}
