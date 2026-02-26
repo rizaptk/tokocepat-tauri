@@ -169,3 +169,19 @@ export interface PaymentTicket {
     updatedAt: string; // ISO String
     licenseId?: string;
 }
+
+export interface SubscriptionPlan {
+    id: string;
+    name: string;
+    price: number;
+    durationDays: number; // e.g., 30 for monthly, 365 for yearly, -1 for lifetime
+    description: string;
+}
+
+export interface PaymentInstructions {
+    message?: string;
+    bankName?: string;
+    accountName?: string;
+    accountNumber?: string;
+    whatsappNumber?: string;
+}

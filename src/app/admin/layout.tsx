@@ -7,7 +7,8 @@ import {
   Users,
   KeyRound,
   CreditCard,
-  Ticket
+  Ticket,
+  ClipboardList
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -62,6 +63,13 @@ export default function AdminLayout({
                 >
                   <KeyRound className="h-4 w-4" />
                   Licenses
+                </Link>
+                 <Link
+                  href="/admin/plans"
+                  className="flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary"
+                >
+                  <ClipboardList className="h-4 w-4" />
+                  Plan Manager
                 </Link>
                 <Link
                   href="/admin/payments"
@@ -122,6 +130,13 @@ export default function AdminLayout({
                   >
                     <KeyRound className="h-5 w-5" />
                     Licenses
+                  </Link>
+                   <Link
+                    href="/admin/plans"
+                    className="mx-[-0.65rem] flex items-center gap-4 rounded-xl px-3 py-2 text-muted-foreground hover:text-foreground"
+                  >
+                    <ClipboardList className="h-5 w-5" />
+                    Plan Manager
                   </Link>
                   <Link
                     href="/admin/payments"
