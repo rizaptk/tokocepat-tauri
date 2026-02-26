@@ -23,6 +23,9 @@ import { ArrowLeft, KeyRound, User, PowerOff, Laptop, CheckCircle, CircleOff } f
 import { DeactivateButton } from './_components/DeactivateButton';
 
 async function getLicenseDetails(id: string) {
+    if (!id) {
+        return null;
+    }
     const licenseRef = db.collection('licenses').doc(id);
     const licenseSnap = await licenseRef.get();
 
