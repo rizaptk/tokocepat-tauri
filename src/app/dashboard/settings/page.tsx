@@ -9,11 +9,13 @@ import { clearTransactionData } from '@/services/dataService';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { Database, Shield, Trash2 } from 'lucide-react';
 import { TokoCepatLogo } from '@/components/TokoCepatLogo';
 import Link from 'next/link';
 import { LicenseManager } from '@/components/LicenseManager';
 import { SubscriptionManager } from './_components/SubscriptionManager';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Shield, CreditCard, Database, Trash2 } from 'lucide-react';
+
 
 export default function SettingsPage() {
   const { firesqlite } = useDbStore();
@@ -56,7 +58,6 @@ export default function SettingsPage() {
           console.error("Restore failed", e);
           toast({ title: 'Restore Failed', description: e.message || 'The selected file may be invalid.', variant: 'destructive'});
       } finally {
-          // Reset file input to allow selecting the same file again
           if (fileInputRef.current) {
               fileInputRef.current.value = '';
           }
@@ -98,68 +99,63 @@ export default function SettingsPage() {
         <div className="mx-auto grid w-full max-w-6xl gap-2">
           <h1 className="text-3xl font-semibold">Settings</h1>
         </div>
-        <div className="mx-auto grid w-full max-w-6xl items-start gap-6 md:grid-cols-[180px_1fr] lg:grid-cols-[250px_1fr]">
-          <nav className="grid gap-4 text-sm text-muted-foreground">
-             <a href="#license-management" className="font-semibold text-primary flex items-center gap-2">
-              <Shield className="h-4 w-4"/> License
-            </a>
-            <a href="#subscription" className="flex items-center gap-2">
-              <Shield className="h-4 w-4"/> Subscription
-            </a>
-            <a href="#database-management" className="flex items-center gap-2"><Database className="h-4 w-4"/> Database</a>
-             <a href="#danger-zone" className="flex items-center gap-2"><Trash2 className="h-4 w-4"/> Danger Zone</a>
-          </nav>
-          <div className="grid gap-6">
-            <LicenseManager />
-            <SubscriptionManager />
-            <Card id="database-management">
-              <CardHeader>
-                <CardTitle>Database Management</CardTitle>
-                <CardDescription>
-                  Manage your application's data. These are advanced actions.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <Button variant="outline" onClick={handleBackup}>
-                        <Database className="mr-2" /> Backup Data
-                    </Button>
-                     <Button variant="outline" onClick={() => setIsRestoreAlertOpen(true)}>
-                        <Database className="mr-2" /> Restore Data
-                    </Button>
-                     <input type="file" ref={fileInputRef} onChange={onFileSelected} accept=".db,.sqlite,.sqlite3" hidden />
-                </div>
-              </CardContent>
-            </Card>
-             <Card id="danger-zone" className="border-destructive/50">
-              <CardHeader>
-                <CardTitle className="text-destructive">Danger Zone</CardTitle>
-                <CardDescription>
-                  These actions are irreversible. Be absolutely sure before proceeding.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Button variant="destructive" onClick={() => setIsClearDataAlertOpen(true)}>
-                    <Trash2 className="mr-2" /> Clear All Transaction Data
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
+        <Tabs defaultValue="license" className="mx-auto w-full max-w-6xl">
+            <TabsList className="grid w-full grid-cols-4">
+                <TabsTrigger value="license"><Shield className="mr-2 h-4 w-4"/>License</TabsTrigger>
+                <TabsTrigger value="subscription"><CreditCard className="mr-2 h-4 w-4"/>Subscription</TabsTrigger>
+                <TabsTrigger value="database"><Database className="mr-2 h-4 w-4"/>Database</TabsTrigger>
+                <TabsTrigger value="danger"><Trash2 className="mr-2 h-4 w-4"/>Danger Zone</TabsTrigger>
+            </TabsList>
+            <TabsContent value="license">
+                <Card>
+                    <CardHeader>
+                        <CardTitle>License Status</CardTitle>
+                        <CardDescription>Manage your application license and activation.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <LicenseManager />
+                    </CardContent>
+                </Card>
+            </TabsContent>
+            <TabsContent value="subscription">
+                 <SubscriptionManager />
+            </TabsContent>
+            <TabsContent value="database">
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Database Management</CardTitle>
+                        <CardDescription>Manage your application's data. These are advanced actions.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <Button variant="outline" onClick={handleBackup}><Database className="mr-2" /> Backup Data</Button>
+                            <Button variant="outline" onClick={() => setIsRestoreAlertOpen(true)}><Database className="mr-2" /> Restore Data</Button>
+                            <input type="file" ref={fileInputRef} onChange={onFileSelected} accept=".db,.sqlite,.sqlite3" hidden />
+                        </div>
+                    </CardContent>
+                </Card>
+            </TabsContent>
+            <TabsContent value="danger">
+                 <Card className="border-destructive/50">
+                    <CardHeader>
+                        <CardTitle className="text-destructive">Danger Zone</CardTitle>
+                        <CardDescription>These actions are irreversible. Be absolutely sure before proceeding.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <Button variant="destructive" onClick={() => setIsClearDataAlertOpen(true)}><Trash2 className="mr-2" /> Clear All Transaction Data</Button>
+                    </CardContent>
+                </Card>
+            </TabsContent>
+        </Tabs>
          <AlertDialog open={isRestoreAlertOpen} onOpenChange={setIsRestoreAlertOpen}>
             <AlertDialogContent>
                 <AlertDialogHeader>
                     <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                        This action is irreversible. Restoring from a backup will
-                        completely overwrite all current data in the application.
-                    </AlertDialogDescription>
+                    <AlertDialogDescription>This action is irreversible. Restoring from a backup will completely overwrite all current data in the application.</AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                     <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleRestoreConfirm}>
-                        Yes, Restore Database
-                    </AlertDialogAction>
+                    <AlertDialogAction onClick={handleRestoreConfirm}>Yes, Restore Database</AlertDialogAction>
                 </AlertDialogFooter>
             </AlertDialogContent>
         </AlertDialog>
@@ -167,15 +163,11 @@ export default function SettingsPage() {
             <AlertDialogContent>
                 <AlertDialogHeader>
                     <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                       This action is permanent and cannot be undone. This will delete all shifts, transactions, and stock movement history. Product and category data will not be affected.
-                    </AlertDialogDescription>
+                    <AlertDialogDescription>This action is permanent and cannot be undone. This will delete all shifts, transactions, and stock movement history. Product and category data will not be affected.</AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                     <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleClearData}>
-                        Yes, Clear All Data
-                    </AlertDialogAction>
+                    <AlertDialogAction onClick={handleClearData}>Yes, Clear All Data</AlertDialogAction>
                 </AlertDialogFooter>
             </AlertDialogContent>
         </AlertDialog>

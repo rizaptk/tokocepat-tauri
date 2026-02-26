@@ -103,7 +103,7 @@ export function SubscriptionManager() {
 
     if (loading) {
         return (
-            <Card id="subscription">
+             <Card>
                 <CardHeader>
                     <Skeleton className="h-8 w-1/2" />
                     <Skeleton className="h-4 w-3/4" />
@@ -117,7 +117,7 @@ export function SubscriptionManager() {
     
     if (!isOnline) {
         return (
-            <Card id="subscription">
+            <Card>
                  <CardHeader>
                     <CardTitle>Subscription</CardTitle>
                     <CardDescription>Manage your subscription plan.</CardDescription>
@@ -135,7 +135,7 @@ export function SubscriptionManager() {
     
     if (!settings || settings.plans.length === 0) {
         return (
-             <Card id="subscription">
+             <Card>
                 <CardHeader>
                     <CardTitle>Subscription</CardTitle>
                 </CardHeader>
@@ -145,7 +145,7 @@ export function SubscriptionManager() {
     }
 
     return (
-        <Card id="subscription">
+         <Card>
             <CardHeader>
                 <CardTitle>Subscription Plans</CardTitle>
                 <CardDescription>Choose a plan to activate or extend your license.</CardDescription>

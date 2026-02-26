@@ -2,7 +2,6 @@
 "use client";
 
 import { useLicense } from '@/hooks/useLicense';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -70,32 +69,17 @@ export function LicenseManager() {
 
     if (status === 'LOADING') {
         return (
-             <Card id="license-management">
-              <CardHeader>
-                <CardTitle>License Status</CardTitle>
-                <CardDescription>
-                  Manage your application license and activation.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
+             <div className="space-y-4">
                   <Skeleton className="h-8 w-1/4" />
                   <Skeleton className="h-6 w-3/4" />
                   <Skeleton className="h-10 w-full" />
-              </CardContent>
-            </Card>
+              </div>
         )
     }
 
     if (status === 'VALID' && licenseDetails) {
         return (
-             <Card id="license-management" className="border-green-500/50">
-              <CardHeader>
-                <CardTitle>License Status</CardTitle>
-                <CardDescription>
-                  Your license is active on this device.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
+             <div className="space-y-4">
                   <div className="flex items-center gap-2">
                     <CheckCircle className="h-5 w-5 text-green-600" />
                     <p className="font-semibold text-green-600">License Active</p>
@@ -108,8 +92,7 @@ export function LicenseManager() {
                   <Button variant="outline" className="w-full" onClick={handleDeactivate} disabled={isLoading}>
                     {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin"/> Deactivating...</> : 'Deactivate This Device'}
                   </Button>
-              </CardContent>
-            </Card>
+              </div>
         )
     }
 
@@ -131,31 +114,23 @@ export function LicenseManager() {
     const errorContent = getErrorContent();
 
     return (
-        <Card id="license-management" className={status !== 'VALID' && status !== 'LOADING' && status !== 'NOT_FOUND' ? 'border-destructive/50' : ''}>
-            <CardHeader>
-                <CardTitle>{status === 'NOT_FOUND' ? 'Activate License' : 'License Issue'}</CardTitle>
-                <CardDescription>
-                  {status === 'NOT_FOUND' ? 'Please enter your license key to activate the application.' : 'Please resolve the issue below or enter a new key.'}
-                </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-                {errorContent && (
-                    <div className="flex items-start gap-3 text-destructive font-medium p-3 bg-destructive/10 rounded-md">
-                        <errorContent.icon className="h-5 w-5 mt-0.5 shrink-0" />
-                        <div>
-                            <p>{errorContent.title}</p>
-                            <p className="text-xs font-normal text-destructive/80">{errorContent.description}</p>
-                        </div>
+        <div className="space-y-4">
+            {errorContent && (
+                <div className="flex items-start gap-3 text-destructive font-medium p-3 bg-destructive/10 rounded-md">
+                    <errorContent.icon className="h-5 w-5 mt-0.5 shrink-0" />
+                    <div>
+                        <p>{errorContent.title}</p>
+                        <p className="text-xs font-normal text-destructive/80">{errorContent.description}</p>
                     </div>
-                )}
-                <div className="space-y-2">
-                    <Label htmlFor="license-key">License Key</Label>
-                    <Input id="license-key" placeholder="Paste your license key here" value={licenseKey} onChange={(e) => setLicenseKey(e.target.value)} disabled={isLoading} />
                 </div>
-                <Button className="w-full" onClick={handleActivate} disabled={isLoading}>
-                    {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin"/> Activating...</> : 'Activate'}
-                </Button>
-            </CardContent>
-        </Card>
+            )}
+            <div className="space-y-2">
+                <Label htmlFor="license-key">License Key</Label>
+                <Input id="license-key" placeholder="Paste your license key here" value={licenseKey} onChange={(e) => setLicenseKey(e.target.value)} disabled={isLoading} />
+            </div>
+            <Button className="w-full" onClick={handleActivate} disabled={isLoading}>
+                {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin"/> Activating...</> : 'Activate'}
+            </Button>
+        </div>
     )
 }
