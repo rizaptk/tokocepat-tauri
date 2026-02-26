@@ -4,6 +4,7 @@ import { db } from '@/lib/firebase-admin';
 import * as jose from 'jose';
 import * as admin from 'firebase-admin';
 
+// Helper to generate a token. This is duplicated from activate/route.ts, could be refactored later.
 async function generateSignedJwt(licenseData: any, licenseKey: string, deviceId: string) {
     const secret = new TextEncoder().encode(process.env.JWT_SECRET_KEY);
     const alg = 'HS256';
@@ -26,92 +27,91 @@ async function generateSignedJwt(licenseData: any, licenseKey: string, deviceId:
     return await jwtBuilder.sign(secret);
 }
 
-
 export async function POST(request: Request) {
     try {
         const body = await request.json().catch(() => ({}));
         const { token, deviceId } = body;
 
-        // --- NEW: Asynchronous License Claiming Flow ---
-        if (!token && deviceId) {
+        // A deviceID is required for any heartbeat operation.
+        if (!deviceId) {
+            return NextResponse.json({ error: 'Device ID is required.' }, { status: 400 });
+        }
+
+        let sessionData: any = {
+            lastSeen: admin.firestore.FieldValue.serverTimestamp(),
+            // Default values
+            customerEmail: 'N/A',
+            licenseKey: 'N/A',
+            plan: 'Unlicensed',
+        };
+
+        // --- Handle Unlicensed Client: Check for a claimable license ---
+        if (!token) {
             const ticketsRef = db.collection('paymentTickets');
             const ticketQuery = await ticketsRef
                 .where('deviceId', '==', deviceId)
                 .where('status', '==', 'resolved')
-                .where('claimedAt', '==', null) // Check that it hasn't been claimed
+                .where('claimedAt', '==', null)
                 .orderBy('createdAt', 'desc')
                 .limit(1)
                 .get();
-            
+
             if (!ticketQuery.empty) {
                 const ticketDoc = ticketQuery.docs[0];
                 const ticketData = ticketDoc.data();
                 const licenseKey = ticketData.licenseKey;
 
                 if (licenseKey) {
-                    const licensesRef = db.collection('licenses');
-                    const licenseQuery = await licensesRef.where('key', '==', licenseKey).limit(1).get();
-
+                    const licenseQuery = await db.collection('licenses').where('key', '==', licenseKey).limit(1).get();
                     if (!licenseQuery.empty) {
                         const licenseDoc = licenseQuery.docs[0];
-                        
-                        // Generate a signed JWT for the client
                         const newToken = await generateSignedJwt(licenseDoc.data(), licenseKey, deviceId);
                         
-                        // Mark the ticket as claimed to prevent re-issuing
                         await ticketDoc.ref.update({ claimedAt: admin.firestore.FieldValue.serverTimestamp() });
 
+                        // Return the new token immediately. The client will reload and send a new, licensed heartbeat.
                         return NextResponse.json({ token: newToken }, { status: 200 });
                     }
                 }
             }
-        }
-        // --- End of New Flow ---
-
-        // If a token is provided, proceed with the original heartbeat logic to update online status.
-        if (token) {
-            const secret = new TextEncoder().encode(process.env.JWT_SECRET_KEY);
-            let payload;
-
+            // If no token and no ticket, the default 'Unlicensed' sessionData will be saved.
+        } 
+        // --- Handle Licensed Client: Verify token and gather info ---
+        else {
             try {
-                 const { payload: verifiedPayload } = await jose.jwtVerify(token, secret);
-                 payload = verifiedPayload;
-            } catch (e: any) {
-                 console.warn(`Heartbeat with invalid token received: ${e.message}`);
-                 return NextResponse.json({ status: 'ok_invalid_token' }, { status: 200 });
-            }
-
-            if (!payload || !payload.sub || !payload.deviceId) {
-                console.warn('Heartbeat with invalid payload received.');
-                return NextResponse.json({ status: 'ok_invalid_payload' }, { status: 200 });
-            }
-            
-            const sessionDeviceId = payload.deviceId as string;
-
-            const licensesRef = db.collection('licenses');
-            const query = licensesRef.where('key', '==', payload.sub as string).limit(1);
-            const snapshot = await query.get();
-
-            let customerEmail = 'unknown';
-
-            if (!snapshot.empty) {
-                const licenseData = snapshot.docs[0].data();
-                const customerId = licenseData.customerId;
-                if (customerId && typeof customerId === 'string' && customerId.length > 0) {
-                    const customerSnap = await db.collection('customers').doc(customerId).get();
-                    if (customerSnap.exists) {
-                        customerEmail = customerSnap.data()?.email || 'unknown';
+                const secret = new TextEncoder().encode(process.env.JWT_SECRET_KEY);
+                const { payload } = await jose.jwtVerify(token, secret);
+                
+                // Security check: ensure the token's deviceId matches the one sending the request
+                if (payload.deviceId !== deviceId) {
+                    throw new Error("Device ID mismatch in token.");
+                }
+                
+                sessionData.licenseKey = payload.sub as string;
+                sessionData.plan = (payload.plan as string) || 'N/A';
+                
+                // Find customer email
+                const licensesRef = db.collection('licenses');
+                const licenseQuery = await licensesRef.where('key', '==', sessionData.licenseKey).limit(1).get();
+                if (!licenseQuery.empty) {
+                    const licenseData = licenseQuery.docs[0].data();
+                    const customerId = licenseData.customerId;
+                    if (customerId && typeof customerId === 'string' && customerId.length > 0) {
+                        const customerSnap = await db.collection('customers').doc(customerId).get();
+                        if (customerSnap.exists) {
+                            sessionData.customerEmail = customerSnap.data()?.email || 'N/A';
+                        }
                     }
                 }
+            } catch (e: any) {
+                // If token is invalid, we still want to log the session, but mark it as having a bad token.
+                console.warn(`Heartbeat with invalid token for device ${deviceId}: ${e.message}`);
+                sessionData.plan = 'Invalid Token';
             }
-
-            await db.collection('online_sessions').doc(sessionDeviceId).set({
-                customerEmail,
-                licenseKey: payload.sub as string,
-                plan: (payload.plan as string) || 'N/A',
-                lastSeen: admin.firestore.FieldValue.serverTimestamp(),
-            }, { merge: true });
         }
+
+        // --- Save the session data to Firestore for ALL clients with a deviceId ---
+        await db.collection('online_sessions').doc(deviceId).set(sessionData, { merge: true });
         
         return NextResponse.json({ status: 'ok' }, { status: 200 });
 
