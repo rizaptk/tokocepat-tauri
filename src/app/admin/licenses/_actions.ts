@@ -34,10 +34,6 @@ export async function createLicenseAction(prevState: CreateFormState, formData: 
     };
   }
 
-  if (!db) {
-     return { message: "Server error", errors: { _form: ["Database connection is not available."] } };
-  }
-
   const { customerEmail, plan } = validatedFields.data;
 
   try {
@@ -126,10 +122,6 @@ export async function deactivateDeviceAction(prevState: DeactivateFormState, for
     return { error: 'Invalid input.' };
   }
   
-  if (!db) {
-     return { error: 'Database connection is not available.' };
-  }
-
   const { licenseId, deviceId } = validatedFields.data;
 
   try {

@@ -5,50 +5,49 @@ import { getAuth, Auth } from 'firebase-admin/auth';
 const appName = 'tokocepat';
 
 /**
- * Helper to initialize the app instance once.
- * Decodes the base64 service account from the environment.
+ * Initializes and returns the Firebase Admin App instance.
+ * Throws an error if initialization fails.
  */
-function initializeAdmin(): App | null {
-  // 1. Return existing app if already initialized (prevents hot-reload errors)
+function initializeAdminApp(): App {
+  // Return existing app if already initialized (prevents hot-reload errors)
   const existingApp = getApps().find((app) => app.name === appName);
-  if (existingApp) return existingApp;
+  if (existingApp) {
+    return existingApp;
+  }
 
-  // 2. Validate environment variable
+  // Validate environment variable
   const b64Key = process.env.FIREBASE_SDK;
   if (!b64Key) {
-    console.error(`[Firebase Admin] Missing FIREBASE_SERVICE_ACCOUNT_KEY`);
-    return null;
+    throw new Error("[Firebase Admin] FATAL: The FIREBASE_SDK environment variable is not set.");
   }
 
   try {
-    // 3. Decode and Parse
-    const serviceAccount = JSON.parse(
-      Buffer.from(b64Key, 'base64').toString('utf8')
-    );
+    // Decode and Parse the service account
+    const serviceAccountString = Buffer.from(b64Key, 'base64').toString('utf8');
+    const serviceAccount = JSON.parse(serviceAccountString);
 
-    // Ensure the private_key specifically handles escaped newlines
+    // Format the private key to handle escaped newlines
     const formattedServiceAccount: ServiceAccount = {
       projectId: serviceAccount.project_id,
       clientEmail: serviceAccount.client_email,
       privateKey: serviceAccount.private_key.replace(/\\n/g, '\n'),
     };
 
-    return initializeApp(
-      { credential: cert(formattedServiceAccount) },
-      appName
-    );
-  } catch (error) {
-    console.error(`[Firebase Admin] Initialization failed:`, error);
-    return null;
+    // Initialize and return the app
+    return initializeApp({ credential: cert(formattedServiceAccount) }, appName);
+
+  } catch (error: any) {
+    // Provide a detailed error message if parsing or initialization fails
+    console.error("[Firebase Admin] Initialization failed:", error.message);
+    throw new Error(`[Firebase Admin] Could not initialize app. Please check if the FIREBASE_SDK variable is a valid, Base64-encoded service account key. Original error: ${error.message}`);
   }
 }
 
-// Initialize the app
-const app = initializeAdmin();
+// Initialize the app. This will throw an error on server start if it fails.
+const adminApp = initializeAdminApp();
 
-// Initialize and export lowercase db and auth
-// These will be null if initialization failed.
-const db: Firestore | null = app ? getFirestore(app) : null;
-const auth: Auth | null = app ? getAuth(app) : null;
+// Export the initialized services
+const db: Firestore = getFirestore(adminApp);
+const auth: Auth = getAuth(adminApp);
 
 export { db, auth };

@@ -16,9 +16,6 @@ import {
 } from '@/components/ui/table';
 
 async function getCustomers() {
-    if (!db) {
-        return { error: "Firebase Admin SDK could not be initialized. Please check the server logs for the specific error. This is often caused by a missing or malformed FIREBASE_SDK environment variable." };
-    }
     try {
         const customersSnapshot = await db.collection('customers').get();
         if (customersSnapshot.empty) {
@@ -27,8 +24,9 @@ async function getCustomers() {
         return customersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     } catch (error: any) {
         console.error("Error fetching customers: ", error);
-        // This error now points to a general connectivity issue, as initialization is handled separately.
-        return { error: "Could not connect to the database. Please ensure your Firebase project has Firestore enabled and the server has network access." };
+        // This error will now mostly catch runtime issues like Firestore being disabled.
+        // Initialization errors are caught on server startup.
+        return { error: "Could not fetch data from Firestore. Please ensure the service is enabled and check server logs for detailed errors." };
     }
 }
 
