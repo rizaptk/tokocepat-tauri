@@ -1,7 +1,6 @@
-
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { readSecureEnclave, generateDeviceFingerprint, writeSecureEnclave } from '@/lib/security';
 import { decodeJwt } from 'jose';
 import { useToast } from './use-toast';
@@ -17,44 +16,49 @@ export type LicenseStatus =
     | 'CLONED';     // Device ID does not match the one in the token
 
 const EXPIRY_WARNING_DAYS = 7;
+const HEARTBEAT_INTERVAL_MS = 3 * 60 * 1000; // 3 minutes
 
 export function useLicense() {
     const { toast } = useToast();
     const [status, setStatus] = useState<LicenseStatus>('LOADING');
     const [licenseDetails, setLicenseDetails] = useState<any>(null);
 
-    useEffect(() => {
-        const checkLicense = async () => {
+    const sendHeartbeat = useCallback(async () => {
+        if (!navigator.onLine) {
+            return;
+        }
+
+        try {
             const enclave = await readSecureEnclave();
             const currentDeviceId = await generateDeviceFingerprint();
 
-            // --- Heartbeat and Auto-Activation Logic ---
-            // This runs whether a license is found or not, allowing unlicensed clients to claim a resolved ticket.
-            if (navigator.onLine) {
-                try {
-                    const response = await fetch('/api/heartbeat', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            token: enclave?.licenseKey,
-                            deviceId: currentDeviceId
-                        }),
-                    });
-                    const data = await response.json();
-                    
-                    // If server finds a new resolved license for this device, it sends back a token.
-                    if (data.token) {
-                        await writeSecureEnclave({ licenseKey: data.token, lastKnownTime: new Date().toISOString() });
-                        toast({ title: "License Activated!", description: "Your new license is active. The app will now reload." });
-                        setTimeout(() => window.location.reload(), 1500);
-                        return; // Halt further execution as the page will reload
-                    }
-                } catch (error) {
-                    console.warn("Heartbeat failed. This can happen when offline.", error);
-                }
+            const response = await fetch('/api/heartbeat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    token: enclave?.licenseKey,
+                    deviceId: currentDeviceId
+                }),
+            });
+            const data = await response.json();
+            
+            if (data.token) {
+                await writeSecureEnclave({ licenseKey: data.token, lastKnownTime: new Date().toISOString() });
+                toast({ title: "License Activated!", description: "Your new license is active. The app will now reload." });
+                setTimeout(() => window.location.reload(), 1500);
             }
-            // --- End Heartbeat Logic ---
+        } catch (error) {
+            console.warn("Heartbeat failed. This can happen when offline.", error);
+        }
+    }, [toast]);
 
+    useEffect(() => {
+        const checkLicense = async () => {
+            // First, send an immediate heartbeat on load
+            await sendHeartbeat();
+            
+            const enclave = await readSecureEnclave();
+            const currentDeviceId = await generateDeviceFingerprint();
 
             if (!enclave || !enclave.licenseKey) {
                 setStatus('NOT_FOUND');
@@ -123,7 +127,15 @@ export function useLicense() {
         };
 
         checkLicense();
-    }, [toast]);
+    }, [sendHeartbeat, toast]);
+
+    useEffect(() => {
+        const intervalId = setInterval(() => {
+            sendHeartbeat();
+        }, HEARTBEAT_INTERVAL_MS);
+
+        return () => clearInterval(intervalId);
+    }, [sendHeartbeat]);
 
     const deactivate = async (): Promise<void> => {
         const enclave = await readSecureEnclave();
