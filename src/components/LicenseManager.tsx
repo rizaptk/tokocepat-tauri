@@ -7,10 +7,11 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Skeleton } from './ui/skeleton';
 import { Badge } from './ui/badge';
-import { CheckCircle, XCircle, Clock, ShieldOff, Loader2 } from 'lucide-react';
+import { CheckCircle, XCircle, Clock, ShieldOff, Loader2, AlertTriangle } from 'lucide-react';
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { generateDeviceFingerprint, writeSecureEnclave } from '@/lib/security';
+import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 
 export function LicenseManager() {
     const { status, licenseDetails, deactivate } = useLicense();
@@ -77,9 +78,18 @@ export function LicenseManager() {
         )
     }
 
-    if (status === 'VALID' && licenseDetails) {
+    if (status === 'VALID' || status === 'EXPIRES_SOON') {
         return (
              <div className="space-y-4">
+                  {status === 'EXPIRES_SOON' && licenseDetails?.daysRemaining != null && (
+                    <Alert variant="destructive" className="bg-orange-50 border-orange-200 text-orange-800 dark:bg-orange-950/30 dark:border-orange-800 dark:text-orange-300 [&>svg]:text-orange-600">
+                        <AlertTriangle className="h-4 w-4" />
+                        <AlertTitle>License Expiring Soon</AlertTitle>
+                        <AlertDescription>
+                            Your license will expire in {licenseDetails.daysRemaining} day(s). Please renew your subscription to avoid service interruption.
+                        </AlertDescription>
+                    </Alert>
+                  )}
                   <div className="flex items-center gap-2">
                     <CheckCircle className="h-5 w-5 text-green-600" />
                     <p className="font-semibold text-green-600">License Active</p>

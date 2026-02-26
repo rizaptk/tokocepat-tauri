@@ -7,6 +7,7 @@ import { decodeJwt } from 'jose';
 
 export type LicenseStatus = 
     | 'VALID'       // Everything is OK
+    | 'EXPIRES_SOON' // Nearing expiry date
     | 'INVALID'     // Token is malformed or signature is bad
     | 'EXPIRED'     // Token has expired
     | 'NOT_FOUND'   // No license token found locally
@@ -14,6 +15,7 @@ export type LicenseStatus =
     | 'TAMPERED'    // Clock has been moved backwards
     | 'CLONED';     // Device ID does not match the one in the token
 
+const EXPIRY_WARNING_DAYS = 7;
 
 export function useLicense() {
     const [status, setStatus] = useState<LicenseStatus>('LOADING');
@@ -28,7 +30,6 @@ export function useLicense() {
                 return;
             }
 
-            // Use a proper JWT decoder
             let payload;
             try {
                 payload = decodeJwt(enclave.licenseKey);
@@ -50,11 +51,13 @@ export function useLicense() {
                 return;
             }
 
-            if (payload.exp && currentTime.getTime() / 1000 > payload.exp) {
+            const expiryDate = payload.exp ? new Date(payload.exp * 1000) : null;
+
+            if (expiryDate && currentTime > expiryDate) {
                 setStatus('EXPIRED');
                 setLicenseDetails({
                     ...payload,
-                    expiresAt: payload.exp ? new Date(payload.exp * 1000).toISOString() : 'Never'
+                    expiresAt: expiryDate.toISOString()
                 });
                 return;
             }
@@ -65,10 +68,25 @@ export function useLicense() {
                 return;
             }
 
+            if (expiryDate) {
+                const daysRemaining = Math.ceil((expiryDate.getTime() - currentTime.getTime()) / (1000 * 60 * 60 * 24));
+                if (daysRemaining <= EXPIRY_WARNING_DAYS) {
+                    setStatus('EXPIRES_SOON');
+                    setLicenseDetails({
+                        ...payload,
+                        expiresAt: expiryDate.toISOString(),
+                        daysRemaining,
+                    });
+                     await writeSecureEnclave({ ...enclave, lastKnownTime: currentTime.toISOString() });
+                    return;
+                }
+            }
+            
+
             setStatus('VALID');
             setLicenseDetails({
                 ...payload,
-                expiresAt: payload.exp ? new Date(payload.exp * 1000).toISOString() : 'Never'
+                expiresAt: expiryDate ? expiryDate.toISOString() : 'Never'
             });
 
             if (payload.isTrial) {

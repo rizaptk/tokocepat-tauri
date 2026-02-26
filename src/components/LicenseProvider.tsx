@@ -31,9 +31,9 @@ export function LicenseProvider({ children }: { children: React.ReactNode }) {
         )
     }
 
-    // Only 'VALID' allows access. All other states will show the lock screen.
-    // The settings page is always accessible regardless of license status.
-    if (status !== 'VALID' && typeof window !== 'undefined' && !window.location.pathname.startsWith('/dashboard/settings')) {
+    const isLicensed = status === 'VALID' || status === 'EXPIRES_SOON';
+    
+    if (!isLicensed && typeof window !== 'undefined' && !window.location.pathname.startsWith('/dashboard/settings')) {
         const message = statusMessages[status] || "An unknown license error occurred.";
         return (
              <div className="flex h-screen w-full items-center justify-center bg-muted/40 p-4">
