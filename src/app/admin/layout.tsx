@@ -30,9 +30,9 @@ export default async function AdminLayout({
 }) {
   const session = await getSession();
 
-  // If there's no session, we're on the login page.
-  // Render children directly without the admin layout shell.
-  if (!session) {
+  // If there's no valid admin session, render children directly.
+  // This allows the login page to be displayed without the admin layout shell.
+  if (!session || !session.admin) {
     return <>{children}</>;
   }
   

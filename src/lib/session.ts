@@ -1,7 +1,6 @@
 import 'server-only';
 import { SignJWT, jwtVerify } from 'jose';
 import { cookies } from 'next/headers';
-import { NextRequest, NextResponse } from 'next/server';
 
 const secretKey = process.env.SESSION_SECRET;
 if (!secretKey) {
@@ -29,9 +28,10 @@ export async function decrypt(input: string): Promise<any> {
   }
 }
 
-export async function createSession(userId: string) {
+export async function createSession(uid: string, claims: object) {
   const expires = new Date(Date.now() + 2 * 60 * 60 * 1000); // 2 hours from now
-  const session = await encrypt({ userId, expires });
+  const sessionPayload = { uid, ...claims, expires };
+  const session = await encrypt(sessionPayload);
 
   cookies().set('session', session, { 
     expires, 
@@ -48,24 +48,6 @@ export async function getSession() {
 }
 
 export async function deleteSession() {
-  cookies().delete('session');
-}
-
-export async function updateSession(request: NextRequest) {
-    const session = request.cookies.get('session')?.value
-    if (!session) return
-  
-    // Refresh the session so it doesn't expire
-    const parsed = await decrypt(session)
-    if (parsed) {
-        parsed.expires = new Date(Date.now() + 2 * 60 * 60 * 1000)
-        const res = NextResponse.next()
-        res.cookies.set({
-          name: 'session',
-          value: await encrypt(parsed),
-          httpOnly: true,
-          expires: parsed.expires,
-        })
-        return res
-    }
+  // Set the cookie to an empty value and an expiration date in the past
+  cookies().set('session', '', { httpOnly: true, expires: new Date(0), path: '/' });
 }
