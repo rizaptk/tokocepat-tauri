@@ -40,31 +40,24 @@ export function useLicense() {
         const checkLicense = async () => {
             const enclave = await readSecureEnclave();
 
-            // 1. Check if license exists locally. `readSecureEnclave` already verifies HMAC signature.
-            // If it returns null, it means no enclave or it was tampered with.
             if (!enclave || !enclave.licenseKey) {
                 setStatus('NOT_FOUND');
                 return;
             }
 
-            // In a real implementation, we would also verify the JWT's own signature here with a public key.
-            // For now, we trust the HMAC-verified enclave contains a valid JWT from the server.
-            
             const payload = decodeJwtPayload(enclave.licenseKey);
             if (!payload) {
-                setStatus('INVALID'); // Malformed token
+                setStatus('INVALID');
                 return;
             }
             
-            // 2. Check for clock tampering
             const currentTime = new Date();
             const lastKnownTime = new Date(enclave.lastKnownTime);
             if (currentTime < lastKnownTime) {
-                setStatus('TAMPERED'); // Clock moved backwards
+                setStatus('TAMPERED');
                 return;
             }
 
-            // 3. Check for expiration
             if (payload.exp && currentTime.getTime() / 1000 > payload.exp) {
                 setStatus('EXPIRED');
                 setLicenseDetails({
@@ -74,21 +67,22 @@ export function useLicense() {
                 return;
             }
 
-            // 4. Check for device clone
             const currentDeviceId = await generateDeviceFingerprint();
             if (currentDeviceId !== payload.deviceId) {
-                setStatus('CLONED'); // License is for a different device
+                setStatus('CLONED');
                 return;
             }
 
-            // 5. All checks passed. License is valid.
             setStatus('VALID');
             setLicenseDetails({
                 ...payload,
                 expiresAt: payload.exp ? new Date(payload.exp * 1000).toISOString() : 'Never'
             });
 
-            // Update the last known time to prevent clock tampering.
+            if (payload.isTrial) {
+                localStorage.setItem('tokoc_trial_activated_on_device', 'true');
+            }
+
             await writeSecureEnclave({ ...enclave, lastKnownTime: currentTime.toISOString() });
         };
 
@@ -112,7 +106,6 @@ export function useLicense() {
             throw new Error(data.error || "Deactivation failed.");
         }
         
-        // Clear local license by writing an empty enclave.
         localStorage.removeItem('tokoc_secure_enclave');
     };
 

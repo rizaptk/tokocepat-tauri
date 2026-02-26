@@ -16,6 +16,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Loader2, PlusCircle, Save, Trash2 } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
 
 // --- Payment Instructions Form ---
 const instructionsSchema = z.object({
@@ -103,14 +104,14 @@ function SubscriptionPlansForm({ initialData }: { initialData: SubscriptionPlan[
     }, [initialData]);
 
     const handleAddPlan = () => {
-        setPlans([...plans, { id: `NEW_${Date.now()}`, name: 'New Plan', price: 0, durationDays: 30, description: 'New plan description' }]);
+        setPlans([...plans, { id: `NEW_${Date.now()}`, name: 'New Plan', price: 0, durationDays: 30, description: 'New plan description', maxSeats: 1, isTrial: false }]);
     };
     
     const handleRemovePlan = (index: number) => {
         setPlans(plans.filter((_, i) => i !== index));
     };
 
-    const handlePlanChange = (index: number, field: keyof SubscriptionPlan, value: string | number) => {
+    const handlePlanChange = (index: number, field: keyof SubscriptionPlan, value: string | number | boolean) => {
         const newPlans = [...plans];
         // @ts-ignore
         newPlans[index][field] = value;
@@ -132,7 +133,7 @@ function SubscriptionPlansForm({ initialData }: { initialData: SubscriptionPlan[
         <Card>
             <CardHeader>
                 <CardTitle>Subscription Plans</CardTitle>
-                <CardDescription>Manage the subscription plans available to users.</CardDescription>
+                <CardDescription>Manage the subscription plans available to users. Set duration to -1 for a lifetime plan.</CardDescription>
             </CardHeader>
             <CardContent>
                 <div className="space-y-4">
@@ -142,6 +143,8 @@ function SubscriptionPlansForm({ initialData }: { initialData: SubscriptionPlan[
                                 <TableHead>Plan Name</TableHead>
                                 <TableHead>Price (IDR)</TableHead>
                                 <TableHead>Duration (Days)</TableHead>
+                                <TableHead>Max Devices</TableHead>
+                                <TableHead>Trial?</TableHead>
                                 <TableHead>Description</TableHead>
                                 <TableHead></TableHead>
                             </TableRow>
@@ -152,6 +155,8 @@ function SubscriptionPlansForm({ initialData }: { initialData: SubscriptionPlan[
                                     <TableCell><Input value={plan.name} onChange={e => handlePlanChange(index, 'name', e.target.value)} /></TableCell>
                                     <TableCell><Input type="number" value={plan.price} onChange={e => handlePlanChange(index, 'price', Number(e.target.value))} /></TableCell>
                                     <TableCell><Input type="number" value={plan.durationDays} onChange={e => handlePlanChange(index, 'durationDays', Number(e.target.value))} /></TableCell>
+                                    <TableCell><Input type="number" min="1" value={plan.maxSeats} onChange={e => handlePlanChange(index, 'maxSeats', Number(e.target.value))} /></TableCell>
+                                    <TableCell className="text-center"><Switch checked={plan.isTrial} onCheckedChange={checked => handlePlanChange(index, 'isTrial', checked)} /></TableCell>
                                     <TableCell><Input value={plan.description} onChange={e => handlePlanChange(index, 'description', e.target.value)} /></TableCell>
                                     <TableCell><Button variant="ghost" size="icon" onClick={() => handleRemovePlan(index)}><Trash2 className="h-4 w-4 text-destructive"/></Button></TableCell>
                                 </TableRow>

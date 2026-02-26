@@ -25,12 +25,8 @@ import {
 import { PlusCircle, Loader2 } from 'lucide-react';
 import { createLicenseAction, type CreateFormState } from '../_actions';
 import { useToast } from '@/hooks/use-toast';
-
-const planTypes = [
-  { value: 'PRO_MONTHLY', label: 'Pro Monthly' },
-  { value: 'PRO_YEARLY', label: 'Pro Yearly' },
-  { value: 'LIFETIME', label: 'Lifetime' },
-];
+import { getPlanSettings } from '../../plans/_actions';
+import { SubscriptionPlan } from '@/lib/types';
 
 function SubmitButton() {
     const { pending } = useFormStatus();
@@ -53,9 +49,18 @@ export function CreateLicenseDialog() {
   const [isOpen, setIsOpen] = useState(false);
   const { toast } = useToast();
   const formRef = useRef<HTMLFormElement>(null);
+  const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
 
   const initialState: CreateFormState = { message: '' };
   const [state, formAction] = useActionState(createLicenseAction, initialState);
+
+  useEffect(() => {
+    if (isOpen) {
+        getPlanSettings().then(settings => {
+            setPlans(settings.plans || []);
+        });
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     if (state.message === 'success') {
@@ -116,10 +121,10 @@ export function CreateLicenseDialog() {
                             <SelectValue placeholder="Select a plan" />
                         </SelectTrigger>
                         <SelectContent>
-                            {planTypes.map((plan) => (
-                            <SelectItem key={plan.value} value={plan.value}>
-                                {plan.label}
-                            </SelectItem>
+                            {plans.map((plan) => (
+                                <SelectItem key={plan.id} value={plan.name}>
+                                    {plan.name} ({plan.isTrial ? 'Trial' : `IDR ${plan.price.toLocaleString()}`})
+                                </SelectItem>
                             ))}
                         </SelectContent>
                     </Select>
@@ -127,24 +132,6 @@ export function CreateLicenseDialog() {
                         <p className="text-sm font-medium text-destructive pt-1">{state.errors.plan}</p>
                     )}
                  </div>
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="maxSeats" className="text-right">
-                Seats
-                </Label>
-                <div className="col-span-3">
-                    <Input
-                        id="maxSeats"
-                        name="maxSeats"
-                        type="number"
-                        placeholder="Number of devices"
-                        defaultValue={1}
-                        min="1"
-                    />
-                     {state?.errors?.maxSeats && (
-                        <p className="text-sm font-medium text-destructive pt-1">{state.errors.maxSeats}</p>
-                    )}
-                </div>
             </div>
              {state?.errors?._form && (
                 <p className="text-sm font-medium text-destructive text-center">{state.errors._form}</p>

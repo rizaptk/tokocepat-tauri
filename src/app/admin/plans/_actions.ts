@@ -19,7 +19,14 @@ export async function getPlanSettings(): Promise<{ instructions: PaymentInstruct
         const instructions = instructionsSnap.exists ? (instructionsSnap.data() as PaymentInstructions) : {};
         const plans = plansSnap.exists ? (plansSnap.data()?.plans as SubscriptionPlan[]) : [];
 
-        return { instructions, plans };
+        // Add default values for new fields if they don't exist
+        const safePlans = plans.map(p => ({
+            ...p,
+            maxSeats: p.maxSeats || 1,
+            isTrial: p.isTrial || false,
+        }));
+
+        return { instructions, plans: safePlans };
     } catch (error) {
         console.error("Failed to fetch plan settings:", error);
         return { instructions: {}, plans: [] };
@@ -59,8 +66,18 @@ export async function updateSubscriptionPlansAction(plans: SubscriptionPlan[]): 
         return { success: false, error: 'Invalid plan data.' };
     }
 
+    const validatedPlans = plans.map(p => ({
+        id: p.id,
+        name: p.name,
+        price: Number(p.price) || 0,
+        durationDays: Number(p.durationDays) || 30,
+        description: p.description,
+        maxSeats: Number(p.maxSeats) || 1,
+        isTrial: p.isTrial || false,
+    }));
+
     try {
-        await db.collection('app_settings').doc('subscriptionPlans').set({ plans });
+        await db.collection('app_settings').doc('subscriptionPlans').set({ plans: validatedPlans });
         revalidatePath('/admin/plans');
         return { success: true };
     } catch (error) {

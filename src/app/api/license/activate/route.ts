@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/firebase-admin';
+import { SubscriptionPlan } from '@/lib/types';
 
 // A basic Base64URL encoder
 function base64url(source: any) {
@@ -29,6 +30,22 @@ export async function POST(request: Request) {
 
         const licenseDoc = snapshot.docs[0];
         const licenseData = licenseDoc.data();
+        
+        // --- NEW TRIAL CHECK LOGIC ---
+        const planName = licenseData.plan;
+        const plansRef = db.collection('app_settings').doc('subscriptionPlans');
+        const plansSnap = await plansRef.get();
+        const allPlans = (plansSnap.exists() ? plansSnap.data()?.plans : []) as SubscriptionPlan[];
+        const selectedPlan = allPlans.find(p => p.name === planName);
+
+        if (selectedPlan && selectedPlan.isTrial) {
+            const trialActivationsRef = db.collection('trialActivations').doc(deviceId);
+            const trialSnap = await trialActivationsRef.get();
+            if (trialSnap.exists) {
+                return NextResponse.json({ error: 'This device has already used a trial license.' }, { status: 403 });
+            }
+        }
+        // --- END NEW TRIAL CHECK LOGIC ---
 
         const activations = licenseData.activations || [];
         const maxSeats = licenseData.maxSeats || 1;
@@ -54,24 +71,31 @@ export async function POST(request: Request) {
 
         await licenseDoc.ref.update({ activations: newActivations });
 
+        // --- NEW: Record trial activation if it's a trial plan ---
+        if (selectedPlan && selectedPlan.isTrial) {
+            await db.collection('trialActivations').doc(deviceId).set({
+                activatedAt: new Date(),
+                licenseKey: licenseKey,
+            });
+        }
+        // --- END NEW ---
+
         // Create JWT payload
         const now = Math.floor(Date.now() / 1000);
         let exp = licenseData.expiresAt ? Math.floor(licenseData.expiresAt.toDate().getTime() / 1000) : null;
         
-        // For non-expiring (lifetime) licenses, don't set an 'exp' claim
         const payload: any = {
             sub: licenseKey,
             deviceId: deviceId,
             plan: licenseData.plan,
             iat: now,
+            isTrial: selectedPlan?.isTrial || false, // Add isTrial flag to payload
         };
         if (exp) {
             payload.exp = exp;
         }
 
         const header = { alg: 'none', typ: 'JWT' };
-        // This is a pseudo-token as the client doesn't verify the signature yet.
-        // The security relies on the HMAC of the client-side enclave.
         const pseudoToken = `${base64url(header)}.${base64url(payload)}.`;
 
         return NextResponse.json({ token: pseudoToken }, { status: 200 });

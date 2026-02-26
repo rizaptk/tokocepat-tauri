@@ -5,13 +5,11 @@ import { db } from '@/lib/firebase-admin';
 import { revalidatePath } from 'next/cache';
 import { randomBytes } from 'crypto';
 import { format } from 'date-fns';
+import { SubscriptionPlan } from '@/lib/types';
 
 const CreateLicenseSchema = z.object({
   customerEmail: z.string().email({ message: 'Please enter a valid email.' }),
-  plan: z.enum(['PRO_MONTHLY', 'PRO_YEARLY', 'LIFETIME'], {
-      required_error: 'Please select a plan.'
-  }),
-  maxSeats: z.coerce.number().min(1, { message: 'Must have at least 1 seat.' }).max(100, { message: 'Cannot exceed 100 seats.' }),
+  plan: z.string().min(1, 'Please select a plan.'),
 });
 
 export type CreateFormState = {
@@ -19,7 +17,6 @@ export type CreateFormState = {
   errors?: {
     customerEmail?: string[];
     plan?: string[];
-    maxSeats?: string[];
     _form?: string[];
   };
 };
@@ -28,7 +25,6 @@ export async function createLicenseAction(prevState: CreateFormState, formData: 
   const validatedFields = CreateLicenseSchema.safeParse({
     customerEmail: formData.get('customerEmail'),
     plan: formData.get('plan'),
-    maxSeats: formData.get('maxSeats'),
   });
 
   if (!validatedFields.success) {
@@ -38,9 +34,23 @@ export async function createLicenseAction(prevState: CreateFormState, formData: 
     };
   }
 
-  const { customerEmail, plan, maxSeats } = validatedFields.data;
+  const { customerEmail, plan } = validatedFields.data;
 
   try {
+    // Fetch plan details to get maxSeats
+    const plansRef = db.collection('app_settings').doc('subscriptionPlans');
+    const plansSnap = await plansRef.get();
+    if (!plansSnap.exists) {
+        return { message: 'Server error', errors: { _form: ['Subscription plans are not configured.'] }};
+    }
+    const allPlans = (plansSnap.data()?.plans || []) as SubscriptionPlan[];
+    const selectedPlan = allPlans.find(p => p.name === plan);
+
+    if (!selectedPlan) {
+        return { message: 'Validation failed', errors: { plan: ['Selected plan not found.'] }};
+    }
+    const maxSeats = selectedPlan.maxSeats;
+
     // 1. Find or create customer
     const customersRef = db.collection('customers');
     const customerQuery = await customersRef.where('email', '==', customerEmail).limit(1).get();
@@ -67,16 +77,20 @@ export async function createLicenseAction(prevState: CreateFormState, formData: 
     const licenseKey = `TKN-${randomBytes(4).toString('hex').toUpperCase()}-${randomBytes(4).toString('hex').toUpperCase()}`;
     
     let expiresAt: Date | null = null;
+    const { durationDays } = selectedPlan;
     
-    if (plan === 'PRO_YEARLY') {
-      const d = new Date();
-      d.setFullYear(d.getFullYear() + 1);
-      expiresAt = d;
-    } else if (plan === 'PRO_MONTHLY') {
-      const d = new Date();
-      d.setMonth(d.getMonth() + 1);
-      expiresAt = d;
+    if (durationDays > 0) {
+        const d = new Date();
+        d.setDate(d.getDate() + durationDays);
+        expiresAt = d;
+    } else if (durationDays === -1) {
+        expiresAt = null; // Lifetime
+    } else { // Default to 30 days if invalid
+        const d = new Date();
+        d.setDate(d.getDate() + 30);
+        expiresAt = d;
     }
+
 
     const newLicense = {
       key: licenseKey,

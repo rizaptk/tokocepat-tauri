@@ -176,6 +176,8 @@ export interface SubscriptionPlan {
     price: number;
     durationDays: number; // e.g., 30 for monthly, 365 for yearly, -1 for lifetime
     description: string;
+    maxSeats: number;
+    isTrial: boolean;
 }
 
 export interface PaymentInstructions {
