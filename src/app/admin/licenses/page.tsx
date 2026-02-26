@@ -1,4 +1,5 @@
 
+import Link from 'next/link';
 import {
   MoreHorizontal,
   KeyRound,
@@ -176,11 +177,14 @@ export default async function AdminLicensesPage() {
                                                 </DropdownMenuTrigger>
                                                 <DropdownMenuContent align="end">
                                                     <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                                    <DropdownMenuItem>
-                                                        <View className="mr-2 h-4 w-4" /> View Details
+                                                    <DropdownMenuItem asChild>
+                                                        <Link href={`/admin/licenses/${license.id}`}>
+                                                            <View className="mr-2 h-4 w-4" />
+                                                            View Details
+                                                        </Link>
                                                     </DropdownMenuItem>
                                                     <DropdownMenuItem className="text-destructive">
-                                                        <Trash2 className="mr-2 h-4 w-4" /> Deactivate
+                                                        <Trash2 className="mr-2 h-4 w-4" /> Deactivate License
                                                     </DropdownMenuItem>
                                                 </DropdownMenuContent>
                                             </DropdownMenu>
