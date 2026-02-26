@@ -178,7 +178,7 @@ export default async function AdminLicensesPage() {
                                                 <DropdownMenuContent align="end">
                                                     <DropdownMenuLabel>Actions</DropdownMenuLabel>
                                                     <DropdownMenuItem asChild>
-                                                        <Link href={`/admin/licenses/${license.id}`}>
+                                                        <Link href={'/admin/licenses/' + license.id}>
                                                             <View className="mr-2 h-4 w-4" />
                                                             View Details
                                                         </Link>
