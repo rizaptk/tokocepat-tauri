@@ -2,7 +2,7 @@ import { initializeApp, getApps, cert, App, ServiceAccount } from 'firebase-admi
 import { getFirestore, Firestore } from 'firebase-admin/firestore';
 import { getAuth, Auth } from 'firebase-admin/auth';
 
-const appName = 'tokocepat';
+const appName = 'tokocepat'; 
 
 /**
  * Initializes and returns the Firebase Admin App instance.

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSession } from '@/lib/session';
+import { decrypt } from '@/lib/session';
 
 // Define which paths are public (don't require authentication)
 const publicPaths = ['/admin/login'];
@@ -9,7 +9,8 @@ export async function middleware(request: NextRequest) {
   
   // Check if the path is an admin path
   if (pathname.startsWith('/admin')) {
-    const session = await getSession();
+    const sessionCookie = request.cookies.get('session')?.value;
+    const session = sessionCookie ? await decrypt(sessionCookie) : null;
 
     // If the path is public and the user is logged in, redirect to the dashboard
     if (publicPaths.includes(pathname) && session?.admin) {

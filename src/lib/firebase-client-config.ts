@@ -7,7 +7,8 @@ let clientConfig: any = null;
 try {
     const configEnv = process.env.NEXT_PUBLIC_FIREBASE_CONFIG;
     if (configEnv) {
-        clientConfig = JSON.parse(configEnv);
+        const clientKey = Buffer.from(configEnv, 'base64').toString('utf8');
+        clientConfig = JSON.parse(clientKey);
     }
 } catch (e) {
     console.error("Could not parse NEXT_PUBLIC_FIREBASE_CONFIG. Please check your .env file.");
