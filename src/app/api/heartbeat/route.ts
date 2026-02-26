@@ -7,11 +7,9 @@ import * as jose from 'jose';
 import * as admin from 'firebase-admin';
 
 export async function POST(request: Request) {
-    const secretString = process.env.JWT_SECRET_KEY;
-    if (!secretString) {
-        console.error("FATAL: JWT_SECRET_KEY environment variable is not set. Using a default, insecure key for development purposes. DO NOT use this in production.");
-    }
-    const secret = new TextEncoder().encode(secretString || 'a_very_insecure_default_secret_key_for_development_only');
+    const secret = new TextEncoder().encode(
+      process.env.JWT_SECRET_KEY || 'a_very_insecure_default_secret_key_for_development_only'
+    );
     const alg = 'HS256';
 
     try {
@@ -75,7 +73,7 @@ export async function POST(request: Request) {
             } catch (e: any) {
                 // Case 3: Token verification failed
                 licenseIsStillValid = false;
-                console.warn(`Heartbeat with invalid token for device ${deviceId}: ${e.message}`);
+                console.warn(`Heartbeat JWT verification failed for device ${deviceId}. Reason: ${e.code || e.message}.`);
                 
                 // Decode for logging purposes only to see what key failed
                 let attemptedKey = 'N/A';

@@ -4,11 +4,9 @@ import { db } from '@/lib/firebase-admin';
 import * as jose from 'jose';
 
 export async function POST(request: Request) {
-    const secretString = process.env.JWT_SECRET_KEY;
-    if (!secretString) {
-        console.error("FATAL: JWT_SECRET_KEY environment variable is not set. Using a default, insecure key for development purposes. DO NOT use this in production.");
-    }
-    const secret = new TextEncoder().encode(secretString || 'a_very_insecure_default_secret_key_for_development_only');
+    const secret = new TextEncoder().encode(
+      process.env.JWT_SECRET_KEY || 'a_very_insecure_default_secret_key_for_development_only'
+    );
 
     try {
         const body = await request.json();
