@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
-import { useFormState, useFormStatus } from 'react-dom';
+import { useEffect, useState, useRef, useActionState } from 'react';
+import { useFormStatus } from 'react-dom';
 import {
   Dialog,
   DialogContent,
@@ -54,7 +54,7 @@ export function CreateLicenseDialog() {
   const formRef = useRef<HTMLFormElement>(null);
 
   const initialState: FormState = { message: '' };
-  const [state, formAction] = useFormState(createLicenseAction, initialState);
+  const [state, formAction] = useActionState(createLicenseAction, initialState);
 
   useEffect(() => {
     if (state.message === 'success') {

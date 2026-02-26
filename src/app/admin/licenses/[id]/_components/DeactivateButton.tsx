@@ -1,10 +1,10 @@
 'use client';
 
-import { useFormStatus, useFormState } from 'react-dom';
+import { useFormStatus } from 'react-dom';
+import { useActionState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { deactivateDeviceAction, DeactivateFormState } from '../../_actions';
 import { useToast } from '@/hooks/use-toast';
-import { useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
 
 function SubmitButton() {
@@ -25,7 +25,7 @@ function SubmitButton() {
 
 export function DeactivateButton({ licenseId, deviceId }: { licenseId: string, deviceId: string }) {
     const initialState: DeactivateFormState = null;
-    const [state, formAction] = useFormState(deactivateDeviceAction, initialState);
+    const [state, formAction] = useActionState(deactivateDeviceAction, initialState);
     const { toast } = useToast();
 
     useEffect(() => {
