@@ -9,22 +9,26 @@ if (!admin.apps.length) {
     try {
         const serviceAccountB64 = process.env.FIREBASE_SDK;
         
-        if (serviceAccountB64) {
-            const serviceAccountJson = Buffer.from(serviceAccountB64, 'base64').toString('utf8');
-            const serviceAccount = JSON.parse(serviceAccountJson);
-
-            admin.initializeApp({
-                credential: admin.credential.cert(serviceAccount),
-            });
-            
-            db = admin.firestore();
-            auth = admin.auth();
-        } else {
-            console.warn(`[Firebase Admin] SDK not initialized. The FIREBASE_SDK environment variable is missing or empty.`);
+        if (!serviceAccountB64) {
+            throw new Error("The FIREBASE_SDK environment variable is missing or empty.");
         }
+        
+        // Using 'ascii' as per the user's working example.
+        const serviceAccountJson = Buffer.from(serviceAccountB64, 'base64').toString('ascii');
+        const serviceAccount = JSON.parse(serviceAccountJson);
+
+        admin.initializeApp({
+            credential: admin.credential.cert(serviceAccount),
+        });
+        
+        db = admin.firestore();
+        auth = admin.auth();
+
     } catch (error: any) {
         console.error("[Firebase Admin] SDK initialization error:", error.message);
-        if (error instanceof SyntaxError) {
+        if (error.message.includes("FIREBASE_SDK")) {
+             // Specific error already logged.
+        } else if (error instanceof SyntaxError) {
              console.error("[Firebase Admin] The FIREBASE_SDK value is not a valid Base64 string or the decoded JSON is malformed.");
         }
     }
