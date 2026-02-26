@@ -19,7 +19,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { ArrowLeft, KeyRound, User, PowerOff, Laptop } from 'lucide-react';
+import { ArrowLeft, KeyRound, User, PowerOff, Laptop, CheckCircle, CircleOff } from 'lucide-react';
+import { DeactivateButton } from './_components/DeactivateButton';
 
 async function getLicenseDetails(id: string) {
     if (!db) {
@@ -122,7 +123,7 @@ export default async function LicenseDetailsPage({ params }: { params: { id: str
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2">
                                 <Laptop className="h-5 w-5" />
-                                Activated Devices ({license.activations?.length || 0} / {license.maxSeats || 1})
+                                Activated Devices ({license.activations?.filter((a: any) => a.isActive).length || 0} / {license.maxSeats || 1})
                             </CardTitle>
                         </CardHeader>
                         <CardContent>
@@ -132,16 +133,35 @@ export default async function LicenseDetailsPage({ params }: { params: { id: str
                                         <TableRow>
                                             <TableHead>Device ID</TableHead>
                                             <TableHead>Activated On</TableHead>
+                                            <TableHead>Status</TableHead>
                                             <TableHead className="text-right">Actions</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {/* Placeholder for when activations exist */}
-                                        <TableRow>
-                                             <TableCell colSpan={3} className="text-center h-24">
-                                                Activations will be listed here.
-                                             </TableCell>
-                                        </TableRow>
+                                        {license.activations.map((act: any) => (
+                                            <TableRow key={act.deviceId}>
+                                                <TableCell className="font-mono text-xs">{act.deviceId.substring(0, 12)}...</TableCell>
+                                                <TableCell>{new Date(act.activatedAt.toDate()).toLocaleDateString()}</TableCell>
+                                                <TableCell>
+                                                    {act.isActive ? (
+                                                        <Badge variant="default" className="bg-green-600 hover:bg-green-600/80 text-xs">
+                                                            <CheckCircle className="mr-1.5 h-3 w-3" />
+                                                            Active
+                                                        </Badge>
+                                                    ) : (
+                                                         <Badge variant="secondary" className="text-xs">
+                                                            <CircleOff className="mr-1.5 h-3 w-3" />
+                                                            Inactive
+                                                        </Badge>
+                                                    )}
+                                                </TableCell>
+                                                <TableCell className="text-right">
+                                                    {act.isActive && (
+                                                        <DeactivateButton licenseId={license.id} deviceId={act.deviceId} />
+                                                    )}
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
                                     </TableBody>
                                 </Table>
                              ) : (

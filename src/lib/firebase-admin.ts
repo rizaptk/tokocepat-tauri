@@ -1,41 +1,54 @@
-import * as admin from 'firebase-admin';
+import { initializeApp, getApps, cert, App, ServiceAccount } from 'firebase-admin/app';
+import { getFirestore, Firestore } from 'firebase-admin/firestore';
+import { getAuth, Auth } from 'firebase-admin/auth';
 
-// Re-export db and auth so they are consistently available, even if null.
-let db: admin.firestore.Firestore | null = null;
-let auth: admin.auth.Auth | null = null;
+const appName = 'tokocepat';
 
-// This pattern prevents re-initialization during hot-reloads
-if (!admin.apps.length) {
-    try {
-        const serviceAccountB64 = process.env.FIREBASE_SDK;
-        
-        if (!serviceAccountB64) {
-            throw new Error("The FIREBASE_SDK environment variable is missing or empty.");
-        }
-        
-        // Using 'ascii' as per the user's working example.
-        const serviceAccountJson = Buffer.from(serviceAccountB64, 'base64').toString('ascii');
-        const serviceAccount = JSON.parse(serviceAccountJson);
+/**
+ * Helper to initialize the app instance once.
+ * Decodes the base64 service account from the environment.
+ */
+function initializeAdmin(): App | null {
+  // 1. Return existing app if already initialized (prevents hot-reload errors)
+  const existingApp = getApps().find((app) => app.name === appName);
+  if (existingApp) return existingApp;
 
-        admin.initializeApp({
-            credential: admin.credential.cert(serviceAccount),
-        });
-        
-        db = admin.firestore();
-        auth = admin.auth();
+  // 2. Validate environment variable
+  const b64Key = process.env.FIREBASE_SDK;
+  if (!b64Key) {
+    console.error(`[Firebase Admin] Missing FIREBASE_SERVICE_ACCOUNT_KEY`);
+    return null;
+  }
 
-    } catch (error: any) {
-        console.error("[Firebase Admin] SDK initialization error:", error.message);
-        if (error.message.includes("FIREBASE_SDK")) {
-             // Specific error already logged.
-        } else if (error instanceof SyntaxError) {
-             console.error("[Firebase Admin] The FIREBASE_SDK value is not a valid Base64 string or the decoded JSON is malformed.");
-        }
-    }
-} else {
-    // If already initialized, just get the instances from the default app
-    db = admin.firestore();
-    auth = admin.auth();
+  try {
+    // 3. Decode and Parse
+    const serviceAccount = JSON.parse(
+      Buffer.from(b64Key, 'base64').toString('utf8')
+    );
+
+    // Ensure the private_key specifically handles escaped newlines
+    const formattedServiceAccount: ServiceAccount = {
+      projectId: serviceAccount.project_id,
+      clientEmail: serviceAccount.client_email,
+      privateKey: serviceAccount.private_key.replace(/\\n/g, '\n'),
+    };
+
+    return initializeApp(
+      { credential: cert(formattedServiceAccount) },
+      appName
+    );
+  } catch (error) {
+    console.error(`[Firebase Admin] Initialization failed:`, error);
+    return null;
+  }
 }
+
+// Initialize the app
+const app = initializeAdmin();
+
+// Initialize and export lowercase db and auth
+// These will be null if initialization failed.
+const db: Firestore | null = app ? getFirestore(app) : null;
+const auth: Auth | null = app ? getAuth(app) : null;
 
 export { db, auth };

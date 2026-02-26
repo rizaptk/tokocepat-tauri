@@ -12,7 +12,7 @@ const CreateLicenseSchema = z.object({
   }),
 });
 
-export type FormState = {
+export type CreateFormState = {
   message: string;
   errors?: {
     customerEmail?: string[];
@@ -21,7 +21,7 @@ export type FormState = {
   };
 };
 
-export async function createLicenseAction(prevState: FormState, formData: FormData): Promise<FormState> {
+export async function createLicenseAction(prevState: CreateFormState, formData: FormData): Promise<CreateFormState> {
   const validatedFields = CreateLicenseSchema.safeParse({
     customerEmail: formData.get('customerEmail'),
     plan: formData.get('plan'),
@@ -100,5 +100,69 @@ export async function createLicenseAction(prevState: FormState, formData: FormDa
       message: 'Server error',
       errors: { _form: ['An unexpected error occurred while creating the license.'] },
     };
+  }
+}
+
+
+// --- Deactivation Action ---
+
+const DeactivateDeviceSchema = z.object({
+  licenseId: z.string().min(1),
+  deviceId: z.string().min(1),
+});
+
+export type DeactivateFormState = {
+    success?: string;
+    error?: string;
+} | null;
+
+export async function deactivateDeviceAction(prevState: DeactivateFormState, formData: FormData): Promise<DeactivateFormState> {
+  const validatedFields = DeactivateDeviceSchema.safeParse({
+    licenseId: formData.get('licenseId'),
+    deviceId: formData.get('deviceId'),
+  });
+
+  if (!validatedFields.success) {
+    return { error: 'Invalid input.' };
+  }
+  
+  if (!db) {
+     return { error: 'Database connection is not available.' };
+  }
+
+  const { licenseId, deviceId } = validatedFields.data;
+
+  try {
+    const licenseRef = db.collection('licenses').doc(licenseId);
+    const licenseSnap = await licenseRef.get();
+
+    if (!licenseSnap.exists) {
+        return { error: 'License not found.' };
+    }
+
+    const licenseData = licenseSnap.data();
+    const activations = licenseData?.activations || [];
+
+    let found = false;
+    const updatedActivations = activations.map((act: any) => {
+        if (act.deviceId === deviceId && act.isActive) {
+            found = true;
+            return { ...act, isActive: false, deactivatedAt: new Date() };
+        }
+        return act;
+    });
+
+    if (!found) {
+        return { error: 'Active device not found for this license.' };
+    }
+
+    await licenseRef.update({ activations: updatedActivations });
+    
+    revalidatePath(`/admin/licenses/${licenseId}`);
+    return { success: 'Device deactivated successfully.' };
+
+  } catch (error) {
+    console.error("Deactivation failed:", error);
+    return { error: 'An unexpected server error occurred.' };
   }
 }
