@@ -1,4 +1,6 @@
 
+'use server';
+
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/firebase-admin';
 import * as jose from 'jose';
@@ -13,28 +15,28 @@ export async function POST(request: Request) {
         if (!deviceId) {
             return NextResponse.json({ status: 'ok_ping_no_device' }, { status: 200 });
         }
-        
-        // Default session data for unlicensed or invalid-token users
-        let sessionData: any = {
-            customerId: 'unlicensed',
-            customerEmail: 'unlicensed',
-            licenseKey: 'N/A',
-            plan: 'Unlicensed',
-            lastSeen: admin.firestore.FieldValue.serverTimestamp(),
-        };
 
-        let licenseIsStillValid = true;
+        let sessionData: any;
+        let licenseIsStillValid = false;
 
-        if (token) {
+        if (!token) {
+            // Case 1: No token provided (unlicensed client pinging)
+            sessionData = {
+                customerId: 'unlicensed',
+                customerEmail: 'unlicensed',
+                licenseKey: 'N/A',
+                plan: 'Unlicensed',
+                lastSeen: admin.firestore.FieldValue.serverTimestamp(),
+            };
+        } else {
+            // Case 2: A token was provided, attempt to verify it
             try {
                 const secret = new TextEncoder().encode(process.env.JWT_SECRET_KEY);
                 const { payload } = await jose.jwtVerify(token, secret);
                 
-                // If token is valid, enrich session data
                 const licenseKey = payload.sub as string;
                 const plan = (payload.plan as string) || 'N/A';
 
-                // Find license to get customerId
                 const licensesRef = db.collection('licenses');
                 const query = licensesRef.where('key', '==', licenseKey).limit(1);
                 const snapshot = await query.get();
@@ -54,24 +56,43 @@ export async function POST(request: Request) {
                     }
                 }
                 
+                // Token is valid, build the complete session data object
                 sessionData = {
-                    ...sessionData,
                     customerId,
                     customerEmail,
                     licenseKey,
                     plan,
+                    lastSeen: admin.firestore.FieldValue.serverTimestamp(),
                 };
+                licenseIsStillValid = true;
 
             } catch (e: any) {
+                // Case 3: Token verification failed
                 licenseIsStillValid = false;
                 console.warn(`Heartbeat with invalid token for device ${deviceId}: ${e.message}`);
-                sessionData.plan = 'Invalid Token'; // Mark session as having an invalid token
+                
+                // Decode for logging purposes only to see what key failed
+                let attemptedKey = 'N/A';
+                try {
+                    const decoded = jose.decodeJwt(token);
+                    if (decoded && typeof decoded.sub === 'string') {
+                        attemptedKey = decoded.sub;
+                    }
+                } catch { /* ignore if even decoding fails */ }
+
+                sessionData = {
+                    customerId: 'unlicensed',
+                    customerEmail: 'unlicensed',
+                    licenseKey: attemptedKey, // Log the key that failed
+                    plan: 'Invalid Token',
+                    lastSeen: admin.firestore.FieldValue.serverTimestamp(),
+                };
             }
         }
         
-        // Now, save the session data to Firestore regardless of token validity
+        // Save the constructed session data. Using .set() without merge ensures the document is always consistent.
         const sessionRef = db.collection('online_sessions').doc(deviceId);
-        await sessionRef.set(sessionData, { merge: true });
+        await sessionRef.set(sessionData);
 
         // Check for resolved payment tickets for this device if it's unlicensed or has an invalid token
         if (!token || !licenseIsStillValid) {
