@@ -1,10 +1,8 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster"
-import { DbProvider } from '@/components/DbProvider';
-import { BottomNav } from '@/components/BottomNav';
 import { MobileChecker } from '@/components/MobileChecker';
-import { LicenseProvider } from '@/components/LicenseProvider';
+import ClientLayout from '@/components/ClientLayout';
 
 export const metadata: Metadata = {
   title: 'TokoCepat',
@@ -30,12 +28,9 @@ export default function RootLayout({
       </head>
       <body className="font-body antialiased">
         <MobileChecker />
-        <DbProvider>
-          <LicenseProvider>
-            <div>{children}</div>
-            <BottomNav />
-          </LicenseProvider>
-        </DbProvider>
+        <ClientLayout>
+          {children}
+        </ClientLayout>
         <Toaster />
       </body>
     </html>
