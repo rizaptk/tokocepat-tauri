@@ -38,7 +38,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     useEffect(() => {
         const auth = getAuth();
         const unsubscribe = onAuthStateChanged(auth, async (user: User | null) => {
-            if (pathname === '/admin/login') {
+            if (pathname === '/login') {
                  if (user) {
                      router.push('/admin');
                  } else {
@@ -53,11 +53,11 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
                     } else {
                         await auth.signOut();
                         setStatus('unauthorized');
-                        router.push('/admin/login');
+                        router.push('/login');
                     }
                 } else {
                     setStatus('unauthorized');
-                    router.push('/admin/login');
+                    router.push('/login');
                 }
             }
         });
@@ -79,7 +79,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
         );
     }
     
-    if (status === 'unauthorized' && pathname !== '/admin/login') {
+    if (status === 'unauthorized' && pathname !== '/login') {
          return (
             <div className="flex h-screen w-full items-center justify-center bg-background">
                 <div className="flex flex-col items-center gap-4 text-center p-4">
