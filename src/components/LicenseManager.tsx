@@ -8,13 +8,15 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Skeleton } from './ui/skeleton';
 import { Badge } from './ui/badge';
-import { CheckCircle, XCircle, Clock, ShieldOff } from 'lucide-react';
+import { CheckCircle, XCircle, Clock, ShieldOff, Loader2 } from 'lucide-react';
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
+import { generateDeviceFingerprint, writeSecureEnclave } from '@/lib/security';
 
 export function LicenseManager() {
-    const { status, licenseDetails } = useLicense();
+    const { status, licenseDetails, deactivate } = useLicense();
     const [licenseKey, setLicenseKey] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
     const { toast } = useToast();
 
     const handleActivate = async () => {
@@ -22,22 +24,48 @@ export function LicenseManager() {
             toast({ variant: 'destructive', title: 'License key cannot be empty.' });
             return;
         }
-        // Placeholder for API call
-        toast({ title: 'Activating...', description: 'Please wait.' });
-        console.log("Activating with key:", licenseKey);
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 1500));
-        toast({ title: 'Activation Successful!', description: 'Your license is now active.'});
-        // Here you would refresh the useLicense hook's data, e.g. by calling a function from the hook.
+        setIsLoading(true);
+
+        try {
+            const deviceId = await generateDeviceFingerprint();
+            const response = await fetch('/api/license/activate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ licenseKey, deviceId }),
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || 'An unknown error occurred during activation.');
+            }
+
+            await writeSecureEnclave({
+                licenseKey: data.token,
+                lastKnownTime: new Date().toISOString(),
+            });
+
+            toast({ title: 'Activation Successful!', description: 'The application will now reload.' });
+
+            setTimeout(() => window.location.reload(), 1500);
+
+        } catch (error: any) {
+            toast({ variant: 'destructive', title: 'Activation Failed', description: error.message });
+            setIsLoading(false);
+        }
     };
 
     const handleDeactivate = async () => {
-        // Placeholder for API call
-        toast({ title: 'Deactivating...', description: 'Please wait.' });
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 1500));
-        toast({ title: 'Deactivation Successful!', description: 'This device is no longer licensed.'});
-        // Here you would refresh the useLicense hook's data.
+        setIsLoading(true);
+        try {
+            await deactivate(); // Call deactivate from the hook
+            toast({ title: 'Deactivation Successful!', description: 'This device is no longer licensed. The app will reload.'});
+            setTimeout(() => window.location.reload(), 1500);
+        } catch (error: any) {
+            toast({ variant: 'destructive', title: 'Deactivation Failed', description: error.message });
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     if (status === 'LOADING') {
@@ -74,10 +102,12 @@ export function LicenseManager() {
                   </div>
                   <div className="text-sm space-y-1">
                     <p>Plan: <Badge variant="secondary">{licenseDetails.plan}</Badge></p>
-                    <p>Expires: <span className="font-medium">{new Date(licenseDetails.expiresAt).toLocaleDateString()}</span></p>
-                    <p className="text-xs text-muted-foreground pt-1">Device ID: {licenseDetails.deviceId}</p>
+                    <p>Expires: <span className="font-medium">{licenseDetails.expiresAt === 'Never' ? 'Never' : new Date(licenseDetails.expiresAt).toLocaleDateString()}</span></p>
+                    <p className="text-xs text-muted-foreground pt-1 break-all">Device ID: {licenseDetails.deviceId}</p>
                   </div>
-                  <Button variant="outline" className="w-full" onClick={handleDeactivate}>Deactivate This Device</Button>
+                  <Button variant="outline" className="w-full" onClick={handleDeactivate} disabled={isLoading}>
+                    {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin"/> Deactivating...</> : 'Deactivate This Device'}
+                  </Button>
               </CardContent>
             </Card>
         )
@@ -120,9 +150,11 @@ export function LicenseManager() {
                 )}
                 <div className="space-y-2">
                     <Label htmlFor="license-key">License Key</Label>
-                    <Input id="license-key" placeholder="Paste your license key here" value={licenseKey} onChange={(e) => setLicenseKey(e.target.value)} />
+                    <Input id="license-key" placeholder="Paste your license key here" value={licenseKey} onChange={(e) => setLicenseKey(e.target.value)} disabled={isLoading} />
                 </div>
-                <Button className="w-full" onClick={handleActivate}>Activate</Button>
+                <Button className="w-full" onClick={handleActivate} disabled={isLoading}>
+                    {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin"/> Activating...</> : 'Activate'}
+                </Button>
             </CardContent>
         </Card>
     )

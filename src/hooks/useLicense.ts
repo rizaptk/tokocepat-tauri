@@ -42,10 +42,7 @@ export function useLicense() {
 
             // 1. Check if license exists locally. `readSecureEnclave` already verifies HMAC signature.
             // If it returns null, it means no enclave or it was tampered with.
-            if (!enclave) {
-                // To test other states, you can manually set a value here, e.g.:
-                // setStatus('EXPIRED'); 
-                // return;
+            if (!enclave || !enclave.licenseKey) {
                 setStatus('NOT_FOUND');
                 return;
             }
@@ -70,7 +67,10 @@ export function useLicense() {
             // 3. Check for expiration
             if (payload.exp && currentTime.getTime() / 1000 > payload.exp) {
                 setStatus('EXPIRED');
-                setLicenseDetails(payload);
+                setLicenseDetails({
+                    ...payload,
+                    expiresAt: payload.exp ? new Date(payload.exp * 1000).toISOString() : 'Never'
+                });
                 return;
             }
 
@@ -95,5 +95,26 @@ export function useLicense() {
         checkLicense();
     }, []);
 
-    return { status, licenseDetails };
+    const deactivate = async (): Promise<void> => {
+        const enclave = await readSecureEnclave();
+        if (!enclave) {
+            throw new Error("No active license found on this device to deactivate.");
+        }
+
+        const response = await fetch('/api/license/deactivate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token: enclave.licenseKey }),
+        });
+        
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(data.error || "Deactivation failed.");
+        }
+        
+        // Clear local license by writing an empty enclave.
+        localStorage.removeItem('tokoc_secure_enclave');
+    };
+
+    return { status, licenseDetails, deactivate };
 }
