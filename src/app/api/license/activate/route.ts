@@ -50,7 +50,7 @@ export async function POST(request: Request) {
         const licenseDoc = snapshot.docs[0];
         const licenseData = licenseDoc.data();
         
-        // --- NEW TRIAL CHECK LOGIC ---
+        // --- NEW: Block manual activation of trial keys ---
         const planName = licenseData.plan;
         const plansRef = db.collection('app_settings').doc('subscriptionPlans');
         const plansSnap = await plansRef.get();
@@ -58,13 +58,9 @@ export async function POST(request: Request) {
         const selectedPlan = allPlans.find(p => p.name === planName);
 
         if (selectedPlan && selectedPlan.isTrial) {
-            const trialActivationsRef = db.collection('trialActivations').doc(deviceId);
-            const trialSnap = await trialActivationsRef.get();
-            if (trialSnap.exists) {
-                return NextResponse.json({ error: 'This device has already used a trial license.' }, { status: 403 });
-            }
+             return NextResponse.json({ error: "Trial licenses must be activated via the 'Start Trial' button, not by key." }, { status: 403 });
         }
-        // --- END NEW TRIAL CHECK LOGIC ---
+        // --- END NEW ---
 
         const activations = licenseData.activations || [];
         const maxSeats = licenseData.maxSeats || 1;
@@ -89,15 +85,6 @@ export async function POST(request: Request) {
         });
 
         await licenseDoc.ref.update({ activations: newActivations });
-
-        // --- NEW: Record trial activation if it's a trial plan ---
-        if (selectedPlan && selectedPlan.isTrial) {
-            await db.collection('trialActivations').doc(deviceId).set({
-                activatedAt: new Date(),
-                licenseKey: licenseKey,
-            });
-        }
-        // --- END NEW ---
 
         // --- Create SIGNED JWT ---
         const jwtPayload: any = {
