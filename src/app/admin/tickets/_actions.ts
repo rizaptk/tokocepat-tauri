@@ -1,7 +1,8 @@
+
 'use server';
 
 import { db } from '@/lib/firebase-admin';
-import { PaymentTicket, PaymentPlan } from '@/lib/types';
+import { PaymentTicket, SubscriptionPlan } from '@/lib/types';
 import { revalidatePath } from 'next/cache';
 import { randomBytes } from 'crypto';
 
@@ -43,57 +44,78 @@ export async function updateTicketStatusAction(data: TicketStatusUpdate): Promis
         const ticketData = ticketSnap.data() as PaymentTicket;
 
         if (newStatus === 'resolved') {
-            const { customerEmail, plan } = ticketData;
+            const { customerEmail, plan: planName, customerName } = ticketData;
+
+            // --- Get Plan Details ---
+            const plansSnap = await db.collection('app_settings').doc('subscriptionPlans').get();
+            const allPlans = (plansSnap.data()?.plans || []) as SubscriptionPlan[];
+            const purchasedPlan = allPlans.find(p => p.name === planName);
+            if (!purchasedPlan) {
+                throw new Error(`Plan "${planName}" not found in settings.`);
+            }
 
             // --- Find or Create Customer ---
             const customersRef = db.collection('customers');
             let customerQuery = await customersRef.where('email', '==', customerEmail).limit(1).get();
             let customerId: string;
              if (customerQuery.empty) {
-                const newCustomerRef = await customersRef.add({ email: customerEmail, createdAt: new Date(), licenseCount: 0 });
+                const newCustomerRef = await customersRef.add({ email: customerEmail, name: customerName, createdAt: new Date(), licenseCount: 0 });
                 customerId = newCustomerRef.id;
             } else {
                 customerId = customerQuery.docs[0].id;
+                await customerQuery.docs[0].ref.update({ name: customerName });
             }
 
-            // --- Find existing license for this customer to renew, or create new ---
+            // --- Find existing license to renew, or create new ---
             const licensesRef = db.collection('licenses');
             const licenseQuery = await licensesRef.where('customerId', '==', customerId).limit(1).get();
 
             let finalLicenseId: string;
 
-            if (!licenseQuery.empty) { // RENEWAL / EXTENSION
+            if (!licenseQuery.empty) { // RENEWAL / UPGRADE / PROLONG
                 const licenseDoc = licenseQuery.docs[0];
                 finalLicenseId = licenseDoc.id;
                 const licenseData = licenseDoc.data();
                 
-                let currentExpiresAt = (licenseData.expiresAt && licenseData.expiresAt.toDate() > new Date()) 
+                // If current license is expired, start new period from now. Otherwise, extend from current expiry.
+                let startDate = (licenseData.expiresAt && licenseData.expiresAt.toDate() > new Date()) 
                     ? licenseData.expiresAt.toDate() 
                     : new Date();
 
-                let newExpiresAt: Date | null = licenseData.expiresAt ? licenseData.expiresAt.toDate() : null;
-                if (plan === 'PRO_YEARLY') {
-                    newExpiresAt = new Date(currentExpiresAt.setFullYear(currentExpiresAt.getFullYear() + 1));
-                } else if (plan === 'PRO_MONTHLY') {
-                    newExpiresAt = new Date(currentExpiresAt.setMonth(currentExpiresAt.getMonth() + 1));
-                } else if (plan === 'LIFETIME') {
-                    newExpiresAt = null; // Lifetime licenses don't expire
+                let newExpiresAt: Date | null = startDate;
+                
+                if (purchasedPlan.durationDays > 0) {
+                     newExpiresAt = new Date(startDate.setDate(startDate.getDate() + purchasedPlan.durationDays));
+                } else if (purchasedPlan.durationDays === -1) {
+                    newExpiresAt = null; // Lifetime plan
                 }
                 
                 await licenseDoc.ref.update({
                     status: 'active',
-                    expiresAt: newExpiresAt
+                    expiresAt: newExpiresAt,
+                    plan: purchasedPlan.name, // Update to the new plan name
+                    maxSeats: purchasedPlan.maxSeats, // Update max seats
                 });
 
             } else { // NEW LICENSE
                 const licenseKey = `TKN-${randomBytes(4).toString('hex').toUpperCase()}-${randomBytes(4).toString('hex').toUpperCase()}`;
-                let expiresAt: Date | null = null;
-                if (plan === 'PRO_YEARLY') expiresAt = new Date(new Date().setFullYear(new Date().getFullYear() + 1));
-                if (plan === 'PRO_MONTHLY') expiresAt = new Date(new Date().setMonth(new Date().getMonth() + 1));
+                
+                let expiresAt: Date | null = new Date();
+                 if (purchasedPlan.durationDays > 0) {
+                     expiresAt.setDate(expiresAt.getDate() + purchasedPlan.durationDays);
+                } else if (purchasedPlan.durationDays === -1) {
+                    expiresAt = null; // Lifetime plan
+                }
 
                 const newLicense = {
-                  key: licenseKey, plan, status: 'active', customerId,
-                  createdAt: new Date(), expiresAt, activations: [], maxSeats: 1,
+                  key: licenseKey, 
+                  plan: purchasedPlan.name,
+                  status: 'active', 
+                  customerId,
+                  createdAt: new Date(), 
+                  expiresAt, 
+                  activations: [], 
+                  maxSeats: purchasedPlan.maxSeats,
                 };
                 const newLicenseRef = await db.collection('licenses').add(newLicense);
                 finalLicenseId = newLicenseRef.id;

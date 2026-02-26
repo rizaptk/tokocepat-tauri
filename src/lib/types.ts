@@ -160,7 +160,9 @@ export interface PaymentTicket {
     id: string;
     customerId?: string;
     customerEmail: string;
-    plan: PaymentPlan;
+    customerName: string;
+    customerWhatsapp: string;
+    plan: string; // Changed from PaymentPlan to string to match plan name
     status: 'pending' | 'processing' | 'resolved' | 'rejected';
     proofOfPaymentUrl: string;
     notes?: string; // Admin notes for rejection, etc.

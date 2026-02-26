@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useTransition } from 'react';
@@ -12,7 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { ExternalLink, Ticket, AlertTriangle, Loader2 } from 'lucide-react';
+import { ExternalLink, Ticket, AlertTriangle, Loader2, User, Mail, MessageSquare } from 'lucide-react';
 
 type TicketStatus = 'pending' | 'processing' | 'resolved' | 'rejected';
 
@@ -43,7 +44,7 @@ function TicketCard({ ticket, onStatusChange }: { ticket: PaymentTicket, onStatu
             <CardHeader>
                 <div className="flex justify-between items-start">
                     <div>
-                        <CardTitle className="text-base">{ticket.customerEmail}</CardTitle>
+                        <CardTitle className="text-base flex items-center gap-2"><User className="h-4 w-4"/> {ticket.customerName}</CardTitle>
                         <CardDescription>
                             Plan: <span className="font-semibold">{ticket.plan}</span>
                         </CardDescription>
@@ -51,8 +52,13 @@ function TicketCard({ ticket, onStatusChange }: { ticket: PaymentTicket, onStatu
                     <StatusBadge status={ticket.status} />
                 </div>
             </CardHeader>
-            <CardContent className="space-y-3 text-sm">
-                <p className="text-muted-foreground italic">"{ticket.userNotes || 'No notes provided by user.'}"</p>
+            <CardContent className="space-y-4 text-sm">
+                <div className="space-y-1">
+                    <div className="flex items-center gap-2 text-muted-foreground"><Mail className="h-4 w-4" /> <span>{ticket.customerEmail}</span></div>
+                    <div className="flex items-center gap-2 text-muted-foreground"><MessageSquare className="h-4 w-4" /> <span>{ticket.customerWhatsapp}</span></div>
+                </div>
+
+                <p className="text-muted-foreground italic border-l-2 pl-3">"{ticket.userNotes || 'No notes provided by user.'}"</p>
                 <div className="flex justify-between items-center text-xs text-muted-foreground">
                     <span>Submitted: {formatDistanceToNow(new Date(ticket.createdAt), { addSuffix: true })}</span>
                     <Button variant="ghost" size="sm" asChild>
@@ -69,7 +75,7 @@ function TicketCard({ ticket, onStatusChange }: { ticket: PaymentTicket, onStatu
                 )}
                  {!isPending && ticket.status === 'processing' && (
                     <>
-                        <Button size="sm" variant="default" className="bg-green-600 hover:bg-green-700" onClick={() => handleAction('resolved')}>Resolve</Button>
+                        <Button size="sm" variant="default" className="bg-green-600 hover:bg-green-700" onClick={() => handleAction('resolved')}>Approve & Resolve</Button>
                         <Button size="sm" variant="destructive" onClick={() => handleAction('rejected')}>Reject</Button>
                     </>
                 )}
@@ -132,7 +138,7 @@ export default function AdminTicketsPage() {
              <>
                 <h1 className="text-lg font-semibold md:text-2xl">Payment Tickets</h1>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
-                    {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-48 w-full" />)}
+                    {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-64 w-full" />)}
                 </div>
             </>
         )
