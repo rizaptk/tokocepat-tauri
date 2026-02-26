@@ -4,14 +4,17 @@
 
 ---
 
-### ✅ Execution Plan – Backend & Infrastructure
+### ✅ Execution Plan – Backend & Infrastructure (Within the Admin App)
+
+_Note: The Admin Platform is a trusted, server-side application. It will not use the public-facing license API. Instead, its backend logic will connect directly to the database for all operations._
 
 1.  **Project Setup:**
-    -   [ ] Initialize a new, separate Next.js project for the Admin Dashboard. This project will have its own repository and deployment pipeline.
-    -   [ ] Implement a secure authentication system for administrators (e.g., using username/password with a library like NextAuth.js). This includes creating a login page.
+    -   [ ] Initialize a new, separate Next.js project for the Admin Dashboard.
+    -   [ ] Implement a secure authentication system for administrators (e.g., using a username/password flow).
 
-2.  **Database Connection:**
-    -   [ ] Configure the Admin Platform backend to securely connect to the *same* database used by the POS license API, ensuring data consistency.
+2.  **Server-Side Data Access:**
+    -   [ ] Configure the Next.js application's server-side environment to securely connect to the *same* central database used by the POS license API.
+    -   [ ] Develop the necessary server-side functions (e.g., within Next.js Route Handlers or Server Actions) to query and mutate data for customers and licenses directly from the database. **No new public API endpoints will be created for this.**
 
 ### ✅ Execution Plan – Frontend (Admin UI)
 
