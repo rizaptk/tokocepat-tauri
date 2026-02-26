@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState, useRef, useActionState } from 'react';
+import { useEffect, useState, useRef } from 'react';
+import { useActionState } from 'react';
 import { useFormStatus } from 'react-dom';
 import {
   Dialog,
@@ -22,7 +23,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { PlusCircle, Loader2 } from 'lucide-react';
-import { createLicenseAction, type FormState } from '../_actions';
+import { createLicenseAction, type CreateFormState } from '../_actions';
 import { useToast } from '@/hooks/use-toast';
 
 const planTypes = [
@@ -53,7 +54,7 @@ export function CreateLicenseDialog() {
   const { toast } = useToast();
   const formRef = useRef<HTMLFormElement>(null);
 
-  const initialState: FormState = { message: '' };
+  const initialState: CreateFormState = { message: '' };
   const [state, formAction] = useActionState(createLicenseAction, initialState);
 
   useEffect(() => {
@@ -126,6 +127,24 @@ export function CreateLicenseDialog() {
                         <p className="text-sm font-medium text-destructive pt-1">{state.errors.plan}</p>
                     )}
                  </div>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="maxSeats" className="text-right">
+                Seats
+                </Label>
+                <div className="col-span-3">
+                    <Input
+                        id="maxSeats"
+                        name="maxSeats"
+                        type="number"
+                        placeholder="Number of devices"
+                        defaultValue={1}
+                        min="1"
+                    />
+                     {state?.errors?.maxSeats && (
+                        <p className="text-sm font-medium text-destructive pt-1">{state.errors.maxSeats}</p>
+                    )}
+                </div>
             </div>
              {state?.errors?._form && (
                 <p className="text-sm font-medium text-destructive text-center">{state.errors._form}</p>

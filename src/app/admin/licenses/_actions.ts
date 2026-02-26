@@ -11,6 +11,7 @@ const CreateLicenseSchema = z.object({
   plan: z.enum(['PRO_MONTHLY', 'PRO_YEARLY', 'LIFETIME'], {
       required_error: 'Please select a plan.'
   }),
+  maxSeats: z.coerce.number().min(1, { message: 'Must have at least 1 seat.' }).max(100, { message: 'Cannot exceed 100 seats.' }),
 });
 
 export type CreateFormState = {
@@ -18,6 +19,7 @@ export type CreateFormState = {
   errors?: {
     customerEmail?: string[];
     plan?: string[];
+    maxSeats?: string[];
     _form?: string[];
   };
 };
@@ -26,6 +28,7 @@ export async function createLicenseAction(prevState: CreateFormState, formData: 
   const validatedFields = CreateLicenseSchema.safeParse({
     customerEmail: formData.get('customerEmail'),
     plan: formData.get('plan'),
+    maxSeats: formData.get('maxSeats'),
   });
 
   if (!validatedFields.success) {
@@ -35,7 +38,7 @@ export async function createLicenseAction(prevState: CreateFormState, formData: 
     };
   }
 
-  const { customerEmail, plan } = validatedFields.data;
+  const { customerEmail, plan, maxSeats } = validatedFields.data;
 
   try {
     // 1. Find or create customer
@@ -82,8 +85,8 @@ export async function createLicenseAction(prevState: CreateFormState, formData: 
       customerId: customerId,
       createdAt: new Date(),
       expiresAt: expiresAt,
-      activations: [], // for sprint 9
-      maxSeats: 1, // for sprint 9
+      activations: [],
+      maxSeats: maxSeats,
     };
 
     // 3. Save license to Firestore
