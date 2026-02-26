@@ -1,8 +1,15 @@
+
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/firebase-admin';
 import * as jose from 'jose';
 
 export async function POST(request: Request) {
+    const secretString = process.env.JWT_SECRET_KEY;
+    if (!secretString) {
+        console.error("FATAL: JWT_SECRET_KEY environment variable is not set. Using a default, insecure key for development purposes. DO NOT use this in production.");
+    }
+    const secret = new TextEncoder().encode(secretString || 'a_very_insecure_default_secret_key_for_development_only');
+
     try {
         const body = await request.json();
         const { token } = body;
@@ -11,8 +18,6 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'License token is required.' }, { status: 400 });
         }
         
-        const secret = new TextEncoder().encode(process.env.JWT_SECRET_KEY);
-
         // Verify the JWT signature and get the payload
         let payload;
         try {

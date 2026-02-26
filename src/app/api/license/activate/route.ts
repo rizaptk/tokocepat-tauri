@@ -1,3 +1,4 @@
+
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/firebase-admin';
 import { SubscriptionPlan } from '@/lib/types';
@@ -23,6 +24,13 @@ async function findOrCreateCustomer(email: string, name?: string): Promise<strin
 
 
 export async function POST(request: Request) {
+    const secretString = process.env.JWT_SECRET_KEY;
+    if (!secretString) {
+        console.error("FATAL: JWT_SECRET_KEY environment variable is not set. Using a default, insecure key for development purposes. DO NOT use this in production.");
+    }
+    const secret = new TextEncoder().encode(secretString || 'a_very_insecure_default_secret_key_for_development_only');
+    const alg = 'HS256';
+
     try {
         const body = await request.json();
         const { licenseKey, deviceId } = body;
@@ -92,9 +100,6 @@ export async function POST(request: Request) {
         // --- END NEW ---
 
         // --- Create SIGNED JWT ---
-        const secret = new TextEncoder().encode(process.env.JWT_SECRET_KEY);
-        const alg = 'HS256';
-
         const jwtPayload: any = {
             sub: licenseKey,
             deviceId: deviceId,

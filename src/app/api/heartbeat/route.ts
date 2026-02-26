@@ -7,6 +7,13 @@ import * as jose from 'jose';
 import * as admin from 'firebase-admin';
 
 export async function POST(request: Request) {
+    const secretString = process.env.JWT_SECRET_KEY;
+    if (!secretString) {
+        console.error("FATAL: JWT_SECRET_KEY environment variable is not set. Using a default, insecure key for development purposes. DO NOT use this in production.");
+    }
+    const secret = new TextEncoder().encode(secretString || 'a_very_insecure_default_secret_key_for_development_only');
+    const alg = 'HS256';
+
     try {
         const body = await request.json().catch(() => ({}));
         const { token, deviceId } = body;
@@ -31,7 +38,6 @@ export async function POST(request: Request) {
         } else {
             // Case 2: A token was provided, attempt to verify it
             try {
-                const secret = new TextEncoder().encode(process.env.JWT_SECRET_KEY);
                 const { payload } = await jose.jwtVerify(token, secret);
                 
                 const licenseKey = payload.sub as string;
@@ -116,9 +122,6 @@ export async function POST(request: Request) {
                     const licenseData = licenseDoc.data();
                     
                     // --- Create a NEW SIGNED JWT for the client ---
-                    const secret = new TextEncoder().encode(process.env.JWT_SECRET_KEY);
-                    const alg = 'HS256';
-
                     const jwtPayload: any = {
                         sub: licenseData.key,
                         deviceId: deviceId,

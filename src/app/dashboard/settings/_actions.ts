@@ -122,6 +122,13 @@ export async function getPublicSettings(): Promise<{ instructions: PaymentInstru
 
 
 export async function activateTrialAction(planId: string, deviceId: string): Promise<{ token?: string, error?: string }> {
+    const secretString = process.env.JWT_SECRET_KEY;
+    if (!secretString) {
+        console.error("FATAL: JWT_SECRET_KEY environment variable is not set. Using a default, insecure key for development purposes. DO NOT use this in production.");
+    }
+    const secret = new TextEncoder().encode(secretString || 'a_very_insecure_default_secret_key_for_development_only');
+    const alg = 'HS256';
+
     try {
         const plansSnap = await db.collection('app_settings').doc('subscriptionPlans').get();
         if (!plansSnap.exists) {
@@ -172,9 +179,6 @@ export async function activateTrialAction(planId: string, deviceId: string): Pro
         });
         
         // --- Create SIGNED JWT ---
-        const secret = new TextEncoder().encode(process.env.JWT_SECRET_KEY);
-        const alg = 'HS256';
-        
         const jwt = await new jose.SignJWT({
                 deviceId: deviceId,
                 plan: trialPlan.name,
