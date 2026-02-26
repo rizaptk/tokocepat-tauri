@@ -216,3 +216,5 @@ export default async function LicenseDetailsPage({ params }: { params: { id: str
         </>
     );
 }
+
+    

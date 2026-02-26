@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useFormStatus } from 'react-dom';
@@ -44,3 +45,5 @@ export function DeactivateButton({ licenseId, deviceId }: { licenseId: string, d
         </form>
     );
 }
+
+    

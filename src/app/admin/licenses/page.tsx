@@ -45,7 +45,11 @@ async function getLicenses() {
             return [];
         }
         
-        const customerIds = [...new Set(licensesSnapshot.docs.map(doc => doc.data().customerId).filter(id => id))];
+        const customerIds = [...new Set(
+            licensesSnapshot.docs
+                .map(doc => doc.data().customerId)
+                .filter((id): id is string => typeof id === 'string' && id.length > 0)
+        )];
         let customersMap = new Map();
 
         // Firestore 'in' query is limited to 30 items in Node.js server SDK
@@ -203,3 +207,5 @@ export default async function AdminLicensesPage() {
         </>
     );
 }
+
+    
