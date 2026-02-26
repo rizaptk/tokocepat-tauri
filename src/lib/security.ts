@@ -1,3 +1,4 @@
+
 "use client";
 
 // This file contains placeholder logic for client-side security.
