@@ -1,38 +1,42 @@
 import * as admin from 'firebase-admin';
 
+// Re-export db and auth so they are consistently available, even if null.
+let db: admin.firestore.Firestore | null = null;
+let auth: admin.auth.Auth | null = null;
+
+
 // Check if the app is already initialized to prevent errors during hot-reloads
 if (!admin.apps.length) {
     try {
-        // Use FIREBASE_SDK for the private key as requested by the user
-        const privateKey = process.env.FIREBASE_SDK
-            ? Buffer.from(process.env.FIREBASE_SDK, 'base64').toString('utf8')
-            : undefined;
+        const serviceAccountB64 = process.env.FIREBASE_SDK;
         
-        const projectId = process.env.FIREBASE_PROJECT_ID;
-        const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+        if (serviceAccountB64) {
+            const serviceAccountJson = Buffer.from(serviceAccountB64, 'base64').toString('utf8');
+            const serviceAccount = JSON.parse(serviceAccountJson);
 
-        if (!privateKey || !projectId || !clientEmail) {
-            const missingVars: string[] = [];
-            if (!projectId) missingVars.push('FIREBASE_PROJECT_ID');
-            if (!clientEmail) missingVars.push('FIREBASE_CLIENT_EMAIL');
-            if (!privateKey) missingVars.push('FIREBASE_SDK');
-            console.warn(`Firebase Admin SDK not initialized. Missing environment variables: ${missingVars.join(', ')}`);
-        } else {
             admin.initializeApp({
-                credential: admin.credential.cert({
-                    projectId,
-                    clientEmail,
-                    privateKey,
-                }),
+                credential: admin.credential.cert(serviceAccount),
             });
+            
+            db = admin.firestore();
+            auth = admin.auth();
+        } else {
+            // This warning is helpful for the user to know what to do.
+            console.warn(`Firebase Admin SDK not initialized. The FIREBASE_SDK environment variable is missing or empty.`);
         }
     } catch (error: any) {
         console.error("Firebase Admin SDK initialization error:", error.message);
+        if (error.message.includes('Failed to parse private key')) {
+             console.error("The private key in your service account JSON is malformed.");
+        } else if (error instanceof SyntaxError) {
+             console.error("The FIREBASE_SDK value is not a valid Base64 string or the decoded JSON is malformed.");
+        }
     }
+} else {
+    // If already initialized, just get the instances
+    db = admin.firestore();
+    auth = admin.auth();
 }
 
-// Safely get db and auth instances. They will be null if initialization failed.
-const db = admin.apps.length ? admin.firestore() : null;
-const auth = admin.apps.length ? admin.auth() : null;
 
 export { db, auth };
