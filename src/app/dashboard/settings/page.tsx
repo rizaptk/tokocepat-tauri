@@ -1,77 +1,25 @@
 
 'use client';
 
-import * as z from 'zod';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { useStore } from '@/lib/store';
 import { useDbStore } from '@/lib/db-store';
 import { useEffect, useRef, useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { updateStoreConfig } from '@/services/settingsService';
 import { clearTransactionData } from '@/services/dataService';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { Database, HardHat, Info, Trash2 } from 'lucide-react';
+import { Database, HardHat, Info, Trash2, Shield } from 'lucide-react';
 import { TokoCepatLogo } from '@/components/TokoCepatLogo';
 import Link from 'next/link';
-
-const storeDetailsSchema = z.object({
-  store_name: z.string().min(3, 'Store name must be at least 3 characters.'),
-  address: z.string().optional(),
-  receipt_footer: z.string().optional(),
-});
-
-type StoreDetailsValues = z.infer<typeof storeDetailsSchema>;
+import { LicenseManager } from '@/components/LicenseManager';
 
 export default function SettingsPage() {
-  const { storeConfig } = useStore();
   const { firesqlite } = useDbStore();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isRestoreAlertOpen, setIsRestoreAlertOpen] = useState(false);
   const [isClearDataAlertOpen, setIsClearDataAlertOpen] = useState(false);
-
-  const form = useForm<StoreDetailsValues>({
-    resolver: zodResolver(storeDetailsSchema),
-    defaultValues: {
-      store_name: '',
-      address: '',
-      receipt_footer: '',
-    },
-  });
-
-  useEffect(() => {
-    if (storeConfig) {
-      form.reset({
-        store_name: storeConfig.store_name,
-        address: storeConfig.address || '',
-        receipt_footer: storeConfig.receipt_footer || '',
-      });
-    }
-  }, [storeConfig, form]);
-
-  async function onSubmit(data: StoreDetailsValues) {
-    try {
-      await updateStoreConfig(data);
-      toast({
-        title: 'Settings Saved',
-        description: 'Your store details have been updated.',
-      });
-    } catch (error) {
-      console.error(error);
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Could not save settings.',
-      });
-    }
-  }
 
   const handleBackup = async () => {
     if (!firesqlite) {
@@ -151,67 +99,14 @@ export default function SettingsPage() {
         </div>
         <div className="mx-auto grid w-full max-w-6xl items-start gap-6 md:grid-cols-[180px_1fr] lg:grid-cols-[250px_1fr]">
           <nav className="grid gap-4 text-sm text-muted-foreground">
-            <a href="#store-details" className="font-semibold text-primary">
-              Store Details
+             <a href="#license-management" className="font-semibold text-primary flex items-center gap-2">
+              <Shield className="h-4 w-4"/> License
             </a>
-            <a href="#database-management">Database</a>
+            <a href="#database-management" className="flex items-center gap-2"><Database className="h-4 w-4"/> Database</a>
+             <a href="#danger-zone" className="flex items-center gap-2"><Trash2 className="h-4 w-4"/> Danger Zone</a>
           </nav>
           <div className="grid gap-6">
-            <Card id="store-details">
-              <CardHeader>
-                <CardTitle>Store Details</CardTitle>
-                <CardDescription>
-                  Update your store's information. This will be reflected on receipts.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Form {...form}>
-                  <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                    <FormField
-                      control={form.control}
-                      name="store_name"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Store Name</FormLabel>
-                          <FormControl>
-                            <Input placeholder="My Awesome Store" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="address"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Store Address</FormLabel>
-                          <FormControl>
-                            <Textarea placeholder="123 Main St, Anytown, ID 12345" {...field} />
-                          </FormControl>
-                           <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="receipt_footer"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Receipt Footer Message</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Thank you for your business!" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <Button type="submit" disabled={!form.formState.isDirty}>Save Changes</Button>
-                  </form>
-                </Form>
-              </CardContent>
-            </Card>
-
+            <LicenseManager />
             <Card id="database-management">
               <CardHeader>
                 <CardTitle>Database Management</CardTitle>
@@ -231,7 +126,7 @@ export default function SettingsPage() {
                 </div>
               </CardContent>
             </Card>
-             <Card id="data-cleaning" className="border-destructive/50">
+             <Card id="danger-zone" className="border-destructive/50">
               <CardHeader>
                 <CardTitle className="text-destructive">Danger Zone</CardTitle>
                 <CardDescription>
