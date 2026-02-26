@@ -1,4 +1,7 @@
 
+'use server';
+export const dynamic = 'force-dynamic';
+
 import { db } from '@/lib/firebase-admin';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
@@ -216,5 +219,3 @@ export default async function LicenseDetailsPage({ params }: { params: { id: str
         </>
     );
 }
-
-    
