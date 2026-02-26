@@ -18,7 +18,7 @@ export function LogoutButton() {
         try {
             const auth = getAuth();
             await signOut(auth);
-            router.push('/login');
+            router.push('/admin/login');
             router.refresh();
         } catch (error) {
             console.error("Firebase sign out error", error);

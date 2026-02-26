@@ -8,7 +8,7 @@ import { BottomNav } from '@/components/BottomNav';
 export default function ClientLayout({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
 
-    if (pathname.startsWith('/admin') || pathname.startsWith('/login')) {
+    if (pathname.startsWith('/admin')) {
         // For admin routes, we don't want any of the client-side providers or nav.
         return <>{children}</>;
     }
