@@ -17,7 +17,7 @@ import {
 
 async function getCustomers() {
     if (!db) {
-        return { error: "Firebase Admin SDK is not initialized. Please ensure FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, and FIREBASE_SDK (the Base64 private key) are set in your .env file." };
+        return { error: "Firebase Admin SDK could not be initialized. Please check the server logs for the specific error. This is often caused by a missing or malformed FIREBASE_SDK environment variable." };
     }
     try {
         const customersSnapshot = await db.collection('customers').get();
@@ -27,12 +27,8 @@ async function getCustomers() {
         return customersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     } catch (error: any) {
         console.error("Error fetching customers: ", error);
-        // Check for a specific error indicating a bad private key format
-        if (error.message.includes('Failed to parse private key')) {
-             return { error: "The Firebase private key (FIREBASE_SDK) is not a valid Base64 string or is malformed. Please check your .env file." };
-        }
-        // General connection error
-        return { error: "Could not connect to the database. Please ensure your Firebase Admin credentials are correct and the server has network access." };
+        // This error now points to a general connectivity issue, as initialization is handled separately.
+        return { error: "Could not connect to the database. Please ensure your Firebase project has Firestore enabled and the server has network access." };
     }
 }
 
