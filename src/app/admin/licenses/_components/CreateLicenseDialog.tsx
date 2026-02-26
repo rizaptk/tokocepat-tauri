@@ -1,7 +1,7 @@
-
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
+import { useFormState, useFormStatus } from 'react-dom';
 import {
   Dialog,
   DialogContent,
@@ -21,8 +21,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { PlusCircle } from 'lucide-react';
-
+import { PlusCircle, Loader2 } from 'lucide-react';
+import { createLicenseAction, type FormState } from '../_actions';
+import { useToast } from '@/hooks/use-toast';
 
 const planTypes = [
   { value: 'PRO_MONTHLY', label: 'Pro Monthly' },
@@ -30,60 +31,110 @@ const planTypes = [
   { value: 'LIFETIME', label: 'Lifetime' },
 ];
 
+function SubmitButton() {
+    const { pending } = useFormStatus();
+    
+    return (
+        <Button type="submit" disabled={pending}>
+            {pending ? (
+                <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Generating...
+                </>
+            ) : (
+                'Generate License'
+            )}
+        </Button>
+    )
+}
+
 export function CreateLicenseDialog() {
   const [isOpen, setIsOpen] = useState(false);
+  const { toast } = useToast();
+  const formRef = useRef<HTMLFormElement>(null);
 
-  // We will add form handling with a server action here in the next step.
+  const initialState: FormState = { message: '' };
+  const [state, formAction] = useFormState(createLicenseAction, initialState);
+
+  useEffect(() => {
+    if (state.message === 'success') {
+      toast({
+        title: 'License Created!',
+        description: 'The new license has been generated and assigned.',
+      });
+      setIsOpen(false);
+      formRef.current?.reset();
+    } else if (state.errors?._form) {
+      toast({
+        variant: 'destructive',
+        title: 'An error occurred',
+        description: state.errors._form.join(', '),
+      });
+    }
+  }, [state, toast]);
+
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogTrigger asChild>
-            <Button size="sm">
-                <PlusCircle className="mr-2 h-4 w-4" />
-                Create License
-            </Button>
-        </DialogTrigger>
-        <DialogContent>
-            <DialogHeader>
-            <DialogTitle>Create New License</DialogTitle>
-            <DialogDescription>
-                Generate a new license for a customer. The license key will be
-                auto-generated.
-            </DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
+      <DialogTrigger asChild>
+        <Button size="sm">
+          <PlusCircle className="mr-2 h-4 w-4" />
+          Create License
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Create New License</DialogTitle>
+          <DialogDescription>
+            Generate a new license for a customer. The license key will be auto-generated.
+          </DialogDescription>
+        </DialogHeader>
+        <form ref={formRef} action={formAction} className="grid gap-4 py-4">
             <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="customer-email" className="text-right">
+                <Label htmlFor="customerEmail" className="text-right">
                 Customer Email
                 </Label>
-                <Input
-                id="customer-email"
-                placeholder="customer@example.com"
-                className="col-span-3"
-                />
+                <div className="col-span-3">
+                    <Input
+                        id="customerEmail"
+                        name="customerEmail"
+                        placeholder="customer@example.com"
+                    />
+                     {state?.errors?.customerEmail && (
+                        <p className="text-sm font-medium text-destructive pt-1">{state.errors.customerEmail}</p>
+                    )}
+                </div>
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="plan-type" className="text-right">
+                <Label htmlFor="plan" className="text-right">
                 Plan
                 </Label>
-                <Select>
-                <SelectTrigger className="col-span-3">
-                    <SelectValue placeholder="Select a plan" />
-                </SelectTrigger>
-                <SelectContent>
-                    {planTypes.map((plan) => (
-                    <SelectItem key={plan.value} value={plan.value}>
-                        {plan.label}
-                    </SelectItem>
-                    ))}
-                </SelectContent>
-                </Select>
+                 <div className="col-span-3">
+                    <Select name="plan">
+                        <SelectTrigger>
+                            <SelectValue placeholder="Select a plan" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {planTypes.map((plan) => (
+                            <SelectItem key={plan.value} value={plan.value}>
+                                {plan.label}
+                            </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                     {state?.errors?.plan && (
+                        <p className="text-sm font-medium text-destructive pt-1">{state.errors.plan}</p>
+                    )}
+                 </div>
             </div>
-            </div>
+             {state?.errors?._form && (
+                <p className="text-sm font-medium text-destructive text-center">{state.errors._form}</p>
+            )}
             <DialogFooter>
-            <Button type="submit">Generate License</Button>
+                <SubmitButton />
             </DialogFooter>
-        </DialogContent>
+        </form>
+      </DialogContent>
     </Dialog>
   );
 }
