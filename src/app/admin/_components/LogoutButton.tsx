@@ -15,20 +15,14 @@ export function LogoutButton() {
     const router = useRouter();
 
     const handleLogout = async () => {
-        // Sign out from Firebase on the client
         try {
             const auth = getAuth();
             await signOut(auth);
+            router.push('/admin/login');
+            router.refresh();
         } catch (error) {
             console.error("Firebase sign out error", error);
         }
-
-        // Tell the server to clear the session cookie
-        await fetch('/api/auth/session-logout', { method: 'POST' });
-
-        // Redirect to login page
-        router.push('/admin/login');
-        router.refresh(); // Ensure the page reloads to clear state
     };
 
     return (

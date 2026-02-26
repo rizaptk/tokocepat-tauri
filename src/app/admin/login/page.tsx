@@ -36,32 +36,18 @@ export default function AdminLoginPage() {
         const provider = new GoogleAuthProvider();
 
         try {
-            const result = await signInWithPopup(auth, provider);
-            const idToken = await result.user.getIdToken();
-            
-            const response = await fetch('/api/auth/session-login', {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${idToken}` },
-            });
-
-            if (response.ok) {
-                router.push('/admin');
-            } else {
-                const errorData = await response.json();
-                signOut(auth); // Sign out if not an admin
-                throw new Error(errorData.error || 'Login failed. You might not have admin privileges.');
-            }
+            await signInWithPopup(auth, provider);
+            router.push('/admin');
 
         } catch (error: any) {
             console.error("Google Sign-In Error:", error);
             toast({
                 variant: 'destructive',
                 title: 'Login Error',
-                description: error.code === 'auth/popup-closed-by-user' ? 'Sign-in cancelled.' : error.message,
+                description: error.code === 'auth/popup-closed-by-user' ? 'Sign-in cancelled.' : 'Only authorized admin accounts can sign in.',
             });
             setIsLoading(false);
         }
-        // Don't set isLoading to false on success, as the page will redirect.
     };
     
     if (!firebaseClientConfig) {
