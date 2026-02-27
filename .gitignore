@@ -38,3 +38,4 @@ next-env.d.ts
 # firesqlite database files
 *.db
 *.db-journal
+package-lock.json
