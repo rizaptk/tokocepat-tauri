@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { ParkingSquare, ShoppingCart } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { PaymentModal } from "./PaymentModal";
 import { useToast } from "@/hooks/use-toast";
 import { CartItem } from "@/lib/types";
@@ -24,6 +24,8 @@ export function CartDisplay({ onEditItem }: CartDisplayProps) {
   const parkCart = useStore(state => state.parkCart);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const { toast } = useToast();
+
+  const cartContainer = useRef<HTMLDivElement>(null);
 
   const taxRate = storeConfig?.tax_rate ?? 0.11;
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
@@ -50,8 +52,26 @@ export function CartDisplay({ onEditItem }: CartDisplayProps) {
     setIsPaymentModalOpen(true);
   }
 
+  useEffect(() => {
+    if (!cartContainer.current) return;
+    
+    const viewPort = cartContainer.current.querySelector("[data-radix-scroll-area-viewport]") as HTMLDivElement;
+    if (!viewPort) return;
+    
+    setTimeout(() => {
+      if (cart.length > 3) {
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            viewPort.scrollTop = viewPort.scrollHeight;
+          })
+        });
+      } 
+    },150)
+
+  },[cart.length, cartContainer.current])
+
   return (
-    <div className="flex flex-col flex-1 bg-background h-full">
+    <div className="flex flex-col flex-1 bg-background h-full min-h-0">
       <header className="hidden md:flex h-16 items-center justify-between border-b px-6 shrink-0">
         <h2 className="text-lg font-semibold">Cart</h2>
         <div className="relative">
@@ -65,14 +85,14 @@ export function CartDisplay({ onEditItem }: CartDisplayProps) {
       </header>
       
       {cart.length === 0 ? (
-        <div className="flex flex-1 flex-col items-center justify-center gap-4 p-6 text-center">
+        <div className="flex flex-1 flex-col items-center justify-center gap-4 p-6 text-center bg-card">
           <ShoppingCart className="h-16 w-16 text-muted-foreground" />
           <h3 className="text-xl font-semibold">Your cart is empty</h3>
           <p className="text-muted-foreground">Tap on products to add them to the cart.</p>
         </div>
       ) : (
         <>
-          <ScrollArea className="flex-1">
+          <ScrollArea className="flex-1 min-h-0 bg-card"  ref={cartContainer}>
             <div className="flex flex-col gap-0">
                 <AnimatePresence initial={false}>
                     {cart.map(item => (

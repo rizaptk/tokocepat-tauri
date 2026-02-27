@@ -1,4 +1,3 @@
-
 "use client";
 
 import { motion } from 'framer-motion';
@@ -17,9 +16,9 @@ interface CartItemRowProps {
 
 const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR',
-      minimumFractionDigits: 0,
+        style: 'currency',
+        currency: 'IDR',
+        minimumFractionDigits: 0,
     }).format(amount);
 };
 
@@ -33,14 +32,23 @@ export const CartItemRow = ({ item, onEditItem }: CartItemRowProps) => {
             layout
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, x: '-100%', transition: { duration: 0.2 } }}
-            className="relative border-b"
+            exit={{ opacity: 0, x: '-100%', transition: { duration: 0.1 } }}
+            className="relative border-b overflow-hidden"
         >
+            {/* Accent flash layer */}
+            <motion.div
+                initial={{ opacity: 0.6 }}
+                animate={{ opacity: 0 }}
+                transition={{ duration: 0.8, ease: "easeOut" }}
+                className="absolute inset-0 bg-green-600 pointer-events-none z-10"
+            />
+
             {isMobile && (
                 <div className="absolute inset-y-0 right-0 flex items-center justify-center bg-destructive px-6">
                     <Trash2 className="h-5 w-5 text-destructive-foreground" />
                 </div>
             )}
+
             <motion.div
                 drag={isMobile ? "x" : false}
                 dragConstraints={{ left: 0, right: 0 }}
@@ -50,11 +58,14 @@ export const CartItemRow = ({ item, onEditItem }: CartItemRowProps) => {
                         removeFromCart(item.cartItemId);
                     }
                 }}
-                className={cn("flex items-start gap-4 p-4 bg-background relative z-10", onEditItem && (item.has_modifier || item.has_variant) && "cursor-pointer hover:bg-accent")}
+                className={cn(
+                    "flex items-start gap-4 p-4 relative z-10",
+                    onEditItem && (item.has_modifier || item.has_variant) && "cursor-pointer hover:bg-accent"
+                )}
                 onClick={() => onEditItem && onEditItem(item)}
             >
                 <div className="flex-1 space-y-1">
-                    <p className="font-medium leading-tight">{item.name} {item.selectedVariant ? `(${item.selectedVariant.name})` : ''}</p>
+                    <p className="font-medium leading-tight mt-1">{item.name} {item.selectedVariant ? `(${item.selectedVariant.name})` : ''}</p>
                     {item.selectedModifiers && item.selectedModifiers.length > 0 && (
                         <ul className="text-xs text-muted-foreground pl-4">
                             {item.selectedModifiers.map(mod => (
@@ -76,12 +87,12 @@ export const CartItemRow = ({ item, onEditItem }: CartItemRowProps) => {
                     />
                 </div>
                 <div className="w-24 text-right">
-                    <p className="font-semibold">{formatCurrency(item.price * item.quantity)}</p>
+                    <p className="font-semibold mt-1">{formatCurrency(item.price * item.quantity)}</p>
                 </div>
                 <div className="hidden md:block" onClick={(e) => e.stopPropagation()}>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive" onClick={() => removeFromCart(item.cartItemId)}>
-                      <Trash2 className="h-4 w-4" />
-                  </Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive" onClick={() => removeFromCart(item.cartItemId)}>
+                        <Trash2 className="h-4 w-4" />
+                    </Button>
                 </div>
             </motion.div>
         </motion.div>

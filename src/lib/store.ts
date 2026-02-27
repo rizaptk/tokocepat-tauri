@@ -8,6 +8,7 @@ import { toast } from '@/hooks/use-toast';
 import { openShift as openShiftService, closeShift as closeShiftService } from '@/services/shiftService';
 import { createTransaction } from '@/services/transactionService';
 import { parkCartInDb, deletePendingCartFromDb } from '@/services/pendingCartService';
+import { useSettingsStore } from './settings';
 
 
 // This represents an item that has had a variant selected but is not yet in the cart
@@ -87,6 +88,7 @@ export const useStore = create<StoreState>()(
     
       saveItemToCart: (itemData: Product | CartItem | ItemWithVariant, selectedModifiers: SelectedModifier[] = [], selectedVariant?: ProductVariant) => {
         const { products, cart, activeShift } = get();
+        const { showToast } = useSettingsStore.getState();
 
         if (!activeShift) {
           toast({
@@ -106,10 +108,11 @@ export const useStore = create<StoreState>()(
             const existingItem = cart.find(item => item.id === itemData.id && !item.selectedVariant && (!item.selectedModifiers || item.selectedModifiers.length === 0));
             if (existingItem) {
                 get().updateQuantity(existingItem.cartItemId, existingItem.quantity + 1);
-                toast({
-                  title: "Quantity Updated",
-                  description: `${itemData.name} quantity increased to ${existingItem.quantity + 1}.`,
-                });
+                if (showToast.saveCart)
+                    toast({
+                        title: "Quantity Updated",
+                        description: `${itemData.name} quantity increased to ${existingItem.quantity + 1}.`,
+                    });
                 return;
             }
         }
@@ -137,10 +140,11 @@ export const useStore = create<StoreState>()(
                     : item
                 ),
             }));
-            toast({
-              title: "Item Updated",
-              description: `${itemData.name} has been updated in your cart.`,
-            });
+            if (showToast.saveCart)
+                toast({
+                    title: "Item Updated",
+                    description: `${itemData.name} has been updated in your cart.`,
+                });
         } else {
             const productInState = products.find(p => p.id === itemData.id);
             if (!productInState || !productInState.is_active) {
@@ -165,10 +169,11 @@ export const useStore = create<StoreState>()(
                 selectedModifiers: selectedModifiers,
             };
             set({ cart: [...cart, newCartItem] });
-            toast({
-              title: "Added to cart",
-              description: `${itemData.name} has been added to your cart.`,
-            });
+            if (showToast.saveCart)
+                toast({
+                    title: "Added to cart",
+                    description: `${itemData.name} has been added to your cart.`,
+                });
         }
       },
     

@@ -20,6 +20,7 @@ import { cn } from '@/lib/utils';
 import { SelectedModifier } from '@/lib/types';
 import { useIsMobile } from '@/lib/ismobile-store';
 import { useGlobalBarcodeScanner } from '@/hooks/use-global-barcode-scanner';
+import { useSettingsStore } from '@/lib/settings';
 
 export type ViewMode = 'card' | 'thumbnail' | 'list';
 
@@ -39,24 +40,34 @@ export default function CashierPage() {
   const [itemToModify, setItemToModify] = useState<Product | CartItem | ItemWithVariant | null>(null);
 
   // Responsive and view state
-  const [viewMode, setViewMode] = useState<ViewMode>('card');
+//   const [viewMode, setViewMode] = useState<ViewMode>('card');
   const isAutocompleteVisible = searchTerm.length > 0;
+  const {showToast, showMode, setShowMode} = useSettingsStore();
 
   useEffect(() => {
     // Set default view mode based on screen size
     const handleResize = () => {
         const mobile = window.innerWidth < 768;
-        setViewMode(mobile ? 'thumbnail' : 'card');
+        // setViewMode(mobile ? 'thumbnail' : showMode.cart);
+        setShowMode({cart: mobile ? 'thumbnail' : showMode.cart});
     };
     window.addEventListener('resize', handleResize);
     handleResize(); // Set initial view mode
     return () => window.removeEventListener('resize', handleResize);
   }, []);
   
-  const filteredProducts = useMemo(() => 
-    products.filter(product =>
-      product.name.toLowerCase().includes(searchTerm.toLowerCase())
-    ), [products, searchTerm]);
+  const filteredProducts = useMemo(() => {
+        const active = products.filter(product => product.is_active);
+
+        if (searchTerm.length === 0) {
+            return active;
+        }
+
+        return active.filter(product =>
+          product.name.toLowerCase().includes(searchTerm.toLowerCase())
+        ) 
+    },
+    [products, searchTerm]);
 
   const handleOpenShift = () => {
     openShift(openingCash);
@@ -113,7 +124,7 @@ export default function CashierPage() {
   };
 
   const handleBarcodeScan = (barcode: string) => {
-    const product = products.find(p => p.barcode === barcode);
+    const product = products.find(p => p.barcode === barcode && !!p.is_active);
     if (product) {
         handleProductSelect(product);
     } else {
@@ -147,6 +158,7 @@ export default function CashierPage() {
       if (item.has_modifier) {
         setItemToModify(item);
       } else {
+        showToast.noModifier &&
           toast({
               title: "No custom options",
               description: "This item does not have any variants or modifiers to edit."
@@ -198,22 +210,22 @@ export default function CashierPage() {
       <Header />
 
       {/* Desktop & Tablet Layout: Split View */}
-      <div className="hidden md:grid md:grid-cols-5 lg:grid-cols-3 flex-1 overflow-hidden">
-        <main className="col-span-3 lg:col-span-2 flex flex-col overflow-hidden relative">
+      <div className="hidden md:grid md:grid-cols-5 lg:grid-cols-10 flex-1 overflow-hidden">
+        <main className="col-span-3 lg:col-span-6 flex flex-col overflow-hidden relative">
             <div className="bg-muted/40 z-10 border-b p-4">
                <ProductSearchBar 
                   searchTerm={searchTerm} 
                   onSearchTermChange={setSearchTerm}
-                  viewMode={viewMode}
-                  onViewModeChange={setViewMode}
+                  viewMode={showMode.cart}
+                  onViewModeChange={(view) => setShowMode({cart: view})}
                   onBarcodeScan={handleBarcodeScan}
                 />
             </div>
           <div className="flex-1 bg-background">
-            <ProductList products={filteredProducts.length > 0 ? filteredProducts : []} viewMode={viewMode} isLoading={products.length === 0} onItemClick={handleProductSelect} context="cashier"/>
+            <ProductList products={filteredProducts.length > 0 ? filteredProducts : []} viewMode={showMode.cart} isLoading={products.length === 0} onItemClick={handleProductSelect} context="cashier"/>
           </div>
         </main>
-        <aside className="col-span-2 lg:col-span-1 border-l bg-background flex flex-col">
+        <aside className="col-span-2 lg:col-span-4 border-l bg-background flex flex-col min-h-0">
             <CartDisplay onEditItem={handleEditCartItem} />
         </aside>
       </div>
@@ -226,15 +238,15 @@ export default function CashierPage() {
                     <ProductSearchBar 
                         searchTerm={searchTerm} 
                         onSearchTermChange={setSearchTerm}
-                        viewMode={viewMode}
-                        onViewModeChange={setViewMode}
+                        viewMode={showMode.cart}
+                        onViewModeChange={(view) => setShowMode({cart: view})}
                         onBarcodeScan={handleBarcodeScan}
                     />
                 </div>
                 
                 {isAutocompleteVisible && (
                     <div className="absolute top-20 left-3 right-3 bottom-16 z-20 bg-background border rounded-lg shadow-lg flex">
-                        <ProductList products={filteredProducts} viewMode={viewMode} isLoading={products.length === 0} onItemClick={handleProductSelect} context="cashier" />
+                        <ProductList products={filteredProducts} viewMode={showMode.cart} isLoading={products.length === 0} onItemClick={handleProductSelect} context="cashier" />
                     </div>
                 )}
                 

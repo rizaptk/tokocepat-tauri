@@ -39,6 +39,7 @@ export function ProductCard({ product, onItemClick, isSelected, context = 'cashi
 
   const isOutOfStock = product.track_stock && product.stock <= 0;
   const isLowStock = product.track_stock && product.low_stock_alert != null && product.stock > 0 && product.stock <= product.low_stock_alert;
+  const is_active = product.is_active;
 
   return (
     <Card 
@@ -47,6 +48,8 @@ export function ProductCard({ product, onItemClick, isSelected, context = 'cashi
         "flex flex-col h-full overflow-hidden transition-all hover:shadow-lg",
         isSelected && "ring-2 ring-primary ring-offset-2",
         isOutOfStock ? "cursor-not-allowed" : "cursor-pointer",
+        !is_active && "opacity-80"
+
       )}
       onClick={!isOutOfStock ? handleSelect : undefined}
       role="button"
@@ -56,29 +59,36 @@ export function ProductCard({ product, onItemClick, isSelected, context = 'cashi
       aria-disabled={isOutOfStock}
     >
       <CardHeader className="p-0 relative">
-        <div className="relative aspect-[4/3] w-full">
+        <div className="relative sm:aspect-[5/3] aspec-[4/3] w-full">
           <Image
             src={product.imageUrl}
             alt={product.name}
             fill
             sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"
-            className={cn("object-cover", isOutOfStock && "grayscale")}
+            className={cn("object-cover", isOutOfStock && "grayscale", !is_active && "grayscale")}
             data-ai-hint={product.imageHint}
           />
-           {isOutOfStock && (
+          {
+            !is_active && (
+              <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                <Badge variant="destructive" className="text-sm">Inactive</Badge>
+              </div>
+            )
+          }
+          {isOutOfStock && (
             <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
               <Badge variant="destructive" className="text-sm">Out of Stock</Badge>
             </div>
           )}
           {context === 'cashier' && (
             <div className="h-7 w-7 rounded-full flex items-center justify-center bg-background absolute bottom-2 left-2">
-                <ShoppingCart className="h-4 w-4 text-primary" />
+              <ShoppingCart className="h-4 w-4 text-primary" />
             </div>)
           }
           {context !== 'cashier' && (
-             <Badge variant={isLowStock ? "destructive" : "secondary"} className='absolute bottom-2 left-2'>
-                {product.track_stock ? `${product.stock}` : 'Untracked'}
-             </Badge>
+            <Badge variant={isLowStock ? "destructive" : "secondary"} className='absolute bottom-2 left-2'>
+              {product.track_stock ? `${product.stock}` : 'Untracked'}
+            </Badge>
           )}
           {category && <Badge variant="secondary" className='truncate text-xs absolute bottom-2 right-2 max-w-[70%]'>{category.name}</Badge>}
         </div>

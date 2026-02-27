@@ -2,7 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-@layer base {
+/* @layer base {
   :root {
     --background: 210 17% 98%;
     --foreground: 210 11% 15%;
@@ -56,6 +56,83 @@
     --chart-4: 280 65% 60%;
     --chart-5: 340 75% 55%;
   }
+} */
+
+
+@layer base {
+  :root {
+    --background: 210 20% 98%;
+    --foreground: 222 47% 11%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+
+    --primary: 215 85% 45%;
+    --primary-foreground: 210 40% 98%;
+
+    --secondary: 210 16% 93%;
+    --secondary-foreground: 222 47% 11%;
+
+    --muted: 210 16% 93%;
+    --muted-foreground: 215 16% 40%;
+
+    --accent: 210 16% 93%;
+    --accent-foreground: 222 47% 11%;
+
+    --destructive: 0 75% 55%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 214 20% 88%;
+    --input: 214 20% 88%;
+    --ring: 215 85% 45%;
+
+    --radius: 0.5rem;
+
+    --chart-1: 215 85% 45%;
+    --chart-2: 160 60% 40%;
+    --chart-3: 35 85% 55%;
+    --chart-4: 280 60% 55%;
+    --chart-5: 340 70% 55%;
+  }
+
+  .dark {
+    --background: 222 47% 8%;
+    --foreground: 210 40% 98%;
+
+    --card: 222 47% 10%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 222 47% 10%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 215 90% 55%;
+    --primary-foreground: 222 47% 8%;
+
+    --secondary: 217 32% 18%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 217 32% 18%;
+    --muted-foreground: 215 20% 65%;
+
+    --accent: 217 32% 18%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 70% 45%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 217 32% 18%;
+    --input: 217 32% 18%;
+    --ring: 215 90% 55%;
+
+    --chart-1: 215 90% 55%;
+    --chart-2: 160 65% 45%;
+    --chart-3: 35 90% 60%;
+    --chart-4: 280 65% 60%;
+    --chart-5: 340 75% 60%;
+  }
 }
 
 @layer base {
@@ -65,6 +142,15 @@
   body {
     @apply bg-background text-foreground;
   }
+  /* input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="number"],
+  textarea,
+  button[role="combobox"],
+  select {
+    @apply !bg-input !text-foreground;
+  } */
   /* html {
     scrollbar-gutter: stable;
   } */

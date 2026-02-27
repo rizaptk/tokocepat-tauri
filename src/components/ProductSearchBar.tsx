@@ -73,14 +73,14 @@ export function ProductSearchBar({ searchTerm, onSearchTermChange, viewMode, onV
                     </DropdownMenuTrigger>
                     <DropdownMenuContent>
                         <DropdownMenuRadioGroup value={viewMode} onValueChange={(value) => onViewModeChange(value as ViewMode)}>
-                            <DropdownMenuRadioItem value="card">
-                                <Grid className="mr-2" /> Card View
+                            <DropdownMenuRadioItem value="card" className='py-2'>
+                                <Grid className="mr-2 size-4" /> Card View
                             </DropdownMenuRadioItem>
-                             <DropdownMenuRadioItem value="thumbnail">
-                                <Rows className="mr-2" /> Thumbnail View
+                             <DropdownMenuRadioItem value="thumbnail" className='py-2'>
+                                <Rows className="mr-2 size-4" /> Thumbnail View
                             </DropdownMenuRadioItem>
-                             <DropdownMenuRadioItem value="list">
-                                <List className="mr-2" /> List View
+                             <DropdownMenuRadioItem value="list" className='py-2'>
+                                <List className="mr-2 size-4" /> List View
                             </DropdownMenuRadioItem>
                         </DropdownMenuRadioGroup>
                     </DropdownMenuContent>

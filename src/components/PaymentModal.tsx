@@ -55,18 +55,52 @@ export function PaymentModal({ isOpen, setIsOpen, total }: PaymentModalProps) {
   };
 
   // Common IDR Denominations for Quick-Click
-  const denominations = [20000, 50000, 100000];
+  // const denominations = [20000, 50000, 100000];
   
   // Suggested amounts based on total
+  // const suggestions = useMemo(() => {
+  //   const sets = new Set<number>();
+  //   if (total > 0) {
+  //     sets.add(total); // Exact amount
+  //     denominations.forEach(d => {
+  //       if (d > total) sets.add(d);
+  //     });
+  //   }
+  //   return Array.from(sets).sort((a, b) => a - b).slice(0, 4);
+  // }, [total]);
   const suggestions = useMemo(() => {
-    const sets = new Set<number>();
-    if (total > 0) {
-      sets.add(total); // Exact amount
-      denominations.forEach(d => {
-        if (d > total) sets.add(d);
-      });
+    if (!total || total <= 0) return [];
+
+    const ceil20 = Math.ceil(total / 20000) * 20000;
+    const ceil50 = Math.ceil(total / 50000) * 50000;
+
+    const remainder100 = total % 100000;
+
+    // 🔥 If in 120k–149k psychological zone → only show 50k anchor
+    if (remainder100 >= 120000 - 100000 && remainder100 < 50000) {
+      return [total, ceil50];
     }
-    return Array.from(sets).sort((a, b) => a - b).slice(0, 4);
+
+    const diffTo50 = ceil50 - total;
+
+    // Near 50k anchor (≤5k)
+    if (diffTo50 <= 5000) {
+      return [total, ceil50];
+    }
+
+    const result: number[] = [];
+
+    result.push(ceil20);
+
+    if (ceil50 !== ceil20) {
+      result.push(ceil50);
+    }
+
+    const alldenom = result.slice(0, 2);
+    const final = [total, ...alldenom]
+
+    // return result.slice(0, 2);
+    return final;
   }, [total]);
 
   const handlePayment = async () => {
@@ -118,7 +152,7 @@ export function PaymentModal({ isOpen, setIsOpen, total }: PaymentModalProps) {
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && resetAndClose()}>
-      <DialogContent className="sm:max-w-[480px] p-0 overflow-hidden gap-0">
+      <DialogContent className="sm:max-w-[480px] p-0 overflow-hidden gap-0 bg-card">
         {status === 'pending' ? (
           <>
             <div className="p-6 pb-4">
@@ -169,7 +203,7 @@ export function PaymentModal({ isOpen, setIsOpen, total }: PaymentModalProps) {
                 </div>
 
                 {/* Quick Cash Suggestions */}
-                <div className="grid grid-cols-2 gap-2">
+                <div className={`grid ${suggestions.length > 2 ? 'grid-cols-3' : 'grid-cols-2'} gap-2`}>
                   {suggestions.map((amt) => (
                     <Button
                       key={amt}

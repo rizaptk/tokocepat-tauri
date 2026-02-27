@@ -17,10 +17,9 @@ const navItems = [
 ];
 
 const moreNavItems = [
-  { href: '/product/inventory', label: 'Inventory', icon: Warehouse },
+  { href: '/inventory', label: 'Inventory', icon: Warehouse },
   { href: '/dashboard/reports', label: 'Reports', icon: BarChartIcon },
   { href: '/dashboard/settings', label: 'Settings', icon: Settings },
-  { href: '/admin', label: 'Admin Panel', icon: Shield },
 ];
 
 export function BottomNav() {

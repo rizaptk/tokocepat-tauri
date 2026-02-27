@@ -10,7 +10,6 @@ import { Product, StockMovementType, Category } from "@/lib/types";
 import { adjustStock } from "@/services/stockService";
 import { useToast } from "@/hooks/use-toast";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -18,11 +17,13 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { ProductSearchBar } from "@/components/ProductSearchBar";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
-import { cn } from "@/lib/utils";
 import { PlusCircle } from "lucide-react";
 import { ProductList } from "@/components/ProductList";
 import type { ViewMode } from "@/app/cashier/page";
 import { useGlobalBarcodeScanner } from "@/hooks/use-global-barcode-scanner";
+import { SplitPanelLayout } from "@/components/SidePanel";
+import { Card, CardContent } from "@/components/ui/card";
+import { useSettingsStore } from "@/lib/settings";
 
 // Form for the right panel / sheet content
 const adjustmentFormSchema = z.object({
@@ -87,90 +88,101 @@ const AdjustmentForm = ({ onSave, selectedProductId }: { onSave?: () => void, se
     }
 
     return (
-        <Card className="h-full border-0 md:border shadow-none md:shadow-sm bg-transparent md:bg-card">
-            <CardHeader>
-                <CardTitle>Manual Stock Adjustment</CardTitle>
-                <CardDescription>Select a product from the list to begin, or scan its barcode.</CardDescription>
-            </CardHeader>
-            <CardContent>
-                <Form {...form}>
-                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                        <FormField
-                            control={form.control}
-                            name="product_id"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Product</FormLabel>
-                                    <Select onValueChange={field.onChange} value={field.value || ""} disabled={!selectedProductId}>
-                                        <FormControl>
-                                            <SelectTrigger>
-                                                <SelectValue placeholder="Select a product from the list" />
-                                            </SelectTrigger>
-                                        </FormControl>
-                                        <SelectContent>
-                                            {stockTrackedProducts.map(p => (
-                                                <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                        <FormField
-                            control={form.control}
-                            name="type"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Adjustment Type</FormLabel>
-                                    <Select onValueChange={field.onChange} value={field.value} disabled={!selectedProductId}>
-                                        <FormControl>
-                                            <SelectTrigger>
-                                                <SelectValue placeholder="Select a type" />
-                                            </SelectTrigger>
-                                        </FormControl>
-                                        <SelectContent>
-                                            {adjustmentTypes.map(t => (
-                                                <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                        <FormField
-                            control={form.control}
-                            name="qty_change"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Quantity Change</FormLabel>
-                                    <FormControl>
-                                        <Input type="number" placeholder="e.g., 10 or -5" {...field} disabled={!selectedProductId}/>
-                                    </FormControl>
-                                    <FormDescription>Use a negative number to decrease stock.</FormDescription>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                        <FormField
-                            control={form.control}
-                            name="reason"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Reason</FormLabel>
-                                    <FormControl>
-                                        <Textarea placeholder="e.g., 'End of month stock count correction'" {...field} disabled={!selectedProductId}/>
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
+        <Form {...form}>
+                <SplitPanelLayout
+                    scroll={true}
+                    className="h-full"
+                    header={
+                        <div className="p-4">
+                            <h3 className="font-semibold text-lg">Manual Stock Adjustment</h3>
+                            <p className="text-sm text-muted-foreground">
+                                Select a product from the list to begin, or scan its barcode.
+                            </p>
+                        </div>
+                    }
+                    footer={
                         <Button type="submit" className="w-full" disabled={!selectedProductId}>Save Adjustment</Button>
-                    </form>
-                </Form>
-            </CardContent>
-        </Card>
+                    }
+                >
+                    <Card>
+                        <CardContent className="py-6">
+                            <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-4">
+                                <FormField
+                                    control={form.control}
+                                    name="product_id"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Product</FormLabel>
+                                            <Select onValueChange={field.onChange} value={field.value || ""} disabled={!selectedProductId}>
+                                                <FormControl>
+                                                    <SelectTrigger>
+                                                        <SelectValue placeholder="Select a product from the list" />
+                                                    </SelectTrigger>
+                                                </FormControl>
+                                                <SelectContent>
+                                                    {stockTrackedProducts.map(p => (
+                                                        <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={form.control}
+                                    name="type"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Adjustment Type</FormLabel>
+                                            <Select onValueChange={field.onChange} value={field.value} disabled={!selectedProductId}>
+                                                <FormControl>
+                                                    <SelectTrigger>
+                                                        <SelectValue placeholder="Select a type" />
+                                                    </SelectTrigger>
+                                                </FormControl>
+                                                <SelectContent>
+                                                    {adjustmentTypes.map(t => (
+                                                        <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={form.control}
+                                    name="qty_change"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Quantity Change</FormLabel>
+                                            <FormControl>
+                                                <Input type="number" placeholder="e.g., 10 or -5" {...field} disabled={!selectedProductId}/>
+                                            </FormControl>
+                                            <FormDescription>Use a negative number to decrease stock.</FormDescription>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={form.control}
+                                    name="reason"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Reason</FormLabel>
+                                            <FormControl>
+                                                <Textarea placeholder="e.g., 'End of month stock count correction'" {...field} disabled={!selectedProductId}/>
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                            </form>
+                        </CardContent>
+                    </Card>
+                </SplitPanelLayout>
+        </Form>
     )
 }
 
@@ -180,12 +192,15 @@ export default function InventoryPage() {
     const [searchTerm, setSearchTerm] = useState("");
     const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
     const [isSheetOpen, setIsSheetOpen] = useState(false);
-    const [viewMode, setViewMode] = useState<ViewMode>('thumbnail');
+    // const [viewMode, setViewMode] = useState<ViewMode>('thumbnail');
+
+    const { showMode, setShowMode } = useSettingsStore();
 
      useEffect(() => {
         const handleResize = () => {
             const mobile = window.innerWidth < 768;
-            setViewMode(mobile ? 'thumbnail' : 'list');
+            // setViewMode(mobile ? 'thumbnail' : 'list');
+            setShowMode({inventory: mobile ? 'thumbnail' : 'list'});
         };
         window.addEventListener('resize', handleResize);
         handleResize(); 
@@ -240,16 +255,16 @@ export default function InventoryPage() {
     }, [products, searchTerm]);
 
     return (
-        <div className="w-full h-[calc(100vh-4rem)] md:grid md:grid-cols-10">
+        <div className="w-full h-[calc(100vh-4rem)] md:grid md:grid-cols-10 min-h-0">
             {/* Left Panel: Inventory List */}
-            <div className="col-span-10 md:col-span-6 lg:col-span-7 h-full flex flex-col bg-muted/40">
-                <div className="p-4 border-b bg-background flex items-center gap-2">
+            <div className="col-span-10 md:col-span-6 lg:col-span-6 h-full flex flex-col bg-muted/40">
+                <div className="p-4 border-b bg-muted/40 flex items-center gap-2 ">
                     <div className="flex-grow">
                         <ProductSearchBar
                             searchTerm={searchTerm}
                             onSearchTermChange={setSearchTerm}
-                            viewMode={viewMode}
-                            onViewModeChange={setViewMode}
+                            viewMode={showMode.inventory}
+                            onViewModeChange={(view) => setShowMode({inventory: view})}
                             onBarcodeScan={handleBarcodeScan}
                         />
                     </div>
@@ -262,7 +277,7 @@ export default function InventoryPage() {
                 <div className="flex-grow bg-background">
                     <ProductList 
                         products={filteredProducts}
-                        viewMode={viewMode}
+                        viewMode={showMode.inventory}
                         context="inventory"
                         isLoading={products.length === 0}
                         onItemClick={handleProductSelect}
@@ -272,13 +287,13 @@ export default function InventoryPage() {
             </div>
 
             {/* Right Panel: Adjustment Form (Desktop) */}
-            <aside className="hidden md:block col-span-4 lg:col-span-3 h-full p-4 bg-background">
+            <aside className="hidden md:block col-span-4 lg:col-span-4 h-full bg-background min-h-0 border-l">
                <AdjustmentForm onSave={() => setSelectedProductId(null)} selectedProductId={selectedProductId} />
             </aside>
             
             {/* Adjustment Form Sheet (Mobile) */}
              <Sheet open={isSheetOpen} onOpenChange={handleSheetOpenChange}>
-                <SheetContent side="right" className="w-full sm:w-[500px] p-0">
+                <SheetContent side="right" className="w-full sm:w-[500px] p-0 flex flex-col h-full min-h-0">
                     <AdjustmentForm onSave={() => setIsSheetOpen(false)} selectedProductId={selectedProductId} />
                 </SheetContent>
             </Sheet>

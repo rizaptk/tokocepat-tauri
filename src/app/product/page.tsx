@@ -7,7 +7,7 @@ import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useStore } from "@/lib/store";
-import { Product, Category, ModifierGroup, ModifierItem, ProductType, ProductVariant, RawIngredient, RecipeItem, StockMovementType } from "@/lib/types";
+import { Product, Category, ModifierGroup, ModifierItem, RawIngredient, StockMovementType } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
@@ -17,7 +17,7 @@ import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ProductSearchBar } from "@/components/ProductSearchBar";
 import { ProductList } from "@/components/ProductList";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -26,7 +26,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
@@ -34,7 +33,7 @@ import { Textarea } from "@/components/ui/textarea";
 
 
 // Icons
-import { PlusCircle, Edit, Trash, SlidersHorizontal, Library, Package, Menu, Scan, Barcode, Zap, Beaker, Sandwich, Upload } from "lucide-react";
+import { PlusCircle, Edit, Trash, SlidersHorizontal, Library, Package, Menu, Scan, Barcode, Zap, Beaker, Sandwich, Upload, Banknote, Circle, DiamondPlus } from "lucide-react";
 
 // Services
 import { addProduct, updateProduct } from "@/services/productService";
@@ -46,6 +45,7 @@ import { adjustIngredientStock } from "@/services/stockService";
 
 import { useZxing } from "react-zxing";
 import { useGlobalBarcodeScanner } from "@/hooks/use-global-barcode-scanner";
+import { Separator } from "@/components/ui/separator";
 
 
 // ========= PRODUCT FORM =========
@@ -240,377 +240,377 @@ const ProductForm = ({ productId, onSave }: { productId: string | null, onSave: 
 
     return (
         <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="h-full flex flex-col">
-                 <ScrollArea className="flex-grow p-1">
-                    <div className="space-y-6 p-4">
-                        <Card>
-                            <CardHeader><CardTitle>Product Image</CardTitle></CardHeader>
-                            <CardContent className="flex flex-col items-center gap-4">
-                                <div className="w-48 h-48 relative rounded-lg overflow-hidden border bg-muted">
-                                    <Image 
-                                        src={imageUrl || 'https://placehold.co/400?text=No+Image'} 
-                                        alt={form.getValues('name') || 'Product image'} 
-                                        fill 
-                                        sizes="192px"
-                                        className="object-cover" 
-                                    />
-                                </div>
-                                <input type="file" ref={imageInputRef} hidden accept="image/*" onChange={handleImageSelect} />
-                                <Button type="button" variant="outline" className="w-full" onClick={() => imageInputRef.current?.click()}>
-                                    <Upload className="mr-2 h-4 w-4" /> Upload Image
-                                </Button>
-                            </CardContent>
-                        </Card>
-                        <Card>
-                            <CardHeader><CardTitle>Product Details</CardTitle></CardHeader>
-                            <CardContent className="space-y-6">
-                                <FormField control={form.control} name="product_type" render={({ field }) => (
-                                    <FormItem className="space-y-3"><FormLabel>Product Type</FormLabel>
-                                        <FormControl>
-                                            <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex flex-col space-y-1">
-                                                <FormItem className="flex items-center space-x-3 space-y-0">
-                                                    <FormControl><RadioGroupItem value="retail" /></FormControl>
-                                                    <FormLabel className="font-normal">Retail Product</FormLabel>
-                                                </FormItem>
-                                                <FormItem className="flex items-center space-x-3 space-y-0">
-                                                    <FormControl><RadioGroupItem value="food_and_beverage" /></FormControl>
-                                                    <FormLabel className="font-normal">Food & Beverage</FormLabel>
-                                                </FormItem>
-                                            </RadioGroup>
-                                        </FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )} />
-                                <FormField control={form.control} name="barcode" render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Barcode</FormLabel>
-                                        <FormControl>
-                                            <Input placeholder="Scan or enter barcode" {...field} />
-                                        </FormControl>
-                                        <div className="flex gap-2 pt-2">
-                                            <Dialog open={isScannerOpen} onOpenChange={setIsScannerOpen}>
-                                                <DialogTrigger asChild>
-                                                    <Button type="button" variant="outline" className="w-full">
-                                                        <Scan className="h-4 w-4" /> Scan
-                                                    </Button>
-                                                </DialogTrigger>
-                                                <DialogContent>
-                                                    <DialogHeader>
-                                                        <DialogTitle>Barcode Scanner</DialogTitle>
-                                                    </DialogHeader>
-                                                    <BarcodeScanner onScanSuccess={handleScanSuccess} />
-                                                </DialogContent>
-                                            </Dialog>
-                                            <Button type="button" variant="outline" className="w-full" onClick={() => {
-                                                const randomBarcode = Math.floor(1000000000000 + Math.random() * 9000000000000).toString();
-                                                form.setValue('barcode', randomBarcode, { shouldValidate: true });
-                                            }}>
-                                                <Zap className="h-4 w-4" /> Generate
-                                            </Button>
-                                        </div>
-                                        <FormMessage />
-                                    </FormItem>
-                                )} />
-                                <FormField control={form.control} name="sku" render={({ field }) => (
-                                    <FormItem><FormLabel>SKU (Stock Keeping Unit)</FormLabel><FormControl><Input placeholder="e.g. F-DRK-001" {...field} /></FormControl><FormMessage /></FormItem>
-                                )} />
-                                <FormField control={form.control} name="name" render={({ field }) => (
-                                    <FormItem><FormLabel>Product Name</FormLabel><FormControl><Input placeholder="e.g. Cokelat Batang" {...field} /></FormControl><FormMessage /></FormItem>
-                                )} />
-                                <FormField control={form.control} name="category_id" render={({ field }) => (
-                                    <FormItem><FormLabel>Category</FormLabel>
-                                        <Select onValueChange={field.onChange} value={field.value}>
-                                            <FormControl><SelectTrigger><SelectValue placeholder="Select a category" /></SelectTrigger></FormControl>
-                                            <SelectContent>{categories.map(cat => (<SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>))}</SelectContent>
-                                        </Select>
-                                        <FormMessage />
-                                    </FormItem>
-                                )} />
-                                <FormField control={form.control} name="price" render={({ field }) => (
-                                    <FormItem><FormLabel>Selling Price</FormLabel><FormControl><div className="relative"><span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">Rp</span><Input type="number" placeholder="8000" className="pl-10" {...field} /></div></FormControl><FormMessage /></FormItem>
-                                )} />
-                                <FormField control={form.control} name="cost_price" render={({ field }) => (
-                                    <FormItem><FormLabel>Cost Price</FormLabel><FormControl><div className="relative"><span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">Rp</span><Input type="number" placeholder="6500" className="pl-10" {...field} /></div></FormControl><FormDescription>Used to calculate profit.</FormDescription><FormMessage /></FormItem>
-                                )} />
-                            </CardContent>
-                        </Card>
-                         <Card>
-                            <CardHeader>
-                                <CardTitle>Inventory</CardTitle>
-                            </CardHeader>
-                            <CardContent className="space-y-6">
-                                <FormField
-                                    control={form.control}
-                                    name="track_stock"
-                                    render={({ field }) => (
-                                        <FormItem className={cn("flex flex-row items-center justify-between rounded-lg border p-4", (hasVariant || isComposite) && "opacity-50")}>
-                                            <div className="space-y-0.5">
-                                                <FormLabel className="text-base">Track Stock (Parent)</FormLabel>
-                                                <FormDescription>
-                                                {hasVariant ? "Disabled. Stock is tracked per variant." : isComposite ? "Disabled. Stock is tracked by recipe ingredients." : "Automatically deduct stock for each sale."}
-                                                </FormDescription>
-                                            </div>
-                                            <FormControl>
-                                                <Switch
-                                                    checked={(hasVariant || isComposite) ? false : field.value}
-                                                    onCheckedChange={field.onChange}
-                                                    disabled={hasVariant || isComposite}
-                                                />
-                                            </FormControl>
-                                        </FormItem>
-                                    )}
-                                />
-                                <div className={cn("grid grid-cols-1 md:grid-cols-2 gap-6", (hasVariant || isComposite) && "opacity-50")}>
-                                    <FormField
-                                        control={form.control}
-                                        name="stock"
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel>Initial Stock</FormLabel>
-                                                <FormControl>
-                                                    <Input type="number" placeholder="50" {...field} disabled={hasVariant || isComposite || !form.watch('track_stock')} />
-                                                </FormControl>
-                                                <FormMessage />
-                                            </FormItem>
-                                        )}
-                                    />
-                                     <FormField
-                                        control={form.control}
-                                        name="low_stock_alert"
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel>Low Stock Alert</FormLabel>
-                                                <FormControl>
-                                                    <Input type="number" placeholder="10" {...field} disabled={hasVariant || isComposite || !form.watch('track_stock')} />
-                                                </FormControl>
-                                                <FormMessage />
-                                            </FormItem>
-                                        )}
-                                    />
-                                </div>
-                            </CardContent>
-                        </Card>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="h-full flex flex-col min-h-0">
+                <div className="flex-1 min-h-0">
 
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Variants</CardTitle>
-                                <CardDescription>
-                                    Create different versions of a product, like sizes or colors.
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent className="space-y-4">
-                                <FormField
-                                    control={form.control}
-                                    name="has_variant"
-                                    render={({ field }) => (
-                                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                                            <div className="space-y-0.5">
-                                                <FormLabel className="text-base">Enable Variants</FormLabel>
-                                                <FormDescription>
-                                                    If enabled, stock will be tracked per variant.
-                                                </FormDescription>
-                                            </div>
-                                            <FormControl>
-                                                <Switch
-                                                    checked={field.value}
-                                                    onCheckedChange={field.onChange}
-                                                />
-                                            </FormControl>
-                                        </FormItem>
-                                    )}
-                                />
-                                {hasVariant && (
-                                    <div className="space-y-4 pt-4">
-                                        {variantFields.map((field, index) => (
-                                            <div key={field.id} className="flex gap-2 items-end p-3 border rounded-lg bg-muted/50">
-                                                <div className="flex-grow grid grid-cols-2 md:grid-cols-4 gap-4">
-                                                    <FormField
-                                                        control={form.control}
-                                                        name={`variants.${index}.name`}
-                                                        render={({ field }) => (
-                                                            <FormItem>
-                                                                <FormLabel className="text-xs">Name</FormLabel>
-                                                                <FormControl>
-                                                                    <Input placeholder="e.g. Small" {...field} />
-                                                                </FormControl>
-                                                            </FormItem>
-                                                        )}
-                                                    />
-                                                    <FormField
-                                                        control={form.control}
-                                                        name={`variants.${index}.additional_price`}
-                                                        render={({ field }) => (
-                                                            <FormItem>
-                                                                <FormLabel className="text-xs">Price Adj.</FormLabel>
-                                                                <FormControl>
-                                                                    <div className="relative"><span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground text-xs">Rp</span><Input type="number" placeholder="0" className="pl-8" {...field} /></div>
-                                                                </FormControl>
-                                                            </FormItem>
-                                                        )}
-                                                    />
-                                                    <FormField
-                                                        control={form.control}
-                                                        name={`variants.${index}.sku`}
-                                                        render={({ field }) => (
-                                                            <FormItem>
-                                                                <FormLabel className="text-xs">SKU</FormLabel>
-                                                                <FormControl>
-                                                                    <Input placeholder="SKU-S" {...field} />
-                                                                </FormControl>
-                                                            </FormItem>
-                                                        )}
-                                                    />
-                                                    <FormField
-                                                        control={form.control}
-                                                        name={`variants.${index}.stock`}
-                                                        render={({ field }) => (
-                                                            <FormItem>
-                                                                <FormLabel className="text-xs">Stock</FormLabel>
-                                                                <FormControl>
-                                                                    <Input type="number" placeholder="50" {...field} />
-                                                                </FormControl>
-                                                            </FormItem>
-                                                        )}
-                                                    />
+                    <ScrollArea className="p-1 h-full">
+                        <div className="space-y-6 p-4">
+                            <Card>
+                                <CardHeader><CardTitle>Product Details</CardTitle></CardHeader>
+                                <CardContent className="space-y-6">
+
+                                <div className="flex items-stretch w-full gap-6">
+                                        <div
+                                            onClick={() => imageInputRef.current?.click()}
+                                            role="button"
+                                            tabIndex={0}
+                                            onKeyDown={(e) => e.key === "Enter" && imageInputRef.current?.click()}
+                                            className="group relative w-48 h-48 rounded-xl overflow-hidden border bg-muted cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary"
+                                        >
+                                            {/* Image */}
+                                            <Image
+                                                src={imageUrl || "/images/placeholder.svg"}
+                                                alt={form.getValues("name") || "Product image"}
+                                                fill
+                                                sizes="192px"
+                                                className="object-cover transition-transform duration-300 group-hover:scale-105"
+                                            />
+
+                                            {/* Hover Overlay */}
+                                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/50 transition-colors duration-300 flex items-center justify-center">
+                                                <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 text-white text-sm font-medium flex flex-col items-center gap-2">
+                                                    <Upload className="h-6 w-6" />
+                                                    {imageUrl ? "Change Image" : "Upload Image"}
                                                 </div>
-                                                <Button type="button" variant="ghost" size="icon" className="shrink-0 text-muted-foreground hover:text-destructive" onClick={() => removeVariant(index)}>
-                                                    <Trash className="h-4 w-4" />
+                                            </div>
+                                        </div>
+
+                                        <input
+                                            type="file"
+                                            ref={imageInputRef}
+                                            hidden
+                                            accept="image/*"
+                                            onChange={handleImageSelect}
+                                        />
+
+                                        <div className="flex flex-col grow gap-6">
+                                            <FormField control={form.control} name="product_type" render={({ field }) => (
+                                                <FormItem className="space-y-3"><FormLabel>Product Type</FormLabel>
+                                                    <FormControl>
+                                                        <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex flex-col space-y-1">
+                                                            <FormItem className="flex items-center space-x-3 space-y-0">
+                                                                <FormControl><RadioGroupItem value="retail" /></FormControl>
+                                                                <FormLabel className="font-normal">Retail Product</FormLabel>
+                                                            </FormItem>
+                                                            <FormItem className="flex items-center space-x-3 space-y-0">
+                                                                <FormControl><RadioGroupItem value="food_and_beverage" /></FormControl>
+                                                                <FormLabel className="font-normal">Food & Beverage</FormLabel>
+                                                            </FormItem>
+                                                        </RadioGroup>
+                                                    </FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )} />
+                                    
+                                            <div className="grow"></div>
+
+                                        <FormField control={form.control} name="is_active" render={({ field }) => (
+                                                <FormItem className="flex flex-row items-center justify-between">
+                                                    <FormLabel className="">Product Active</FormLabel>
+                                                <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem>
+                                            )} />
+
+                                        </div>
+
+                                        
+                                </div>
+                                    
+                                    <FormField control={form.control} name="barcode" render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Barcode</FormLabel>
+                                            <FormControl>
+                                                <Input placeholder="Scan or enter barcode" {...field} />
+                                            </FormControl>
+                                            <div className="flex gap-2 pt-2">
+                                                <Dialog open={isScannerOpen} onOpenChange={setIsScannerOpen}>
+                                                    <DialogTrigger asChild>
+                                                        <Button type="button" variant="outline" className="w-full">
+                                                            <Scan className="h-4 w-4" /> Scan
+                                                        </Button>
+                                                    </DialogTrigger>
+                                                    <DialogContent>
+                                                        <DialogHeader>
+                                                            <DialogTitle>Barcode Scanner</DialogTitle>
+                                                        </DialogHeader>
+                                                        <BarcodeScanner onScanSuccess={handleScanSuccess} />
+                                                    </DialogContent>
+                                                </Dialog>
+                                                <Button type="button" variant="outline" className="w-full" onClick={() => {
+                                                    const randomBarcode = Math.floor(1000000000000 + Math.random() * 9000000000000).toString();
+                                                    form.setValue('barcode', randomBarcode, { shouldValidate: true });
+                                                }}>
+                                                    <Zap className="h-4 w-4" /> Generate
                                                 </Button>
                                             </div>
-                                        ))}
-                                        <Button type="button" variant="outline" size="sm" onClick={() => appendVariant({ name: '', additional_price: 0, stock: 0, sku: '' })}>
-                                            <PlusCircle className="mr-2 h-4 w-4" /> Add Variant
-                                        </Button>
-                                    </div>
-                                )}
-                            </CardContent>
-                        </Card>
-
-                        <Card>
-                             <CardHeader>
-                                <CardTitle>Customization</CardTitle>
-                            </CardHeader>
-                            <CardContent className="space-y-4">
-                                <FormField control={form.control} name="has_modifier" render={({ field }) => (
-                                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                                        <div className="space-y-0.5">
-                                            <FormLabel className="text-base">Enable Modifiers</FormLabel>
-                                            <FormDescription>Allow add-ons like toppings or sugar levels.</FormDescription>
-                                        </div>
-                                        <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} disabled={form.watch('product_type') === 'retail'} /></FormControl>
-                                    </FormItem>
-                                )} />
-                                {form.watch('has_modifier') && form.watch('product_type') === 'food_and_beverage' && (
-                                    <FormField control={form.control} name="modifier_group_ids" render={() => (
-                                        <FormItem className="rounded-lg border p-4 mt-4">
-                                            <div className="mb-4"><FormLabel className="text-base">Modifier Groups</FormLabel>
-                                            </div>
-                                            <div className="space-y-2">
-                                                {modifierGroups.map((group) => (<FormField key={group.id} control={form.control} name="modifier_group_ids" render={({ field }) => {
-                                                    return (<FormItem key={group.id} className="flex flex-row items-start space-x-3 space-y-0">
-                                                        <FormControl><Checkbox checked={field.value?.includes(group.id)} onCheckedChange={(checked) => {
-                                                            return checked ? field.onChange([...(field.value || []), group.id]) : field.onChange(field.value?.filter((value) => value !== group.id))
-                                                        }} /></FormControl>
-                                                        <FormLabel className="font-normal">{group.name}</FormLabel>
-                                                    </FormItem>)
-                                                }} />))}
-                                            </div><FormMessage />
+                                            <FormMessage />
                                         </FormItem>
                                     )} />
-                                )}
-                             </CardContent>
-                        </Card>
-                        
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Recipe</CardTitle>
-                                <CardDescription>For F&B products that consume raw ingredients.</CardDescription>
-                            </CardHeader>
-                             <CardContent className="space-y-4">
-                                <FormField
-                                    control={form.control}
-                                    name="is_composite"
-                                    render={({ field }) => (
-                                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                                            <div className="space-y-0.5">
-                                                <FormLabel className="text-base">Composite Product</FormLabel>
-                                                <FormDescription>
-                                                    Deduct raw ingredients from stock instead of the final product.
-                                                </FormDescription>
-                                            </div>
-                                            <FormControl>
-                                                <Switch
-                                                    checked={field.value}
-                                                    onCheckedChange={field.onChange}
-                                                    disabled={productType !== 'food_and_beverage'}
-                                                />
-                                            </FormControl>
-                                        </FormItem>
-                                    )}
-                                />
-                                {isComposite && productType === 'food_and_beverage' && (
-                                     <div className="space-y-4 pt-4">
-                                        {recipeFields.map((field, index) => (
-                                            <div key={field.id} className="flex gap-2 items-end p-3 border rounded-lg bg-muted/50">
-                                                <div className="flex-grow grid grid-cols-2 gap-4">
-                                                    <FormField
-                                                        control={form.control}
-                                                        name={`recipe_items.${index}.ingredient_id`}
-                                                        render={({ field }) => (
-                                                            <FormItem>
-                                                                <FormLabel className="text-xs">Ingredient</FormLabel>
-                                                                 <Select onValueChange={field.onChange} value={field.value}>
-                                                                    <FormControl><SelectTrigger><SelectValue placeholder="Select ingredient" /></SelectTrigger></FormControl>
-                                                                    <SelectContent>{rawIngredients.map(ing => (<SelectItem key={ing.id} value={ing.id}>{ing.name}</SelectItem>))}</SelectContent>
-                                                                </Select>
-                                                                <FormMessage/>
-                                                            </FormItem>
-                                                        )}
-                                                    />
-                                                     <FormField
-                                                        control={form.control}
-                                                        name={`recipe_items.${index}.quantity`}
-                                                        render={({ field }) => (
-                                                            <FormItem>
-                                                                <FormLabel className="text-xs">Quantity</FormLabel>
-                                                                <FormControl>
-                                                                    <Input type="number" placeholder="e.g. 18" {...field} />
-                                                                </FormControl>
-                                                                <FormMessage/>
-                                                            </FormItem>
-                                                        )}
-                                                    />
-                                                </div>
-                                                 <Button type="button" variant="ghost" size="icon" className="shrink-0 text-muted-foreground hover:text-destructive" onClick={() => removeRecipeItem(index)}>
-                                                    <Trash className="h-4 w-4" />
-                                                </Button>
-                                            </div>
-                                        ))}
-                                         <Button type="button" variant="outline" size="sm" onClick={() => appendRecipeItem({ ingredient_id: '', quantity: 0 })}>
-                                            <PlusCircle className="mr-2 h-4 w-4" /> Add Ingredient
-                                        </Button>
-                                     </div>
-                                )}
-                             </CardContent>
-                        </Card>
 
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Availability</CardTitle>
-                            </CardHeader>
-                             <CardContent>
-                                <FormField control={form.control} name="is_active" render={({ field }) => (
-                                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                                        <div className="space-y-0.5">
-                                            <FormLabel className="text-base">Product Active</FormLabel>
+                                    <FormField control={form.control} name="sku" render={({ field }) => (
+                                        <FormItem><FormLabel>SKU (Stock Keeping Unit)</FormLabel><FormControl><Input placeholder="e.g. F-DRK-001" {...field} /></FormControl><FormMessage /></FormItem>
+                                    )} />
+
+                                    <FormField control={form.control} name="name" render={({ field }) => (
+                                        <FormItem><FormLabel>Product Name</FormLabel><FormControl><Input placeholder="e.g. Cokelat Batang" {...field} /></FormControl><FormMessage /></FormItem>
+                                    )} />
+                                    <FormField control={form.control} name="category_id" render={({ field }) => (
+                                        <FormItem><FormLabel>Category</FormLabel>
+                                            <Select onValueChange={field.onChange} value={field.value}>
+                                                <FormControl><SelectTrigger><SelectValue placeholder="Select a category" /></SelectTrigger></FormControl>
+                                                <SelectContent>{categories.map(cat => (<SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>))}</SelectContent>
+                                            </Select>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )} />
+                                    <FormField control={form.control} name="price" render={({ field }) => (
+                                        <FormItem><FormLabel>Selling Price</FormLabel><FormControl><div className="relative"><span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">Rp</span><Input type="number" placeholder="8000" className="pl-10" {...field} /></div></FormControl><FormMessage /></FormItem>
+                                    )} />
+                                    <FormField control={form.control} name="cost_price" render={({ field }) => (
+                                        <FormItem><FormLabel>Cost Price</FormLabel><FormControl><div className="relative"><span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">Rp</span><Input type="number" placeholder="6500" className="pl-10" {...field} /></div></FormControl><FormDescription>Used to calculate profit.</FormDescription><FormMessage /></FormItem>
+                                    )} />
+
+                                    <Separator />
+
+                                    <FormField
+                                        control={form.control}
+                                        name="track_stock"
+                                        render={({ field }) => (
+                                            <FormItem className={cn("flex flex-row items-center justify-between", (hasVariant || isComposite) && "opacity-50")}>
+                                                <div className="space-y-0.5">
+                                                    <FormLabel className="text-base">Track Stock (Parent)</FormLabel>
+                                                    {/* <FormDescription>
+                                                    {hasVariant ? "Disabled. Stock is tracked per variant." : isComposite ? "Disabled. Stock is tracked by recipe ingredients." : "Automatically deduct stock for each sale."}
+                                                    </FormDescription> */}
+                                                </div>
+                                                <FormControl>
+                                                    <Switch
+                                                        checked={(hasVariant || isComposite) ? false : field.value}
+                                                        onCheckedChange={field.onChange}
+                                                        disabled={hasVariant || isComposite}
+                                                    />
+                                                </FormControl>
+                                            </FormItem>
+                                        )}
+                                    />
+                                    <div className={cn("grid grid-cols-1 md:grid-cols-2 gap-6", (hasVariant || isComposite) && "opacity-50")}>
+                                        <FormField
+                                            control={form.control}
+                                            name="stock"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>Initial Stock</FormLabel>
+                                                    <FormControl>
+                                                        <Input type="number" placeholder="50" {...field} disabled={hasVariant || isComposite || !form.watch('track_stock')} />
+                                                    </FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                        <FormField
+                                            control={form.control}
+                                            name="low_stock_alert"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>Low Stock Alert</FormLabel>
+                                                    <FormControl>
+                                                        <Input type="number" placeholder="10" {...field} disabled={hasVariant || isComposite || !form.watch('track_stock')} />
+                                                    </FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                    </div>
+
+                                    <Separator />
+
+                                    <FormField
+                                        control={form.control}
+                                        name="has_variant"
+                                        render={({ field }) => (
+                                            <FormItem className="flex flex-row items-center justify-between">
+                                                <FormLabel className="text-base">Enable Variants</FormLabel>
+                                                <FormControl>
+                                                    <Switch
+                                                        checked={field.value}
+                                                        onCheckedChange={field.onChange}
+                                                    />
+                                                </FormControl>
+                                            </FormItem>
+                                        )}
+                                    />
+
+                                    {hasVariant && (
+                                        <div className="space-y-4">
+                                            {variantFields.map((field, index) => (
+                                                <div key={field.id} className="flex flex-col gap-2 items-end p-3 border rounded-lg bg-muted/50">
+                                                    <div className="flex items-center justify-between w-full border-b px-2">
+                                                        <FormLabel className="text-sm">Variant {index + 1}</FormLabel>
+                                                        <Button type="button" variant="ghost" size="icon" className="shrink-0 text-muted-foreground hover:text-destructive" onClick={() => removeVariant(index)}>
+                                                            <Trash className="h-4 w-4" />
+                                                        </Button>
+                                                    </div>
+                                                    <div className="flex-grow grid grid-cols-2 gap-4">
+                                                        <FormField
+                                                            control={form.control}
+                                                            name={`variants.${index}.name`}
+                                                            render={({ field }) => (
+                                                                <FormItem>
+                                                                    <FormLabel className="text-xs">Name</FormLabel>
+                                                                    <FormControl>
+                                                                        <Input placeholder="e.g. Small" {...field} />
+                                                                    </FormControl>
+                                                                </FormItem>
+                                                            )}
+                                                        />
+                                                        <FormField
+                                                            control={form.control}
+                                                            name={`variants.${index}.additional_price`}
+                                                            render={({ field }) => (
+                                                                <FormItem>
+                                                                    <FormLabel className="text-xs">Price Adj.</FormLabel>
+                                                                    <FormControl>
+                                                                        <div className="relative"><span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground text-xs">Rp</span><Input type="number" placeholder="0" className="pl-8" {...field} /></div>
+                                                                    </FormControl>
+                                                                </FormItem>
+                                                            )}
+                                                        />
+                                                        <FormField
+                                                            control={form.control}
+                                                            name={`variants.${index}.sku`}
+                                                            render={({ field }) => (
+                                                                <FormItem>
+                                                                    <FormLabel className="text-xs">SKU</FormLabel>
+                                                                    <FormControl>
+                                                                        <Input placeholder="SKU-S" {...field} />
+                                                                    </FormControl>
+                                                                </FormItem>
+                                                            )}
+                                                        />
+                                                        <FormField
+                                                            control={form.control}
+                                                            name={`variants.${index}.stock`}
+                                                            render={({ field }) => (
+                                                                <FormItem>
+                                                                    <FormLabel className="text-xs">Stock</FormLabel>
+                                                                    <FormControl>
+                                                                        <Input type="number" placeholder="50" {...field} />
+                                                                    </FormControl>
+                                                                </FormItem>
+                                                            )}
+                                                        />
+                                                    </div>
+                                                    
+                                                </div>
+                                            ))}
+                                            <Button type="button" variant="outline" size="sm" onClick={() => appendVariant({ name: '', additional_price: 0, stock: 0, sku: '' })}>
+                                                <PlusCircle className="mr-2 h-4 w-4" /> Add Variant
+                                            </Button>
                                         </div>
-                                    <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem>
-                                )} />
-                             </CardContent>
-                        </Card>
-                    </div>
-                 </ScrollArea>
-                <div className="p-4 border-t mt-auto">
+                                    )}
+
+                                    {
+                                        form.watch('product_type') === 'food_and_beverage' &&
+                                        (
+                                            <>
+                                                <Separator />
+                                                <FormField control={form.control} name="has_modifier" render={({ field }) => (
+                                                    <FormItem className="flex flex-row items-center justify-between">
+                                                        <FormLabel className="text-base">Enable Modifiers Group</FormLabel>
+                                                        <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} disabled={form.watch('product_type') === 'retail'} /></FormControl>
+                                                    </FormItem>
+                                                )} />
+                                                {form.watch('has_modifier') && form.watch('product_type') === 'food_and_beverage' && (
+                                                    <FormField control={form.control} name="modifier_group_ids" render={() => (
+                                                        <FormItem className="grid grid-cols-2 space-y-0">
+                                                            {modifierGroups.map((group) => (<FormField key={group.id} control={form.control} name="modifier_group_ids" render={({ field }) => {
+                                                                return (<FormItem key={group.id} className="flex flex-row items-start space-x-3 space-y-0 py-2">
+                                                                    <FormControl><Checkbox checked={field.value?.includes(group.id)} onCheckedChange={(checked) => {
+                                                                        return checked ? field.onChange([...(field.value || []), group.id]) : field.onChange(field.value?.filter((value) => value !== group.id))
+                                                                    }} /></FormControl>
+                                                                    <FormLabel className="font-normal">{group.name}</FormLabel>
+                                                                </FormItem>)
+                                                            }} />))}
+                                                            <FormMessage />
+                                                        </FormItem>
+                                                    )} />
+                                                )}
+
+                                                <Separator />
+
+                                                <FormField
+                                                    control={form.control}
+                                                    name="is_composite"
+                                                    render={({ field }) => (
+                                                        <FormItem className="flex flex-row items-center justify-between">
+                                                            <FormLabel className="text-base">Composite Product</FormLabel>
+                                                            <FormControl>
+                                                                <Switch
+                                                                    checked={field.value}
+                                                                    onCheckedChange={field.onChange}
+                                                                    disabled={productType !== 'food_and_beverage'}
+                                                                />
+                                                            </FormControl>
+                                                        </FormItem>
+                                                    )}
+                                                />
+                                                {isComposite && productType === 'food_and_beverage' && (
+                                                    <div className="space-y-4 pt-4">
+                                                        {recipeFields.map((field, index) => (
+                                                            <div key={field.id} className="flex gap-2 items-end p-3 border rounded-lg bg-muted/50">
+                                                                <div className="flex-grow grid grid-cols-2 gap-4">
+                                                                    <FormField
+                                                                        control={form.control}
+                                                                        name={`recipe_items.${index}.ingredient_id`}
+                                                                        render={({ field }) => (
+                                                                            <FormItem>
+                                                                                <FormLabel className="text-xs">Ingredient</FormLabel>
+                                                                                <Select onValueChange={field.onChange} value={field.value}>
+                                                                                    <FormControl><SelectTrigger><SelectValue placeholder="Select ingredient" /></SelectTrigger></FormControl>
+                                                                                    <SelectContent>{rawIngredients.map(ing => (<SelectItem key={ing.id} value={ing.id}>{ing.name}</SelectItem>))}</SelectContent>
+                                                                                </Select>
+                                                                                <FormMessage/>
+                                                                            </FormItem>
+                                                                        )}
+                                                                    />
+                                                                    <FormField
+                                                                        control={form.control}
+                                                                        name={`recipe_items.${index}.quantity`}
+                                                                        render={({ field }) => (
+                                                                            <FormItem>
+                                                                                <FormLabel className="text-xs">Quantity</FormLabel>
+                                                                                <FormControl>
+                                                                                    <Input type="number" placeholder="e.g. 18" {...field} />
+                                                                                </FormControl>
+                                                                                <FormMessage/>
+                                                                            </FormItem>
+                                                                        )}
+                                                                    />
+                                                                </div>
+                                                                <Button type="button" variant="ghost" size="icon" className="shrink-0 text-muted-foreground hover:text-destructive" onClick={() => removeRecipeItem(index)}>
+                                                                    <Trash className="h-4 w-4" />
+                                                                </Button>
+                                                            </div>
+                                                        ))}
+                                                        <Button type="button" variant="outline" size="sm" onClick={() => appendRecipeItem({ ingredient_id: '', quantity: 0 })}>
+                                                            <PlusCircle className="mr-2 h-4 w-4" /> Add Ingredient
+                                                        </Button>
+                                                    </div>
+                                                )}
+
+                                            </>   
+                                        )
+                                    }
+
+                                    <Separator />
+
+                                    
+
+                                </CardContent>
+                            </Card>
+                        </div>
+                    </ScrollArea>
+                </div>
+                <div className="p-4 border-t mt-auto shrink-0">
                     <Button type="submit" className="w-full">{isEditing ? "Save Changes" : "Create Product"}</Button>
                 </div>
             </form>
@@ -667,19 +667,93 @@ const CategoryManager = () => {
                 <h3 className="font-semibold">Manage Categories</h3>
                 <Button size="sm" onClick={() => openDialog(null)}><PlusCircle className="mr-2 h-4 w-4" /> Add</Button>
             </div>
-             <ScrollArea className="flex-grow">
+            <ScrollArea className="flex-1">
+            <Card className="rounded-lg">
+                <CardContent className="p-0">
+
+                <div className="divide-y">
+
+                    {categories.map((cat) => (
+                    <div
+                        key={cat.id}
+                        className="flex items-center justify-between px-4 py-4"
+                    >
+
+                        {/* Left Side */}
+                        <div className="flex flex-col">
+                        <span className="font-medium text-base">
+                            {cat.name}
+                        </span>
+                        {/* <span className="text-xs text-muted-foreground">
+                            Category
+                        </span> */}
+                        </div>
+
+                        {/* Right Actions */}
+                        <div className="flex items-center gap-2">
+
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => openDialog(cat)}
+                        >
+                            <Edit className="h-4 w-4" />
+                        </Button>
+
+                        <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="text-destructive"
+                            >
+                                <Trash className="h-4 w-4" />
+                            </Button>
+                            </AlertDialogTrigger>
+
+                            <AlertDialogContent>
+                            <AlertDialogHeader>
+                                <AlertDialogTitle>
+                                Delete "{cat.name}"?
+                                </AlertDialogTitle>
+                                <AlertDialogDescription>
+                                This will soft-delete the category.
+                                It cannot be used for new products.
+                                </AlertDialogDescription>
+                            </AlertDialogHeader>
+
+                            <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction
+                                onClick={() => handleDelete(cat.id)}
+                                >
+                                Confirm Delete
+                                </AlertDialogAction>
+                            </AlertDialogFooter>
+                            </AlertDialogContent>
+                        </AlertDialog>
+
+                        </div>
+
+                    </div>
+                    ))}
+
+                </div>
+
+                </CardContent>
+            </Card>
+            </ScrollArea>
+             {/* <ScrollArea className="flex-grow">
                 <Card>
                     <CardContent className="pt-6">
 
                         <Table>
                             <TableHeader><TableRow><TableHead>Name</TableHead>
-                            {/* <TableHead>Status</TableHead> */}
                             <TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
                             <TableBody>
                                 {categories.map(cat => (
                                     <TableRow key={cat.id}>
                                         <TableCell className="font-medium">{cat.name}</TableCell>
-                                        {/* <TableCell><Badge variant={cat.is_active ? "default" : "outline"}>{cat.is_active ? "Active" : "Inactive"}</Badge></TableCell> */}
                                         <TableCell className="text-right">
                                             <Button variant="ghost" size="sm" onClick={() => openDialog(cat)}><Edit className="h-4 w-4" /></Button>
                                             <AlertDialog>
@@ -696,7 +770,7 @@ const CategoryManager = () => {
                         </Table>
                     </CardContent>
                 </Card>
-             </ScrollArea>
+             </ScrollArea> */}
              <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <DialogContent>
                     <DialogHeader><DialogTitle>{categoryToEdit ? 'Edit' : 'Add'} Category</DialogTitle></DialogHeader>
@@ -780,56 +854,146 @@ const ModifierManager = () => {
                 <h3 className="font-semibold">Manage Modifiers</h3>
                 <Button size="sm" onClick={() => openGroupDialog(null)}><PlusCircle className="mr-2 h-4 w-4" /> Add Group</Button>
             </div>
-            <ScrollArea className="flex-grow -mx-4">
-                 <div className="px-4">
+            <ScrollArea className="flex-1 min-h-0 -mx-4">
+                <div className="px-4 space-y-4">
+
                     {modifierGroups.map(group => (
-                        <Card key={group.id} className="mb-4">
-                            <CardHeader>
-                                <div className="flex justify-between items-center">
-                                    <CardTitle className="text-lg">{group.name}</CardTitle>
-                                    <div className="flex items-center gap-2">
-                                        <Button variant="ghost" size="icon" onClick={() => openGroupDialog(group)}><Edit className="h-4 w-4"/></Button>
-                                        <AlertDialog>
-                                            <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="text-destructive hover:text-destructive"><Trash className="h-4 w-4" /></Button></AlertDialogTrigger>
-                                            <AlertDialogContent>
-                                                <AlertDialogHeader><AlertDialogTitle>Delete "{group.name}"?</AlertDialogTitle><AlertDialogDescription>This will permanently delete the group and all its items. This action cannot be undone.</AlertDialogDescription></AlertDialogHeader>
-                                                <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleGroupDelete(group.id)}>Delete</AlertDialogAction></AlertDialogFooter>
-                                            </AlertDialogContent>
-                                        </AlertDialog>
+                        <Card key={group.id} className="overflow-hidden">
+
+                            {/* GROUP HEADER */}
+                            <div className="p-4 border-b">
+                                <div className="flex items-start justify-between gap-3">
+
+                                    <div className="flex-1">
+                                        <p className="font-semibold text-base leading-tight">
+                                            {group.name}
+                                        </p>
+
+                                        <p className="text-sm text-muted-foreground mt-1">
+                                            {group.required ? "Required" : "Optional"} •
+                                            Select {group.min_select}–{group.max_select}
+                                        </p>
                                     </div>
                                 </div>
-                                <CardDescription>
-                                    {group.required ? "Required" : "Optional"} &bull; Select {group.min_select} to {group.max_select}
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                <Table>
-                                    <TableHeader><TableRow><TableHead>Item</TableHead><TableHead>Price</TableHead><TableHead className="text-right"><Button size="sm" variant="outline" onClick={() => openItemDialog(group.id, null)}><PlusCircle className="mr-2 h-4"/>Add Item</Button></TableHead></TableRow></TableHeader>
-                                    <TableBody>
-                                        {group.items.map(item => (
-                                            <TableRow key={item.id}>
-                                                <TableCell>{item.name}</TableCell>
-                                                <TableCell>{formatCurrency(item.additional_price)}</TableCell>
-                                                <TableCell className="text-right">
-                                                    <Button variant="ghost" size="icon" onClick={() => openItemDialog(group.id, item)}><Edit className="h-4 w-4"/></Button>
-                                                    <AlertDialog>
-                                                        <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="text-destructive hover:text-destructive"><Trash className="h-4 w-4" /></Button></AlertDialogTrigger>
-                                                        <AlertDialogContent>
-                                                            <AlertDialogHeader><AlertDialogTitle>Delete "{item.name}"?</AlertDialogTitle></AlertDialogHeader>
-                                                            <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleItemDelete(group.id, item.id)}>Delete</AlertDialogAction></AlertDialogFooter>
-                                                        </AlertDialogContent>
-                                                    </AlertDialog>
-                                                </TableCell>
-                                            </TableRow>
-                                        ))}
-                                    </TableBody>
-                                </Table>
-                            </CardContent>
+                            </div>
+
+                            {/* ITEMS LIST */}
+                            <div className="divide-y divide-border/40">
+
+                                {group.items.map(item => (
+                                    <div key={item.id} className="p-4 flex items-center justify-between gap-3 hover:bg-background">
+
+                                        <div className="flex-1">
+                                            <p className="font-medium flex gap-2">
+                                                <DiamondPlus className="size-4 mt-1 shrink-0 text-green-600" />
+                                                {item.name}
+                                            </p>
+                                            <p className="text-sm text-muted-foreground pl-6">
+                                                {formatCurrency(item.additional_price)}
+                                            </p>
+                                        </div>
+
+                                        <div className="flex items-center gap-1 shrink-0">
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                onClick={() => openItemDialog(group.id, item)}
+                                            >
+                                                <Edit className="h-4 w-4" />
+                                            </Button>
+
+                                            <AlertDialog>
+                                                <AlertDialogTrigger asChild>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="text-destructive hover:text-destructive"
+                                                    >
+                                                        <Trash className="h-4 w-4" />
+                                                    </Button>
+                                                </AlertDialogTrigger>
+                                                <AlertDialogContent>
+                                                    <AlertDialogHeader>
+                                                        <AlertDialogTitle>
+                                                            Delete "{item.name}"?
+                                                        </AlertDialogTitle>
+                                                    </AlertDialogHeader>
+                                                    <AlertDialogFooter>
+                                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                        <AlertDialogAction
+                                                            onClick={() => handleItemDelete(group.id, item.id)}
+                                                        >
+                                                            Delete
+                                                        </AlertDialogAction>
+                                                    </AlertDialogFooter>
+                                                </AlertDialogContent>
+                                            </AlertDialog>
+                                        </div>
+                                    </div>
+                                ))}
+
+                                {/* ADD ITEM BUTTON */}
+                                <div className="p-4 flex justify-between items-center gap-4">
+                                    <Button
+                                        variant="outline"
+                                        className="grow"
+                                        onClick={() => openItemDialog(group.id, null)}
+                                    >
+                                        <PlusCircle className="mr-2 h-4 w-4" />
+                                        Add Item
+                                    </Button>
+                                    {/* GROUP FOOTER ACTIONS */}
+                                    <div className="flex justify-end gap-2">
+                                        <Button
+                                            variant="outline"
+                                            onClick={() => openGroupDialog(group)}
+                                            >
+                                            <Edit className="h-4 w-4 mr-1" />
+                                            Edit
+                                        </Button>
+
+                                        <AlertDialog>
+                                            <AlertDialogTrigger asChild>
+                                                <Button
+                                                    variant="outline"
+                                                    className="text-destructive hover:text-destructive"
+                                                    onClick={() => handleGroupDelete(group.id)}
+                                                    >
+                                                    <Trash className="h-4 w-4 mr-1" />
+                                                    Delete
+                                                </Button>
+                                            </AlertDialogTrigger>
+                                            <AlertDialogContent>
+                                                <AlertDialogHeader>
+                                                    <AlertDialogTitle>
+                                                        Delete "{group.name}"?
+                                                    </AlertDialogTitle>
+                                                    <AlertDialogDescription>
+                                                        This will permanently delete the group and all its items.
+                                                    </AlertDialogDescription>
+                                                </AlertDialogHeader>
+                                                <AlertDialogFooter>
+                                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                    <AlertDialogAction
+                                                        onClick={() => handleGroupDelete(group.id)}
+                                                    >
+                                                        Delete
+                                                    </AlertDialogAction>
+                                                </AlertDialogFooter>
+                                            </AlertDialogContent>
+                                        </AlertDialog>
+
+                                    </div>
+                                </div>
+
+                            </div>
                         </Card>
                     ))}
-                 </div>
+
+                </div>
             </ScrollArea>
-             {/* Group Dialog */}
+            
+            {/* Group Dialog */}
             <Dialog open={isGroupDialogOpen} onOpenChange={setIsGroupDialogOpen}>
                 <DialogContent>
                     <DialogHeader><DialogTitle>{groupToEdit ? 'Edit' : 'Add'} Group</DialogTitle></DialogHeader>
@@ -875,11 +1039,11 @@ const IngredientManager = () => {
     const [isAdjustmentDialogOpen, setIsAdjustmentDialogOpen] = useState(false);
     const [ingredientToEdit, setIngredientToEdit] = useState<RawIngredient | null>(null);
     const [ingredientToAdjust, setIngredientToAdjust] = useState<RawIngredient | null>(null);
-    
+
     const defaultFormState = { name: "", unit_type: 'gram' as RawIngredient['unit_type'], stock_qty: 0, cost_per_unit: 0 };
     const [formData, setFormData] = useState(defaultFormState);
 
-    const defaultAdjustmentState = { type: 'correction' as StockMovementType, qty_change: 0, reason: ''};
+    const defaultAdjustmentState = { type: 'correction' as StockMovementType, qty_change: 0, reason: '' };
     const [adjustmentData, setAdjustmentData] = useState(defaultAdjustmentState);
 
     const openDialog = (ingredient: RawIngredient | null) => {
@@ -909,7 +1073,7 @@ const IngredientManager = () => {
             toast({ variant: "destructive", title: "Error", description: "Could not save ingredient." });
         }
     };
-    
+
     const handleDelete = async (id: string) => {
         try {
             await deleteIngredient(id);
@@ -941,41 +1105,92 @@ const IngredientManager = () => {
                 <h3 className="font-semibold">Manage Raw Ingredients</h3>
                 <Button size="sm" onClick={() => openDialog(null)}><PlusCircle className="mr-2 h-4 w-4" /> Add</Button>
             </div>
-            <ScrollArea className="flex-grow">
-                <Card>
-                    <CardContent className="pt-6">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Name</TableHead>
-                                    <TableHead>Stock</TableHead>
-                                    <TableHead>Cost</TableHead>
-                                    <TableHead className="text-right">Actions</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {rawIngredients.map(ing => (
-                                    <TableRow key={ing.id}>
-                                        <TableCell className="font-medium">{ing.name}</TableCell>
-                                        <TableCell>{ing.stock_qty.toLocaleString()} {ing.unit_type}</TableCell>
-                                        <TableCell>{formatCurrency(ing.cost_per_unit)} / {ing.unit_type}</TableCell>
-                                        <TableCell className="text-right">
-                                            <Button variant="ghost" size="sm" onClick={() => openAdjustmentDialog(ing)}>Adjust</Button>
-                                            <Button variant="ghost" size="sm" onClick={() => openDialog(ing)}><Edit className="h-4 w-4" /></Button>
-                                            <AlertDialog>
-                                                <AlertDialogTrigger asChild><Button variant="ghost" size="sm" className="text-destructive hover:text-destructive"><Trash className="h-4 w-4" /></Button></AlertDialogTrigger>
-                                                <AlertDialogContent>
-                                                    <AlertDialogHeader><AlertDialogTitle>Delete "{ing.name}"?</AlertDialogTitle></AlertDialogHeader>
-                                                    <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDelete(ing.id)}>Confirm Delete</AlertDialogAction></AlertDialogFooter>
-                                                </AlertDialogContent>
-                                            </AlertDialog>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    </CardContent>
-                </Card>
+            <ScrollArea className="flex-1 min-h-0">
+                <div className="space-y-3">
+                    {rawIngredients.map((ing) => (
+                        <Card key={ing.id} className="p-4">
+                            <div className="flex items-start justify-between gap-3">
+
+                                {/* Left Content */}
+                                <div className="flex-1 space-y-1">
+                                    <p className="font-semibold leading-tight mb-3">
+                                        {ing.name}
+                                    </p>
+
+                                    {/* Stock */}
+                                    <div className="flex items-center gap-2">
+                                        <Package className="h-4 w-4 shrink-0 text-purple-500" />
+                                        <span>
+                                        <span className="font-medium">
+                                            {ing.stock_qty.toLocaleString()} {ing.unit_type}
+                                        </span>
+                                        </span>
+                                    </div>
+
+                                    {/* Cost */}
+                                    <div className="flex items-center gap-2">
+                                        <Banknote className="h-4 w-4 shrink-0 text-green-600" />
+                                        <span>
+                                        {formatCurrency(ing.cost_per_unit)} / {ing.unit_type}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                {/* Quick Adjust Button */}
+                                <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => openAdjustmentDialog(ing)}
+                                >
+                                    Adjust
+                                </Button>
+                            </div>
+
+                            {/* Divider */}
+                            <Separator className="my-3" />
+
+                            {/* Actions Row */}
+                            <div className="flex justify-end gap-2">
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => openDialog(ing)}
+                                >
+                                    <Edit className="h-4 w-4 mr-1" />
+                                    Edit
+                                </Button>
+
+                                <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="text-destructive hover:text-destructive"
+                                        >
+                                            <Trash className="h-4 w-4 mr-1" />
+                                            Delete
+                                        </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                            <AlertDialogTitle>
+                                                Delete "{ing.name}"?
+                                            </AlertDialogTitle>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                            <AlertDialogAction
+                                                onClick={() => handleDelete(ing.id)}
+                                            >
+                                                Confirm Delete
+                                            </AlertDialogAction>
+                                        </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                </AlertDialog>
+                            </div>
+                        </Card>
+                    ))}
+                </div>
             </ScrollArea>
             <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
                 <DialogContent>
@@ -986,14 +1201,14 @@ const IngredientManager = () => {
                             <Input value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} />
                         </div>
                         <div className="grid grid-cols-2 gap-4">
-                             <div className="space-y-2">
+                            <div className="space-y-2">
                                 <Label>Initial Stock</Label>
                                 <Input type="number" value={formData.stock_qty} onChange={(e) => setFormData({ ...formData, stock_qty: Number(e.target.value) })} />
                             </div>
                             <div className="space-y-2">
                                 <Label>Unit</Label>
                                 <Select value={formData.unit_type} onValueChange={(v) => setFormData({ ...formData, unit_type: v as any })}>
-                                    <SelectTrigger><SelectValue/></SelectTrigger>
+                                    <SelectTrigger><SelectValue /></SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="gram">Gram (g)</SelectItem>
                                         <SelectItem value="ml">Milliliter (ml)</SelectItem>
@@ -1022,7 +1237,7 @@ const IngredientManager = () => {
                     <div className="py-4 space-y-4">
                         <div className="space-y-2">
                             <Label>Adjustment Type</Label>
-                            <Select value={adjustmentData.type} onValueChange={(v) => setAdjustmentData({...adjustmentData, type: v as StockMovementType})}>
+                            <Select value={adjustmentData.type} onValueChange={(v) => setAdjustmentData({ ...adjustmentData, type: v as StockMovementType })}>
                                 <SelectTrigger><SelectValue /></SelectTrigger>
                                 <SelectContent>
                                     {adjustmentTypes.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
@@ -1031,15 +1246,15 @@ const IngredientManager = () => {
                         </div>
                         <div className="space-y-2">
                             <Label>Quantity Change</Label>
-                            <Input type="number" value={adjustmentData.qty_change} onChange={(e) => setAdjustmentData({...adjustmentData, qty_change: Number(e.target.value)})} placeholder="e.g. 10 or -5" />
-                             <p className="text-xs text-muted-foreground">Use a negative number to decrease stock.</p>
+                            <Input type="number" value={adjustmentData.qty_change} onChange={(e) => setAdjustmentData({ ...adjustmentData, qty_change: Number(e.target.value) })} placeholder="e.g. 10 or -5" />
+                            <p className="text-xs text-muted-foreground">Use a negative number to decrease stock.</p>
                         </div>
                         <div className="space-y-2">
                             <Label>Reason</Label>
-                            <Textarea value={adjustmentData.reason} onChange={(e) => setAdjustmentData({...adjustmentData, reason: e.target.value})} placeholder="e.g. 'End of month stock count'" />
+                            <Textarea value={adjustmentData.reason} onChange={(e) => setAdjustmentData({ ...adjustmentData, reason: e.target.value })} placeholder="e.g. 'End of month stock count'" />
                         </div>
                     </div>
-                     <DialogFooter>
+                    <DialogFooter>
                         <Button variant="outline" onClick={() => setIsAdjustmentDialogOpen(false)}>Cancel</Button>
                         <Button onClick={handleAdjustmentSave}>Save Adjustment</Button>
                     </DialogFooter>
@@ -1058,25 +1273,25 @@ const ProductEditor = ({ selectedProductId, onProductUpdate, activeTab, onTabCha
     onTabChange: (tab: string) => void;
 }) => {
     return (
-        <Tabs value={activeTab} onValueChange={onTabChange} className="h-full flex flex-col">
-            <div className="px-4 pt-4">
+        <Tabs value={activeTab} onValueChange={onTabChange} className="h-full flex flex-col min-h-0">
+            <div className="px-4 py-4 grid grid-cols-1 w-full overflow-x-auto shrink-0 border-b">
                 <TabsList className="grid w-full grid-cols-4">
-                    <TabsTrigger value="product"><Package className="w-4 h-4 mr-2"/>Product</TabsTrigger>
-                    <TabsTrigger value="categories"><Library className="w-4 h-4 mr-2"/>Categories</TabsTrigger>
-                    <TabsTrigger value="modifiers"><SlidersHorizontal className="w-4 h-4 mr-2"/>Modifiers</TabsTrigger>
-                     <TabsTrigger value="ingredients"><Beaker className="w-4 h-4 mr-2"/>Ingredients</TabsTrigger>
+                    <TabsTrigger value="product"><Package className="w-4 h-4 mr-2 text-primary"/>Product</TabsTrigger>
+                    <TabsTrigger value="categories"><Library className="w-4 h-4 mr-2 text-destructive"/>Categories</TabsTrigger>
+                    <TabsTrigger value="modifiers"><SlidersHorizontal className="w-4 h-4 mr-2 text-purple-500"/>Modifiers</TabsTrigger>
+                    <TabsTrigger value="ingredients"><Beaker className="w-4 h-4 mr-2 text-green-600"/>Ingredients</TabsTrigger>
                 </TabsList>
             </div>
-            <TabsContent value="product" className="flex-grow mt-0">
+            <TabsContent value="product" className="grid grid-cols-1 w-full mt-0 overflow-x-auto min-h-0">
                 <ProductForm productId={selectedProductId} onSave={onProductUpdate} />
             </TabsContent>
-            <TabsContent value="categories" className="flex-grow mt-0">
+            <TabsContent value="categories" className="grid grid-cols-1 w-full mt-0 overflow-x-auto">
                 <CategoryManager />
             </TabsContent>
-            <TabsContent value="modifiers" className="flex-grow mt-0">
+            <TabsContent value="modifiers" className="grid grid-cols-1 w-full mt-0 overflow-x-auto">
                 <ModifierManager />
             </TabsContent>
-            <TabsContent value="ingredients" className="flex-grow mt-0">
+            <TabsContent value="ingredients" className="grid grid-cols-1 w-full mt-0 overflow-x-auto">
                 <IngredientManager />
             </TabsContent>
         </Tabs>
@@ -1145,9 +1360,9 @@ export default function ProductManagementPage() {
     }
 
     return (
-        <div className="w-full md:grid md:grid-cols-10">
+        <div className="w-full h-[calc(100vh-64px)] md:grid md:grid-cols-10 min-h-0 flex-1">
             {/* Left Panel: Product List */}
-            <div className="col-span-10 md:col-span-6 lg:col-span-7 h-full flex flex-col bg-muted/40">
+            <div className="col-span-10 md:col-span-5 lg:col-span-6 h-full flex flex-col bg-muted/40 min-h-0">
                 <div className="p-4 border-b">
                     <div className="flex items-center gap-2">
                         <ProductSearchBar
@@ -1157,9 +1372,9 @@ export default function ProductManagementPage() {
                             onViewModeChange={setViewMode}
                             onBarcodeScan={handleBarcodeScan}
                         />
-                        {/* <Button onClick={handleAddNew} className="hidden md:inline-flex">
-                           <PlusCircle className="mr-2 h-4 w-4"/> Add Product
-                        </Button> */}
+                        <Button onClick={handleAddNew} variant="outline" size="sm" className="md:hidden inline-flex size-10">
+                           <PlusCircle className="h-4 w-4"/>
+                        </Button>
                     </div>
                 </div>
                 <div className="flex-grow">
@@ -1182,7 +1397,7 @@ export default function ProductManagementPage() {
             </div>
 
             {/* Right Panel: Editor (Desktop) */}
-            <aside className="hidden md:block col-span-4 lg:col-span-3 border-l h-full">
+            <aside className="hidden md:block col-span-4 lg:col-span-4 md:col-span-5 border-l h-full min-h-0">
                 <ProductEditor 
                     selectedProductId={selectedProductId}
                     onProductUpdate={handleSaveChanges}
