@@ -21,27 +21,36 @@ export function BackupManager() {
         if (!isInitialized || !db || !firesqlite) return;
 
         const checkDbState = async () => {
+            const { collection, getDocs, query, limit, doc, getDoc } = firesqlite;
+
+            // 1. Check for an active license in the database.
+            const licenseDocRef = doc(db, 'app_state', 'license');
+            const licenseDocSnap = await getDoc(licenseDocRef);
+            const isLicensed = licenseDocSnap.exists();
+
+            // 2. Check if a backup location has already been configured.
             const isBackupConfigured = await hasBackupConfig();
 
-            const { collection, getDocs, query, limit } = firesqlite;
-            // Check for a core configuration document to determine if the DB is "empty"
+            // 3. Check if the core database appears to be empty.
             const configQuery = query(collection(db, 'store_config'), limit(1));
             const configSnapshot = await getDocs(configQuery);
             const isDbEmpty = configSnapshot.empty;
 
-            if (isDbEmpty) {
-                if (isBackupConfigured) {
-                    setPromptState('needs_restore');
-                } else {
-                    setPromptState('needs_config');
-                }
+            // --- Determine the correct state based on the checks ---
+
+            if (isDbEmpty && isBackupConfigured) {
+                // HIGHEST PRIORITY: The database was cleared, but a backup exists.
+                // This is the data recovery scenario.
+                setPromptState('needs_restore');
+            } else if (isLicensed && !isBackupConfigured) {
+                // The user is licensed but hasn't configured a backup.
+                // This is the ideal time to prompt them.
+                setPromptState('needs_config');
             } else {
-                if (!isBackupConfigured) {
-                    // DB has data but no backup configured. This can happen on first use.
-                    setPromptState('needs_config');
-                } else {
-                    setPromptState('idle');
-                }
+                // This covers:
+                // - New, unlicensed users (let them explore first).
+                // - Licensed and configured users (normal operation).
+                setPromptState('idle');
             }
         };
 
@@ -55,7 +64,7 @@ export function BackupManager() {
                 window.location.reload();
             } else {
                 alert('Restore failed. The backup file might be corrupted or permissions were denied.');
-                setPromptState('needs_config'); // Prompt to re-select file
+                setPromptState('needs_config'); // Prompt to re-select file if restore fails
             }
         });
     };
@@ -65,8 +74,8 @@ export function BackupManager() {
             const handle = await promptAndSetBackupFile();
             if (handle) {
                 setPromptState('idle'); // Configuration is done, proceed to app.
-                // We don't automatically restore here. If the DB was empty, the restore prompt will show on next reload.
             }
+            // If they cancel, the prompt will reappear on the next load (if they are licensed).
         });
     };
 
@@ -77,7 +86,7 @@ export function BackupManager() {
                     <AlertDialogHeader>
                         <AlertDialogTitle>Configure Auto-Backup</AlertDialogTitle>
                         <AlertDialogDescription>
-                            To protect your data, please select a backup location. This is a one-time setup. If you have an existing backup file, you can restore it from the Settings page.
+                            To protect your data, please select a backup location. Your data will be saved automatically. This is a one-time setup.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
