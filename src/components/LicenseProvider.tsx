@@ -33,7 +33,10 @@ export function LicenseProvider({ children }: { children: React.ReactNode }) {
 
     const isLicensed = status === 'VALID' || status === 'EXPIRES_SOON';
     
-    if (!isLicensed && typeof window !== 'undefined' && !window.location.pathname.startsWith('/dashboard/settings')) {
+    const isAllowedUnlicensedPage = typeof window !== 'undefined' && 
+        (window.location.pathname.startsWith('/dashboard/settings') || window.location.pathname.startsWith('/aktivasi'));
+
+    if (!isLicensed && !isAllowedUnlicensedPage) {
         const message = statusMessages[status] || "An unknown license error occurred.";
         return (
              <div className="flex h-screen w-full items-center justify-center bg-muted/40 p-4">
