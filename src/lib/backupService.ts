@@ -104,9 +104,19 @@ export async function promptAndSetBackupFile(): Promise<FileSystemFileHandle | n
 
 export async function performBackup(firesqlite: any): Promise<boolean> {
     const handle = await getBackupFileHandle();
-    if (!handle || !firesqlite) return false;
+     if (!handle || !firesqlite) {
+        console.warn('Backup skipped: No backup file handle or database instance.');
+        return false;
+    }
 
     try {
+        // Query permission silently. If not granted, we can't proceed in the background.
+        const permission = await handle.queryPermission({ mode: 'readwrite' });
+        if (permission !== 'granted') {
+            console.warn('Auto-backup skipped: Write permission not granted. Will retry later.');
+            return false;
+        }
+
         const binaryData = await firesqlite.getBinaryBackup();
         const writable = await handle.createWritable();
         await writable.write(binaryData);
@@ -114,8 +124,9 @@ export async function performBackup(firesqlite: any): Promise<boolean> {
         await idbKeyval.set(LAST_BACKUP_KEY, new Date().toISOString());
         console.log('Auto backup successful.');
         return true;
-    } catch (error) {
-        console.error('Auto backup failed:', error);
+    } catch (error: any) {
+        // Catch errors like disk full or file handle becoming invalid
+        console.warn('Auto-backup failed in background. This can happen if the tab is inactive. Backup will retry on the next interval or user interaction.');
         return false;
     }
 }

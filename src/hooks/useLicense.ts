@@ -1,9 +1,12 @@
+
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
-import { readSecureEnclave, generateDeviceFingerprint, writeSecureEnclave } from '@/lib/security';
+import { generateDeviceFingerprint } from '@/lib/security';
+import { getLicenseData, saveLicenseData, deleteLicenseData } from '@/services/dataService';
 import { decodeJwt } from 'jose';
 import { useToast } from './use-toast';
+import { useDbStore } from '@/lib/db-store';
 
 export type LicenseStatus = 
     | 'VALID'       // Everything is OK
@@ -20,6 +23,7 @@ const HEARTBEAT_INTERVAL_MS = 3 * 60 * 1000; // 3 minutes
 
 export function useLicense() {
     const { toast } = useToast();
+    const { isInitialized } = useDbStore();
     const [status, setStatus] = useState<LicenseStatus>('LOADING');
     const [licenseDetails, setLicenseDetails] = useState<any>(null);
 
@@ -29,21 +33,21 @@ export function useLicense() {
         }
 
         try {
-            const enclave = await readSecureEnclave();
+            const licenseData = await getLicenseData();
             const currentDeviceId = await generateDeviceFingerprint();
 
             const response = await fetch('/api/heartbeat', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    token: enclave?.licenseKey,
+                    token: licenseData?.jwt,
                     deviceId: currentDeviceId
                 }),
             });
             const data = await response.json();
             
             if (data.token) {
-                await writeSecureEnclave({ licenseKey: data.token, lastKnownTime: new Date().toISOString() });
+                await saveLicenseData(data.token);
                 toast({ title: "License Activated!", description: "Your new license is active. The app will now reload." });
                 setTimeout(() => window.location.reload(), 1500);
             }
@@ -53,21 +57,23 @@ export function useLicense() {
     }, [toast]);
 
     useEffect(() => {
+        if (!isInitialized) return;
+
         const checkLicense = async () => {
             // First, send an immediate heartbeat on load
             await sendHeartbeat();
             
-            const enclave = await readSecureEnclave();
+            const licenseData = await getLicenseData();
             const currentDeviceId = await generateDeviceFingerprint();
 
-            if (!enclave || !enclave.licenseKey) {
+            if (!licenseData || !licenseData.jwt) {
                 setStatus('NOT_FOUND');
                 return;
             }
 
             let payload;
             try {
-                payload = decodeJwt(enclave.licenseKey);
+                payload = decodeJwt(licenseData.jwt);
             } catch (e) {
                  console.error("Failed to decode JWT:", e);
                  setStatus('INVALID');
@@ -80,7 +86,7 @@ export function useLicense() {
             }
             
             const currentTime = new Date();
-            const lastKnownTime = new Date(enclave.lastKnownTime);
+            const lastKnownTime = new Date(licenseData.lastKnownTime);
             if (currentTime < lastKnownTime) {
                 setStatus('TAMPERED');
                 return;
@@ -123,30 +129,32 @@ export function useLicense() {
                 localStorage.setItem('tokoc_trial_activated_on_device', 'true');
             }
 
-            await writeSecureEnclave({ ...enclave, lastKnownTime: currentTime.toISOString() });
+            // Save updated lastKnownTime to DB
+            await saveLicenseData(licenseData.jwt);
         };
 
         checkLicense();
-    }, [sendHeartbeat, toast]);
+    }, [isInitialized, sendHeartbeat, toast]);
 
     useEffect(() => {
+        if (!isInitialized) return;
         const intervalId = setInterval(() => {
             sendHeartbeat();
         }, HEARTBEAT_INTERVAL_MS);
 
         return () => clearInterval(intervalId);
-    }, [sendHeartbeat]);
+    }, [isInitialized, sendHeartbeat]);
 
     const deactivate = async (): Promise<void> => {
-        const enclave = await readSecureEnclave();
-        if (!enclave) {
+        const licenseData = await getLicenseData();
+        if (!licenseData) {
             throw new Error("No active license found on this device to deactivate.");
         }
 
         const response = await fetch('/api/license/deactivate', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ token: enclave.licenseKey }),
+            body: JSON.stringify({ token: licenseData.jwt }),
         });
         
         const data = await response.json();
@@ -154,7 +162,7 @@ export function useLicense() {
             throw new Error(data.error || "Deactivation failed.");
         }
         
-        localStorage.removeItem('tokoc_secure_enclave');
+        await deleteLicenseData();
     };
 
     return { status, licenseDetails, deactivate };

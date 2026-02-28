@@ -1,6 +1,11 @@
 
 import { useDbStore } from '@/lib/db-store';
 
+export type LicenseDbData = {
+    jwt: string;
+    lastKnownTime: string;
+}
+
 export const clearTransactionData = async (): Promise<{ success: boolean, message?: string }> => {
     const { db, firesqlite } = useDbStore.getState();
     if (!db || !firesqlite) throw new Error("Database not initialized");
@@ -27,4 +32,38 @@ export const clearTransactionData = async (): Promise<{ success: boolean, messag
         console.error("Failed to clear transaction data:", error);
         return { success: false, message: error.message || "An unknown error occurred during data clearing." };
     }
+};
+
+export const saveLicenseData = async (jwt: string): Promise<void> => {
+    const { db, firesqlite } = useDbStore.getState();
+    if (!db || !firesqlite) throw new Error("Database not initialized");
+    const { doc, setDoc } = firesqlite;
+
+    const data: LicenseDbData = {
+        jwt,
+        lastKnownTime: new Date().toISOString()
+    };
+    await setDoc(doc(db, 'app_state', 'license'), data);
+};
+
+export const getLicenseData = async (): Promise<LicenseDbData | null> => {
+    const { db, firesqlite } = useDbStore.getState();
+    if (!db || !firesqlite) throw new Error("Database not initialized");
+    const { doc, getDoc } = firesqlite;
+
+    const docRef = doc(db, 'app_state', 'license');
+    const docSnap = await getDoc(docRef);
+
+    if (docSnap.exists()) {
+        return docSnap.data() as LicenseDbData;
+    }
+    return null;
+};
+
+export const deleteLicenseData = async (): Promise<void> => {
+    const { db, firesqlite } = useDbStore.getState();
+    if (!db || !firesqlite) throw new Error("Database not initialized");
+    const { doc, deleteDoc } = firesqlite;
+    
+    await deleteDoc(doc(db, 'app_state', 'license'));
 };

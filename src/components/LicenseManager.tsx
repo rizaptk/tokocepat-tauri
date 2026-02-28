@@ -10,7 +10,8 @@ import { Badge } from './ui/badge';
 import { CheckCircle, XCircle, Clock, ShieldOff, Loader2, AlertTriangle } from 'lucide-react';
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { generateDeviceFingerprint, writeSecureEnclave } from '@/lib/security';
+import { generateDeviceFingerprint } from '@/lib/security';
+import { saveLicenseData } from '@/services/dataService';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 
 export function LicenseManager() {
@@ -39,11 +40,8 @@ export function LicenseManager() {
             if (!response.ok) {
                 throw new Error(data.error || 'An unknown error occurred during activation.');
             }
-
-            await writeSecureEnclave({
-                licenseKey: data.token,
-                lastKnownTime: new Date().toISOString(),
-            });
+            
+            await saveLicenseData(data.token);
 
             toast({ title: 'Activation Successful!', description: 'The application will now reload.' });
 

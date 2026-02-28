@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useState, useTransition } from 'react';
@@ -23,9 +24,10 @@ export function BackupManager() {
             const isBackupConfigured = await hasBackupConfig();
 
             const { collection, getDocs, query, limit } = firesqlite;
-            const productsQuery = query(collection(db, 'products'), limit(1));
-            const productsSnapshot = await getDocs(productsQuery);
-            const isDbEmpty = productsSnapshot.empty;
+            // Check for a core configuration document to determine if the DB is "empty"
+            const configQuery = query(collection(db, 'store_config'), limit(1));
+            const configSnapshot = await getDocs(configQuery);
+            const isDbEmpty = configSnapshot.empty;
 
             if (isDbEmpty) {
                 if (isBackupConfigured) {
@@ -35,6 +37,7 @@ export function BackupManager() {
                 }
             } else {
                 if (!isBackupConfigured) {
+                    // DB has data but no backup configured. This can happen on first use.
                     setPromptState('needs_config');
                 } else {
                     setPromptState('idle');
@@ -61,16 +64,8 @@ export function BackupManager() {
         startConfigureTransition(async () => {
             const handle = await promptAndSetBackupFile();
             if (handle) {
-                const { collection, getDocs, query, limit } = firesqlite;
-                const isDbEmpty = (await getDocs(query(collection(db, 'products'), limit(1)))).empty;
-                if (isDbEmpty) {
-                    setPromptState('needs_restore');
-                } else {
-                    setPromptState('idle');
-                }
-            } else {
-                // User cancelled. We keep showing the prompt until they configure it.
-                // alert('Auto-backup is not configured. Your data may be lost if browser data is cleared.');
+                setPromptState('idle'); // Configuration is done, proceed to app.
+                // We don't automatically restore here. If the DB was empty, the restore prompt will show on next reload.
             }
         });
     };
@@ -82,7 +77,7 @@ export function BackupManager() {
                     <AlertDialogHeader>
                         <AlertDialogTitle>Configure Auto-Backup</AlertDialogTitle>
                         <AlertDialogDescription>
-                            To protect your data from being cleared by the browser, please select a backup location on your device. This file will be used to automatically save your data.
+                            To protect your data, please select a backup location. This is a one-time setup. If you have an existing backup file, you can restore it from the Settings page.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
@@ -98,7 +93,7 @@ export function BackupManager() {
                     <AlertDialogHeader>
                         <AlertDialogTitle>Restore Data?</AlertDialogTitle>
                         <AlertDialogDescription>
-                            Your local database appears to be empty, but a backup file was found. Would you like to restore your data from this backup?
+                            Your local database is empty, but a backup file was found. Would you like to restore your data from this backup?
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>

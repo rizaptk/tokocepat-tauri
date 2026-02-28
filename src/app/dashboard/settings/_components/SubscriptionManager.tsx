@@ -14,7 +14,8 @@ import { submitPaymentTicketAction, type FormState, getPublicSettings, activateT
 import { SubscriptionPlan, PaymentInstructions } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
-import { generateDeviceFingerprint, writeSecureEnclave, readSecureEnclave } from '@/lib/security';
+import { generateDeviceFingerprint } from '@/lib/security';
+import { saveLicenseData } from '@/services/dataService';
 
 
 const formatCurrency = (amount: number) => {
@@ -155,10 +156,7 @@ export function SubscriptionManager() {
                 throw new Error(result.error);
             }
             if (result.token) {
-                 await writeSecureEnclave({
-                    licenseKey: result.token,
-                    lastKnownTime: new Date().toISOString(),
-                });
+                 await saveLicenseData(result.token);
                 localStorage.setItem('tokoc_trial_activated_on_device', 'true');
                 toast({ title: 'Trial Activated!', description: 'Your free trial has started. The app will now reload.' });
                 setTimeout(() => window.location.reload(), 1500);
