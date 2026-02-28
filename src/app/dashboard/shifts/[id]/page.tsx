@@ -82,7 +82,7 @@ export default function ShiftDetailsPage() {
     }
 
     const duration = shift.closed_at ? formatDistance(parseISO(shift.closed_at), parseISO(shift.opened_at)) : 'Still open';
-    const activeTransactions = shiftTransactions.filter(t => t.status !== 'voided');
+    const activeTransactions = shiftTransactions.filter(t => t.status === 'paid');
     const totalSales = activeTransactions.reduce((sum, t) => sum + t.total, 0);
     const transactionCount = activeTransactions.length;
     
@@ -234,3 +234,5 @@ export default function ShiftDetailsPage() {
         </div>
     )
 }
+
+    
