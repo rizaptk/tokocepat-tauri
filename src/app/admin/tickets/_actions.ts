@@ -155,7 +155,14 @@ export async function updateTicketStatusAction(data: TicketStatusUpdate): Promis
             });
 
         } else { // For 'processing' or 'rejected'
-            await ticketRef.update({ status: newStatus, notes, updatedAt: new Date() });
+            const updatePayload: { status: string; updatedAt: Date; notes?: string } = {
+                status: newStatus,
+                updatedAt: new Date(),
+            };
+            if (notes) {
+                updatePayload.notes = notes;
+            }
+            await ticketRef.update(updatePayload);
         }
 
         revalidatePath('/admin/tickets');
