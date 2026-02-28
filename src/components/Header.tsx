@@ -39,8 +39,7 @@ export function Header() {
     }).format(amount);
   };
   
-  const shiftTransactions = activeShift ? transactions.filter(t => t.shift_id === activeShift.id) : [];
-  const activeShiftTransactions = shiftTransactions.filter(t => t.status !== 'voided');
+  const activeShiftTransactions = activeShift ? transactions.filter(t => t.shift_id === activeShift.id && t.status === 'paid') : [];
   const shiftRevenue = activeShiftTransactions.reduce((sum, t) => sum + t.total, 0);
   const expectedCash = activeShift ? activeShift.opening_cash + shiftRevenue : 0;
   

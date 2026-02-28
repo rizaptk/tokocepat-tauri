@@ -1,3 +1,4 @@
+
 import { Shift, Transaction } from '@/lib/types';
 import { useDbStore } from '@/lib/db-store';
 
@@ -22,8 +23,7 @@ export const closeShift = async (activeShift: Shift, transactions: Transaction[]
 
     const { doc, updateDoc } = firesqlite;
 
-    const shiftTransactions = transactions.filter(t => t.shift_id === activeShift.id);
-    const activeTransactions = shiftTransactions.filter(t => t.status !== 'voided');
+    const activeTransactions = transactions.filter(t => t.shift_id === activeShift.id && t.status === 'paid');
     const system_cash = activeShift.opening_cash + activeTransactions.reduce((sum, t) => t.total, 0);
 
     const updatedShift: Partial<Shift> = {
