@@ -28,27 +28,20 @@ export async function POST(request: Request) {
              const ticketSnapshot = await ticketQuery.get();
 
              if (!ticketSnapshot.empty) {
-                const allDeviceTickets = ticketSnapshot.docs.map(doc => doc.data());
+                // Now filter in memory to find the correct ticket.
+                const allDeviceTickets = ticketSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                  
-                 // Filter for resolved tickets and sort by most recent in memory.
+                 // Find the latest, resolved, unclaimed ticket
                  const sortedResolvedTickets = allDeviceTickets
-                     .filter(ticket => ticket.status === 'resolved')
+                     .filter(ticket => ticket.status === 'resolved' && !ticket.claimedAt)
                      .sort((a, b) => b.createdAt.toDate().getTime() - a.createdAt.toDate().getTime());
 
                  if (sortedResolvedTickets.length > 0) {
-                     const latestTicket = sortedResolvedTickets[0];
-                     
-                     // Find the corresponding document reference to get its ID, which is needed for the activation URL.
-                     const userTicketDoc = ticketSnapshot.docs.find(doc => doc.data().createdAt.isEqual(latestTicket.createdAt));
-
-                     if (userTicketDoc && !latestTicket.claimedAt) {
-                         console.log(`[Heartbeat API] SUCCESS: Found resolved, unclaimed ticket ${userTicketDoc.id}. Instructing client to activate.`);
-                         return NextResponse.json({ status: 'activation_required', ticketId: userTicketDoc.id }, { status: 200 });
-                     } else if (userTicketDoc && latestTicket.claimedAt) {
-                          console.log(`[Heartbeat API] Ticket ${userTicketDoc.id} found but has already been claimed.`);
-                     }
+                     const ticketToActivate = sortedResolvedTickets[0];
+                     console.log(`[Heartbeat API] SUCCESS: Found resolved, unclaimed ticket ${ticketToActivate.id}. Instructing client to activate.`);
+                     return NextResponse.json({ status: 'activation_required', ticketId: ticketToActivate.id }, { status: 200 });
                  } else {
-                     console.log(`[Heartbeat API] No 'resolved' tickets found for this device.`);
+                     console.log(`[Heartbeat API] No 'resolved' and 'unclaimed' tickets found for this device.`);
                  }
 
              } else {
