@@ -84,7 +84,7 @@ export async function updateTicketStatusAction(data: TicketStatusUpdate): Promis
             // --- GENERATE LICENSE IN A "READY" STATE ---
             const licenseKey = `TKN-${randomBytes(4).toString('hex').toUpperCase()}-${randomBytes(4).toString('hex').toUpperCase()}`;
             
-            const newLicense = {
+            const newLicenseData = {
               key: licenseKey, 
               plan: purchasedPlan.name,
               status: 'active', // 'active' means the key is valid to be claimed
@@ -94,18 +94,19 @@ export async function updateTicketStatusAction(data: TicketStatusUpdate): Promis
               activations: [], // Activations array is initially empty
               maxSeats: purchasedPlan.maxSeats,
             };
-            await db.collection('licenses').add(newLicense);
+            const newLicenseRef = await db.collection('licenses').add(newLicenseData);
             
             // Update customer's license count
             const customerDoc = await db.collection('customers').doc(customerId).get();
             const currentCount = customerDoc.data()?.licenseCount || 0;
             await db.collection('customers').doc(customerId).update({ licenseCount: currentCount + 1 });
             
-            // Link the generated license key back to the ticket
+            // Link the generated license key and ID back to the ticket
             await ticketRef.update({ 
                 status: 'resolved', 
                 notes: notes || 'Approved and license ready for activation.', // Add default note
-                licenseKey: licenseKey, 
+                licenseKey: licenseKey,
+                licenseId: newLicenseRef.id,
                 updatedAt: new Date() 
             });
 

@@ -170,6 +170,7 @@ export interface PaymentTicket {
     createdAt: string; // ISO String
     updatedAt: string; // ISO String
     licenseKey?: string; // The license key generated when this ticket is resolved
+    licenseId?: string; // The Firestore document ID for the license
     deviceId?: string; // The unique ID of the client device that submitted the ticket
     claimedAt?: string; // Timestamp for when the client has claimed the license
 }

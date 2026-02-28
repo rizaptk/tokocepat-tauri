@@ -30,26 +30,27 @@ export async function claimLicenseAction(ticketId: string, deviceId: string): Pr
             return { error: 'This activation ticket is for a different device.' };
         }
         
-        const licenseKey = ticketData.licenseKey;
-        if (!licenseKey) {
-            return { error: 'Internal error: License key not found on ticket.' };
+        const licenseId = ticketData.licenseId;
+        if (!licenseId) {
+            return { error: 'Internal error: License ID not found on ticket. Please contact support.' };
         }
         
-        // Find the actual license details from the key
-        const licenseSnapshots = await db.collection('licenses').where('key', '==', licenseKey).limit(1).get();
-        if (licenseSnapshots.empty) {
+        // Find the actual license details from the ID
+        const licenseDoc = await db.collection('licenses').doc(licenseId).get();
+        if (!licenseDoc.exists) {
             return { error: 'Internal error: The purchased license could not be found.' };
         }
         
-        const licenseDoc = licenseSnapshots.docs[0];
-        const licenseData = licenseDoc.data();
+        const licenseData = licenseDoc.data()!;
         
         // --- Get Plan Details ---
         const plansSnap = await db.collection('app_settings').doc('subscriptionPlans').get();
         if (!plansSnap.exists) throw new Error("Subscription plans are not configured.");
         const allPlans = (plansSnap.data()?.plans || []) as SubscriptionPlan[];
         const purchasedPlan = allPlans.find(p => p.name === licenseData.plan);
-        if (!purchasedPlan) throw new Error(`Plan "${licenseData.plan}" not found in settings.`);
+        if (!purchasedPlan) {
+            throw new Error(`Plan "${licenseData.plan}" not found in settings.`);
+        }
 
 
         // --- THIS IS THE FINAL ACTIVATION STEP ---
