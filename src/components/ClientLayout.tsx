@@ -4,6 +4,7 @@ import { usePathname } from 'next/navigation';
 import { DbProvider } from '@/components/DbProvider';
 import { LicenseProvider } from '@/components/LicenseProvider';
 import { BottomNav } from '@/components/BottomNav';
+import { BackupManager } from './BackupManager';
 
 export default function ClientLayout({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
@@ -17,6 +18,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
     return (
         <DbProvider>
             <LicenseProvider>
+                <BackupManager />
                 <div>{children}</div>
                 <BottomNav />
             </LicenseProvider>

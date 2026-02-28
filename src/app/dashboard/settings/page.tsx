@@ -2,9 +2,11 @@
 'use client';
 
 import { useDbStore } from '@/lib/db-store';
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { clearTransactionData } from '@/services/dataService';
+import { formatDistanceToNow } from 'date-fns';
+import { getLastBackupTimestamp, promptAndSetBackupFile, performBackup } from '@/lib/backupService';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,7 +16,7 @@ import Link from 'next/link';
 import { LicenseManager } from '@/components/LicenseManager';
 import { SubscriptionManager } from './_components/SubscriptionManager';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Shield, CreditCard, Database, Trash2 } from 'lucide-react';
+import { Shield, CreditCard, Database, Trash2, Loader2 } from 'lucide-react';
 
 
 export default function SettingsPage() {
@@ -23,6 +25,17 @@ export default function SettingsPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isRestoreAlertOpen, setIsRestoreAlertOpen] = useState(false);
   const [isClearDataAlertOpen, setIsClearDataAlertOpen] = useState(false);
+  const [lastBackup, setLastBackup] = useState<string | null>(null);
+  const [isBackupLoading, setIsBackupLoading] = useState(false);
+
+  const fetchBackupStatus = async () => {
+    const timestamp = await getLastBackupTimestamp();
+    setLastBackup(timestamp);
+  };
+  
+  useEffect(() => {
+      fetchBackupStatus();
+  }, []);
 
   const handleBackup = async () => {
     if (!firesqlite) {
@@ -64,29 +77,52 @@ export default function SettingsPage() {
       }
   };
 
-    const handleClearData = async () => {
-        try {
-            const result = await clearTransactionData();
-            if (result.success) {
-                toast({
-                    title: 'Data Cleared',
-                    description: 'All transaction data has been successfully removed. The app will now reload.',
-                });
-                setTimeout(() => window.location.reload(), 1500);
-            } else {
-                throw new Error(result.message);
-            }
-        } catch (error: any) {
-            toast({
-                variant: 'destructive',
-                title: 'Error Clearing Data',
-                description: error.message || 'An unexpected error occurred.',
-            });
-        } finally {
-            setIsClearDataAlertOpen(false);
-        }
-    }
+  const handleClearData = async () => {
+      try {
+          const result = await clearTransactionData();
+          if (result.success) {
+              toast({
+                  title: 'Data Cleared',
+                  description: 'All transaction data has been successfully removed. The app will now reload.',
+              });
+              setTimeout(() => window.location.reload(), 1500);
+          } else {
+              throw new Error(result.message);
+          }
+      } catch (error: any) {
+          toast({
+              variant: 'destructive',
+              title: 'Error Clearing Data',
+              description: error.message || 'An unexpected error occurred.',
+          });
+      } finally {
+          setIsClearDataAlertOpen(false);
+      }
+  }
+  
+  const handleForceBackup = async () => {
+      if (!firesqlite) {
+          toast({ title: 'Error', description: 'Database not ready.', variant: 'destructive'});
+          return;
+      }
+      setIsBackupLoading(true);
+      toast({ title: 'Backup In Progress...', description: 'Saving data to your backup file.'});
+      const success = await performBackup(firesqlite);
+      if (success) {
+          const newTimestamp = new Date().toISOString();
+          setLastBackup(newTimestamp);
+          toast({ title: 'Backup Complete', description: 'Your data has been successfully saved.'});
+      } else {
+          toast({ title: 'Backup Failed', description: 'Could not save data. Please check file permissions.', variant: 'destructive'});
+      }
+      setIsBackupLoading(false);
+  }
 
+  const handleChangeLocation = async () => {
+      await promptAndSetBackupFile();
+      fetchBackupStatus(); // Refresh last backup time
+      toast({ title: 'Backup Location Updated', description: 'Future backups will be saved to the new location.' });
+  }
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-muted/40">
@@ -160,10 +196,10 @@ export default function SettingsPage() {
                         </p>
                         <div className="flex flex-col gap-3">
                             <Button variant="outline" onClick={handleBackup}>
-                                <Database className="mr-2 h-4 w-4" /> Backup Database
+                                <Database className="mr-2 h-4 w-4" /> Download Manual Backup
                             </Button>
                             <Button variant="outline" onClick={() => setIsRestoreAlertOpen(true)}>
-                                <Database className="mr-2 h-4 w-4" /> Restore Database
+                                <Database className="mr-2 h-4 w-4" /> Restore from File
                             </Button>
                         </div>
                     </div>
@@ -201,15 +237,33 @@ export default function SettingsPage() {
                         <Card>
                             <CardHeader>
                                 <CardTitle>Database Management</CardTitle>
-                                <CardDescription>Advanced system data operations.</CardDescription>
+                                <CardDescription>Manage local data backup and restore operations.</CardDescription>
                             </CardHeader>
-                            <CardContent className="grid gap-4 md:grid-cols-2">
-                                <Button variant="outline" onClick={handleBackup}>
-                                    <Database className="mr-2 h-4 w-4" /> Backup Data
-                                </Button>
-                                <Button variant="outline" onClick={() => setIsRestoreAlertOpen(true)}>
-                                    <Database className="mr-2 h-4 w-4" /> Restore Data
-                                </Button>
+                            <CardContent className="space-y-6">
+                                <div className="p-4 rounded-lg border bg-muted/50">
+                                    <h4 className="font-semibold">Auto-Backup Status</h4>
+                                    {lastBackup ? (
+                                        <p className="text-sm text-muted-foreground">
+                                            Last backup: {formatDistanceToNow(new Date(lastBackup), { addSuffix: true })}
+                                        </p>
+                                    ) : (
+                                        <p className="text-sm text-muted-foreground">
+                                            Auto-backup is not yet configured or has not run.
+                                        </p>
+                                    )}
+                                </div>
+                                <div className="grid gap-4 md:grid-cols-2">
+                                     <Button variant="outline" onClick={handleForceBackup} disabled={isBackupLoading}>
+                                        {isBackupLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Database className="mr-2 h-4 w-4" />}
+                                         Force Backup Now
+                                    </Button>
+                                    <Button variant="outline" onClick={handleChangeLocation}>
+                                        <Database className="mr-2 h-4 w-4" /> Change Backup Location
+                                    </Button>
+                                    <Button variant="outline" onClick={() => setIsRestoreAlertOpen(true)}>
+                                        <Database className="mr-2 h-4 w-4" /> Manual Restore
+                                    </Button>
+                                </div>
                                 <input type="file" ref={fileInputRef} onChange={onFileSelected} accept=".db,.sqlite,.sqlite3" hidden />
                             </CardContent>
                         </Card>
