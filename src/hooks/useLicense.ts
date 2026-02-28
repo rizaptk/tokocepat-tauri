@@ -53,7 +53,7 @@ export function useLicense() {
             const data = await response.json();
             console.log('[useLicense/sendHeartbeat] Received response from server:', data);
             
-            if (data.token) {
+            if (data.status === 'activated' && data.token) {
                 console.log('[useLicense/sendHeartbeat] Received new token from server! Activating...');
                 await saveLicenseData(data.token, currentDeviceId);
                 toast({ title: "License Activated!", description: "Your new license is active. The app will now reload." });

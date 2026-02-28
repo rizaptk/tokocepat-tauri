@@ -10,6 +10,7 @@ export async function POST(request: Request) {
     const secret = new TextEncoder().encode(
       process.env.JWT_SECRET_KEY || 'a_very_insecure_default_secret_key_for_development_only'
     );
+    const alg = 'HS256';
 
     try {
         const body = await request.json().catch(() => ({}));
@@ -17,13 +18,66 @@ export async function POST(request: Request) {
         
         console.log('[Heartbeat API] Received request:', { deviceId: deviceId ? `${deviceId.substring(0,10)}...` : 'N/A', hasToken: !!token });
 
-
-        // If there's no deviceId, we can't do anything useful.
         if (!deviceId) {
             console.log('[Heartbeat API] Exiting: No deviceId provided.');
             return NextResponse.json({ status: 'ok_ping_no_device' }, { status: 200 });
         }
+        
+        // --- NEW/RESTORED LOGIC ---
+        // If the client has no token, check if there's a resolved ticket waiting for it.
+        if (!token && deviceId) {
+             const ticketsRef = db.collection('paymentTickets');
+             // Query for all resolved tickets that haven't been claimed yet.
+             // This is more reliable than querying for deviceId if an index is missing.
+             const ticketQuery = ticketsRef.where('status', '==', 'resolved').where('claimedAt', '==', null);
+             const ticketSnapshot = await ticketQuery.get();
 
+             if (!ticketSnapshot.empty) {
+                 // Filter in memory to find the one for this specific device.
+                 const userTicketDoc = ticketSnapshot.docs.find(doc => doc.data().deviceId === deviceId);
+
+                 if (userTicketDoc) {
+                    console.log(`[Heartbeat API] Found resolved ticket ${userTicketDoc.id} for device ${deviceId.substring(0,10)}...`);
+                    const ticketData = userTicketDoc.data();
+                    const licenseKey = ticketData.licenseKey;
+
+                    if (licenseKey) {
+                        const licenseSnap = await db.collection('licenses').where('key', '==', licenseKey).limit(1).get();
+                        if (!licenseSnap.empty) {
+                            const licenseDoc = licenseSnap.docs[0];
+                            const licenseData = licenseDoc.data();
+                            
+                            // Create and sign the new JWT
+                            const jwtPayload: any = {
+                                sub: licenseData.key,
+                                deviceId: deviceId,
+                                plan: licenseData.plan,
+                                isTrial: false, 
+                            };
+                            const jwtBuilder = new jose.SignJWT(jwtPayload)
+                                .setProtectedHeader({ alg })
+                                .setIssuedAt()
+                                .setSubject(licenseData.key);
+                            if (licenseData.expiresAt) {
+                                jwtBuilder.setExpirationTime(Math.floor(licenseData.expiresAt.toDate().getTime() / 1000));
+                            }
+                            const newToken = await jwtBuilder.sign(secret);
+                            
+                            // Mark the ticket as claimed
+                            await userTicketDoc.ref.update({ claimedAt: new Date() });
+                            
+                            console.log(`[Heartbeat API] Returning new token to client for license key ${licenseKey}.`);
+                            // Return the token to the client to activate the app
+                            return NextResponse.json({ status: 'activated', token: newToken }, { status: 200 });
+                        }
+                    }
+                 }
+             }
+        }
+        // --- END NEW/RESTORED LOGIC ---
+
+
+        // Default session logging logic
         let sessionData: any;
 
         if (!token) {
