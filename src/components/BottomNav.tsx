@@ -1,4 +1,3 @@
-
 "use client";
 
 import Link from 'next/link';
@@ -9,6 +8,7 @@ import { useEffect, useState, useRef } from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useIsMobile } from '@/lib/ismobile-store';
 import { motion, AnimatePresence, Variants } from 'framer-motion';
+import { useLicense } from '@/hooks/useLicense';
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutGrid },
@@ -23,6 +23,7 @@ const moreNavItems = [
 ];
 
 export function BottomNav() {
+  const { status: licenseStatus } = useLicense();
   const pathname = usePathname();
   const [isClient, setIsClient] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
@@ -68,13 +69,15 @@ export function BottomNav() {
     };
   }, [isMobile, isMinimized, isHovered]); // re-run when hover state changes
 
+  const isLicensed = licenseStatus === 'VALID' || licenseStatus === 'EXPIRES_SOON';
+
   const isActive = (href: string) => {
     if (!isClient) return false;
     return href === '/dashboard' || href === '/cashier' || href === '/dashboard/settings' ? pathname === href : pathname.startsWith(href);
   };
   
-  // Do not render the bottom navigation on any admin pages.
-  if (pathname.startsWith('/admin')) {
+  // Do not render if not licensed or on admin pages.
+  if (!isLicensed || pathname.startsWith('/admin')) {
       return null;
   }
 
