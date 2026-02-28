@@ -122,6 +122,6 @@ export async function claimLicenseAction(ticketId: string, deviceId: string): Pr
 
     } catch (error: any) {
         console.error("Failed to claim license:", error);
-        return { error: 'An unexpected server error occurred during activation.' };
+        return { error: error.message || 'An unexpected server error occurred during activation.' };
     }
 }
