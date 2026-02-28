@@ -179,7 +179,11 @@ export function SubscriptionManager() {
         
         try {
             // A simple fetch to check online status. The heartbeat route is fine for this.
-            await fetch('/api/heartbeat', { method: 'HEAD' });
+            await fetch('/api/heartbeat', { 
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({})
+            });
             
             setIsOnline(true);
             const [data, status] = await Promise.all([
