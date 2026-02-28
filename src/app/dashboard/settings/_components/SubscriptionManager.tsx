@@ -91,6 +91,14 @@ export function SubscriptionManager() {
     const [isTrialUsed, setIsTrialUsed] = useState(true);
     const [deviceId, setDeviceId] = useState<string | null>(null);
     
+    const [formValues, setFormValues] = useState({
+        customerName: '',
+        customerEmail: '',
+        customerWhatsapp: '',
+        proofOfPaymentUrl: '',
+        userNotes: '',
+    });
+
     const formRef = useRef<HTMLFormElement>(null);
     const initialState: FormState = { message: '' };
     const [state, formAction] = useActionState(submitPaymentTicketAction, initialState);
@@ -134,6 +142,13 @@ export function SubscriptionManager() {
                 description: 'Your payment proof has been received. Please wait for admin verification.',
             });
             formRef.current?.reset();
+            setFormValues({
+                customerName: '',
+                customerEmail: '',
+                customerWhatsapp: '',
+                proofOfPaymentUrl: '',
+                userNotes: '',
+            });
             setSelectedPlan(null);
         } else if (state.errors?._form) {
             toast({
@@ -143,6 +158,11 @@ export function SubscriptionManager() {
             });
         }
     }, [state, toast]);
+
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+        const { name, value } = e.target;
+        setFormValues(prev => ({ ...prev, [name]: value }));
+    };
 
     const handleActivateTrial = async (planId: string) => {
         if (!deviceId) {
@@ -266,29 +286,29 @@ export function SubscriptionManager() {
                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                  <div className="space-y-2">
                                     <Label htmlFor="customerName">Full Name</Label>
-                                    <Input id="customerName" name="customerName" placeholder="e.g. Budi Santoso" required />
+                                    <Input id="customerName" name="customerName" placeholder="e.g. Budi Santoso" required value={formValues.customerName} onChange={handleInputChange} />
                                      {state?.errors?.customerName && <p className="text-sm font-medium text-destructive pt-1">{state.errors.customerName}</p>}
                                 </div>
                                 <div className="space-y-2">
                                     <Label htmlFor="customerWhatsapp">WhatsApp Number</Label>
-                                    <Input id="customerWhatsapp" name="customerWhatsapp" type="tel" placeholder="e.g. 08123456789" required />
+                                    <Input id="customerWhatsapp" name="customerWhatsapp" type="tel" placeholder="e.g. 08123456789" required value={formValues.customerWhatsapp} onChange={handleInputChange} />
                                      {state?.errors?.customerWhatsapp && <p className="text-sm font-medium text-destructive pt-1">{state.errors.customerWhatsapp}</p>}
                                 </div>
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="customerEmail">Your Email</Label>
-                                <Input id="customerEmail" name="customerEmail" type="email" placeholder="you@example.com" required />
+                                <Input id="customerEmail" name="customerEmail" type="email" placeholder="you@example.com" required value={formValues.customerEmail} onChange={handleInputChange} />
                                 {state?.errors?.customerEmail && <p className="text-sm font-medium text-destructive pt-1">{state.errors.customerEmail}</p>}
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="proofOfPaymentUrl">Proof of Payment URL</Label>
-                                <Input id="proofOfPaymentUrl" name="proofOfPaymentUrl" type="url" placeholder="https://imgur.com/your-proof" required />
+                                <Input id="proofOfPaymentUrl" name="proofOfPaymentUrl" type="url" placeholder="https://imgur.com/your-proof" required value={formValues.proofOfPaymentUrl} onChange={handleInputChange} />
                                 <p className="text-xs text-muted-foreground">Upload your transfer receipt to a service like Imgur or Google Drive and paste the public link here.</p>
                                 {state?.errors?.proofOfPaymentUrl && <p className="text-sm font-medium text-destructive pt-1">{state.errors.proofOfPaymentUrl}</p>}
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="userNotes">Notes (Optional)</Label>
-                                <Textarea id="userNotes" name="userNotes" placeholder="e.g., Payment for account renewal." />
+                                <Textarea id="userNotes" name="userNotes" placeholder="e.g., Payment for account renewal." value={formValues.userNotes} onChange={handleInputChange} />
                             </div>
                              {state?.errors?.deviceId && <p className="text-sm font-medium text-destructive text-center">{state.errors.deviceId}</p>}
                             {state?.errors?._form && <p className="text-sm font-medium text-destructive text-center">{state.errors._form}</p>}
