@@ -25,12 +25,26 @@ import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { TokoCepatLogo } from '@/components/TokoCepatLogo';
 import { LogoutButton } from './_components/LogoutButton';
 import { AuthGuard } from './_components/AuthGuard';
+import { db } from '@/lib/firebase-admin';
+import { Badge } from '@/components/ui/badge';
 
-export default function AdminLayout({
+async function getPendingTicketCount() {
+    try {
+        const snapshot = await db.collection('paymentTickets').where('status', '==', 'pending').count().get();
+        return snapshot.data().count;
+    } catch (error) {
+        console.error("Error fetching pending ticket count:", error);
+        return 0;
+    }
+}
+
+export default async function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const pendingTicketCount = await getPendingTicketCount();
+
   return (
     <AuthGuard>
       <div className="grid min-h-screen w-full md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]">
@@ -88,10 +102,15 @@ export default function AdminLayout({
                 </Link>
                  <Link
                   href="/admin/tickets"
-                  className="flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary"
+                  className="flex items-center gap-3 rounded-lg bg-accent px-3 py-2 text-primary transition-all hover:text-primary"
                 >
                   <Ticket className="h-4 w-4" />
                   Payment Tickets
+                  {pendingTicketCount > 0 && (
+                    <Badge className="ml-auto flex h-6 w-6 shrink-0 items-center justify-center rounded-full">
+                      {pendingTicketCount}
+                    </Badge>
+                  )}
                 </Link>
               </nav>
             </div>
@@ -162,10 +181,15 @@ export default function AdminLayout({
                   </Link>
                   <Link
                     href="/admin/tickets"
-                    className="mx-[-0.65rem] flex items-center gap-4 rounded-xl px-3 py-2 text-muted-foreground hover:text-foreground"
+                    className="mx-[-0.65rem] flex items-center gap-4 rounded-xl bg-muted px-3 py-2 text-foreground hover:text-foreground"
                   >
                     <Ticket className="h-5 w-5" />
                     Payment Tickets
+                    {pendingTicketCount > 0 && (
+                      <Badge className="ml-auto flex h-6 w-6 shrink-0 items-center justify-center rounded-full">
+                        {pendingTicketCount}
+                      </Badge>
+                    )}
                   </Link>
                 </nav>
               </SheetContent>

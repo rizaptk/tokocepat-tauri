@@ -4,7 +4,7 @@
 import { z } from 'zod';
 import { db } from '@/lib/firebase-admin';
 import { revalidatePath } from 'next/cache';
-import { SubscriptionPlan, PaymentInstructions } from '@/lib/types';
+import { SubscriptionPlan, PaymentInstructions, PaymentTicket } from '@/lib/types';
 import { randomBytes } from 'crypto';
 import * as jose from 'jose';
 
@@ -194,5 +194,36 @@ export async function activateTrialAction(planId: string, deviceId: string): Pro
     } catch (error: any) {
         console.error("Trial activation failed:", error);
         return { error: 'An unexpected server error occurred.' };
+    }
+}
+
+export async function getTicketStatusForDevice(deviceId: string): Promise<{ status: PaymentTicket['status']; plan: string; createdAt: string } | null> {
+    if (!deviceId) return null;
+    try {
+        const snapshot = await db.collection('paymentTickets')
+            .where('deviceId', '==', deviceId)
+            .orderBy('createdAt', 'desc')
+            .limit(1)
+            .get();
+
+        if (snapshot.empty) {
+            return null;
+        }
+
+        const ticket = snapshot.docs[0].data();
+
+        // Don't show rejected or already resolved/claimed tickets as "in progress"
+        if (ticket.status === 'rejected' || (ticket.status === 'resolved' && ticket.claimedAt)) {
+            return null;
+        }
+
+        return {
+            status: ticket.status as PaymentTicket['status'],
+            plan: ticket.plan,
+            createdAt: ticket.createdAt.toDate().toISOString(),
+        };
+    } catch (error) {
+        console.error("Failed to fetch ticket status:", error);
+        return null; // Return null on error to not block the UI
     }
 }

@@ -8,15 +8,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Send, Loader2, Check, Info, WifiOff, Zap } from "lucide-react";
+import { Send, Loader2, Check, Info, WifiOff, Zap, Clock, RefreshCw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { submitPaymentTicketAction, type FormState, getPublicSettings, activateTrialAction } from '../_actions';
-import { SubscriptionPlan, PaymentInstructions } from '@/lib/types';
+import { submitPaymentTicketAction, type FormState, getPublicSettings, activateTrialAction, getTicketStatusForDevice } from '../_actions';
+import { SubscriptionPlan, PaymentInstructions, PaymentTicket } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { generateDeviceFingerprint } from '@/lib/security';
 import { saveLicenseData } from '@/services/dataService';
+import { formatDistanceToNow } from 'date-fns';
 
+type TicketStatusInfo = { status: PaymentTicket['status']; plan: string; createdAt: string; };
 
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat('id-ID', {
@@ -72,6 +74,59 @@ const TrialCard = ({ plan, onActivate }: { plan: SubscriptionPlan, onActivate: (
     );
 };
 
+const TicketStatusCard = ({ statusInfo, onRefresh }: { statusInfo: TicketStatusInfo, onRefresh: () => void }) => {
+    const [isRefreshing, startRefreshTransition] = useTransition();
+
+    const handleRefresh = () => {
+        startRefreshTransition(() => {
+            onRefresh();
+        });
+    }
+
+    const statusMap = {
+        pending: {
+            title: "Ticket Submitted",
+            description: "Your payment proof is pending review by an administrator.",
+            icon: <Clock className="h-10 w-10 text-yellow-500" />,
+        },
+        processing: {
+            title: "Ticket in Progress",
+            description: "An administrator is currently reviewing your submission.",
+            icon: <Loader2 className="h-10 w-10 text-blue-500 animate-spin" />,
+        },
+        resolved: {
+            title: "License Resolved!",
+            description: "Your license has been approved! The app will reload shortly to apply it.",
+            icon: <Check className="h-10 w-10 text-green-500" />,
+        }
+    };
+    
+    const currentStatus = statusMap[statusInfo.status] || statusMap.pending;
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle>Subscription Status</CardTitle>
+                <CardDescription>Thank you for your submission. Here's the current status of your ticket.</CardDescription>
+            </CardHeader>
+            <CardContent className="text-center space-y-4 p-8">
+                <div className="flex justify-center">{currentStatus.icon}</div>
+                <h3 className="text-xl font-semibold">{currentStatus.title}</h3>
+                <p className="text-muted-foreground">{currentStatus.description}</p>
+                <div className="text-sm pt-4 border-t">
+                    <p>Plan: <span className="font-semibold">{statusInfo.plan}</span></p>
+                    <p>Submitted: <span className="font-semibold">{formatDistanceToNow(new Date(statusInfo.createdAt), { addSuffix: true })}</span></p>
+                </div>
+            </CardContent>
+            <CardFooter>
+                <Button variant="outline" className="w-full" onClick={handleRefresh} disabled={isRefreshing}>
+                    {isRefreshing ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <RefreshCw className="mr-2 h-4 w-4" />}
+                    Refresh Status
+                </Button>
+            </CardFooter>
+        </Card>
+    );
+}
 
 const SubmitButton = () => {
     const { pending } = useFormStatus();
@@ -90,6 +145,7 @@ export function SubscriptionManager() {
     const [selectedPlan, setSelectedPlan] = useState<SubscriptionPlan | null>(null);
     const [isTrialUsed, setIsTrialUsed] = useState(true);
     const [deviceId, setDeviceId] = useState<string | null>(null);
+    const [ticketStatus, setTicketStatus] = useState<TicketStatusInfo | null>(null);
     
     const [formValues, setFormValues] = useState({
         customerName: '',
@@ -103,36 +159,41 @@ export function SubscriptionManager() {
     const initialState: FormState = { message: '' };
     const [state, formAction] = useActionState(submitPaymentTicketAction, initialState);
 
-    useEffect(() => {
-        async function checkStatusAndFetchSettings() {
-            setLoading(true);
-            const generatedDeviceId = await generateDeviceFingerprint();
-            setDeviceId(generatedDeviceId);
+    const fetchStatusAndSettings = async () => {
+        setLoading(true);
+        const generatedDeviceId = await generateDeviceFingerprint();
+        setDeviceId(generatedDeviceId);
 
-            const trialHasBeenUsed = localStorage.getItem('tokoc_trial_activated_on_device') === 'true';
-            setIsTrialUsed(trialHasBeenUsed);
+        const trialHasBeenUsed = localStorage.getItem('tokoc_trial_activated_on_device') === 'true';
+        setIsTrialUsed(trialHasBeenUsed);
+        
+        try {
+            const response = await fetch('/api/heartbeat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ deviceId: generatedDeviceId }),
+            });
             
-            try {
-                const response = await fetch('/api/heartbeat', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ deviceId: generatedDeviceId }), // Ping with deviceId
-                });
-                
-                if (response.ok) {
-                    setIsOnline(true);
-                    const data = await getPublicSettings();
-                    setSettings(data);
-                } else {
-                    setIsOnline(false);
-                }
-            } catch (error) {
+            if (response.ok) {
+                setIsOnline(true);
+                const [data, status] = await Promise.all([
+                    getPublicSettings(),
+                    getTicketStatusForDevice(generatedDeviceId)
+                ]);
+                setSettings(data);
+                setTicketStatus(status);
+            } else {
                 setIsOnline(false);
-            } finally {
-                setLoading(false);
             }
+        } catch (error) {
+            setIsOnline(false);
+        } finally {
+            setLoading(false);
         }
-        checkStatusAndFetchSettings();
+    };
+
+    useEffect(() => {
+        fetchStatusAndSettings();
     }, []);
 
     useEffect(() => {
@@ -140,6 +201,11 @@ export function SubscriptionManager() {
             toast({
                 title: 'Ticket Submitted!',
                 description: 'Your payment proof has been received. Please wait for admin verification.',
+            });
+             setTicketStatus({
+                status: 'pending',
+                plan: selectedPlan!.name,
+                createdAt: new Date().toISOString()
             });
             formRef.current?.reset();
             setFormValues({
@@ -157,7 +223,7 @@ export function SubscriptionManager() {
                 description: state.errors._form.join(', '),
             });
         }
-    }, [state, toast]);
+    }, [state, toast, selectedPlan]);
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target;
@@ -219,8 +285,9 @@ export function SubscriptionManager() {
         );
     }
     
-    const trialPlans = settings ? settings.plans.filter(p => p.isTrial) : [];
-    const paidPlans = settings ? settings.plans.filter(p => !p.isTrial) : [];
+    if (ticketStatus) {
+        return <TicketStatusCard statusInfo={ticketStatus} onRefresh={fetchStatusAndSettings} />;
+    }
 
     if (!settings || settings.plans.length === 0) {
         return (
@@ -232,6 +299,9 @@ export function SubscriptionManager() {
              </Card>
         )
     }
+
+    const trialPlans = settings ? settings.plans.filter(p => p.isTrial) : [];
+    const paidPlans = settings ? settings.plans.filter(p => !p.isTrial) : [];
 
     return (
          <Card>
