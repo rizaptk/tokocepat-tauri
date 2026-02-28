@@ -17,8 +17,8 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
     // For all non-admin routes, apply the client-side providers and bottom nav.
     return (
         <DbProvider>
+            <BackupManager />
             <LicenseProvider>
-                <BackupManager />
                 <div>{children}</div>
                 <BottomNav />
             </LicenseProvider>
