@@ -54,8 +54,14 @@ export function useLicense() {
             console.log('[useLicense/sendHeartbeat] Received response from server:', data);
             
             if (data.status === 'activation_required' && data.ticketId) {
-                console.log(`[useLicense/sendHeartbeat] Server indicated activation is required for ticket ${data.ticketId}. Redirecting...`);
-                window.location.href = `/aktivasi?ticket=${data.ticketId}`;
+                // FIX: Prevent redirect loop if already on the activation page
+                const currentPath = window.location.pathname;
+                if (!currentPath.startsWith('/aktivasi')) {
+                    console.log(`[useLicense/sendHeartbeat] Server indicated activation is required for ticket ${data.ticketId}. Redirecting...`);
+                    window.location.href = `/aktivasi?ticket=${data.ticketId}`;
+                } else {
+                    console.log(`[useLicense/sendHeartbeat] Activation required, but already on /aktivasi page. No redirect needed.`);
+                }
             }
 
         } catch (error) {
