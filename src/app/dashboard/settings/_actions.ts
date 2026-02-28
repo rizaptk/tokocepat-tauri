@@ -202,15 +202,17 @@ export async function getTicketStatusForDevice(deviceId: string): Promise<{ stat
     try {
         const snapshot = await db.collection('paymentTickets')
             .where('deviceId', '==', deviceId)
-            .orderBy('createdAt', 'desc')
-            .limit(1)
             .get();
 
         if (snapshot.empty) {
             return null;
         }
+        
+        // Sort in memory to get the latest ticket, as orderBy can require a composite index
+        const tickets = snapshot.docs.map(doc => doc.data());
+        tickets.sort((a, b) => b.createdAt.toDate().getTime() - a.createdAt.toDate().getTime());
 
-        const ticket = snapshot.docs[0].data();
+        const ticket = tickets[0]; // Get the most recent one
 
         // Don't show rejected or already resolved/claimed tickets as "in progress"
         if (ticket.status === 'rejected' || (ticket.status === 'resolved' && ticket.claimedAt)) {
