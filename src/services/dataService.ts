@@ -1,9 +1,11 @@
 
+
 import { useDbStore } from '@/lib/db-store';
 
 export type LicenseDbData = {
     jwt: string;
     lastKnownTime: string;
+    deviceId: string;
 }
 
 export const clearTransactionData = async (): Promise<{ success: boolean, message?: string }> => {
@@ -34,16 +36,19 @@ export const clearTransactionData = async (): Promise<{ success: boolean, messag
     }
 };
 
-export const saveLicenseData = async (jwt: string): Promise<void> => {
+export const saveLicenseData = async (jwt: string, deviceId: string): Promise<void> => {
     const { db, firesqlite } = useDbStore.getState();
     if (!db || !firesqlite) throw new Error("Database not initialized");
     const { doc, setDoc } = firesqlite;
 
     const data: LicenseDbData = {
         jwt,
-        lastKnownTime: new Date().toISOString()
+        lastKnownTime: new Date().toISOString(),
+        deviceId: deviceId,
     };
-    await setDoc(doc(db, 'app_state', 'license'), data);
+    
+    // Use set with merge to ensure we don't overwrite other app_state fields
+    await setDoc(doc(db, 'app_state', 'license'), data, { merge: true });
 };
 
 export const getLicenseData = async (): Promise<LicenseDbData | null> => {

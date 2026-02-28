@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
@@ -47,7 +48,7 @@ export function useLicense() {
             const data = await response.json();
             
             if (data.token) {
-                await saveLicenseData(data.token);
+                await saveLicenseData(data.token, currentDeviceId);
                 toast({ title: "License Activated!", description: "Your new license is active. The app will now reload." });
                 setTimeout(() => window.location.reload(), 1500);
             }
@@ -66,8 +67,13 @@ export function useLicense() {
             const licenseData = await getLicenseData();
             const currentDeviceId = await generateDeviceFingerprint();
 
-            if (!licenseData || !licenseData.jwt) {
+            if (!licenseData || !licenseData.jwt || !licenseData.deviceId) {
                 setStatus('NOT_FOUND');
+                return;
+            }
+            
+            if (currentDeviceId !== licenseData.deviceId) {
+                setStatus('CLONED');
                 return;
             }
 
@@ -103,11 +109,6 @@ export function useLicense() {
                 return;
             }
 
-            if (currentDeviceId !== payload.deviceId) {
-                setStatus('CLONED');
-                return;
-            }
-            
             let finalStatus: LicenseStatus = 'VALID';
             const details: any = {
                 ...payload,
@@ -130,7 +131,7 @@ export function useLicense() {
             }
 
             // Save updated lastKnownTime to DB
-            await saveLicenseData(licenseData.jwt);
+            await saveLicenseData(licenseData.jwt, currentDeviceId);
         };
 
         checkLicense();

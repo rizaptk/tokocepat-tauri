@@ -1,3 +1,9 @@
+
+import { useDbStore } from './db-store';
+import { getLicenseData } from '@/services/dataService';
+import { generateDeviceFingerprint } from './security';
+import { toast } from '@/hooks/use-toast';
+
 // A simple key-value store using IndexedDB for storing the file handle
 const idbKeyval = {
     get: <T>(key: IDBValidKey): Promise<T | undefined> => {
@@ -45,6 +51,7 @@ const idbKeyval = {
 
 const FILE_HANDLE_KEY = 'db-backup-file-handle';
 const LAST_BACKUP_KEY = 'db-last-backup-timestamp';
+const LAST_BACKUP_SIGNATURE_KEY = 'db-last-backup-signature';
 
 let fileHandle: FileSystemFileHandle | null = null;
 
@@ -53,6 +60,7 @@ async function verifyPermission(handle: FileSystemFileHandle, withWrite: boolean
     if ((await handle.queryPermission(opts)) === 'granted') {
         return true;
     }
+    // Don't request permission in the background, only when user initiates.
     if ((await handle.requestPermission(opts)) === 'granted') {
         return true;
     }
@@ -64,11 +72,15 @@ export async function hasBackupConfig(): Promise<boolean> {
     return !!handle;
 }
 
-export async function getBackupFileHandle(): Promise<FileSystemFileHandle | null> {
-    if (fileHandle) return fileHandle;
+export async function getBackupFileHandle(requestWrite: boolean = false): Promise<FileSystemFileHandle | null> {
+    if (fileHandle) {
+        if (await verifyPermission(fileHandle, requestWrite)) {
+            return fileHandle;
+        }
+    }
     const handleFromDb = await idbKeyval.get<FileSystemFileHandle>(FILE_HANDLE_KEY);
     if (handleFromDb) {
-        if (await verifyPermission(handleFromDb, true)) {
+        if (await verifyPermission(handleFromDb, requestWrite)) {
             fileHandle = handleFromDb;
             return fileHandle;
         }
@@ -102,50 +114,80 @@ export async function promptAndSetBackupFile(): Promise<FileSystemFileHandle | n
     }
 }
 
-export async function performBackup(firesqlite: any): Promise<boolean> {
-    const handle = await getBackupFileHandle();
-     if (!handle || !firesqlite) {
+export async function performBackup(firesqlite: any, isFinal: boolean = false): Promise<boolean> {
+    const handle = await getBackupFileHandle(true);
+    if (!handle || !firesqlite) {
         console.warn('Backup skipped: No backup file handle or database instance.');
         return false;
     }
 
     try {
-        // Query permission silently. If not granted, we can't proceed in the background.
-        const permission = await handle.queryPermission({ mode: 'readwrite' });
-        if (permission !== 'granted') {
-            console.warn('Auto-backup skipped: Write permission not granted. Will retry later.');
-            return false;
-        }
-
         const binaryData = await firesqlite.getBinaryBackup();
-        const writable = await handle.createWritable();
-        await writable.write(binaryData);
-        await writable.close();
+        const writableStream = await handle.createWritable({ keepExistingData: false });
+        
+        await writableStream.write(binaryData);
+        await writableStream.close();
+        
+        const localSignature = await getLicenseData();
+        if (localSignature?.deviceId) {
+            await idbKeyval.set(LAST_BACKUP_SIGNATURE_KEY, localSignature.deviceId);
+        }
+        
         await idbKeyval.set(LAST_BACKUP_KEY, new Date().toISOString());
-        console.log('Auto backup successful.');
         return true;
     } catch (error: any) {
-        // Catch errors like disk full or file handle becoming invalid
-        console.warn('Auto-backup failed in background. This can happen if the tab is inactive. Backup will retry on the next interval or user interaction.');
+        console.warn(`Backup failed. Reason: ${error.name} - ${error.message}`);
         return false;
     }
 }
 
-export async function performRestore(firesqlite: any): Promise<boolean> {
+// The new safe restore function
+export async function performRestore(): Promise<boolean> {
+    const { firesqlite, initialize } = useDbStore.getState();
     const handle = await getBackupFileHandle();
-    if (!handle || !firesqlite) return false;
+    if (!handle || !firesqlite) {
+        toast({ variant: "destructive", title: "Restore Failed", description: "Backup location or database not ready." });
+        return false;
+    }
 
     try {
         const file = await handle.getFile();
         await firesqlite.importFullBinary(file);
-        console.log('Restore from backup successful.');
+        
+        // Short delay to allow DB to settle after import
+        await new Promise(res => setTimeout(res, 100));
+
+        // Security check: Verify device ID after restore
+        const restoredLicenseData = await getLicenseData();
+        const currentDeviceId = await generateDeviceFingerprint();
+
+        if (restoredLicenseData && restoredLicenseData.deviceId && restoredLicenseData.deviceId !== currentDeviceId) {
+            toast({
+                variant: 'destructive',
+                title: 'Restore Aborted',
+                description: "This backup belongs to another device and cannot be used here. The database has been reset.",
+                duration: 10000,
+            });
+            // Re-initialize the DB to wipe the invalid data
+            await initialize(); 
+            return false;
+        }
+
+        toast({ title: 'Restore Complete', description: 'The application will now reload.' });
         return true;
+
     } catch (error) {
         console.error('Restore from backup failed:', error);
+        toast({ variant: "destructive", title: "Restore Failed", description: "The backup file may be corrupted." });
         return false;
     }
 }
 
-export async function getLastBackupTimestamp(): Promise<string | null> {
-    return await idbKeyval.get<string>(LAST_BACKUP_KEY) || null;
+// This function provides metadata about the backup for UI purposes
+export async function getBackupMetadata(): Promise<{ lastBackup: string | null, signature: string | null }> {
+    const [lastBackup, signature] = await Promise.all([
+        idbKeyval.get<string>(LAST_BACKUP_KEY),
+        idbKeyval.get<string>(LAST_BACKUP_SIGNATURE_KEY),
+    ]);
+    return { lastBackup, signature };
 }

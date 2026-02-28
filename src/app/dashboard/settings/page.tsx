@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useDbStore } from '@/lib/db-store';
@@ -6,7 +7,7 @@ import { useRef, useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { clearTransactionData } from '@/services/dataService';
 import { formatDistanceToNow } from 'date-fns';
-import { getLastBackupTimestamp, promptAndSetBackupFile, performBackup } from '@/lib/backupService';
+import { getBackupMetadata, promptAndSetBackupFile, performBackup } from '@/lib/backupService';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -29,8 +30,8 @@ export default function SettingsPage() {
   const [isBackupLoading, setIsBackupLoading] = useState(false);
 
   const fetchBackupStatus = async () => {
-    const timestamp = await getLastBackupTimestamp();
-    setLastBackup(timestamp);
+    const meta = await getBackupMetadata();
+    setLastBackup(meta.lastBackup);
   };
   
   useEffect(() => {
@@ -107,10 +108,9 @@ export default function SettingsPage() {
       }
       setIsBackupLoading(true);
       toast({ title: 'Backup In Progress...', description: 'Saving data to your backup file.'});
-      const success = await performBackup(firesqlite);
+      const success = await performBackup(firesqlite, true);
       if (success) {
-          const newTimestamp = new Date().toISOString();
-          setLastBackup(newTimestamp);
+          await fetchBackupStatus(); // Refresh timestamp
           toast({ title: 'Backup Complete', description: 'Your data has been successfully saved.'});
       } else {
           toast({ title: 'Backup Failed', description: 'Could not save data. Please check file permissions.', variant: 'destructive'});
@@ -120,7 +120,7 @@ export default function SettingsPage() {
 
   const handleChangeLocation = async () => {
       await promptAndSetBackupFile();
-      fetchBackupStatus(); // Refresh last backup time
+      await fetchBackupStatus(); // Refresh last backup time
       toast({ title: 'Backup Location Updated', description: 'Future backups will be saved to the new location.' });
   }
 

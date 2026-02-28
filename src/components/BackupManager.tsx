@@ -3,17 +3,22 @@
 
 import { useEffect, useState, useTransition } from 'react';
 import { useDbStore } from '@/lib/db-store';
-import { hasBackupConfig, performRestore, promptAndSetBackupFile } from '@/lib/backupService';
+import { hasBackupConfig, performRestore, promptAndSetBackupFile, getBackupMetadata } from '@/lib/backupService';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { useAutoBackup } from '@/hooks/useBackup';
 import { Loader2 } from 'lucide-react';
+import { getLicenseData } from '@/services/dataService';
+import { toast } from '@/hooks/use-toast';
+import { performBackup } from '@/lib/backupService';
+
+type PromptState = 'idle' | 'checking' | 'needs_config' | 'needs_restore' | 'data_conflict';
 
 export function BackupManager() {
-    useAutoBackup(); // This hook will now manage the periodic backups.
+    useAutoBackup();
     
-    const { db, firesqlite, isInitialized } = useDbStore();
-    const [promptState, setPromptState] = useState<'idle' | 'checking' | 'needs_config' | 'needs_restore'>('checking');
+    const { isInitialized, firesqlite, db } = useDbStore();
+    const [promptState, setPromptState] = useState<PromptState>('checking');
     const [isRestoring, startRestoreTransition] = useTransition();
     const [isConfiguring, startConfigureTransition] = useTransition();
 
@@ -21,35 +26,36 @@ export function BackupManager() {
         if (!isInitialized || !db || !firesqlite) return;
 
         const checkDbState = async () => {
-            const { collection, getDocs, query, limit, doc, getDoc } = firesqlite;
+            const { getDocs, collection, query, limit } = firesqlite;
+            
+            // 1. Check for local license data and its signature (deviceId)
+            const localLicense = await getLicenseData();
+            const localDbDeviceId = localLicense?.deviceId;
 
-            // 1. Check for an active license in the database.
-            const licenseDocRef = doc(db, 'app_state', 'license');
-            const licenseDocSnap = await getDoc(licenseDocRef);
-            const isLicensed = licenseDocSnap.exists();
-
-            // 2. Check if a backup location has already been configured.
+            // 2. Check if a backup file has been configured
             const isBackupConfigured = await hasBackupConfig();
+            
+            // 3. Get metadata from the last backup (signature)
+            const backupMeta = await getBackupMetadata();
+            const backupDeviceId = backupMeta.signature;
 
-            // 3. Check if the core database appears to be empty.
+            // 4. Check if the local database is effectively empty
             const configQuery = query(collection(db, 'store_config'), limit(1));
             const configSnapshot = await getDocs(configQuery);
             const isDbEmpty = configSnapshot.empty;
 
-            // --- Determine the correct state based on the checks ---
+            // --- Determine state based on checks ---
 
             if (isDbEmpty && isBackupConfigured) {
-                // HIGHEST PRIORITY: The database was cleared, but a backup exists.
-                // This is the data recovery scenario.
+                // Highest priority: DB is empty, but a backup location exists. Recover data.
                 setPromptState('needs_restore');
-            } else if (isLicensed && !isBackupConfigured) {
-                // The user is licensed but hasn't configured a backup.
-                // This is the ideal time to prompt them.
+            } else if (localDbDeviceId && backupDeviceId && localDbDeviceId !== backupDeviceId && isBackupConfigured) {
+                // Data has diverged. Local DB was signed by one device, backup by another.
+                setPromptState('data_conflict');
+            } else if (localLicense && !isBackupConfigured) {
+                // User is licensed but has not configured backup yet.
                 setPromptState('needs_config');
             } else {
-                // This covers:
-                // - New, unlicensed users (let them explore first).
-                // - Licensed and configured users (normal operation).
                 setPromptState('idle');
             }
         };
@@ -59,13 +65,28 @@ export function BackupManager() {
 
     const handleRestore = () => {
         startRestoreTransition(async () => {
-            const success = await performRestore(firesqlite);
+            const success = await performRestore();
             if (success) {
-                window.location.reload();
+                // The page will reload after a short delay for the toast to be seen.
+                setTimeout(() => window.location.reload(), 1500);
             } else {
-                alert('Restore failed. The backup file might be corrupted or permissions were denied.');
-                setPromptState('needs_config'); // Prompt to re-select file if restore fails
+                // Restore failed, prompt user to maybe re-select file location
+                setPromptState('needs_config'); 
             }
+        });
+    };
+
+    const handleOverwriteBackup = () => {
+        // This is a "force push". We overwrite the old backup with the current local data.
+        startRestoreTransition(async () => {
+            toast({ title: "Overwriting Backup", description: "Saving current local data to the backup location." });
+            const success = await performBackup(firesqlite, true);
+            if(success) {
+                toast({ title: "Backup Overwritten", description: "Your local data is now the primary backup."});
+            } else {
+                toast({ variant: "destructive", title: "Failed to Overwrite", description: "Please check file permissions and try again." });
+            }
+            setPromptState('idle'); // Resolve conflict
         });
     };
     
@@ -73,9 +94,9 @@ export function BackupManager() {
         startConfigureTransition(async () => {
             const handle = await promptAndSetBackupFile();
             if (handle) {
-                setPromptState('idle'); // Configuration is done, proceed to app.
+                toast({ title: "Backup Location Set", description: "Auto-backup is now configured."});
+                setPromptState('idle');
             }
-            // If they cancel, the prompt will reappear on the next load (if they are licensed).
         });
     };
 
@@ -86,7 +107,7 @@ export function BackupManager() {
                     <AlertDialogHeader>
                         <AlertDialogTitle>Configure Auto-Backup</AlertDialogTitle>
                         <AlertDialogDescription>
-                            To protect your data, please select a backup location. Your data will be saved automatically. This is a one-time setup.
+                            To protect your data, please select a backup location. Your data will be saved automatically. This is a one-time setup for this device.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
@@ -110,6 +131,26 @@ export function BackupManager() {
                         <Button onClick={handleRestore} disabled={isRestoring}>
                             {isRestoring ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}
                             Restore Data
+                        </Button>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+             <AlertDialog open={promptState === 'data_conflict'}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Data Conflict Detected</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            The data on this device is different from your backup file. This can happen if you used the app on another device. Please choose which version to keep. This choice cannot be undone.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <Button variant="destructive" onClick={handleOverwriteBackup} disabled={isRestoring}>
+                            {isRestoring ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}
+                            Keep This Device's Data
+                        </Button>
+                        <Button onClick={handleRestore} disabled={isRestoring}>
+                            {isRestoring ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}
+                            Restore from Backup
                         </Button>
                     </AlertDialogFooter>
                 </AlertDialogContent>
