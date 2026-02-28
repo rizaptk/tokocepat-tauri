@@ -58,23 +58,33 @@ export async function claimLicenseAction(ticketId: string, deviceId: string): Pr
         
         const licenseData = licenseDoc.data()!;
         
-        // --- Get Plan Details ---
-        const plansSnap = await db.collection('app_settings').doc('subscriptionPlans').get();
-        if (!plansSnap.exists) throw new Error("Subscription plans are not configured.");
-        const allPlans = (plansSnap.data()?.plans || []) as SubscriptionPlan[];
-        const purchasedPlan = allPlans.find(p => p.name === licenseData.plan);
-        if (!purchasedPlan) {
-            throw new Error(`Plan "${licenseData.plan}" not found in settings.`);
-        }
-
-
         // --- THIS IS THE FINAL ACTIVATION STEP ---
+        
+        let durationDays: number;
+        let isTrial: boolean;
+
+        // Get activation details from the license document itself.
+        if (typeof licenseData.durationDays === 'number') {
+            durationDays = licenseData.durationDays;
+            isTrial = licenseData.isTrial || false;
+        } else {
+            // Fallback for older licenses: Look up the plan in settings
+            const plansSnap = await db.collection('app_settings').doc('subscriptionPlans').get();
+            if (!plansSnap.exists) throw new Error("Subscription plans are not configured.");
+            const allPlans = (plansSnap.data()?.plans || []) as SubscriptionPlan[];
+            const purchasedPlan = allPlans.find(p => p.name === licenseData.plan);
+            if (!purchasedPlan) {
+                throw new Error(`Plan "${licenseData.plan}" not found in settings. The plan may have been renamed or deleted.`);
+            }
+            durationDays = purchasedPlan.durationDays;
+            isTrial = purchasedPlan.isTrial || false;
+        }
         
         // 1. Calculate the expiration date from *now*
         let expiresAt: Date | null = new Date();
-        if (purchasedPlan.durationDays > 0) {
-             expiresAt.setDate(expiresAt.getDate() + purchasedPlan.durationDays);
-        } else if (purchasedPlan.durationDays === -1) {
+        if (durationDays > 0) {
+             expiresAt.setDate(expiresAt.getDate() + durationDays);
+        } else if (durationDays === -1) {
             expiresAt = null; // Lifetime plan
         }
         
@@ -100,7 +110,7 @@ export async function claimLicenseAction(ticketId: string, deviceId: string): Pr
             sub: licenseData.key,
             deviceId: deviceId,
             plan: licenseData.plan,
-            isTrial: false, 
+            isTrial: isTrial, 
         };
         
         const jwtBuilder = new jose.SignJWT(jwtPayload)

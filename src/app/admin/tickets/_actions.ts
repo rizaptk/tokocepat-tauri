@@ -93,6 +93,8 @@ export async function updateTicketStatusAction(data: TicketStatusUpdate): Promis
               expiresAt: null, // Expiration is set upon user activation, not admin approval
               activations: [], // Activations array is initially empty
               maxSeats: purchasedPlan.maxSeats,
+              durationDays: purchasedPlan.durationDays,
+              isTrial: purchasedPlan.isTrial || false, // Embed plan details
             };
             const newLicenseRef = await db.collection('licenses').add(newLicenseData);
             
