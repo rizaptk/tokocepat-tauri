@@ -102,6 +102,7 @@ export async function updateTicketStatusAction(data: TicketStatusUpdate): Promis
                 const licenseData = licenseDoc.data();
                 
                 let startDate = new Date();
+                // If license exists and hasn't expired, extend from expiry date.
                 if (licenseData.expiresAt && licenseData.expiresAt.toDate() > startDate) {
                     startDate = licenseData.expiresAt.toDate();
                 }
@@ -176,5 +177,55 @@ export async function updateTicketStatusAction(data: TicketStatusUpdate): Promis
     } catch (error: any) {
         console.error("Failed to update ticket status:", error);
         return { success: false, error: 'An unexpected server error occurred.' };
+    }
+}
+
+export async function getTicketStatusForDevice(deviceId: string): Promise<{ ticketId: string; status: PaymentTicket['status']; plan: string; createdAt: string } | null> {
+    console.log(`[getTicketStatusForDevice] Checking status for deviceId: ${deviceId ? deviceId.substring(0,10) + '...' : 'N/A'}`);
+    if (!deviceId) return null;
+    try {
+        // Fetch all tickets instead of querying by a specific field to avoid indexing issues.
+        const snapshot = await db.collection('paymentTickets').get();
+
+        if (snapshot.empty) {
+            console.log('[getTicketStatusForDevice] No tickets found in collection.');
+            return null;
+        }
+        
+        const allTickets = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        const deviceTickets = allTickets.filter(ticket => ticket.deviceId === deviceId);
+        
+        console.log(`[getTicketStatusForDevice] Found ${deviceTickets.length} tickets associated with this device.`);
+
+
+        if (deviceTickets.length === 0) {
+            return null;
+        }
+
+        // Sort in memory to get the latest ticket for this device
+        deviceTickets.sort((a, b) => b.createdAt.toDate().getTime() - a.createdAt.toDate().getTime());
+
+        const ticket = deviceTickets[0]; // Get the most recent one
+        console.log(`[getTicketStatusForDevice] Most recent ticket status for this device is '${ticket.status}'. Claimed at:`, ticket.claimedAt);
+
+
+        // Don't show rejected or already resolved/claimed tickets as "in progress"
+        if (ticket.status === 'rejected' || (ticket.status === 'resolved' && ticket.claimedAt)) {
+            console.log(`[getTicketStatusForDevice] Ticket is already resolved/claimed or rejected. Not showing status card.`);
+            return null;
+        }
+
+        const result = {
+            ticketId: ticket.id,
+            status: ticket.status as PaymentTicket['status'],
+            plan: ticket.plan,
+            createdAt: ticket.createdAt.toDate().toISOString(),
+        };
+
+        console.log('[getTicketStatusForDevice] Returning status info to client:', result);
+        return result;
+    } catch (error) {
+        console.error("[getTicketStatusForDevice] Failed to fetch ticket status:", error);
+        return null; // Return null on error to not block the UI
     }
 }

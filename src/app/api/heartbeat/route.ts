@@ -14,9 +14,13 @@ export async function POST(request: Request) {
     try {
         const body = await request.json().catch(() => ({}));
         const { token, deviceId } = body;
+        
+        console.log('[Heartbeat API] Received request:', { deviceId: deviceId ? `${deviceId.substring(0,10)}...` : 'N/A', hasToken: !!token });
+
 
         // If there's no deviceId, we can't do anything useful.
         if (!deviceId) {
+            console.log('[Heartbeat API] Exiting: No deviceId provided.');
             return NextResponse.json({ status: 'ok_ping_no_device' }, { status: 200 });
         }
 
@@ -24,6 +28,7 @@ export async function POST(request: Request) {
 
         if (!token) {
             // Case 1: No token provided (unlicensed client pinging)
+            console.log(`[Heartbeat API] Case 1: Unlicensed client ping from device ${deviceId.substring(0,10)}...`);
             sessionData = {
                 customerId: 'unlicensed',
                 customerEmail: 'unlicensed',
@@ -38,6 +43,7 @@ export async function POST(request: Request) {
                 
                 const licenseKey = payload.sub as string;
                 const plan = (payload.plan as string) || 'N/A';
+                console.log(`[Heartbeat API] Case 2a: Token VERIFIED for device ${deviceId.substring(0,10)}... with license key ${licenseKey}`);
 
                 const licensesRef = db.collection('licenses');
                 const query = licensesRef.where('key', '==', licenseKey).limit(1);
@@ -56,6 +62,8 @@ export async function POST(request: Request) {
                             customerEmail = customerSnap.data()?.email || 'unknown';
                         }
                     }
+                } else {
+                    console.warn(`[Heartbeat API] Warning: Valid token, but license key ${licenseKey} not found in DB.`);
                 }
                 
                 // Token is valid, build the complete session data object
@@ -69,7 +77,7 @@ export async function POST(request: Request) {
 
             } catch (e: any) {
                 // Case 3: Token verification failed
-                console.warn(`Heartbeat JWT verification failed for device ${deviceId}. Reason: ${e.code || e.message}.`);
+                console.warn(`[Heartbeat API] Case 2b: Token VERIFICATION FAILED for device ${deviceId.substring(0,10)}... Reason: ${e.code || e.message}.`);
                 
                 // Decode for logging purposes only to see what key failed
                 let attemptedKey = 'N/A';
@@ -90,6 +98,7 @@ export async function POST(request: Request) {
             }
         }
         
+        console.log('[Heartbeat API] Saving session data to Firestore:', { deviceId: deviceId.substring(0,10) + '...', ...sessionData, lastSeen: 'now' });
         // Save the constructed session data.
         const sessionRef = db.collection('online_sessions').doc(deviceId);
         await sessionRef.set(sessionData);
@@ -98,7 +107,7 @@ export async function POST(request: Request) {
         return NextResponse.json({ status: 'ok' }, { status: 200 });
 
     } catch (error: any) {
-        console.error('Heartbeat Error:', error.message);
+        console.error('[Heartbeat API] FATAL Error:', error.message);
         return NextResponse.json({ error: 'Server error during heartbeat.' }, { status: 500 });
     }
 }
