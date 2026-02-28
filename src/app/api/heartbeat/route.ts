@@ -31,6 +31,9 @@ export async function POST(request: Request) {
                 .limit(1);
 
              const ticketSnapshot = await ticketQuery.get();
+
+             // Find the first document that does NOT have a `claimedAt` timestamp.
+             // This is safer than `where('claimedAt', '==', null)`.
              const userTicketDoc = ticketSnapshot.docs.find(doc => !doc.data().claimedAt);
 
 
