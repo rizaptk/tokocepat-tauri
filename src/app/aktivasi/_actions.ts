@@ -31,14 +31,29 @@ export async function claimLicenseAction(ticketId: string, deviceId: string): Pr
         }
         
         const licenseId = ticketData.licenseId;
-        if (!licenseId) {
-            return { error: 'Internal error: License ID not found on ticket. Please contact support.' };
+        const licenseKey = ticketData.licenseKey;
+        let licenseDoc;
+
+        // First, try to get the license by its specific ID if available.
+        if (licenseId) {
+            const docRef = db.collection('licenses').doc(licenseId);
+            const docSnap = await docRef.get();
+            if (docSnap.exists()) {
+                licenseDoc = docSnap;
+            }
+        }
+
+        // Fallback: If not found by ID (or if ID is missing), try finding by the key.
+        if (!licenseDoc && licenseKey) {
+            const query = db.collection('licenses').where('key', '==', licenseKey).limit(1);
+            const snapshot = await query.get();
+            if (!snapshot.empty) {
+                licenseDoc = snapshot.docs[0];
+            }
         }
         
-        // Find the actual license details from the ID
-        const licenseDoc = await db.collection('licenses').doc(licenseId).get();
-        if (!licenseDoc.exists) {
-            return { error: 'Internal error: The purchased license could not be found.' };
+        if (!licenseDoc) {
+            return { error: 'Internal error: The purchased license could not be found. Please contact support.' };
         }
         
         const licenseData = licenseDoc.data()!;
