@@ -99,6 +99,11 @@ const TicketStatusCard = ({ statusInfo, onRefresh }: { statusInfo: TicketStatusI
             title: "Your License is Ready!",
             description: "Your payment has been approved. Please review the terms and activate your subscription.",
             icon: <Check className="h-10 w-10 text-green-500" />,
+        },
+        rejected: {
+            title: "Ticket Rejected",
+            description: "Your submission was not approved. Please contact support or try again.",
+            icon: <WifiOff className="h-10 w-10 text-destructive" />,
         }
     };
     
@@ -212,7 +217,7 @@ export function SubscriptionManager() {
             });
              setTicketStatus({
                 status: 'pending',
-                plan: selectedPlan!.name,
+                plan: selectedPlan?.name || 'Selected Plan',
                 createdAt: new Date().toISOString(),
                 ticketId: '' // We don't have the ID client-side, but it's okay for the UI state
             });
@@ -251,7 +256,7 @@ export function SubscriptionManager() {
                 throw new Error(result.error);
             }
             if (result.token) {
-                 await saveLicenseData(result.token);
+                 await saveLicenseData(result.token, deviceId);
                 localStorage.setItem('tokoc_trial_activated_on_device', 'true');
                 toast({ title: 'Trial Activated!', description: 'Your free trial has started. The app will now reload.' });
                 setTimeout(() => window.location.reload(), 1500);
