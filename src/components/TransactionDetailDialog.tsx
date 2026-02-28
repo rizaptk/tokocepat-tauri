@@ -16,7 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-import { ReceiptText, Trash2, Printer } from "lucide-react";
+import { ReceiptText, Trash2, Printer, Clock } from "lucide-react";
 
 interface TransactionDetailDialogProps {
     transaction: Transaction | null;
@@ -76,7 +76,15 @@ export function TransactionDetailDialog({ transaction, onOpenChange }: Transacti
                          <Badge variant={transaction.status === 'voided' ? 'destructive' : 'secondary'}>{transaction.status.toUpperCase()}</Badge>
                     </DialogTitle>
                     <DialogDescription>
-                        {format(new Date(transaction.created_at), 'PPPPp')}
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+                            <span>{format(new Date(transaction.created_at), 'PPPPp')}</span>
+                            {transaction.shift_id && (
+                                <span className="flex items-center gap-1.5 text-xs text-muted-foreground mt-1 sm:mt-0">
+                                    <Clock className="h-3 w-3" />
+                                    Shift: {format(new Date(transaction.shift_id), 'p')}
+                                </span>
+                            )}
+                        </div>
                     </DialogDescription>
                 </DialogHeader>
                 <div className="py-4 space-y-6 max-h-[60vh] overflow-y-auto pr-2">
