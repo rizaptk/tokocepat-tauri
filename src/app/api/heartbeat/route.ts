@@ -24,6 +24,8 @@ export async function POST(request: Request) {
              const ticketsRef = db.collection('paymentTickets');
              
              // Query for a ticket matching the device that is resolved but not yet claimed.
+             // THIS QUERY REQUIRES A COMPOSITE INDEX in Firestore:
+             // collection: paymentTickets, fields: deviceId (asc), status (asc), createdAt (desc)
              const ticketQuery = ticketsRef
                 .where('deviceId', '==', deviceId)
                 .where('status', '==', 'resolved')
@@ -31,9 +33,9 @@ export async function POST(request: Request) {
                 .limit(1);
 
              const ticketSnapshot = await ticketQuery.get();
+             console.log(`[Heartbeat API] Query found ${ticketSnapshot.size} resolved ticket(s) for this device.`);
 
              // Find the first document that does NOT have a `claimedAt` timestamp.
-             // This is safer than `where('claimedAt', '==', null)`.
              const userTicketDoc = ticketSnapshot.docs.find(doc => !doc.data().claimedAt);
 
 
@@ -42,7 +44,7 @@ export async function POST(request: Request) {
                 // Tell the client that activation is required and provide the ticket ID to use.
                 return NextResponse.json({ status: 'activation_required', ticketId: userTicketDoc.id }, { status: 200 });
              } else {
-                 console.log(`[Heartbeat API] No pending activation ticket found for this device.`);
+                 console.log(`[Heartbeat API] No pending activation ticket found for this device. Either none exist, or the latest one has already been claimed.`);
              }
         }
 
