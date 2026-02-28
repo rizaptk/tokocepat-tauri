@@ -80,82 +80,32 @@ export async function updateTicketStatusAction(data: TicketStatusUpdate): Promis
 
             // --- Find or Create Customer ---
             const customerId = await findOrCreateCustomer(customerEmail, customerName);
-
-            // --- Find existing license to renew, or create new ---
-            const licensesRef = db.collection('licenses');
-            let licenseQuery;
-            // Prefer finding license by device ID if it was a trial, otherwise by customer
-            if (deviceId) {
-                // This query is unlikely to work due to how Firestore handles array-contains with objects,
-                // but we keep it as a potential first-pass check. The customerId query is the reliable fallback.
-                licenseQuery = await licensesRef.where('activations', 'array-contains', { deviceId: deviceId, isActive: true }).limit(1).get();
-            }
-            if (!licenseQuery || licenseQuery.empty) {
-                licenseQuery = await licensesRef.where('customerId', '==', customerId).limit(1).get();
-            }
-
-            let finalLicenseKey: string;
-
-            if (!licenseQuery.empty) { // RENEWAL / UPGRADE SCENARIO
-                const licenseDoc = licenseQuery.docs[0];
-                finalLicenseKey = licenseDoc.data().key;
-                const licenseData = licenseDoc.data();
-                
-                let startDate = new Date();
-                // If license exists and hasn't expired, extend from expiry date.
-                if (licenseData.expiresAt && licenseData.expiresAt.toDate() > startDate) {
-                    startDate = licenseData.expiresAt.toDate();
-                }
-
-                let newExpiresAt: Date | null = new Date(startDate.getTime());
-                
-                if (purchasedPlan.durationDays > 0) {
-                     newExpiresAt.setDate(newExpiresAt.getDate() + purchasedPlan.durationDays);
-                } else if (purchasedPlan.durationDays === -1) {
-                    newExpiresAt = null; // Lifetime plan
-                }
-                
-                await licenseDoc.ref.update({
-                    status: 'active',
-                    expiresAt: newExpiresAt,
-                    plan: purchasedPlan.name,
-                    maxSeats: purchasedPlan.maxSeats,
-                });
-
-            } else { // NEW LICENSE SCENARIO
-                const licenseKey = `TKN-${randomBytes(4).toString('hex').toUpperCase()}-${randomBytes(4).toString('hex').toUpperCase()}`;
-                finalLicenseKey = licenseKey;
-                
-                let expiresAt: Date | null = new Date();
-                 if (purchasedPlan.durationDays > 0) {
-                     expiresAt.setDate(expiresAt.getDate() + purchasedPlan.durationDays);
-                } else if (purchasedPlan.durationDays === -1) {
-                    expiresAt = null; // Lifetime plan
-                }
-
-                const newLicense = {
-                  key: licenseKey, 
-                  plan: purchasedPlan.name,
-                  status: 'active', 
-                  customerId,
-                  createdAt: new Date(), 
-                  expiresAt, 
-                  activations: [], 
-                  maxSeats: purchasedPlan.maxSeats,
-                };
-                await db.collection('licenses').add(newLicense);
-                
-                // Update customer's license count
-                const customerDoc = await db.collection('customers').doc(customerId).get();
-                const currentCount = customerDoc.data()?.licenseCount || 0;
-                await db.collection('customers').doc(customerId).update({ licenseCount: currentCount + 1 });
-            }
+            
+            // --- GENERATE LICENSE IN A "READY" STATE ---
+            const licenseKey = `TKN-${randomBytes(4).toString('hex').toUpperCase()}-${randomBytes(4).toString('hex').toUpperCase()}`;
+            
+            const newLicense = {
+              key: licenseKey, 
+              plan: purchasedPlan.name,
+              status: 'active', // 'active' means the key is valid to be claimed
+              customerId,
+              createdAt: new Date(), 
+              expiresAt: null, // Expiration is set upon user activation, not admin approval
+              activations: [], // Activations array is initially empty
+              maxSeats: purchasedPlan.maxSeats,
+            };
+            await db.collection('licenses').add(newLicense);
+            
+            // Update customer's license count
+            const customerDoc = await db.collection('customers').doc(customerId).get();
+            const currentCount = customerDoc.data()?.licenseCount || 0;
+            await db.collection('customers').doc(customerId).update({ licenseCount: currentCount + 1 });
             
             // Link the generated license key back to the ticket
             await ticketRef.update({ 
                 status: 'resolved', 
-                notes: notes || 'Approved and license generated.', // Add default note
-                licenseKey: finalLicenseKey, 
+                notes: notes || 'Approved and license ready for activation.', // Add default note
+                licenseKey: licenseKey, 
                 updatedAt: new Date() 
             });
 
@@ -184,30 +134,21 @@ export async function getTicketStatusForDevice(deviceId: string): Promise<{ tick
     console.log(`[getTicketStatusForDevice] Checking status for deviceId: ${deviceId ? deviceId.substring(0,10) + '...' : 'N/A'}`);
     if (!deviceId) return null;
     try {
-        // Fetch all tickets instead of querying by a specific field to avoid indexing issues.
-        const snapshot = await db.collection('paymentTickets').get();
+        const snapshot = await db.collection('paymentTickets')
+            .where('deviceId', '==', deviceId)
+            .orderBy('createdAt', 'desc')
+            .limit(1)
+            .get();
 
         if (snapshot.empty) {
-            console.log('[getTicketStatusForDevice] No tickets found in collection.');
-            return null;
-        }
-        
-        const allTickets = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        const deviceTickets = allTickets.filter(ticket => ticket.deviceId === deviceId);
-        
-        console.log(`[getTicketStatusForDevice] Found ${deviceTickets.length} tickets associated with this device.`);
-
-
-        if (deviceTickets.length === 0) {
+            console.log('[getTicketStatusForDevice] No tickets found for this device.');
             return null;
         }
 
-        // Sort in memory to get the latest ticket for this device
-        deviceTickets.sort((a, b) => b.createdAt.toDate().getTime() - a.createdAt.toDate().getTime());
-
-        const ticket = deviceTickets[0]; // Get the most recent one
+        const ticket = snapshot.docs[0].data();
+        const ticketId = snapshot.docs[0].id;
+        
         console.log(`[getTicketStatusForDevice] Most recent ticket status for this device is '${ticket.status}'. Claimed at:`, ticket.claimedAt);
-
 
         // Don't show rejected or already resolved/claimed tickets as "in progress"
         if (ticket.status === 'rejected' || (ticket.status === 'resolved' && ticket.claimedAt)) {
@@ -216,7 +157,7 @@ export async function getTicketStatusForDevice(deviceId: string): Promise<{ tick
         }
 
         const result = {
-            ticketId: ticket.id,
+            ticketId: ticketId,
             status: ticket.status as PaymentTicket['status'],
             plan: ticket.plan,
             createdAt: ticket.createdAt.toDate().toISOString(),

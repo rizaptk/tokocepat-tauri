@@ -53,26 +53,30 @@ export function useLicense() {
             const data = await response.json();
             console.log('[useLicense/sendHeartbeat] Received response from server:', data);
             
-            if (data.status === 'activated' && data.token) {
-                console.log('[useLicense/sendHeartbeat] Received new token from server! Activating...');
-                await saveLicenseData(data.token, currentDeviceId);
-                toast({ title: "License Activated!", description: "Your new license is active. The app will now reload." });
-                setTimeout(() => window.location.reload(), 1500);
+            if (data.status === 'activation_required' && data.ticketId) {
+                console.log(`[useLicense/sendHeartbeat] Server indicated activation is required for ticket ${data.ticketId}. Redirecting...`);
+                window.location.href = `/aktivasi?ticket=${data.ticketId}`;
             }
+
         } catch (error) {
             console.warn("[useLicense/sendHeartbeat] Heartbeat failed. This is expected when offline.", error);
         }
-    }, [toast]);
+    }, []);
 
     useEffect(() => {
         if (!isInitialized) return;
 
         const checkLicense = async () => {
             console.log('[useLicense/checkLicense] Starting license check...');
-            // First, send an immediate heartbeat on load
-            await sendHeartbeat();
             
             const licenseData = await getLicenseData();
+            
+            // If there's no local license, send a heartbeat immediately to check for pending activations.
+            // This is the primary trigger for a new user.
+            if (!licenseData || !licenseData.jwt) {
+                 await sendHeartbeat();
+            }
+            
             const currentDeviceId = await generateDeviceFingerprint();
 
             console.log('[useLicense/checkLicense] Local license data found:', licenseData ? { ...licenseData, jwt: 'JWT_PRESENT' } : null);
