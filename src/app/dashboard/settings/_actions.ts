@@ -200,19 +200,24 @@ export async function activateTrialAction(planId: string, deviceId: string): Pro
 export async function getTicketStatusForDevice(deviceId: string): Promise<{ ticketId: string; status: PaymentTicket['status']; plan: string; createdAt: string } | null> {
     if (!deviceId) return null;
     try {
-        const snapshot = await db.collection('paymentTickets')
-            .where('deviceId', '==', deviceId)
-            .get();
+        // Fetch all tickets instead of querying by a specific field to avoid indexing issues.
+        const snapshot = await db.collection('paymentTickets').get();
 
         if (snapshot.empty) {
             return null;
         }
         
-        // Sort in memory to get the latest ticket, as orderBy can require a composite index
-        const tickets = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        tickets.sort((a, b) => b.createdAt.toDate().getTime() - a.createdAt.toDate().getTime());
+        const allTickets = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        const deviceTickets = allTickets.filter(ticket => ticket.deviceId === deviceId);
 
-        const ticket = tickets[0]; // Get the most recent one
+        if (deviceTickets.length === 0) {
+            return null;
+        }
+
+        // Sort in memory to get the latest ticket for this device
+        deviceTickets.sort((a, b) => b.createdAt.toDate().getTime() - a.createdAt.toDate().getTime());
+
+        const ticket = deviceTickets[0]; // Get the most recent one
 
         // Don't show rejected or already resolved/claimed tickets as "in progress"
         if (ticket.status === 'rejected' || (ticket.status === 'resolved' && ticket.claimedAt)) {
