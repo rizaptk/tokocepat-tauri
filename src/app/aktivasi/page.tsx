@@ -41,10 +41,9 @@ function ActivationComponent() {
             const result = await claimLicenseAction(ticketId, deviceId);
             if (result.token) {
                 await saveLicenseData(result.token, deviceId);
-                toast({ title: 'Activation Successful!', description: 'Your license is now active. The app will reload.' });
+                toast({ title: 'Activation Successful!', description: 'Your license is now active. Redirecting...' });
                 setTimeout(() => {
-                    router.push('/dashboard');
-                    setTimeout(() => window.location.reload(), 300);
+                    window.location.href = '/dashboard';
                 }, 1500);
             } else {
                 toast({ variant: 'destructive', title: 'Activation Failed', description: result.error || 'An unknown error occurred.' });
