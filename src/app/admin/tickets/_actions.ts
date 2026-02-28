@@ -84,6 +84,8 @@ export async function updateTicketStatusAction(data: TicketStatusUpdate): Promis
             let licenseQuery;
             // Prefer finding license by device ID if it was a trial, otherwise by customer
             if (deviceId) {
+                // This query is unlikely to work due to how Firestore handles array-contains with objects,
+                // but we keep it as a potential first-pass check. The customerId query is the reliable fallback.
                 licenseQuery = await licensesRef.where('activations', 'array-contains', { deviceId: deviceId, isActive: true }).limit(1).get();
             }
             if (!licenseQuery || licenseQuery.empty) {
@@ -97,15 +99,18 @@ export async function updateTicketStatusAction(data: TicketStatusUpdate): Promis
                 finalLicenseKey = licenseDoc.data().key;
                 const licenseData = licenseDoc.data();
                 
-                // If current license is expired, start new period from now. Otherwise, extend from current expiry.
-                let startDate = (licenseData.expiresAt && licenseData.expiresAt.toDate() > new Date()) 
-                    ? licenseData.expiresAt.toDate() 
-                    : new Date();
+                // --- SAFELY DETERMINE START DATE ---
+                let startDate = new Date(); // Default to now
+                // Only if expiresAt exists and is in the future, we extend from there.
+                if (licenseData.expiresAt && licenseData.expiresAt.toDate() > startDate) {
+                    startDate = licenseData.expiresAt.toDate();
+                }
+                // ------------------------------------
 
-                let newExpiresAt: Date | null = startDate;
+                let newExpiresAt: Date | null = new Date(startDate.getTime()); // Create a clean copy to avoid mutation issues
                 
                 if (purchasedPlan.durationDays > 0) {
-                     newExpiresAt.setDate(startDate.getDate() + purchasedPlan.durationDays);
+                     newExpiresAt.setDate(newExpiresAt.getDate() + purchasedPlan.durationDays);
                 } else if (purchasedPlan.durationDays === -1) {
                     newExpiresAt = null; // Lifetime plan
                 }
@@ -149,7 +154,7 @@ export async function updateTicketStatusAction(data: TicketStatusUpdate): Promis
             // Link the generated license key back to the ticket
             await ticketRef.update({ 
                 status: 'resolved', 
-                notes, 
+                notes: notes || 'Approved and license generated.', // Add default note
                 licenseKey: finalLicenseKey, 
                 updatedAt: new Date() 
             });
