@@ -36,7 +36,7 @@ export const createTransaction = async (cart: CartItem[], activeShift: Shift, st
       shift_id: activeShift.id,
       status: 'paid',
       items: cart.map(item => ({
-        id: `${transactionId}-${item.id}`,
+        id: `${transactionId}-${item.cartItemId}`,
         transaction_id: transactionId,
         product_snapshot: {
             id: item.id,

@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -75,17 +76,17 @@ export function TransactionDetailDialog({ transaction, onOpenChange }: Transacti
                         <span>Invoice: {transaction.invoice_number}</span>
                          <Badge variant={transaction.status === 'voided' ? 'destructive' : 'secondary'}>{transaction.status.toUpperCase()}</Badge>
                     </DialogTitle>
-                    <DialogDescription>
+                    <div className="text-sm text-muted-foreground">
                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
                             <span>{format(new Date(transaction.created_at), 'PPPPp')}</span>
                             {transaction.shift_id && (
-                                <span className="flex items-center gap-1.5 text-xs text-muted-foreground mt-1 sm:mt-0">
+                                <span className="flex items-center gap-1.5 text-xs mt-1 sm:mt-0">
                                     <Clock className="h-3 w-3" />
                                     Shift: {format(new Date(transaction.shift_id), 'p')}
                                 </span>
                             )}
                         </div>
-                    </DialogDescription>
+                    </div>
                 </DialogHeader>
                 <div className="py-4 space-y-6 max-h-[60vh] overflow-y-auto pr-2">
                     {/* Items List */}
