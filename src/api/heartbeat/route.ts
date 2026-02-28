@@ -16,36 +16,50 @@ export async function POST(request: Request) {
         const body = await request.json().catch(() => ({}));
         const { token, deviceId } = body;
         
-        console.log('[Heartbeat API] Received request:', { deviceId: deviceId ? `${deviceId.substring(0,10)}...` : 'N/A', hasToken: !!token });
+        console.log(`[Heartbeat API] Received request. DeviceID: ${deviceId ? `${deviceId.substring(0,10)}...` : 'N/A'}. Has Token: ${!!token}`);
 
         // If client is unlicensed, check if there's a license ready for them to activate.
         if (!token && deviceId) {
-             console.log(`[Heartbeat API] Unlicensed client. Checking for a resolved ticket for device ${deviceId.substring(0,10)}...`);
+             console.log(`[Heartbeat API] Unlicensed client. Starting ticket lookup for device...`);
              const ticketsRef = db.collection('paymentTickets');
              
-             // More robust query: only filter by deviceId to avoid silent failures from missing composite indexes.
              const ticketQuery = ticketsRef.where('deviceId', '==', deviceId);
              const ticketSnapshot = await ticketQuery.get();
 
-             if (!ticketSnapshot.empty) {
-                // Now filter in memory to find the correct ticket.
-                const allDeviceTickets = ticketSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                 
-                 // Find the latest, resolved, unclaimed ticket
-                 const sortedResolvedTickets = allDeviceTickets
-                     .filter(ticket => ticket.status === 'resolved' && !ticket.claimedAt)
-                     .sort((a, b) => b.createdAt.toDate().getTime() - a.createdAt.toDate().getTime());
+             console.log(`[Heartbeat API] Firestore query completed. Found ${ticketSnapshot.size} total ticket(s) for this device.`);
 
-                 if (sortedResolvedTickets.length > 0) {
-                     const ticketToActivate = sortedResolvedTickets[0];
-                     console.log(`[Heartbeat API] SUCCESS: Found resolved, unclaimed ticket ${ticketToActivate.id}. Instructing client to activate.`);
+             if (!ticketSnapshot.empty) {
+                // Map all found tickets and log their raw data for inspection.
+                const allDeviceTickets = ticketSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                console.log('[Heartbeat API] Raw data of found tickets:', JSON.stringify(allDeviceTickets, (key, value) => {
+                    // Firestore Timestamps can be complex objects, so we'll just show them as ISO strings
+                    if (value && value.toDate) {
+                        return value.toDate().toISOString();
+                    }
+                    return value;
+                }, 2));
+
+                 // Filter in memory to find the correct ticket.
+                 const resolvedAndUnclaimedTickets = allDeviceTickets.filter(ticket => {
+                    const isResolved = ticket.status === 'resolved';
+                    const isUnclaimed = !ticket.claimedAt; // This is true if claimedAt is null, undefined, or an empty string.
+                    console.log(`[Heartbeat API] Checking ticket ${ticket.id}: status='${ticket.status}' (isResolved: ${isResolved}), claimedAt='${ticket.claimedAt}' (isUnclaimed: ${isUnclaimed})`);
+                    return isResolved && isUnclaimed;
+                 });
+                 
+                 console.log(`[Heartbeat API] Found ${resolvedAndUnclaimedTickets.length} 'resolved' and 'unclaimed' tickets after filtering.`);
+
+                 if (resolvedAndUnclaimedTickets.length > 0) {
+                     // Sort to get the most recent one
+                     resolvedAndUnclaimedTickets.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+                     const ticketToActivate = resolvedAndUnclaimedTickets[0];
+
+                     console.log(`[Heartbeat API] SUCCESS: Selected latest ticket ${ticketToActivate.id}. Instructing client to activate.`);
                      return NextResponse.json({ status: 'activation_required', ticketId: ticketToActivate.id }, { status: 200 });
                  } else {
-                     console.log(`[Heartbeat API] No 'resolved' and 'unclaimed' tickets found for this device.`);
+                     console.log(`[Heartbeat API] No actionable tickets found after filtering.`);
                  }
 
-             } else {
-                 console.log(`[Heartbeat API] No tickets of any status found for this device.`);
              }
         }
 
@@ -88,11 +102,11 @@ export async function POST(request: Request) {
         }
 
         // Default response for a simple heartbeat or if no action is needed
-        console.log('[Heartbeat API] Returning default "ok" status.');
+        console.log('[Heartbeat API] No specific action taken. Returning default "ok" status.');
         return NextResponse.json({ status: 'ok' }, { status: 200 });
 
     } catch (error: any) {
-        console.error('[Heartbeat API] FATAL Error:', error.message);
+        console.error('[Heartbeat API] FATAL Error:', error.stack); // Log stack trace
         return NextResponse.json({ error: 'Server error during heartbeat.' }, { status: 500 });
     }
 }
