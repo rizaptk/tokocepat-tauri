@@ -36,6 +36,8 @@ export async function getPaymentTicketsAction(): Promise<{ tickets: PaymentTicke
                 ...data,
                 createdAt: data.createdAt.toDate().toISOString(),
                 updatedAt: data.updatedAt.toDate().toISOString(),
+                // Safely serialize the claimedAt timestamp if it exists
+                claimedAt: data.claimedAt ? data.claimedAt.toDate().toISOString() : undefined,
             } as PaymentTicket
         });
         return { tickets };
@@ -99,15 +101,12 @@ export async function updateTicketStatusAction(data: TicketStatusUpdate): Promis
                 finalLicenseKey = licenseDoc.data().key;
                 const licenseData = licenseDoc.data();
                 
-                // --- SAFELY DETERMINE START DATE ---
-                let startDate = new Date(); // Default to now
-                // Only if expiresAt exists and is in the future, we extend from there.
+                let startDate = new Date();
                 if (licenseData.expiresAt && licenseData.expiresAt.toDate() > startDate) {
                     startDate = licenseData.expiresAt.toDate();
                 }
-                // ------------------------------------
 
-                let newExpiresAt: Date | null = new Date(startDate.getTime()); // Create a clean copy to avoid mutation issues
+                let newExpiresAt: Date | null = new Date(startDate.getTime());
                 
                 if (purchasedPlan.durationDays > 0) {
                      newExpiresAt.setDate(newExpiresAt.getDate() + purchasedPlan.durationDays);

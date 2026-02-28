@@ -1,6 +1,7 @@
 
 'use client';
 
+import Link from 'next/link';
 import { useActionState, useEffect, useRef, useState, useTransition } from 'react';
 import { useFormStatus } from 'react-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -8,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Send, Loader2, Check, Info, WifiOff, Zap, Clock, RefreshCw } from "lucide-react";
+import { Send, Loader2, Check, Info, WifiOff, Zap, Clock, RefreshCw, CheckCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { submitPaymentTicketAction, type FormState, getPublicSettings, activateTrialAction, getTicketStatusForDevice } from '../_actions';
 import { SubscriptionPlan, PaymentInstructions, PaymentTicket } from '@/lib/types';
@@ -18,7 +19,7 @@ import { generateDeviceFingerprint } from '@/lib/security';
 import { saveLicenseData } from '@/services/dataService';
 import { formatDistanceToNow } from 'date-fns';
 
-type TicketStatusInfo = { status: PaymentTicket['status']; plan: string; createdAt: string; };
+type TicketStatusInfo = { ticketId: string; status: PaymentTicket['status']; plan: string; createdAt: string; };
 
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat('id-ID', {
@@ -95,8 +96,8 @@ const TicketStatusCard = ({ statusInfo, onRefresh }: { statusInfo: TicketStatusI
             icon: <Loader2 className="h-10 w-10 text-blue-500 animate-spin" />,
         },
         resolved: {
-            title: "License Resolved!",
-            description: "Your license has been approved! The app will reload shortly to apply it.",
+            title: "Your License is Ready!",
+            description: "Your payment has been approved. Please review the terms and activate your subscription.",
             icon: <Check className="h-10 w-10 text-green-500" />,
         }
     };
@@ -119,10 +120,19 @@ const TicketStatusCard = ({ statusInfo, onRefresh }: { statusInfo: TicketStatusI
                 </div>
             </CardContent>
             <CardFooter>
-                <Button variant="outline" className="w-full" onClick={handleRefresh} disabled={isRefreshing}>
-                    {isRefreshing ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <RefreshCw className="mr-2 h-4 w-4" />}
-                    Refresh Status
-                </Button>
+                {statusInfo.status === 'resolved' ? (
+                     <Button asChild className="w-full" size="lg">
+                        <Link href={`/aktivasi?ticket=${statusInfo.ticketId}`}>
+                            <CheckCircle className="mr-2 h-4 w-4" />
+                            Review and Activate
+                        </Link>
+                    </Button>
+                ) : (
+                    <Button variant="outline" className="w-full" onClick={handleRefresh} disabled={isRefreshing}>
+                        {isRefreshing ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <RefreshCw className="mr-2 h-4 w-4" />}
+                        Refresh Status
+                    </Button>
+                )}
             </CardFooter>
         </Card>
     );
@@ -168,23 +178,17 @@ export function SubscriptionManager() {
         setIsTrialUsed(trialHasBeenUsed);
         
         try {
-            const response = await fetch('/api/heartbeat', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ deviceId: generatedDeviceId }),
-            });
+            // A simple fetch to check online status. The heartbeat route is fine for this.
+            await fetch('/api/heartbeat', { method: 'HEAD' });
             
-            if (response.ok) {
-                setIsOnline(true);
-                const [data, status] = await Promise.all([
-                    getPublicSettings(),
-                    getTicketStatusForDevice(generatedDeviceId)
-                ]);
-                setSettings(data);
-                setTicketStatus(status);
-            } else {
-                setIsOnline(false);
-            }
+            setIsOnline(true);
+            const [data, status] = await Promise.all([
+                getPublicSettings(),
+                getTicketStatusForDevice(generatedDeviceId)
+            ]);
+            setSettings(data);
+            setTicketStatus(status);
+
         } catch (error) {
             setIsOnline(false);
         } finally {
@@ -205,7 +209,8 @@ export function SubscriptionManager() {
              setTicketStatus({
                 status: 'pending',
                 plan: selectedPlan!.name,
-                createdAt: new Date().toISOString()
+                createdAt: new Date().toISOString(),
+                ticketId: '' // We don't have the ID client-side, but it's okay for the UI state
             });
             formRef.current?.reset();
             setFormValues({

@@ -197,7 +197,7 @@ export async function activateTrialAction(planId: string, deviceId: string): Pro
     }
 }
 
-export async function getTicketStatusForDevice(deviceId: string): Promise<{ status: PaymentTicket['status']; plan: string; createdAt: string } | null> {
+export async function getTicketStatusForDevice(deviceId: string): Promise<{ ticketId: string; status: PaymentTicket['status']; plan: string; createdAt: string } | null> {
     if (!deviceId) return null;
     try {
         const snapshot = await db.collection('paymentTickets')
@@ -209,7 +209,7 @@ export async function getTicketStatusForDevice(deviceId: string): Promise<{ stat
         }
         
         // Sort in memory to get the latest ticket, as orderBy can require a composite index
-        const tickets = snapshot.docs.map(doc => doc.data());
+        const tickets = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         tickets.sort((a, b) => b.createdAt.toDate().getTime() - a.createdAt.toDate().getTime());
 
         const ticket = tickets[0]; // Get the most recent one
@@ -220,6 +220,7 @@ export async function getTicketStatusForDevice(deviceId: string): Promise<{ stat
         }
 
         return {
+            ticketId: ticket.id,
             status: ticket.status as PaymentTicket['status'],
             plan: ticket.plan,
             createdAt: ticket.createdAt.toDate().toISOString(),

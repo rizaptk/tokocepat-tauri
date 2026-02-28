@@ -10,7 +10,6 @@ export async function POST(request: Request) {
     const secret = new TextEncoder().encode(
       process.env.JWT_SECRET_KEY || 'a_very_insecure_default_secret_key_for_development_only'
     );
-    const alg = 'HS256';
 
     try {
         const body = await request.json().catch(() => ({}));
@@ -22,7 +21,6 @@ export async function POST(request: Request) {
         }
 
         let sessionData: any;
-        let licenseIsStillValid = false;
 
         if (!token) {
             // Case 1: No token provided (unlicensed client pinging)
@@ -68,11 +66,9 @@ export async function POST(request: Request) {
                     plan,
                     lastSeen: admin.firestore.FieldValue.serverTimestamp(),
                 };
-                licenseIsStillValid = true;
 
             } catch (e: any) {
                 // Case 3: Token verification failed
-                licenseIsStillValid = false;
                 console.warn(`Heartbeat JWT verification failed for device ${deviceId}. Reason: ${e.code || e.message}.`);
                 
                 // Decode for logging purposes only to see what key failed
@@ -94,60 +90,11 @@ export async function POST(request: Request) {
             }
         }
         
-        // Save the constructed session data. Using .set() without merge ensures the document is always consistent.
+        // Save the constructed session data.
         const sessionRef = db.collection('online_sessions').doc(deviceId);
         await sessionRef.set(sessionData);
 
-        // Check for resolved payment tickets for this device if it's unlicensed or has an invalid token
-        if (!token || !licenseIsStillValid) {
-            const ticketsRef = db.collection('paymentTickets');
-            const ticketQuery = ticketsRef
-                .where('deviceId', '==', deviceId)
-                .where('status', '==', 'resolved')
-                .where('claimedAt', '==', null) // Check if not already claimed
-                .limit(1);
-            
-            const ticketSnapshot = await ticketQuery.get();
-            if (!ticketSnapshot.empty) {
-                const ticketDoc = ticketSnapshot.docs[0];
-                const ticketData = ticketDoc.data();
-                const resolvedLicenseKey = ticketData.licenseKey;
-
-                // Find the actual license details
-                const licenseSnap = await db.collection('licenses').where('key', '==', resolvedLicenseKey).limit(1).get();
-                if (!licenseSnap.empty) {
-                    const licenseDoc = licenseSnap.docs[0];
-                    const licenseData = licenseDoc.data();
-                    
-                    // --- Create a NEW SIGNED JWT for the client ---
-                    const jwtPayload: any = {
-                        sub: licenseData.key,
-                        deviceId: deviceId,
-                        plan: licenseData.plan,
-                        isTrial: false, // Assuming tickets are for non-trial plans
-                    };
-                    
-                    const jwtBuilder = new jose.SignJWT(jwtPayload)
-                        .setProtectedHeader({ alg })
-                        .setIssuedAt()
-                        .setSubject(licenseData.key);
-
-                    if (licenseData.expiresAt) {
-                        jwtBuilder.setExpirationTime(Math.floor(licenseData.expiresAt.toDate().getTime() / 1000));
-                    }
-
-                    const newToken = await jwtBuilder.sign(secret);
-                    
-                    // Mark the ticket as claimed
-                    await ticketDoc.ref.update({ claimedAt: admin.firestore.FieldValue.serverTimestamp() });
-
-                    // Return the new token to the client
-                    return NextResponse.json({ token: newToken, status: 'ok_activated' }, { status: 200 });
-                }
-            }
-        }
-
-        // Default response if no new token is issued
+        // Default response for a simple heartbeat
         return NextResponse.json({ status: 'ok' }, { status: 200 });
 
     } catch (error: any) {
