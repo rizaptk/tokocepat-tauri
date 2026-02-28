@@ -38,7 +38,7 @@ export async function claimLicenseAction(ticketId: string, deviceId: string): Pr
         if (licenseId) {
             const docRef = db.collection('licenses').doc(licenseId);
             const docSnap = await docRef.get();
-            if (docSnap.exists()) {
+            if (docSnap.exists) {
                 licenseDoc = docSnap;
             }
         }
