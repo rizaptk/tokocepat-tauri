@@ -124,6 +124,11 @@ export default function AdminTicketsPage() {
             toast({ variant: 'destructive', title: 'Error', description: result.error });
         }
     };
+
+    const pendingCount = tickets.filter(t => t.status === 'pending').length;
+    const processingCount = tickets.filter(t => t.status === 'processing').length;
+    const resolvedCount = tickets.filter(t => t.status === 'resolved').length;
+    const rejectedCount = tickets.filter(t => t.status === 'rejected').length;
     
     const renderTicketList = (status: TicketStatus) => {
         const filteredTickets = tickets.filter(t => t.status === status);
@@ -167,11 +172,23 @@ export default function AdminTicketsPage() {
             </div>
 
              <Tabs defaultValue="pending" className="mt-4">
-                <TabsList>
-                    <TabsTrigger value="pending">Pending</TabsTrigger>
-                    <TabsTrigger value="processing">Processing</TabsTrigger>
-                    <TabsTrigger value="resolved">Resolved</TabsTrigger>
-                     <TabsTrigger value="rejected">Rejected</TabsTrigger>
+                <TabsList className="grid w-full grid-cols-2 md:grid-cols-4">
+                    <TabsTrigger value="pending">
+                        Pending
+                        {pendingCount > 0 && <Badge variant="secondary" className="ml-2">{pendingCount}</Badge>}
+                    </TabsTrigger>
+                    <TabsTrigger value="processing">
+                        Processing
+                        {processingCount > 0 && <Badge variant="secondary" className="ml-2 bg-blue-600/20 text-blue-800">{processingCount}</Badge>}
+                    </TabsTrigger>
+                    <TabsTrigger value="resolved">
+                        Resolved
+                        {resolvedCount > 0 && <Badge variant="secondary" className="ml-2 bg-green-600/20 text-green-800">{resolvedCount}</Badge>}
+                    </TabsTrigger>
+                     <TabsTrigger value="rejected">
+                        Rejected
+                        {rejectedCount > 0 && <Badge variant="destructive" className="ml-2">{rejectedCount}</Badge>}
+                    </TabsTrigger>
                 </TabsList>
                 <TabsContent value="pending" className="mt-4">{renderTicketList('pending')}</TabsContent>
                 <TabsContent value="processing" className="mt-4">{renderTicketList('processing')}</TabsContent>
