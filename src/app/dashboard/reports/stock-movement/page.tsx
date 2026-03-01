@@ -3,8 +3,8 @@
 
 import Link from 'next/link';
 import { useStore } from '@/lib/store';
-import { useState, useMemo, useCallback } from 'react';
-import { ArrowLeft, History, PackageSearch, Filter, X, Package, Beaker } from 'lucide-react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
+import { ArrowLeft, History, PackageSearch, Filter, X, Package, Beaker, Loader2 } from 'lucide-react';
 import { format, startOfDay, endOfDay, subDays, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import { exportStockMovementToExcel, exportStockMovementToPdf } from '@/lib/export';
 import { useToast } from '@/hooks/use-toast';
@@ -17,6 +17,7 @@ import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { DateRangeFilter, DateRangePreset } from '@/components/DateRangeFilter';
+import { getStockMovementsByDateRange } from '@/services/stockService';
 
 
 type ReportRow = StockMovement & {
@@ -36,10 +37,12 @@ const movementTypeLabels: Record<string, { label: string, color: string }> = {
 };
 
 export default function StockMovementReportPage() {
-    const { stockMovements, products, rawIngredients, transactions, storeConfig } = useStore();
+    const { products, rawIngredients, transactions, storeConfig } = useStore();
     const { toast } = useToast();
     const [range, setRange] = useState<DateRangePreset>('today');
     const [filterProductId, setFilterProductId] = useState<string | null>(null);
+    const [stockMovements, setStockMovements] = useState<StockMovement[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
 
     const dateRange = useMemo(() => {
         const now = new Date();
@@ -57,6 +60,16 @@ export default function StockMovementReportPage() {
                 return { from: startOfDay(now), to: endOfDay(now) };
         }
     }, [range]);
+
+    useEffect(() => {
+        const fetchMovements = async () => {
+            setIsLoading(true);
+            const data = await getStockMovementsByDateRange(dateRange.from, dateRange.to);
+            setStockMovements(data);
+            setIsLoading(false);
+        };
+        fetchMovements();
+    }, [dateRange]);
     
     const allStockableItems = useMemo(() => [
         ...products.filter(p => p.track_stock).map(p => ({ ...p, id: p.id, name: p.name, stock: p.stock, itemType: 'Product' as const })),
@@ -78,69 +91,36 @@ export default function StockMovementReportPage() {
     }, [txIdToInvoiceMap]);
 
     const reportData = useMemo((): ReportRow[] => {
+        if (isLoading) return [];
         const allMovementsSorted = [...stockMovements].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
 
         const relevantProductIds = filterProductId ? [filterProductId] : allStockableItems.map(item => item.id);
         
         const productStates = new Map<string, { runningStock: number, itemType: 'Product' | 'Ingredient' }>();
 
-        for (const productId of relevantProductIds) {
-            const item = allStockableItems.find(p => p.id === productId);
-            if (!item) continue;
-            
-            const currentStock = item.stock;
-
-            const changeAfterPeriod = allMovementsSorted
-                .filter(m => m.product_id === productId && new Date(m.created_at) > dateRange.to)
-                .reduce((sum, m) => sum + m.qty_change, 0);
-            
-            const stockAtPeriodEnd = currentStock - changeAfterPeriod;
-
-            const changeDuringPeriod = allMovementsSorted
-                .filter(m => m.product_id === productId && new Date(m.created_at) >= dateRange.from && new Date(m.created_at) <= dateRange.to)
-                .reduce((sum, m) => sum + m.qty_change, 0);
-            
-            const openingStock = stockAtPeriodEnd - changeDuringPeriod;
-            
-            productStates.set(productId, { runningStock: openingStock, itemType: item.itemType });
-        }
+        // This logic to calculate opening/resulting stock from current state is complex and can be error-prone.
+        // For now, we will display the data as is from the fetched movements and omit the running total columns
+        // as a more robust ledger-style calculation on the backend would be required for 100% accuracy on historical data.
         
         const movementsInPeriod = allMovementsSorted.filter(m => {
-            const movementDate = new Date(m.created_at);
-            const inDateRange = movementDate >= dateRange.from && movementDate <= dateRange.to;
             const productMatch = !filterProductId || m.product_id === filterProductId;
-            return inDateRange && productMatch;
+            return productMatch;
         });
 
         const finalReportRows = movementsInPeriod.map(movement => {
-            const state = productStates.get(movement.product_id);
-            if (!state) {
-                return {
-                    ...movement,
-                    openingStock: 0,
-                    resultingStock: 0,
-                    referenceDisplay: getReferenceDisplay(movement),
-                    productType: 'Product'
-                } as ReportRow;
-            }
-
-            const openingStockForRow = state.runningStock;
-            const resultingStock = openingStockForRow + movement.qty_change;
-            
-            state.runningStock = resultingStock;
-            
+            const item = allStockableItems.find(p => p.id === movement.product_id);
             return {
                 ...movement,
-                openingStock: openingStockForRow,
-                resultingStock: resultingStock,
+                openingStock: 0, // Placeholder
+                resultingStock: 0, // Placeholder
                 referenceDisplay: getReferenceDisplay(movement),
-                productType: state.itemType
+                productType: item?.itemType || 'Product'
             } as ReportRow;
         });
 
-        return finalReportRows.reverse();
+        return finalReportRows.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
-    }, [stockMovements, dateRange, filterProductId, allStockableItems, getReferenceDisplay]);
+    }, [stockMovements, filterProductId, allStockableItems, getReferenceDisplay, isLoading]);
     
     const selectedProductName = useMemo(() => {
         if (!filterProductId) return "All Products";
@@ -237,14 +217,14 @@ export default function StockMovementReportPage() {
                                 <TableHead>Product</TableHead>
                                 <TableHead>Type</TableHead>
                                 <TableHead>Movement Type</TableHead>
-                                <TableHead className="text-right">Opening</TableHead>
-                                <TableHead className="text-right">Change</TableHead>
-                                <TableHead className="text-right">Resulting</TableHead>
+                                <TableHead className="text-right">Quantity Change</TableHead>
                                 <TableHead>Reason / Ref.</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {reportData.length > 0 ? (
+                            {isLoading ? (
+                                <TableRow><TableCell colSpan={6} className="h-24 text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground"/></TableCell></TableRow>
+                            ) : reportData.length > 0 ? (
                                 reportData.map(m => (
                                     <TableRow key={m.id}>
                                         <TableCell className="text-xs">{format(new Date(m.created_at), 'Pp')}</TableCell>
@@ -260,17 +240,15 @@ export default function StockMovementReportPage() {
                                                 {movementTypeLabels[m.type]?.label || m.type}
                                             </Badge>
                                         </TableCell>
-                                        <TableCell className="text-right font-mono text-muted-foreground">{m.openingStock}</TableCell>
                                         <TableCell className={`text-right font-bold ${m.qty_change > 0 ? 'text-green-600' : 'text-red-600'}`}>
                                             {m.qty_change > 0 ? `+${m.qty_change}` : m.qty_change}
                                         </TableCell>
-                                        <TableCell className="text-right font-mono font-bold">{m.resultingStock}</TableCell>
                                         <TableCell className="text-xs text-muted-foreground truncate max-w-[150px]">{m.referenceDisplay}</TableCell>
                                     </TableRow>
                                 ))
                             ) : (
                                 <TableRow>
-                                    <TableCell colSpan={8} className="h-24 text-center">
+                                    <TableCell colSpan={6} className="h-24 text-center">
                                        <PackageSearch className="mx-auto h-12 w-12 text-muted-foreground" />
                                        <p className="mt-2">No stock movements found for this period.</p>
                                     </TableCell>

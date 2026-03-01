@@ -2,10 +2,9 @@
 'use client';
 
 import Link from 'next/link';
-import { useState, useMemo } from 'react';
-import { useStore } from '@/lib/store';
+import { useState, useMemo, useEffect } from 'react';
 import { endOfDay, startOfDay, subDays, format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
-import { ArrowLeft, BarChart2, DollarSign, ReceiptText, Landmark, Search } from 'lucide-react';
+import { ArrowLeft, BarChart2, DollarSign, ReceiptText, Landmark, Search, Loader2 } from 'lucide-react';
 import { exportSalesToExcel, exportSalesToPdf } from '@/lib/export';
 
 import { Button } from '@/components/ui/button';
@@ -15,6 +14,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Transaction } from '@/lib/types';
 import { TransactionDetailDialog } from '@/components/TransactionDetailDialog';
 import { DateRangeFilter, DateRangePreset } from '@/components/DateRangeFilter';
+import { getTransactionsByDateRange } from '@/services/transactionService';
+import { useStore } from '@/lib/store';
 
 
 const formatCurrency = (amount: number) => {
@@ -29,7 +30,9 @@ export default function SalesReportPage() {
     const [range, setRange] = useState<DateRangePreset>('today');
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
-    const { transactions, storeConfig } = useStore();
+    const [transactions, setTransactions] = useState<Transaction[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const { storeConfig } = useStore();
 
     const dateRange = useMemo(() => {
         const now = new Date();
@@ -48,43 +51,58 @@ export default function SalesReportPage() {
         }
     }, [range]);
 
+    useEffect(() => {
+        const fetchTransactions = async () => {
+            setIsLoading(true);
+            const data = await getTransactionsByDateRange(dateRange.from, dateRange.to);
+            setTransactions(data);
+            setIsLoading(false);
+        };
+        fetchTransactions();
+    }, [dateRange]);
+
     const filteredTransactions = useMemo(() => {
-        return transactions.filter(tx => {
-            const txDate = new Date(tx.created_at);
-            const isInDateRange = txDate >= dateRange.from && txDate <= dateRange.to;
-            const matchesSearch = searchTerm.trim() === '' || tx.invoice_number.toLowerCase().includes(searchTerm.toLowerCase());
-            return tx.status === 'paid' && isInDateRange && matchesSearch;
-        });
-    }, [transactions, dateRange, searchTerm]);
+        // We filter the already date-filtered data, but only for 'paid' status here
+        const paidTransactions = transactions.filter(tx => tx.status === 'paid');
+        if (!searchTerm.trim()) return paidTransactions;
+        return paidTransactions.filter(tx => 
+            tx.invoice_number.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+    }, [transactions, searchTerm]);
 
-    const totalRevenue = filteredTransactions.reduce((sum, tx) => sum + tx.total, 0);
-    const totalSubtotal = filteredTransactions.reduce((sum, tx) => sum + tx.subtotal, 0);
-    const totalTax = filteredTransactions.reduce((sum, tx) => sum + tx.tax_amount, 0);
-    const totalCost = filteredTransactions.reduce((sum, tx) => {
-        return sum + tx.items.reduce((itemSum, item) => {
-            return itemSum + ((item.cost_snapshot || 0) * item.qty);
+    const stats = useMemo(() => {
+        const paidTransactions = transactions.filter(tx => tx.status === 'paid');
+        const totalRevenue = paidTransactions.reduce((sum, tx) => sum + tx.total, 0);
+        const totalSubtotal = paidTransactions.reduce((sum, tx) => sum + tx.subtotal, 0);
+        const totalTax = paidTransactions.reduce((sum, tx) => sum + tx.tax_amount, 0);
+        const totalCost = paidTransactions.reduce((sum, tx) => {
+            return sum + tx.items.reduce((itemSum, item) => {
+                return itemSum + ((item.cost_snapshot || 0) * item.qty);
+            }, 0);
         }, 0);
-    }, 0);
-    const totalProfit = totalSubtotal - totalCost;
+        const totalProfit = totalSubtotal - totalCost;
 
-    const stats = [
-        { title: 'Total Revenue', value: formatCurrency(totalRevenue), icon: DollarSign },
-        { title: 'Total Profit', value: formatCurrency(totalProfit), icon: DollarSign },
-        { title: 'Total Tax', value: formatCurrency(totalTax), icon: Landmark },
-        { title: 'Transactions', value: filteredTransactions.length, icon: ReceiptText },
-    ];
+        return [
+            { title: 'Total Revenue', value: formatCurrency(totalRevenue), icon: DollarSign },
+            { title: 'Total Profit', value: formatCurrency(totalProfit), icon: DollarSign },
+            { title: 'Total Tax', value: formatCurrency(totalTax), icon: Landmark },
+            { title: 'Transactions', value: paidTransactions.length, icon: ReceiptText },
+        ];
+    }, [transactions]);
     
     const handleExcelExport = () => {
+        const paidTransactions = transactions.filter(tx => tx.status === 'paid');
         if (storeConfig) {
-            exportSalesToExcel(filteredTransactions, dateRange, storeConfig.store_name);
+            exportSalesToExcel(paidTransactions, dateRange, storeConfig.store_name);
         } else {
             alert("Store configuration not found.");
         }
     };
     
     const handlePdfExport = () => {
+        const paidTransactions = transactions.filter(tx => tx.status === 'paid');
         if (storeConfig) {
-            exportSalesToPdf(filteredTransactions, dateRange, storeConfig.store_name);
+            exportSalesToPdf(paidTransactions, dateRange, storeConfig.store_name);
         } else {
             alert("Store configuration not found.");
         }
@@ -110,7 +128,7 @@ export default function SalesReportPage() {
                     onRangeChange={setRange}
                     onExportExcel={handleExcelExport}
                     onExportPdf={handlePdfExport}
-                    hasData={filteredTransactions.length > 0}
+                    hasData={transactions.length > 0}
                 />
            </header>
           <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
@@ -134,7 +152,7 @@ export default function SalesReportPage() {
                         <div>
                             <CardTitle>Transaction Details</CardTitle>
                             <CardDescription>
-                                Showing {filteredTransactions.length} transactions from {format(dateRange.from, 'PPP')} to {format(dateRange.to, 'PPP')}.
+                                Showing {transactions.filter(t => t.status === 'paid').length} transactions from {format(dateRange.from, 'PPP')} to {format(dateRange.to, 'PPP')}.
                             </CardDescription>
                         </div>
                          <div className="relative w-full md:w-64">
@@ -163,7 +181,9 @@ export default function SalesReportPage() {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {filteredTransactions.length > 0 ? (
+                            {isLoading ? (
+                                <TableRow><TableCell colSpan={7} className="h-24 text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" /></TableCell></TableRow>
+                            ) : filteredTransactions.length > 0 ? (
                                 filteredTransactions.map((tx: Transaction) => {
                                     const txCost = tx.items.reduce((itemSum, item) => itemSum + ((item.cost_snapshot || 0) * item.qty), 0);
                                     const txProfit = tx.subtotal - txCost;

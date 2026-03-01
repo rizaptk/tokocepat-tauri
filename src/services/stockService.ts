@@ -1,7 +1,25 @@
 
-import { Product, StockMovement, StockMovementType } from '@/lib/types';
+import { Product, StockMovement, StockMovementType, RawIngredient } from '@/lib/types';
 import { useDbStore } from '@/lib/db-store';
 import { useStore } from '@/lib/store';
+
+export const getStockMovementsByDateRange = async (from: Date, to: Date): Promise<StockMovement[]> => {
+    const { db, firesqlite } = useDbStore.getState();
+    if (!db || !firesqlite) throw new Error("Database not initialized");
+
+    const { collection, query, where, getDocs, orderBy } = firesqlite;
+    
+    const movementsRef = collection(db, 'stock_movements');
+    const q = query(
+        movementsRef,
+        where('created_at', '>=', from.toISOString()),
+        where('created_at', '<=', to.toISOString()),
+        orderBy('created_at', 'desc')
+    );
+
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map((doc: any) => doc.data() as StockMovement);
+};
 
 type AdjustmentData = {
     product_id: string;
@@ -28,7 +46,7 @@ export const adjustStock = async (data: AdjustmentData): Promise<void> => {
     let qtyChange = data.qty_change;
 
     // For non-correction types, enforce sign
-    if (data.type === 'restock') {
+    if (data.type === 'restock' || data.type === 'initial_balance') {
         qtyChange = Math.abs(qtyChange);
     } else if (data.type === 'lost' || data.type === 'damaged') {
         qtyChange = -Math.abs(qtyChange);
@@ -69,7 +87,7 @@ export const adjustIngredientStock = async (ingredientId: string, type: StockMov
     if (!ingredient) throw new Error("Ingredient not found");
 
     const now = new Date().toISOString();
-    const movementId = `sm-${crypto.randomUUID().slice(0, 8)}`;
+    const movementId = `sm-ing-${crypto.randomUUID().slice(0, 8)}`;
 
     let finalQtyChange = qty_change;
     if (type === 'restock' || type === 'initial_balance') {

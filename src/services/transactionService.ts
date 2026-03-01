@@ -4,6 +4,24 @@ import { useDbStore } from '@/lib/db-store';
 import { useStore } from '@/lib/store';
 import { toast } from '@/hooks/use-toast';
 
+export const getTransactionsByDateRange = async (from: Date, to: Date): Promise<Transaction[]> => {
+    const { db, firesqlite } = useDbStore.getState();
+    if (!db || !firesqlite) throw new Error("Database not initialized");
+
+    const { collection, query, where, getDocs, orderBy } = firesqlite;
+    
+    const transactionsRef = collection(db, 'transactions');
+    const q = query(
+        transactionsRef,
+        where('created_at', '>=', from.toISOString()),
+        where('created_at', '<=', to.toISOString()),
+        orderBy('created_at', 'desc')
+    );
+
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map((doc: any) => doc.data() as Transaction);
+};
+
 export const createTransaction = async (cart: CartItem[], activeShift: Shift, storeConfig: StoreConfig, cashReceived: number): Promise<Transaction | null> => {
     const { db, firesqlite } = useDbStore.getState();
     const { recipes } = useStore.getState();
@@ -26,9 +44,9 @@ export const createTransaction = async (cart: CartItem[], activeShift: Shift, st
         return null;
     }
 
-    // const now = new Date();
-    const transactionId = crypto.randomUUID();
-    const invoiceNumber = `INV-${crypto.randomUUID().slice(0, 8)}`;
+    const createdAt = new Date().toISOString();
+    const transactionId = `tx-${crypto.randomUUID().slice(0, 8)}`;
+    const invoiceNumber = `INV-${createdAt.substring(5,7)}${createdAt.substring(8,10)}-${crypto.randomUUID().slice(0,4).toUpperCase()}`;
 
     const newTransaction: Transaction = {
       id: transactionId,
@@ -36,7 +54,7 @@ export const createTransaction = async (cart: CartItem[], activeShift: Shift, st
       shift_id: activeShift.id,
       status: 'paid',
       items: cart.map(item => ({
-        id: `${transactionId}-${item.cartItemId}`,
+        id: `tx-item-${crypto.randomUUID().slice(0, 8)}`,
         transaction_id: transactionId,
         product_snapshot: {
             id: item.id,
@@ -62,7 +80,7 @@ export const createTransaction = async (cart: CartItem[], activeShift: Shift, st
       total,
       cash_paid: cashReceived,
       change: cashReceived - total,
-      created_at: transactionId,
+      created_at: createdAt,
     };
 
     // --- Database Operations ---
@@ -82,7 +100,7 @@ export const createTransaction = async (cart: CartItem[], activeShift: Shift, st
                         const quantityToDeduct = recipeItem.quantity * cartItem.quantity;
                         await updateDoc(ingredientRef, { stock_qty: ingredient.stock_qty - quantityToDeduct });
 
-                        const movementId = `${transactionId}-${ingredient.id}-sale`;
+                        const movementId = `sm-${transactionId}-${ingredient.id}`;
                         const stockMovement: StockMovement = {
                             id: movementId,
                             product_id: ingredient.id, // Using product_id to store ingredient_id
@@ -91,7 +109,7 @@ export const createTransaction = async (cart: CartItem[], activeShift: Shift, st
                             qty_change: -quantityToDeduct,
                             reason: `Sale of composite: ${cartItem.name}`,
                             reference_id: transactionId,
-                            created_at: transactionId,
+                            created_at: createdAt,
                         };
                         await setDoc(doc(db, 'stock_movements', movementId), stockMovement);
                     }
@@ -105,7 +123,7 @@ export const createTransaction = async (cart: CartItem[], activeShift: Shift, st
                 const currentStock = productSnap.data().stock;
                 await updateDoc(productRef, { stock: currentStock - cartItem.quantity });
 
-                const movementId = `${transactionId}-${cartItem.id}-sale`;
+                const movementId = `sm-${transactionId}-${cartItem.id}`;
                 const stockMovement: StockMovement = {
                     id: movementId,
                     product_id: cartItem.id,
@@ -113,7 +131,7 @@ export const createTransaction = async (cart: CartItem[], activeShift: Shift, st
                     type: 'sale',
                     qty_change: -cartItem.quantity,
                     reference_id: transactionId,
-                    created_at: transactionId,
+                    created_at: createdAt,
                 };
                 await setDoc(doc(db, 'stock_movements', movementId), stockMovement);
             }
@@ -143,10 +161,11 @@ export const voidTransaction = async (transactionId: string, reason: string): Pr
         throw new Error("Transaction is already voided.");
     }
     
+    const now = new Date().toISOString();
     // 1. Update the transaction status
     await updateDoc(txRef, {
         status: 'voided',
-        voided_at: new Date().toISOString(),
+        voided_at: now,
         void_reason: reason,
     });
 
@@ -173,7 +192,7 @@ export const voidTransaction = async (transactionId: string, reason: string): Pr
                             qty_change: quantityToReturn,
                             reason: `Void of INV: ${transaction.invoice_number}`,
                             reference_id: transaction.id,
-                            created_at: new Date().toISOString(),
+                            created_at: now,
                         };
                         await setDoc(doc(db, 'stock_movements', movementId), stockMovement);
                     }
@@ -201,7 +220,7 @@ export const voidTransaction = async (transactionId: string, reason: string): Pr
                     qty_change: quantityToReturn,
                     reason: `Void of INV: ${transaction.invoice_number}`,
                     reference_id: transaction.id,
-                    created_at: new Date().toISOString(),
+                    created_at: now,
                 };
                 await setDoc(doc(db, 'stock_movements', movementId), stockMovement);
             }

@@ -1,9 +1,36 @@
-
 import { Product, ProductVariant, ModifierGroup, StoreConfig, Category, RawIngredient, Recipe } from '@/lib/types';
 import { initialProducts, initialVariants, initialModifierGroups, initialCategories, initialRawIngredients } from '@/lib/products';
 
 const DB_VERSION_KEY = 'tokoc_db_version';
-const CURRENT_DB_VERSION = '1.0.16'; // Added recipes
+const CURRENT_DB_VERSION = '1.0.17'; // New version for indexing
+
+async function ensureIndexes(firesqlite: any, db: any) {
+    const { createIndex, collection } = firesqlite;
+    
+    console.log("Ensuring database indexes...");
+    try {
+        await Promise.all([
+            // For transaction history ordering and filtering
+            createIndex(db, collection(db, 'transactions'), 'created_at'),
+            
+            // For stock movement report filtering
+            createIndex(db, collection(db, 'stock_movements'), 'created_at'),
+            
+            // For product category filtering
+            createIndex(db, collection(db, 'products'), 'category_id'),
+            
+            // For product search by name
+            createIndex(db, collection(db, 'products'), 'name'),
+
+            // For variants lookup by product
+            createIndex(db, collection(db, 'product_variants'), 'product_id'),
+        ]);
+        console.log("Database indexes are up to date.");
+    } catch (error) {
+        console.error("Failed to create indexes:", error);
+    }
+}
+
 
 export const seedDatabase = async (firesqlite: any, db: any) => {
     if (!firesqlite || !db) return;
@@ -12,6 +39,10 @@ export const seedDatabase = async (firesqlite: any, db: any) => {
         const { collection, doc, getDocs, setDoc, deleteDoc, writeBatch } = firesqlite;
         
         const storedVersion = localStorage.getItem(DB_VERSION_KEY);
+        
+        // Always ensure indexes are created on startup after db init
+        await ensureIndexes(firesqlite, db);
+
         if (storedVersion === CURRENT_DB_VERSION) {
             return;
         }

@@ -21,6 +21,8 @@ import { SelectedModifier } from '@/lib/types';
 import { useIsMobile } from '@/lib/ismobile-store';
 import { useGlobalBarcodeScanner } from '@/hooks/use-global-barcode-scanner';
 import { useSettingsStore } from '@/lib/settings';
+import { useDebounce } from '@/hooks/useDebounce';
+import { searchProducts } from '@/services/productService';
 
 export type ViewMode = 'card' | 'thumbnail' | 'list';
 
@@ -35,6 +37,10 @@ export default function CashierPage() {
   
   // Local state for UI
   const [searchTerm, setSearchTerm] = useState('');
+  const debouncedSearchTerm = useDebounce(searchTerm, 250);
+  const [searchedProducts, setSearchedProducts] = useState<Product[] | null>(null);
+  const [isSearching, setIsSearching] = useState(false);
+
   const [openingCash, setOpeningCash] = useState(0);
   const [itemToSelectVariant, setItemToSelectVariant] = useState<Product | null>(null);
   const [itemToModify, setItemToModify] = useState<Product | CartItem | ItemWithVariant | null>(null);
@@ -42,7 +48,6 @@ export default function CashierPage() {
   const [scrollTop, setScrollTop] = useState(0);
 
   // Responsive and view state
-//   const [viewMode, setViewMode] = useState<ViewMode>('card');
   const isAutocompleteVisible = searchTerm.length > 0;
   const {showToast, showMode, setShowMode} = useSettingsStore();
 
@@ -50,26 +55,33 @@ export default function CashierPage() {
     // Set default view mode based on screen size
     const handleResize = () => {
         const mobile = window.innerWidth < 768;
-        // setViewMode(mobile ? 'thumbnail' : showMode.cart);
         setShowMode({cart: mobile ? 'thumbnail' : showMode.cart});
     };
     window.addEventListener('resize', handleResize);
     handleResize(); // Set initial view mode
     return () => window.removeEventListener('resize', handleResize);
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   
-  const filteredProducts = useMemo(() => {
-        const active = products.filter(product => product.is_active);
-
-        if (searchTerm.length === 0) {
-            return active;
+    useEffect(() => {
+        if (debouncedSearchTerm) {
+            setIsSearching(true);
+            searchProducts(debouncedSearchTerm).then(results => {
+                setSearchedProducts(results);
+                setIsSearching(false);
+            });
+        } else {
+            setSearchedProducts(null);
+            setIsSearching(false);
         }
+    }, [debouncedSearchTerm]);
 
-        return active.filter(product =>
-          product.name.toLowerCase().includes(searchTerm.toLowerCase())
-        ) 
-    },
-    [products, searchTerm]);
+  const displayedProducts = useMemo(() => {
+    if (searchTerm) {
+        return searchedProducts ?? []; // If searching, show search results (or empty array while loading)
+    }
+    return products.filter(p => p.is_active); // If not searching, show all active products from global store
+  }, [searchTerm, searchedProducts, products]);
+
 
   const handleOpenShift = () => {
     openShift(openingCash);
@@ -224,7 +236,7 @@ export default function CashierPage() {
                 />
             </div>
           <div className="flex-1">
-            <ProductList products={filteredProducts.length > 0 ? filteredProducts : []} viewMode={showMode.cart} isLoading={products.length === 0} onItemClick={handleProductSelect} context="cashier" setScrollTop={setScrollTop}/>
+            <ProductList products={displayedProducts} viewMode={showMode.cart} isLoading={isSearching || products.length === 0} onItemClick={handleProductSelect} context="cashier" setScrollTop={setScrollTop}/>
           </div>
         </main>
         <aside className="col-span-2 lg:col-span-4 flex flex-col min-h-0">
@@ -248,7 +260,7 @@ export default function CashierPage() {
                 
                 {isAutocompleteVisible && (
                     <div className="absolute top-16 left-0 right-0 bottom-16 z-20 flex">
-                        <ProductList products={filteredProducts} viewMode={showMode.cart} isLoading={products.length === 0} onItemClick={handleProductSelect} context="cashier" />
+                        <ProductList products={displayedProducts} viewMode={showMode.cart} isLoading={isSearching || products.length === 0} onItemClick={handleProductSelect} context="cashier" />
                     </div>
                 )}
                 

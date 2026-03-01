@@ -97,8 +97,8 @@ export const addProduct = async (productData: ProductFormData): Promise<Product 
     const hasVariant = !!(variants && variants.length > 0);
     const isComposite = restOfProductData.product_type === 'food_and_beverage' && (restOfProductData.is_composite || false);
 
-    const newId = crypto.randomUUID();
-    const placeholder = PlaceHolderImages[parseInt(newId) % PlaceHolderImages.length];
+    const newId = `prod-${crypto.randomUUID().slice(0,8)}`;
+    const placeholder = PlaceHolderImages[Math.floor(Math.random() * PlaceHolderImages.length)];
 
     const newProduct: Product = {
         id: newId,
@@ -167,3 +167,28 @@ export const updateProduct = async (id: string, productData: ProductFormData): P
         await setRecipeForProduct(id, []);
     }
 };
+
+export async function searchProducts(term: string): Promise<Product[]> {
+    const { db, firesqlite } = useDbStore.getState();
+    if (!db || !firesqlite || !term.trim()) {
+        return [];
+    }
+
+    const { collection, query, where, getDocs } = firesqlite;
+    
+    const productsRef = collection(db, 'products');
+    // Using the custom 'like' operator assumed to be in firesqlite v0.0.5
+    // also filtering for active products only.
+    const q = query(productsRef, where('is_active', '==', true), where('name', 'like', term));
+    
+    try {
+        const snapshot = await getDocs(q);
+        return snapshot.docs.map((doc: any) => doc.data() as Product);
+    } catch (e: any) {
+        console.error("Product search failed with 'like' operator, falling back to client search:", e);
+        // Fallback for older versions or if the operator isn't ready
+        const allProductsSnapshot = await getDocs(collection(db, 'products'));
+        const allProducts = allProductsSnapshot.docs.map((d:any) => d.data() as Product);
+        return allProducts.filter(p => p.is_active && p.name.toLowerCase().includes(term.toLowerCase()));
+    }
+}

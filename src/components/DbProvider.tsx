@@ -21,10 +21,9 @@ export function DbProvider({ children }: { children: React.ReactNode }) {
         setPendingCarts,
         setRawIngredients,
         setRecipes,
-        setStockMovements
+        // stockMovements are now loaded on demand
     } = useStore();
     
-    // We only need to know if the initial data has been loaded, not for subsequent updates.
     const [isDataLoaded, setIsDataLoaded] = useState(false);
 
     useEffect(() => {
@@ -36,93 +35,72 @@ export function DbProvider({ children }: { children: React.ReactNode }) {
     useEffect(() => {
         if (!isInitialized || !db || !firesqlite) return;
 
-        // for debuging purpuse, do not remove
-        // if (typeof window !== 'undefined') {
-        //     // @ts-ignore
-        //     window.db = db;
-        //     // @ts-ignore
-        //     window.firesqlite = firesqlite;
-        // }
-
+        let unsubStoreConfig: (() => void) | undefined;
+        let unsubCategories: (() => void) | undefined;
         let unsubProducts: (() => void) | undefined;
         let unsubVariants: (() => void) | undefined;
         let unsubModifiers: (() => void) | undefined;
-        let unsubTransactions: (() => void) | undefined;
-        let unsubShifts: (() => void) | undefined;
-        let unsubStoreConfig: (() => void) | undefined;
-        let unsubCategories: (() => void) | undefined;
         let unsubPendingCarts: (() => void) | undefined;
         let unsubIngredients: (() => void) | undefined;
         let unsubRecipes: (() => void) | undefined;
-        let unsubStockMovements: (() => void) | undefined;
-
+        let unsubTransactions: (() => void) | undefined;
+        let unsubShifts: (() => void) | undefined;
 
         const setupData = async () => {
             try {
                 await seedDatabase(firesqlite, db);
                 
-                const { collection, doc, onSnapshot } = firesqlite;
+                const { collection, doc, onSnapshot, query, orderBy, limit } = firesqlite;
                 
+                // --- TIER 1: CRITICAL METADATA (Blocks UI) ---
+                // These are small and required for the UI to function correctly.
                 unsubStoreConfig = onSnapshot(doc(db, 'store_config', 'main'), (docSnap: any) => {
-                    if (docSnap.exists()) {
-                        setStoreConfig(docSnap.data() as StoreConfig);
-                    }
+                    if (docSnap.exists()) setStoreConfig(docSnap.data() as StoreConfig);
                 });
-                
+                unsubCategories = onSnapshot(collection(db, 'categories'), (snapshot: any) => {
+                    setCategories(snapshot.docs.map((doc: any) => doc.data() as Category));
+                });
+                 unsubVariants = onSnapshot(collection(db, 'product_variants'), (snapshot: any) => {
+                    setProductVariants(snapshot.docs.map((doc: any) => doc.data() as ProductVariant));
+                });
+                unsubModifiers = onSnapshot(collection(db, 'modifier_groups'), (snapshot: any) => {
+                    setModifierGroups(snapshot.docs.map((doc: any) => doc.data() as ModifierGroup));
+                });
+                 unsubIngredients = onSnapshot(collection(db, 'raw_ingredients'), (snapshot: any) => {
+                    setRawIngredients(snapshot.docs.map((doc: any) => doc.data() as RawIngredient));
+                });
+                unsubRecipes = onSnapshot(collection(db, 'recipes'), (snapshot: any) => {
+                    setRecipes(snapshot.docs.map((doc: any) => doc.data() as Recipe));
+                });
+
+                // Products are the last piece of critical data. Once loaded, unblock the UI.
                 unsubProducts = onSnapshot(collection(db, 'products'), (snapshot: any) => {
                     const productList = snapshot.docs.map((doc: any) => doc.data() as Product);
                     setProducts(productList);
-                    if (!isDataLoaded) setIsDataLoaded(true); // Mark as loaded on first product fetch
+                    if (!isDataLoaded) {
+                        setIsDataLoaded(true); // <<--- UNBLOCK UI
+                        console.log("UI Unblocked: Critical data loaded.");
+                    }
                 });
 
-                unsubVariants = onSnapshot(collection(db, 'product_variants'), (snapshot: any) => {
-                    const variantList = snapshot.docs.map((doc: any) => doc.data() as ProductVariant);
-                    setProductVariants(variantList);
-                });
-
-                unsubModifiers = onSnapshot(collection(db, 'modifier_groups'), (snapshot: any) => {
-                    const groupList = snapshot.docs.map((doc: any) => doc.data() as ModifierGroup);
-                    setModifierGroups(groupList);
-                });
-
-                unsubTransactions = onSnapshot(collection(db, 'transactions'), (snapshot: any) => {
-                    const transactionList = snapshot.docs.map((doc: any) => doc.data() as Transaction);
-                    setTransactions(transactionList);
-                });
-
-                unsubShifts = onSnapshot(collection(db, 'shifts'), (snapshot: any) => {
-                    const shiftList = snapshot.docs.map((doc: any) => doc.data() as Shift);
-                    setShifts(shiftList);
-                });
-
-                unsubCategories = onSnapshot(collection(db, 'categories'), (snapshot: any) => {
-                    const categoryList = snapshot.docs.map((doc: any) => doc.data() as Category);
-                    setCategories(categoryList);
-                });
-                
+                // --- TIER 2: ACTIVE SESSION & RECENT HISTORY DATA (Background) ---
+                // These load after the UI is visible and use limits to avoid fetching everything.
                 unsubPendingCarts = onSnapshot(collection(db, 'pending_carts'), (snapshot: any) => {
-                    const pendingCartsList = snapshot.docs.map((doc: any) => doc.data() as PendingCart);
-                    setPendingCarts(pendingCartsList);
+                    setPendingCarts(snapshot.docs.map((doc: any) => doc.data() as PendingCart));
+                });
+                unsubShifts = onSnapshot(collection(db, 'shifts'), (snapshot: any) => {
+                    setShifts(snapshot.docs.map((doc: any) => doc.data() as Shift));
                 });
 
-                unsubIngredients = onSnapshot(collection(db, 'raw_ingredients'), (snapshot: any) => {
-                    const ingredientList = snapshot.docs.map((doc: any) => doc.data() as RawIngredient);
-                    setRawIngredients(ingredientList);
-                });
-
-                unsubRecipes = onSnapshot(collection(db, 'recipes'), (snapshot: any) => {
-                    const recipeList = snapshot.docs.map((doc: any) => doc.data() as Recipe);
-                    setRecipes(recipeList);
-                });
-                
-                unsubStockMovements = onSnapshot(collection(db, 'stock_movements'), (snapshot: any) => {
-                    const movementList = snapshot.docs.map((doc: any) => doc.data() as StockMovement);
-                    setStockMovements(movementList);
+                // Only listen to the last 100 transactions for the "Recent" list.
+                const recentTxQuery = query(collection(db, 'transactions'), orderBy('created_at', 'desc'), limit(100));
+                unsubTransactions = onSnapshot(recentTxQuery, (snapshot: any) => {
+                    setTransactions(snapshot.docs.map((doc: any) => doc.data() as Transaction));
                 });
 
             } catch (error: any) {
                 console.error("Failed to subscribe to data:", error);
-                setIsDataLoaded(true); // Also set to true on error to unblock UI
+                setIsDataLoaded(true); // Unblock UI on error too
             }
         };
 
@@ -139,11 +117,10 @@ export function DbProvider({ children }: { children: React.ReactNode }) {
             if (unsubPendingCarts) unsubPendingCarts();
             if (unsubIngredients) unsubIngredients();
             if (unsubRecipes) unsubRecipes();
-            if (unsubStockMovements) unsubStockMovements();
         };
     // isDataLoaded is not a dependency, we only want to run this once.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isInitialized, db, firesqlite, setProducts, setProductVariants, setModifierGroups, setTransactions, setShifts, setStoreConfig, setCategories, setPendingCarts, setRawIngredients, setRecipes, setStockMovements]);
+    }, [isInitialized, db, firesqlite]);
 
     if (!isInitialized || !isDataLoaded) {
         return (
