@@ -9,7 +9,7 @@ export const addModifierGroup = async (groupData: ModifierGroupData): Promise<Mo
     if (!db || !firesqlite) throw new Error("Database not initialized");
 
     const { doc, setDoc } = firesqlite;
-    const newId = `mg-${new Date().getTime().toString()}`;
+    const newId = `mg-${crypto.randomUUID().slice(0, 8)}`;
     const newGroup: ModifierGroup = {
         id: newId,
         ...groupData,

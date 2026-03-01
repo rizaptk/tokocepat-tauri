@@ -1,4 +1,3 @@
-
 'use client';
 
 import Link from 'next/link';
@@ -9,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Button } from '@/components/ui/button';
 import { TokoCepatLogo } from '@/components/TokoCepatLogo';
 import { ArrowLeft } from 'lucide-react';
-import { formatDistance, parseISO } from 'date-fns';
+import { formatDistance, parseISO, isValid } from 'date-fns';
 import { Separator } from '@/components/ui/separator';
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
@@ -18,12 +17,13 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
+import { exportShiftDetailsToPdf } from '@/lib/export';
 
 export default function ShiftDetailsPage() {
     const params = useParams();
     const shiftId = params.id as string;
     
-    const { shifts, transactions } = useStore();
+    const { shifts, transactions, storeConfig } = useStore();
     const { toast } = useToast();
     
     const shift = shifts.find(s => s.id === shiftId);
@@ -47,6 +47,14 @@ export default function ShiftDetailsPage() {
             return false;
         }
     };
+
+    const handlePdfExport = () => {
+        if (storeConfig && shift) {
+            exportShiftDetailsToPdf(shift, shiftTransactions, storeConfig.store_name);
+        } else {
+            toast({ variant: 'destructive', title: 'Error', description: 'Cannot generate PDF. Store configuration or shift data is missing.' });
+        }
+    }
 
     const formatCurrency = (amount: number) => {
         return new Intl.NumberFormat('id-ID', {
@@ -81,7 +89,15 @@ export default function ShiftDetailsPage() {
         )
     }
 
-    const duration = shift.closed_at ? formatDistance(parseISO(shift.closed_at), parseISO(shift.opened_at)) : 'Still open';
+    const getSafeDate = (dateInput: any) => {
+        if (dateInput instanceof Date) return dateInput;
+        if (typeof dateInput === 'string') return parseISO(dateInput);
+        return new Date(dateInput);
+    };
+
+    const openedAt = getSafeDate(shift.opened_at);
+    const closedAt = shift.closed_at ? getSafeDate(shift.closed_at) : null;
+    const duration = (closedAt && isValid(closedAt) && isValid(openedAt)) ? formatDistance(closedAt, openedAt) : 'Still open';
     const activeTransactions = shiftTransactions.filter(t => t.status === 'paid');
     const totalSales = activeTransactions.reduce((sum, t) => sum + t.total, 0);
     const transactionCount = activeTransactions.length;
@@ -224,7 +240,7 @@ export default function ShiftDetailsPage() {
                 </Card>
 
                 <div className="flex gap-2 pt-4">
-                    <Button variant="outline" disabled>Export PDF</Button>
+                    <Button variant="outline" onClick={handlePdfExport} disabled={!shift}>Export PDF</Button>
                     <Button asChild>
                         <Link href="/dashboard">Done</Link>
                     </Button>
@@ -234,5 +250,3 @@ export default function ShiftDetailsPage() {
         </div>
     )
 }
-
-    

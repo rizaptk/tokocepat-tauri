@@ -22,7 +22,7 @@ export const adjustStock = async (data: AdjustmentData): Promise<void> => {
     if (!product) throw new Error("Product not found");
 
     const now = new Date().toISOString();
-    const movementId = `sm-${now}-${Math.random().toString(36).substring(2, 9)}`;
+    const movementId = `sm-${crypto.randomUUID().slice(0, 8)}`;
 
     let newStock = product.stock;
     let qtyChange = data.qty_change;
@@ -69,7 +69,7 @@ export const adjustIngredientStock = async (ingredientId: string, type: StockMov
     if (!ingredient) throw new Error("Ingredient not found");
 
     const now = new Date().toISOString();
-    const movementId = `sm-${now}-${Math.random().toString(36).substring(2, 9)}`;
+    const movementId = `sm-${crypto.randomUUID().slice(0, 8)}`;
 
     let finalQtyChange = qty_change;
     if (type === 'restock' || type === 'initial_balance') {

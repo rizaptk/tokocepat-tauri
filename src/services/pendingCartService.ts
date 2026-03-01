@@ -9,7 +9,7 @@ export const parkCartInDb = async (cart: CartItem[], total: number, itemCount: n
 
     const { doc, setDoc } = firesqlite;
     const now = new Date();
-    const newId = `parked-${now.getTime()}`;
+    const newId = `parked-${crypto.randomUUID().slice(0, 8)}`;
     
     const newPendingCart: PendingCart = {
         id: newId,

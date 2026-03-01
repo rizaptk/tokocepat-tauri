@@ -2,7 +2,8 @@
 "use client";
 
 import Link from "next/link";
-import { LogOut, ParkingSquare } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { LogOut, ParkingSquare, ReceiptText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { TokoCepatLogo } from "@/components/TokoCepatLogo";
@@ -18,12 +19,13 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useStore } from "@/lib/store";
-import { useState } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { Label } from "./ui/label";
 import { PendingCartsDialog } from "./PendingCartsDialog";
 
 
 export function Header() {
+  const router = useRouter();
   const [declaredCash, setDeclaredCash] = useState(0);
   const [isPendingCartDialogOpen, setIsPendingCartDialogOpen] = useState(false);
   const activeShift = useStore((state) => state.activeShift);
@@ -39,18 +41,21 @@ export function Header() {
     }).format(amount);
   };
   
-  const activeShiftTransactions = activeShift ? transactions.filter(t => t.shift_id === activeShift.id && t.status === 'paid') : [];
-  const shiftRevenue = activeShiftTransactions.reduce((sum, t) => sum + t.total, 0);
-  const expectedCash = activeShift ? activeShift.opening_cash + shiftRevenue : 0;
+  const { shiftRevenue, expectedCash } = useMemo(() => {
+    const activeShiftTransactions = activeShift ? transactions.filter(t => t.shift_id === activeShift.id && t.status === 'paid') : [];
+    const revenue = activeShiftTransactions.reduce((sum, t) => sum + t.total, 0);
+    return { shiftRevenue: revenue, expectedCash: activeShift ? activeShift.opening_cash + revenue : 0 };
+  }, [activeShift, transactions]);
   
-  const handleCloseShift = () => {
+  const handleCloseShift = useCallback(() => {
     closeShift(declaredCash);
     setDeclaredCash(0);
-  }
+    router.push('/dashboard');
+  }, [closeShift, declaredCash, router]);
 
   return (
     <>
-    <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center justify-between gap-4 border-b bg-background px-4 md:px-6">
+    <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center justify-between gap-4 bg-transparent px-4 md:px-6">
       <Link href="/">
         <TokoCepatLogo />
       </Link>

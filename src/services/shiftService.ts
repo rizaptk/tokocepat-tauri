@@ -7,9 +7,10 @@ export const openShift = async (openingCash: number): Promise<void> => {
     if (!db || !firesqlite) throw new Error("Database not initialized");
 
     const { doc, setDoc } = firesqlite;
+    const id = crypto.randomUUID();
     const now = new Date().toISOString();
     const newShift: Shift = {
-        id: now,
+        id: id,
         opened_at: now,
         opening_cash: openingCash,
         status: 'open'
@@ -18,6 +19,7 @@ export const openShift = async (openingCash: number): Promise<void> => {
 };
 
 export const closeShift = async (activeShift: Shift, transactions: Transaction[], declaredCash: number): Promise<void> => {
+    
     const { db, firesqlite } = useDbStore.getState();
     if (!db || !firesqlite) throw new Error("Database not initialized");
 
@@ -34,5 +36,6 @@ export const closeShift = async (activeShift: Shift, transactions: Transaction[]
         status: 'closed'
     };
 
-    await updateDoc(doc(db, 'shifts', activeShift.id), updatedShift);
+    const updated = await updateDoc(doc(db, 'shifts', activeShift.id), updatedShift);
+    console.log(updated, updatedShift, activeShift);
 };

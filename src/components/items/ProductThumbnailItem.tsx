@@ -161,7 +161,7 @@ export function ProductThumbnailItem({
       tabIndex={isOutOfStock ? -1 : 0}
       aria-disabled={isOutOfStock}
       className={cn(
-        "group flex items-center gap-3 p-3 transition-colors duration-100 border-2 border-transparent bg-card h-[78px] rounded-md",
+        "group flex items-center gap-3 p-3 transition-colors duration-100 border border-border bg-card h-[78px] rounded-md",
         "hover:shadow-md",
         isSelected && "border-primary",
         isOutOfStock && "opacity-60 cursor-not-allowed",

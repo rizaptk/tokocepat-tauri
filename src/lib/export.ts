@@ -2,7 +2,7 @@
 
 import * as XLSX from 'xlsx';
 import { Transaction, Product, StoreConfig, StockMovement } from '@/lib/types';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 
 const formatCurrency = (amount: number) => {
@@ -394,6 +394,121 @@ export const exportConsumptionToPdf = async (reportData: any[], dateRange: { fro
     link.href = URL.createObjectURL(blob);
     const range = format(dateRange.from, 'yyyy-MM-dd') + '_to_' + format(dateRange.to, 'yyyy-MM-dd');
     link.download = `consumption_report_${storeName.replace(/\s+/g, '_')}_${range}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+};
+
+export const exportShiftDetailsToPdf = async (shift: any, transactions: Transaction[], storeName: string) => {
+    const pdfDoc = await PDFDocument.create();
+    const page = pdfDoc.addPage();
+    const { width, height } = page.getSize();
+    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+    const fontSize = 10;
+    const margin = 50;
+    let y = height - margin;
+
+    // Title
+    page.drawText(`${storeName} - Shift Detail Report`, {
+        x: margin,
+        y,
+        font: boldFont,
+        size: 18,
+    });
+    y -= 30;
+
+    // Shift Summary
+    const openedAt = typeof shift.opened_at === 'string' ? parseISO(shift.opened_at) : new Date(shift.opened_at);
+    const closedAt = shift.closed_at ? (typeof shift.closed_at === 'string' ? parseISO(shift.closed_at) : new Date(shift.closed_at)) : null;
+    
+    page.drawText(`Shift ID: ${shift.id}`, { x: margin, y, font, size: 12 });
+    y -= 18;
+    page.drawText(`Period: ${format(openedAt, 'PPP p')} to ${closedAt ? format(closedAt, 'PPP p') : 'Ongoing'}`, {
+        x: margin,
+        y,
+        font,
+        size: 12,
+    });
+    y -= 25;
+
+    // Financial Summary
+    const totalSales = transactions.filter(t => t.status === 'paid').reduce((sum, t) => sum + t.total, 0);
+    const totalVoid = transactions.filter(t => t.status === 'voided').reduce((sum, t) => sum + t.total, 0);
+    const expectedCash = shift.opening_cash + totalSales;
+
+    const summaryData = [
+        { label: 'Opening Cash:', value: formatCurrency(shift.opening_cash) },
+        { label: 'Total Sales:', value: formatCurrency(totalSales) },
+        { label: 'Total Void:', value: formatCurrency(totalVoid), color: rgb(0.8, 0, 0) },
+        { label: 'Expected in Drawer:', value: formatCurrency(expectedCash) },
+        { label: 'Declared at Close:', value: formatCurrency(shift.declared_cash || 0) },
+        { label: 'Variance:', value: formatCurrency(shift.variance || 0), color: shift.variance === 0 ? rgb(0, 0.5, 0) : rgb(0.8, 0, 0) }
+    ];
+
+    let x = margin;
+    summaryData.forEach(item => {
+        page.drawText(item.label, { x, y, font, size: fontSize });
+        page.drawText(item.value, { x: x + 120, y, font: boldFont, size: fontSize, color: item.color || rgb(0,0,0) });
+        y -= 15;
+    });
+    y -= 15;
+
+
+    // Transactions Table Header
+    const tableHeaders = ['Time', 'Invoice #', 'Items', 'Total', 'Status'];
+    const colWidths = [100, 150, 50, 100, 80];
+    x = margin;
+    tableHeaders.forEach((header, i) => {
+        page.drawText(header, { x, y, font: boldFont, size: fontSize });
+        x += colWidths[i];
+    });
+    y -= 5;
+    page.drawLine({
+        start: { x: margin, y },
+        end: { x: width - margin, y },
+        thickness: 1,
+    });
+    y -= 15;
+
+    // Transactions Table Body
+    for (const tx of transactions) {
+        if (y < margin) {
+            // For simplicity, we'll assume it fits on one page. 
+            // A real implementation would add a new page here.
+            break; 
+        }
+        
+        // Handle cases where created_at might be a UUID string or invalid date string
+        let txDate = typeof tx.created_at === 'string' ? parseISO(tx.created_at) : new Date(tx.created_at);
+        if (isNaN(txDate.getTime())) {
+            // Fallback to current date if the stored value is not a valid date (e.g. a random UUID)
+            txDate = new Date();
+        }
+
+        const row = [
+            format(txDate, 'HH:mm:ss'),
+            tx.invoice_number,
+            tx.items.reduce((sum, item) => sum + item.qty, 0).toString(),
+            formatCurrency(tx.total),
+            tx.status
+        ];
+
+        x = margin;
+        row.forEach((cell, i) => {
+            page.drawText(cell, { x, y, font, size: 8, color: tx.status === 'voided' ? rgb(0.5, 0.5, 0.5) : rgb(0,0,0) });
+            x += colWidths[i];
+        });
+        y -= 12;
+    }
+
+    const pdfBytes = await pdfDoc.save();
+    
+    // Trigger download
+    const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `shift_report_${storeName.replace(/\s+/g, '_')}_${shift.id.substring(0,8)}.pdf`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);

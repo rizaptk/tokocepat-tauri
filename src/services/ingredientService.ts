@@ -9,7 +9,7 @@ export const addIngredient = async (formData: IngredientFormData): Promise<void>
     if (!db || !firesqlite) throw new Error("Database not initialized");
 
     const { doc, setDoc } = firesqlite;
-    const newId = `ing-${new Date().getTime()}`;
+    const newId = `ing-${crypto.randomUUID().slice(0, 8)}`;
     const newIngredient: RawIngredient = {
         id: newId,
         ...formData

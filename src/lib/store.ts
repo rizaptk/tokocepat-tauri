@@ -162,7 +162,7 @@ export const useStore = create<StoreState>()(
 
             const newCartItem: CartItem = {
                 ...productInState,
-                cartItemId: `cart-item-${new Date().getTime()}-${Math.random()}`,
+                cartItemId: `cart-item-${crypto.randomUUID().slice(0, 8)}`,
                 quantity: 1,
                 price: finalPrice,
                 selectedVariant: finalVariant,
@@ -232,6 +232,7 @@ export const useStore = create<StoreState>()(
 
         try {
             await closeShiftService(activeShift, transactions, declaredCash);
+
         } catch (error) {
             console.error("Failed to close shift:", error);
             toast({ variant: "destructive", title: "Error", description: "Could not close the shift." });
@@ -239,7 +240,7 @@ export const useStore = create<StoreState>()(
       },
 
       checkout: async (cashReceived: number): Promise<Transaction | null> => {
-        const { cart, activeShift, storeConfig } = get();
+        const { cart, activeShift, storeConfig, transactions } = get();
         
         if (!activeShift || !storeConfig) {
             toast({ variant: 'destructive', title: 'Error', description: 'Cannot process payment. Shift or store config is missing.' });
@@ -249,7 +250,10 @@ export const useStore = create<StoreState>()(
         try {
             const newTransaction = await createTransaction(cart, activeShift, storeConfig, cashReceived);
             if (newTransaction) {
-                set({ cart: [] }); // Clear cart on successful transaction
+                set({ 
+                    cart: [],
+                    transactions: [newTransaction, ...transactions]
+                 }); // Clear cart and prepend new transaction
             }
             return newTransaction;
         } catch(error) {

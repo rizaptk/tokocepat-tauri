@@ -27,7 +27,7 @@ export const setProductVariants = async (productId: string, variants: VariantFor
 
     // 3. Add the new set of variants
     const addPromises = variants.map(variantData => {
-        const newId = `pv-${new Date().getTime()}-${Math.random().toString(36).substr(2, 9)}`;
+        const newId = `pv-${crypto.randomUUID().slice(0, 8)}`;
         const newVariant: ProductVariant = {
             id: newId,
             product_id: productId,

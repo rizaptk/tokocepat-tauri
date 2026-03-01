@@ -39,6 +39,8 @@ export default function CashierPage() {
   const [itemToSelectVariant, setItemToSelectVariant] = useState<Product | null>(null);
   const [itemToModify, setItemToModify] = useState<Product | CartItem | ItemWithVariant | null>(null);
 
+  const [scrollTop, setScrollTop] = useState(0);
+
   // Responsive and view state
 //   const [viewMode, setViewMode] = useState<ViewMode>('card');
   const isAutocompleteVisible = searchTerm.length > 0;
@@ -206,13 +208,13 @@ export default function CashierPage() {
   }
 
   return (
-    <div className="h-screen w-full bg-muted/40 flex flex-col">
+    <div className="h-screen w-full flex flex-col">
       <Header />
 
       {/* Desktop & Tablet Layout: Split View */}
       <div className="hidden md:grid md:grid-cols-5 lg:grid-cols-10 flex-1 overflow-hidden">
         <main className="col-span-3 lg:col-span-6 flex flex-col overflow-hidden relative">
-            <div className="bg-muted/40 z-10 border-b p-4">
+            <div className={`z-10 p-4 border-b transition-all ${scrollTop > 0 ? 'border-b-border shadow-md' : 'border-b-transparent'}`}>
                <ProductSearchBar 
                   searchTerm={searchTerm} 
                   onSearchTermChange={setSearchTerm}
@@ -221,11 +223,11 @@ export default function CashierPage() {
                   onBarcodeScan={handleBarcodeScan}
                 />
             </div>
-          <div className="flex-1 bg-background">
-            <ProductList products={filteredProducts.length > 0 ? filteredProducts : []} viewMode={showMode.cart} isLoading={products.length === 0} onItemClick={handleProductSelect} context="cashier"/>
+          <div className="flex-1">
+            <ProductList products={filteredProducts.length > 0 ? filteredProducts : []} viewMode={showMode.cart} isLoading={products.length === 0} onItemClick={handleProductSelect} context="cashier" setScrollTop={setScrollTop}/>
           </div>
         </main>
-        <aside className="col-span-2 lg:col-span-4 border-l bg-background flex flex-col min-h-0">
+        <aside className="col-span-2 lg:col-span-4 flex flex-col min-h-0">
             <CartDisplay onEditItem={handleEditCartItem} />
         </aside>
       </div>
@@ -234,7 +236,7 @@ export default function CashierPage() {
       {
         isMobile &&
         <div className="md:hidden flex flex-col flex-1 overflow-hidden relative">
-                <div className="p-4 border-b shrink-0 bg-background">
+                <div className="p-4 shrink-0 bg-background">
                     <ProductSearchBar 
                         searchTerm={searchTerm} 
                         onSearchTermChange={setSearchTerm}
@@ -245,7 +247,7 @@ export default function CashierPage() {
                 </div>
                 
                 {isAutocompleteVisible && (
-                    <div className="absolute top-20 left-3 right-3 bottom-16 z-20 bg-background border rounded-lg shadow-lg flex">
+                    <div className="absolute top-16 left-0 right-0 bottom-16 z-20 flex">
                         <ProductList products={filteredProducts} viewMode={showMode.cart} isLoading={products.length === 0} onItemClick={handleProductSelect} context="cashier" />
                     </div>
                 )}

@@ -60,11 +60,11 @@ async function verifyPermission(handle: FileSystemFileHandle, withWrite: boolean
     if ((await handle.queryPermission(opts)) === 'granted') {
         return true;
     }
-    // Don't request permission in the background, only when user initiates.
-    if ((await handle.requestPermission(opts)) === 'granted') {
-        return true;
-    }
-    return false;
+    
+    // requestPermission must be triggered by user gesture. 
+    // If this is called from a background sync, it will fail/throw.
+    const status = await (handle as any).requestPermission(opts);
+    return status === 'granted';
 }
 
 export async function hasBackupConfig(): Promise<boolean> {
@@ -79,6 +79,7 @@ export async function getBackupFileHandle(requestWrite: boolean = false): Promis
         }
     }
     const handleFromDb = await idbKeyval.get<FileSystemFileHandle>(FILE_HANDLE_KEY);
+    console.log(handleFromDb);
     if (handleFromDb) {
         if (await verifyPermission(handleFromDb, requestWrite)) {
             fileHandle = handleFromDb;
@@ -90,10 +91,15 @@ export async function getBackupFileHandle(requestWrite: boolean = false): Promis
 
 export async function promptAndSetBackupFile(): Promise<FileSystemFileHandle | null> {
     try {
-        if (!window.showSaveFilePicker) {
+        if (!window.showSaveFilePicker || !window.showDirectoryPicker) {
             alert('Your browser does not support the File System Access API. Please use a modern browser like Chrome or Edge for this feature.');
             return null;
         }
+
+        // const dir = await window.showDirectoryPicker();
+        // const handle = await dir.getFileHandle('tokoc_backup.db', { create: true });
+        
+        
         const handle = await window.showSaveFilePicker({
             suggestedName: 'tokoc_backup.db',
             types: [{
@@ -101,7 +107,9 @@ export async function promptAndSetBackupFile(): Promise<FileSystemFileHandle | n
                 accept: { 'application/octet-stream': ['.db'] },
             }],
         });
+        handle.requestPermission({ mode: 'readwrite' });
         await idbKeyval.set(FILE_HANDLE_KEY, handle);
+
         fileHandle = handle;
         return handle;
     } catch (error) {
@@ -115,6 +123,7 @@ export async function promptAndSetBackupFile(): Promise<FileSystemFileHandle | n
 }
 
 export async function performBackup(firesqlite: any, isFinal: boolean = false): Promise<boolean> {
+    
     const handle = await getBackupFileHandle(true);
     if (!handle || !firesqlite) {
         console.warn('Backup skipped: No backup file handle or database instance.');
@@ -122,7 +131,7 @@ export async function performBackup(firesqlite: any, isFinal: boolean = false): 
     }
 
     try {
-        const binaryData = await firesqlite.getBinaryBackup();
+        const binaryData = await firesqlite.getDatabaseBackup();
         const writableStream = await handle.createWritable({ keepExistingData: false });
         
         await writableStream.write(binaryData);

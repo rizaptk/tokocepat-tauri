@@ -26,7 +26,8 @@
       "@/*": [
         "./src/*"
       ]
-    }
+    },
+    "types": ["@types/wicg-file-system-access"],
   },
   "include": [
     "next-env.d.ts",

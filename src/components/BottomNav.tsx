@@ -9,6 +9,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { useIsMobile } from '@/lib/ismobile-store';
 import { motion, AnimatePresence, Variants } from 'framer-motion';
 import { useLicense } from '@/hooks/useLicense';
+import { root } from 'postcss';
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutGrid },

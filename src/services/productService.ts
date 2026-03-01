@@ -97,7 +97,7 @@ export const addProduct = async (productData: ProductFormData): Promise<Product 
     const hasVariant = !!(variants && variants.length > 0);
     const isComposite = restOfProductData.product_type === 'food_and_beverage' && (restOfProductData.is_composite || false);
 
-    const newId = new Date().getTime().toString();
+    const newId = crypto.randomUUID();
     const placeholder = PlaceHolderImages[parseInt(newId) % PlaceHolderImages.length];
 
     const newProduct: Product = {

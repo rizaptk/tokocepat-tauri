@@ -71,8 +71,8 @@ export function CartDisplay({ onEditItem }: CartDisplayProps) {
   },[cart.length, cartContainer.current])
 
   return (
-    <div className="flex flex-col flex-1 bg-background h-full min-h-0">
-      <header className="hidden md:flex h-16 items-center justify-between border-b px-6 shrink-0">
+    <div className="flex flex-col flex-1 h-full min-h-0">
+      <header className="hidden md:flex h-16 items-center justify-between px-6 shrink-0">
         <h2 className="text-lg font-semibold">Cart</h2>
         <div className="relative">
           <ShoppingCart className="h-6 w-6" />
@@ -85,15 +85,18 @@ export function CartDisplay({ onEditItem }: CartDisplayProps) {
       </header>
       
       {cart.length === 0 ? (
-        <div className="flex flex-1 flex-col items-center justify-center gap-4 p-6 text-center bg-card">
-          <ShoppingCart className="h-16 w-16 text-muted-foreground" />
-          <h3 className="text-xl font-semibold">Your cart is empty</h3>
-          <p className="text-muted-foreground">Tap on products to add them to the cart.</p>
+        <div className="py-6 px-6 flex-1 flex">
+          <div className="flex flex-1 flex-col items-center justify-center gap-4 p-6 text-center bg-card border rounded-lg">
+            <ShoppingCart className="h-16 w-16 text-muted-foreground" />
+            <h3 className="text-xl font-semibold">Your cart is empty</h3>
+            <p className="text-muted-foreground">Tap on products to add them to the cart.</p>
+          </div>
         </div>
       ) : (
         <>
-          <ScrollArea className="flex-1 min-h-0 bg-card"  ref={cartContainer}>
-            <div className="flex flex-col gap-0">
+        <div className="flex-1 min-h-0 px-4">
+          <ScrollArea className="h-full min-h-0 border border-border bg-card rounded-lg"  ref={cartContainer}>
+            <div className="flex flex-col gap-0 divide-y divide-border/40">
                 <AnimatePresence initial={false}>
                     {cart.map(item => (
                        <CartItemRow key={item.cartItemId} item={item} onEditItem={onEditItem} />
@@ -101,7 +104,8 @@ export function CartDisplay({ onEditItem }: CartDisplayProps) {
                 </AnimatePresence>
             </div>
           </ScrollArea>
-          <footer className="border-t p-4 md:p-6 shrink-0 bg-background">
+        </div>
+          <footer className="p-4 md:p-6 shrink-0">
             <div className="space-y-2">
               <div className="flex justify-between">
                 <span>Subtotal</span>
@@ -118,7 +122,7 @@ export function CartDisplay({ onEditItem }: CartDisplayProps) {
               </div>
             </div>
              <div className="mt-4 flex gap-2">
-                <Button variant="outline" className="flex-1" onClick={parkCart} disabled={cart.length === 0}>
+                <Button variant="outline" size="lg" className="flex-1" onClick={parkCart} disabled={cart.length === 0}>
                     <ParkingSquare /> Park
                 </Button>
                 <Button className="flex-1" size="lg" onClick={handleProcessPayment} disabled={!activeShift || cart.length === 0}>

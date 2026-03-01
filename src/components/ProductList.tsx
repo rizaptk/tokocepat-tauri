@@ -12,6 +12,13 @@ import { ProductListItem } from './items/ProductListItem';
 
 type ViewMode = 'card' | 'thumbnail' | 'list';
 
+const columnClass = {
+  name: "flex items-center gap-2 flex-1 min-w-0 h-[54px]",
+  category: "hidden md:flex items-center text-sm text-muted-foreground truncate max-w-[160px] w-[160px] px-2 border-l border-l-border/50 h-[54px]",
+  stock: "hidden sm:flex items-center justify-end gap-1 text-sm tabular-nums shrink-0 w-20 border-l border-l-border/50 px-2 text-right h-[54px]",
+  price: "flex items-center justify-end shrink-0 text-right tabular-nums whitespace-nowrap w-36 border-l border-l-border/50 h-[54px]"
+}
+
 type ProductListProps = {
   products: Product[];
   viewMode: ViewMode;
@@ -19,6 +26,7 @@ type ProductListProps = {
   onItemClick?: (product: Product) => void;
   selectedProductId?: string | null;
   context?: 'cashier' | 'product' | 'inventory';
+  setScrollTop?: (top: number) => void;
 };
 
 // Constants for layout calculation
@@ -34,7 +42,7 @@ const CardGridItem = React.memo(({ product, onItemClick, selectedProductId, cont
   if (!product) return null;
 
   return (
-    <div style={{ flex: `0 0 ${100 / columnCount}%`, padding: '4px', boxSizing: 'border-box', height: '100%' }}>
+    <div style={{ flex: `0 0 ${100 / columnCount}%`, padding: '12px', boxSizing: 'border-box', height: '100%' }}>
       <ProductCard
         product={product}
         onItemClick={onItemClick}
@@ -71,13 +79,15 @@ const CardRow = ({ index, style, data }: { index: number, style: React.CSSProper
   }
 
   return (
-    <div style={{ ...style, display: 'flex' }} className='p-2'>
+    <div style={{ ...style, display: 'flex' }} className='py-0 px-2 max-w-full'>
       {itemsInRow}
     </div>
   );
 };
 
 // --- Component for List/Thumbnail View ---
+
+
 
 const ListItem = React.memo(({ index, style, data }: { index: number, style: React.CSSProperties, data: any }) => {
   const { products, viewMode, onItemClick, selectedProductId, context } = data;
@@ -93,7 +103,7 @@ const ListItem = React.memo(({ index, style, data }: { index: number, style: Rea
       />
     </div>
   ) : (
-    <div className="h-full p-4">
+    <div className="h-full px-4">
       <ProductListItem
         product={product}
         onItemClick={onItemClick}
@@ -133,10 +143,16 @@ const LoadingSkeleton = ({ viewMode }: { viewMode: ViewMode }) => {
 }
 
 // --- Main ProductList Component ---
-export function ProductList({ products, viewMode, isLoading, onItemClick, selectedProductId, context = 'cashier' }: ProductListProps) {
+export function ProductList({ products, viewMode, isLoading, onItemClick, selectedProductId, context = 'cashier', setScrollTop }: ProductListProps) {
     if (isLoading) {
         return <div className="h-full w-full"><LoadingSkeleton viewMode={viewMode} /></div>;
     }
+
+    // const handelScroll = ({scrollOffset}: {scrollOffset: number}) => {
+    //     if (setScrollTop) {
+    //         setScrollTop(scrollOffset);
+    //     }
+    // }
     
     if (products.length === 0 && !isLoading) {
         return (
@@ -150,7 +166,29 @@ export function ProductList({ products, viewMode, isLoading, onItemClick, select
     }
 
     return (
-        <div className="w-full h-full">
+        <div className="w-full h-full relative">
+            {
+              viewMode == 'list' &&
+              <div className='px-4'>
+                <div className='flex w-full items-center h-[54px] border bg-card rounded-t-lg px-4'>
+                    <div className={columnClass.name}>
+                        <span className="font-medium shrink-1 text-base">Name</span>
+                    </div>
+                    <div className={columnClass.category}>
+                        <span className="text-base font-medium">Category</span>
+                    </div>
+                    {
+                      context !== 'cashier' &&
+                      <div className={columnClass.stock}>
+                        <span className="text-base font-medium">Stock</span>
+                      </div>
+                    }
+                    <div className={columnClass.price}>
+                        <span className="text-base font-medium">Price</span>
+                    </div>
+                </div>
+              </div>
+            }
             <AutoSizer>
                 {({ height, width }) => {
                     if (!width || !height) return null;
@@ -164,6 +202,9 @@ export function ProductList({ products, viewMode, isLoading, onItemClick, select
                                 width={width}
                                 itemCount={rowCount}
                                 itemSize={CARD_ROW_HEIGHT}
+                                // onScroll={handelScroll}
+                                className='no-scrollbar'
+                                // outerElementType={CustomScrollContainer}
                                 itemData={{
                                     products,
                                     columnCount,
@@ -180,10 +221,13 @@ export function ProductList({ products, viewMode, isLoading, onItemClick, select
                         const itemHeight = viewMode === 'list' ? LIST_ROW_HEIGHT : THUMBNAIL_ROW_HEIGHT;
                         return (
                             <List
-                                height={height}
+                                height={height - (viewMode === 'list' ? 58 : 0)}
                                 width={width}
                                 itemCount={products.length}
                                 itemSize={itemHeight}
+                                // onScroll={handelScroll}
+                                className='no-scrollbar'
+                                // outerElementType={CustomScrollContainer}
                                 itemData={{
                                     products,
                                     viewMode,

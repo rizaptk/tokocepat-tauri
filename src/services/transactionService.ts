@@ -26,9 +26,9 @@ export const createTransaction = async (cart: CartItem[], activeShift: Shift, st
         return null;
     }
 
-    const now = new Date();
-    const transactionId = now.toISOString();
-    const invoiceNumber = `INV-${now.getTime()}`;
+    // const now = new Date();
+    const transactionId = crypto.randomUUID();
+    const invoiceNumber = `INV-${crypto.randomUUID().slice(0, 8)}`;
 
     const newTransaction: Transaction = {
       id: transactionId,

@@ -39,35 +39,37 @@ export function ProductSearchBar({ searchTerm, onSearchTermChange, viewMode, onV
     return (
         <div className="flex items-center gap-2 w-full">
             <div className="relative flex-1">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Search className="absolute left-2.5 top-2.5 h-5 w-5 text-muted-foreground/50" />
                 <Input
                     type="search"
                     placeholder="Search products or scan barcode..."
-                    className="w-full pl-8"
+                    className="w-full px-10"
                     value={searchTerm}
                     onChange={(e) => onSearchTermChange(e.target.value)}
                     onKeyDown={handleKeyDown}
+                    shape="full"
                 />
+                {onBarcodeScan && (
+                    <Dialog open={isScannerOpen} onOpenChange={setIsScannerOpen}>
+                        <DialogTrigger asChild>
+                            <Button variant="ghost" size="sm" className="shrink-0 size-9 absolute right-2 top-0.5 rounded-full [&_svg]:text-muted-foreground">
+                                <Barcode className="size-5" />
+                            </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                            <DialogHeader>
+                                <DialogTitle>Barcode Scanner</DialogTitle>
+                            </DialogHeader>
+                            <BarcodeScanner onScanSuccess={handleScanSuccess} />
+                        </DialogContent>
+                    </Dialog>
+                )}
             </div>
-            {onBarcodeScan && (
-                <Dialog open={isScannerOpen} onOpenChange={setIsScannerOpen}>
-                    <DialogTrigger asChild>
-                        <Button variant="outline" size="icon" className="shrink-0">
-                            <Barcode className="h-5 w-5" />
-                        </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                        <DialogHeader>
-                            <DialogTitle>Barcode Scanner</DialogTitle>
-                        </DialogHeader>
-                        <BarcodeScanner onScanSuccess={handleScanSuccess} />
-                    </DialogContent>
-                </Dialog>
-            )}
+            
             {viewMode && onViewModeChange && (
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                        <Button variant="outline" size="icon" className="shrink-0">
+                        <Button variant="outline" size="icon" className="shrink-0 rounded-full [&_svg]:text-muted-foreground">
                            <SlidersHorizontal className="h-5 w-5" />
                         </Button>
                     </DropdownMenuTrigger>

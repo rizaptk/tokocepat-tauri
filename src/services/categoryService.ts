@@ -8,7 +8,7 @@ export const addCategory = async (name: string): Promise<Category | null> => {
 
     const { doc, setDoc } = firesqlite;
 
-    const newId = `cat-${new Date().getTime().toString()}`;
+    const newId = `cat-${crypto.randomUUID().slice(0, 8)}`;
     const newCategory: Category = {
         id: newId,
         name,

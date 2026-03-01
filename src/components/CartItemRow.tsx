@@ -4,9 +4,8 @@ import { motion } from 'framer-motion';
 import { useStore } from '@/lib/store';
 import { CartItem } from '@/lib/types';
 import { cn } from '@/lib/utils';
-import { Input } from './ui/input';
 import { Button } from './ui/button';
-import { Trash2 } from 'lucide-react';
+import { Trash2, Minus, Plus } from 'lucide-react';
 import { useIsMobile } from '@/lib/ismobile-store';
 
 interface CartItemRowProps {
@@ -33,7 +32,7 @@ export const CartItemRow = ({ item, onEditItem }: CartItemRowProps) => {
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, x: '-100%', transition: { duration: 0.1 } }}
-            className="relative border-b overflow-hidden"
+            className="relative overflow-hidden"
         >
             {/* Accent flash layer */}
             <motion.div
@@ -44,8 +43,8 @@ export const CartItemRow = ({ item, onEditItem }: CartItemRowProps) => {
             />
 
             {isMobile && (
-                <div className="absolute inset-y-0 right-0 flex items-center justify-center bg-destructive px-6">
-                    <Trash2 className="h-5 w-5 text-destructive-foreground" />
+                <div className="absolute right-0 flex items-center justify-center bg-destructive px-6 py-0.5 rounded-md">
+                    <Trash2 className="size-4 text-destructive-foreground" />
                 </div>
             )}
 
@@ -78,19 +77,25 @@ export const CartItemRow = ({ item, onEditItem }: CartItemRowProps) => {
                     </p>
                 </div>
                 <div className="hidden md:flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                    <Input
-                        type="number"
-                        value={item.quantity}
-                        onChange={e => updateQuantity(item.cartItemId, parseInt(e.target.value))}
-                        className="h-8 w-16 text-center"
-                        min="1"
-                    />
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 rounded-full opacity-40 hover:opacity-100"
+                        onClick={() => updateQuantity(item.cartItemId, Math.max(1, item.quantity - 1))}
+                        disabled={item.quantity <= 1}
+                    >
+                        <Minus className="h-3 w-3" />
+                    </Button>
+                    <span className="w-8 text-center font-medium text-sm">{item.quantity}</span>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full opacity-40 hover:opacity-100" onClick={() => updateQuantity(item.cartItemId, item.quantity + 1)}>
+                        <Plus className="h-3 w-3" />
+                    </Button>
                 </div>
                 <div className="w-24 text-right">
                     <p className="font-semibold mt-1">{formatCurrency(item.price * item.quantity)}</p>
                 </div>
                 <div className="hidden md:block" onClick={(e) => e.stopPropagation()}>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive" onClick={() => removeFromCart(item.cartItemId)}>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive rounded-full" onClick={() => removeFromCart(item.cartItemId)}>
                         <Trash2 className="h-4 w-4" />
                     </Button>
                 </div>
