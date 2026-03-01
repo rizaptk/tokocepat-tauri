@@ -2,188 +2,253 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
-import * as z from "zod";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
 import { useStore } from "@/lib/store";
-import { Product, StockMovementType, Category } from "@/lib/types";
+import { Product, StockMovementType } from "@/lib/types";
 import { adjustStock } from "@/services/stockService";
 import { useToast } from "@/hooks/use-toast";
 
 import { Button } from "@/components/ui/button";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { ProductSearchBar } from "@/components/ProductSearchBar";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
-import { PlusCircle } from "lucide-react";
+import { PlusCircle, Plus, Minus, Calculator, Package } from "lucide-react";
 import { ProductList } from "@/components/ProductList";
 import type { ViewMode } from "@/app/cashier/page";
 import { useGlobalBarcodeScanner } from "@/hooks/use-global-barcode-scanner";
-import { SplitPanelLayout } from "@/components/SidePanel";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { useSettingsStore } from "@/lib/settings";
+import { cn } from "@/lib/utils";
+import { Separator } from "@/components/ui/separator";
+import { Label } from "@/components/ui/label";
 
-// Form for the right panel / sheet content
-const adjustmentFormSchema = z.object({
-  product_id: z.string().min(1, "Please select a product."),
-  type: z.enum(["restock", "correction", "lost", "damaged", "initial_balance"], { required_error: "Please select an adjustment type." }),
-  qty_change: z.coerce.number().refine(val => val !== 0, "Quantity cannot be zero."),
-  reason: z.string().min(3, "Please provide a reason for the adjustment."),
-});
-type AdjustmentFormValues = z.infer<typeof adjustmentFormSchema>;
 
-const adjustmentTypes: { value: StockMovementType, label: string }[] = [
-    { value: 'initial_balance', label: 'Opening Balance (+)' },
-    { value: 'restock', label: 'Purchase / Restock (+)' },
-    { value: 'correction', label: 'Correction (+/-)' },
-    { value: 'lost', label: 'Lost (-)' },
-    { value: 'damaged', label: 'Damaged (-)' },
-];
+const reasonOptions: Record<'add' | 'remove' | 'count', { value: StockMovementType, label: string }[]> = {
+    add: [
+        { value: 'restock', label: 'New Purchase / Restock' },
+        { value: 'initial_balance', label: 'Opening Stock' },
+        { value: 'correction', label: 'Customer Return' },
+        { value: 'correction', label: 'Other' }
+    ],
+    remove: [
+        { value: 'damaged', label: 'Damaged' },
+        { value: 'lost', label: 'Lost / Stolen' },
+        { value: 'correction', label: 'Internal Use' },
+        { value: 'correction', label: 'Other' }
+    ],
+    count: [
+        { value: 'correction', label: 'Stock Count Correction' },
+        { value: 'correction', label: 'End of Month Audit' },
+        { value: 'correction', label: 'Other' }
+    ]
+};
 
-const AdjustmentForm = ({ onSave, selectedProductId }: { onSave?: () => void, selectedProductId: string | null }) => {
+const StockAdjustmentPanel = ({ selectedProductId, onSave }: { selectedProductId: string | null; onSave: () => void; }) => {
+    const [mode, setMode] = useState<'add' | 'remove' | 'count' | null>(null);
+    const [quantity, setQuantity] = useState('');
+    const [actualCount, setActualCount] = useState('');
+    const [reason, setReason] = useState('');
+    const [note, setNote] = useState('');
+
     const { products } = useStore();
     const { toast } = useToast();
-    const stockTrackedProducts = products.filter(p => p.track_stock);
 
-    const form = useForm<AdjustmentFormValues>({
-        resolver: zodResolver(adjustmentFormSchema),
-        defaultValues: {
-            product_id: "",
-            qty_change: 0,
-            reason: "",
-        },
-    });
+    const product = useMemo(() => {
+        if (!selectedProductId) return null;
+        return products.find(p => p.id === selectedProductId);
+    }, [selectedProductId, products]);
 
+    // Reset form state when product changes
     useEffect(() => {
         if (selectedProductId) {
-            form.setValue('product_id', selectedProductId, { shouldValidate: true });
-        } else {
-             form.reset({
-                product_id: "",
-                qty_change: 0,
-                reason: "",
-            });
+            setMode(null);
+            setQuantity('');
+            setActualCount('');
+            setReason('');
+            setNote('');
         }
-    }, [selectedProductId, form]);
+    }, [selectedProductId]);
 
-    async function onSubmit(data: AdjustmentFormValues) {
+    // Calculate change and new stock for the preview
+    const { change, newStock, isFormValid } = useMemo(() => {
+        if (!product || !mode) return { change: 0, newStock: 0, isFormValid: false };
+
+        const currentStock = product.stock;
+        let changeVal = 0;
+        let formIsValid = false;
+
+        if (mode === 'add' || mode === 'remove') {
+            const qty = parseInt(quantity, 10);
+            if (!isNaN(qty) && qty > 0) {
+                changeVal = mode === 'add' ? qty : -qty;
+                formIsValid = !!reason;
+            }
+        } else if (mode === 'count') {
+            const count = parseInt(actualCount, 10);
+            if (!isNaN(count)) {
+                changeVal = count - currentStock;
+                // Form is valid if reason is selected, OR if there's no change (no action needed).
+                formIsValid = changeVal !== 0 ? !!reason : true;
+            }
+        }
+
+        return {
+            change: changeVal,
+            newStock: currentStock + changeVal,
+            isFormValid: formIsValid
+        };
+    }, [mode, quantity, actualCount, reason, product]);
+
+    const handleSubmit = async () => {
+        if (!isFormValid || !product) {
+            toast({ variant: 'destructive', title: 'Invalid', description: 'Please complete the form with a valid reason and quantity.' });
+            return;
+        }
+
+        if (change === 0) {
+            toast({ title: "No Changes", description: "Actual count matches system stock. No adjustment needed." });
+            onSave();
+            return;
+        }
+
         try {
-            await adjustStock(data);
-            toast({
-                title: "Stock Adjusted",
-                description: `Inventory has been updated successfully.`,
+            const finalReason = reasonOptions[mode!]?.find(r => r.value === reason)?.label || 'Adjustment';
+            await adjustStock({
+                product_id: product.id,
+                type: reason as StockMovementType,
+                qty_change: change,
+                reason: note ? `${finalReason}: ${note}` : finalReason,
             });
-            form.reset();
-            if (onSave) onSave();
-        } catch (error) {
-            console.error(error);
-            toast({
-                variant: "destructive",
-                title: "Adjustment Failed",
-                description: "There was an error saving the stock adjustment.",
-            });
+            toast({ title: 'Stock Adjusted', description: `${product.name} stock has been updated to ${newStock}.` });
+            onSave();
+        } catch (error: any) {
+            toast({ variant: 'destructive', title: 'Error', description: error.message });
         }
-    }
-
+    };
+    
     return (
-        <Form {...form}>
-                <SplitPanelLayout
-                    scroll={true}
-                    className="h-full"
-                    header={
-                        <div className="p-4">
-                            <h3 className="font-semibold text-lg">Manual Stock Adjustment</h3>
-                            <p className="text-sm text-muted-foreground">
-                                Select a product from the list to begin, or scan its barcode.
-                            </p>
+        <div className="flex flex-col h-full">
+            <div className="p-4 border-b">
+                <h3 className="font-semibold text-lg">Manual Stock Adjustment</h3>
+                <p className="text-sm text-muted-foreground">Select a product from the list to begin.</p>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto p-4 space-y-6">
+                {!product ? (
+                    <div className="flex flex-col items-center justify-center text-center text-muted-foreground h-full p-8 border border-dashed rounded-lg">
+                        <Package className="w-12 h-12 mb-4" />
+                        <p>No product selected</p>
+                    </div>
+                ) : (
+                    <>
+                        {/* Product Detail */}
+                        <Card>
+                             <CardHeader>
+                                <CardTitle>{product.name}</CardTitle>
+                                <CardDescription>Current Stock: <span className="font-bold text-foreground">{product.stock}</span></CardDescription>
+                            </CardHeader>
+                        </Card>
+                        
+                        {/* Actions */}
+                        <div>
+                            <Label>What happened?</Label>
+                            <div className="grid grid-cols-3 gap-2 mt-2">
+                                <Button variant={mode === 'add' ? 'default' : 'outline'} onClick={() => setMode('add')} className="flex-col h-16 bg-green-500/10 border-green-500 text-green-700 hover:bg-green-500/20 hover:text-green-800 data-[state=active]:bg-green-500 data-[state=active]:text-white">
+                                    <Plus className="w-5 h-5 mb-1" />
+                                    <span className="text-xs">Add Stock</span>
+                                </Button>
+                                 <Button variant={mode === 'remove' ? 'destructive' : 'outline'} onClick={() => setMode('remove')} className="flex-col h-16">
+                                    <Minus className="w-5 h-5 mb-1" />
+                                     <span className="text-xs">Remove Stock</span>
+                                </Button>
+                                 <Button variant={mode === 'count' ? 'default' : 'outline'} onClick={() => setMode('count')} className="flex-col h-16 bg-blue-500/10 border-blue-500 text-blue-700 hover:bg-blue-500/20 hover:text-blue-800 data-[state=active]:bg-blue-500 data-[state=active]:text-white">
+                                    <Calculator className="w-5 h-5 mb-1" />
+                                    <span className="text-xs">Count Stock</span>
+                                </Button>
+                            </div>
                         </div>
-                    }
-                    footer={
-                        <Button type="submit" className="w-full" disabled={!selectedProductId}>Save Adjustment</Button>
-                    }
-                >
-                    <Card>
-                        <CardContent className="py-6">
-                            <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-4">
-                                <FormField
-                                    control={form.control}
-                                    name="product_id"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>Product</FormLabel>
-                                            <Select onValueChange={field.onChange} value={field.value || ""} disabled={!selectedProductId}>
-                                                <FormControl>
-                                                    <SelectTrigger>
-                                                        <SelectValue placeholder="Select a product from the list" />
-                                                    </SelectTrigger>
-                                                </FormControl>
+
+                        {/* Dynamic Form Area */}
+                        {mode && (
+                            <div className="space-y-4 pt-4 border-t">
+                                {mode === 'add' || mode === 'remove' ? (
+                                    <div className="space-y-4">
+                                        <div className="space-y-2">
+                                            <Label htmlFor="quantity">Quantity to {mode}</Label>
+                                            <Input id="quantity" type="number" placeholder="Enter a positive number" value={quantity} onChange={(e) => setQuantity(e.target.value)} min="1"/>
+                                        </div>
+                                         <div className="space-y-2">
+                                            <Label htmlFor="reason-select">Reason</Label>
+                                            <Select value={reason} onValueChange={setReason}>
+                                                <SelectTrigger><SelectValue placeholder="Select a reason" /></SelectTrigger>
                                                 <SelectContent>
-                                                    {stockTrackedProducts.map(p => (
-                                                        <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                                                    ))}
+                                                    {reasonOptions[mode].map(opt => <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>)}
                                                 </SelectContent>
                                             </Select>
-                                            <FormMessage />
-                                        </FormItem>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-4">
+                                        <div className="space-y-2">
+                                            <Label htmlFor="actual-count">Actual Physical Count</Label>
+                                            <Input id="actual-count" type="number" placeholder="e.g. 142" value={actualCount} onChange={(e) => setActualCount(e.target.value)} />
+                                        </div>
+                                        {change !== 0 && (
+                                            <div className="space-y-2">
+                                                <Label htmlFor="reason-count">Reason for Difference</Label>
+                                                <Select value={reason} onValueChange={setReason}>
+                                                    <SelectTrigger><SelectValue placeholder="Select a reason" /></SelectTrigger>
+                                                    <SelectContent>
+                                                        {reasonOptions.count.map(opt => <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>)}
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                                 <div className="space-y-2">
+                                    <Label htmlFor="note">Note (Optional)</Label>
+                                    <Textarea id="note" placeholder="e.g., 'Box was found open'" value={note} onChange={e => setNote(e.target.value)} />
+                                </div>
+                            </div>
+                        )}
+                        
+                        {/* Adjustment Preview */}
+                        {mode && change !== 0 && (
+                            <Card className="bg-muted/50">
+                                <CardHeader>
+                                    <CardTitle className="text-base">Adjustment Summary</CardTitle>
+                                </CardHeader>
+                                <CardContent className="space-y-2 text-sm">
+                                    <div className="flex justify-between">
+                                        <span className="text-muted-foreground">Previous Stock</span>
+                                        <span>{product.stock}</span>
+                                    </div>
+                                    <div className={cn("flex justify-between font-semibold", change > 0 ? "text-green-600" : "text-destructive")}>
+                                        <span className="text-muted-foreground">Change</span>
+                                        <span>{change > 0 ? `+${change}` : change}</span>
+                                    </div>
+                                    <Separator />
+                                     <div className="flex justify-between font-bold text-lg">
+                                        <span>New Stock</span>
+                                        <span>{newStock}</span>
+                                    </div>
+                                     {newStock < 0 && (
+                                        <p className="text-xs text-center pt-2 text-destructive font-semibold">⚠ This will result in negative stock.</p>
                                     )}
-                                />
-                                <FormField
-                                    control={form.control}
-                                    name="type"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>Adjustment Type</FormLabel>
-                                            <Select onValueChange={field.onChange} value={field.value} disabled={!selectedProductId}>
-                                                <FormControl>
-                                                    <SelectTrigger>
-                                                        <SelectValue placeholder="Select a type" />
-                                                    </SelectTrigger>
-                                                </FormControl>
-                                                <SelectContent>
-                                                    {adjustmentTypes.map(t => (
-                                                        <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                                <FormField
-                                    control={form.control}
-                                    name="qty_change"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>Quantity Change</FormLabel>
-                                            <FormControl>
-                                                <Input type="number" placeholder="e.g., 10 or -5" {...field} disabled={!selectedProductId}/>
-                                            </FormControl>
-                                            <FormDescription>Use a negative number to decrease stock.</FormDescription>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                                <FormField
-                                    control={form.control}
-                                    name="reason"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>Reason</FormLabel>
-                                            <FormControl>
-                                                <Textarea placeholder="e.g., 'End of month stock count correction'" {...field} disabled={!selectedProductId}/>
-                                            </FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                            </form>
-                        </CardContent>
-                    </Card>
-                </SplitPanelLayout>
-        </Form>
-    )
+                                </CardContent>
+                            </Card>
+                        )}
+                    </>
+                )}
+            </div>
+            
+            <div className="p-4 border-t mt-auto">
+                 <Button className="w-full" onClick={handleSubmit} disabled={!isFormValid || !product || (mode === 'count' && change === 0)}>Save Adjustment</Button>
+            </div>
+        </div>
+    );
 }
 
 export default function InventoryPage() {
@@ -192,24 +257,30 @@ export default function InventoryPage() {
     const [searchTerm, setSearchTerm] = useState("");
     const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
     const [isSheetOpen, setIsSheetOpen] = useState(false);
-    // const [viewMode, setViewMode] = useState<ViewMode>('thumbnail');
 
     const { showMode, setShowMode } = useSettingsStore();
 
      useEffect(() => {
         const handleResize = () => {
             const mobile = window.innerWidth < 768;
-            // setViewMode(mobile ? 'thumbnail' : 'list');
             setShowMode({inventory: mobile ? 'thumbnail' : 'list'});
         };
         window.addEventListener('resize', handleResize);
         handleResize(); 
         return () => window.removeEventListener('resize', handleResize);
-    }, []);
+    }, [setShowMode]);
 
     const handleBarcodeScan = (barcode: string) => {
         const product = products.find(p => p.barcode === barcode);
         if (product) {
+            if (!product.track_stock) {
+                 toast({
+                    variant: "destructive",
+                    title: "Untracked Product",
+                    description: `"${product.name}" does not have stock tracking enabled.`,
+                });
+                return;
+            }
             setSelectedProductId(product.id);
              toast({
                 title: "Product Found",
@@ -245,6 +316,13 @@ export default function InventoryPage() {
         setIsSheetOpen(isOpen);
         if (!isOpen) {
             setSelectedProductId(null);
+        }
+    }
+    
+    const handleSave = () => {
+        setSelectedProductId(null);
+        if (window.innerWidth < 768) {
+            setIsSheetOpen(false);
         }
     }
 
@@ -288,13 +366,13 @@ export default function InventoryPage() {
 
             {/* Right Panel: Adjustment Form (Desktop) */}
             <aside className="hidden md:block col-span-4 lg:col-span-4 h-full bg-background min-h-0 border-l">
-               <AdjustmentForm onSave={() => setSelectedProductId(null)} selectedProductId={selectedProductId} />
+               <StockAdjustmentPanel onSave={handleSave} selectedProductId={selectedProductId} />
             </aside>
             
             {/* Adjustment Form Sheet (Mobile) */}
              <Sheet open={isSheetOpen} onOpenChange={handleSheetOpenChange}>
                 <SheetContent side="right" className="w-full sm:w-[500px] p-0 flex flex-col h-full min-h-0">
-                    <AdjustmentForm onSave={() => setIsSheetOpen(false)} selectedProductId={selectedProductId} />
+                    <StockAdjustmentPanel onSave={handleSave} selectedProductId={selectedProductId} />
                 </SheetContent>
             </Sheet>
         </div>
