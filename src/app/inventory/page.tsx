@@ -183,7 +183,7 @@ const StockAdjustmentPanel = ({ selectedProductId, onSave }: { selectedProductId
                                             <Select value={reason} onValueChange={setReason}>
                                                 <SelectTrigger><SelectValue placeholder="Select a reason" /></SelectTrigger>
                                                 <SelectContent>
-                                                    {reasonOptions[mode].map(opt => <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>)}
+                                                    {reasonOptions[mode].map(opt => <SelectItem key={opt.label} value={opt.value}>{opt.label}</SelectItem>)}
                                                 </SelectContent>
                                             </Select>
                                         </div>
@@ -200,7 +200,7 @@ const StockAdjustmentPanel = ({ selectedProductId, onSave }: { selectedProductId
                                                 <Select value={reason} onValueChange={setReason}>
                                                     <SelectTrigger><SelectValue placeholder="Select a reason" /></SelectTrigger>
                                                     <SelectContent>
-                                                        {reasonOptions.count.map(opt => <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>)}
+                                                        {reasonOptions.count.map(opt => <SelectItem key={opt.label} value={opt.value}>{opt.label}</SelectItem>)}
                                                     </SelectContent>
                                                 </Select>
                                             </div>
@@ -209,7 +209,7 @@ const StockAdjustmentPanel = ({ selectedProductId, onSave }: { selectedProductId
                                 )}
                                  <div className="space-y-2">
                                     <Label htmlFor="note">Note (Optional)</Label>
-                                    <Textarea id="note" placeholder="e.g., 'Box was found open'" value={note} onChange={e => setNote(e.target.value)} />
+                                    <Textarea id="note" placeholder="e.g., 'Box was found open'" value={note} onChange={e => setSetNote(e.target.value)} />
                                 </div>
                             </div>
                         )}
