@@ -24,23 +24,23 @@ import { Separator } from "@/components/ui/separator";
 import { Label } from "@/components/ui/label";
 
 
-const reasonOptions: Record<'add' | 'remove' | 'count', { value: StockMovementType, label: string }[]> = {
+const reasonOptions: Record<'add' | 'remove' | 'count', { id: string, value: StockMovementType, label: string }[]> = {
     add: [
-        { value: 'restock', label: 'New Purchase / Restock' },
-        { value: 'initial_balance', label: 'Opening Stock' },
-        { value: 'correction', label: 'Customer Return' },
-        { value: 'correction', label: 'Other' }
+        { id: 'add-restock', value: 'restock', label: 'New Purchase / Restock' },
+        { id: 'add-initial', value: 'initial_balance', label: 'Opening Stock' },
+        { id: 'add-return', value: 'correction', label: 'Customer Return' },
+        { id: 'add-other', value: 'correction', label: 'Other' }
     ],
     remove: [
-        { value: 'damaged', label: 'Damaged' },
-        { value: 'lost', label: 'Lost / Stolen' },
-        { value: 'correction', label: 'Internal Use' },
-        { value: 'correction', label: 'Other' }
+        { id: 'remove-damaged', value: 'damaged', label: 'Damaged' },
+        { id: 'remove-lost', value: 'lost', label: 'Lost / Stolen' },
+        { id: 'remove-internal', value: 'correction', label: 'Internal Use' },
+        { id: 'remove-other', value: 'correction', label: 'Other' }
     ],
     count: [
-        { value: 'correction', label: 'Stock Count Correction' },
-        { value: 'correction', label: 'End of Month Audit' },
-        { value: 'correction', label: 'Other' }
+        { id: 'count-correction', value: 'correction', label: 'Stock Count Correction' },
+        { id: 'count-audit', value: 'correction', label: 'End of Month Audit' },
+        { id: 'count-other', value: 'correction', label: 'Other' }
     ]
 };
 
@@ -101,7 +101,7 @@ const StockAdjustmentPanel = ({ selectedProductId, onSave }: { selectedProductId
     }, [mode, quantity, actualCount, reason, product]);
 
     const handleSubmit = async () => {
-        if (!isFormValid || !product) {
+        if (!isFormValid || !product || !mode) {
             toast({ variant: 'destructive', title: 'Invalid', description: 'Please complete the form with a valid reason and quantity.' });
             return;
         }
@@ -113,12 +113,16 @@ const StockAdjustmentPanel = ({ selectedProductId, onSave }: { selectedProductId
         }
 
         try {
-            const finalReason = reasonOptions[mode!]?.find(r => r.value === reason)?.label || 'Adjustment';
+            const selectedOption = reasonOptions[mode].find(opt => opt.id === reason);
+            if (!selectedOption) {
+                toast({ variant: 'destructive', title: 'Invalid Reason', description: 'Please select a valid reason.' });
+                return;
+            }
+
             await adjustStock({
                 product_id: product.id,
-                type: reason as StockMovementType,
-                qty_change: change,
-                reason: note ? `${finalReason}: ${note}` : finalReason,
+                type: selectedOption.value,
+                reason: note ? `${selectedOption.label}: ${note}` : selectedOption.label,
             });
             toast({ title: 'Stock Adjusted', description: `${product.name} stock has been updated to ${newStock}.` });
             onSave();
@@ -183,7 +187,7 @@ const StockAdjustmentPanel = ({ selectedProductId, onSave }: { selectedProductId
                                             <Select value={reason} onValueChange={setReason}>
                                                 <SelectTrigger><SelectValue placeholder="Select a reason" /></SelectTrigger>
                                                 <SelectContent>
-                                                    {reasonOptions[mode].map(opt => <SelectItem key={opt.label} value={opt.value}>{opt.label}</SelectItem>)}
+                                                    {reasonOptions[mode].map(opt => <SelectItem key={opt.id} value={opt.id}>{opt.label}</SelectItem>)}
                                                 </SelectContent>
                                             </Select>
                                         </div>
@@ -200,7 +204,7 @@ const StockAdjustmentPanel = ({ selectedProductId, onSave }: { selectedProductId
                                                 <Select value={reason} onValueChange={setReason}>
                                                     <SelectTrigger><SelectValue placeholder="Select a reason" /></SelectTrigger>
                                                     <SelectContent>
-                                                        {reasonOptions.count.map(opt => <SelectItem key={opt.label} value={opt.value}>{opt.label}</SelectItem>)}
+                                                        {reasonOptions.count.map(opt => <SelectItem key={opt.id} value={opt.id}>{opt.label}</SelectItem>)}
                                                     </SelectContent>
                                                 </Select>
                                             </div>
@@ -209,7 +213,7 @@ const StockAdjustmentPanel = ({ selectedProductId, onSave }: { selectedProductId
                                 )}
                                  <div className="space-y-2">
                                     <Label htmlFor="note">Note (Optional)</Label>
-                                    <Textarea id="note" placeholder="e.g., 'Box was found open'" value={note} onChange={e => setSetNote(e.target.value)} />
+                                    <Textarea id="note" placeholder="e.g., 'Box was found open'" value={note} onChange={e => setNote(e.target.value)} />
                                 </div>
                             </div>
                         )}
