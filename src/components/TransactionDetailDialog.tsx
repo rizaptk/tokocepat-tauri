@@ -33,12 +33,14 @@ const formatCurrency = (amount: number) => {
 };
 
 export function TransactionDetailDialog({ transaction, onOpenChange }: TransactionDetailDialogProps) {
-    const { storeConfig } = useStore();
+    const { storeConfig, shifts } = useStore();
     const { toast } = useToast();
     const [voidReason, setVoidReason] = useState("");
     const [isVoidAlertOpen, setIsVoidAlertOpen] = useState(false);
 
     if (!transaction) return null;
+
+    const shiftForTransaction = transaction.shift_id ? shifts.find(s => s.id === transaction.shift_id) : null;
     
     const handleVoidConfirm = async (e: React.MouseEvent<HTMLButtonElement, MouseEvent>) => {
         if (!voidReason.trim()) {
@@ -79,10 +81,10 @@ export function TransactionDetailDialog({ transaction, onOpenChange }: Transacti
                     <div className="text-sm text-muted-foreground">
                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
                             <span>{format(new Date(transaction.created_at), 'PPPPp')}</span>
-                            {transaction.shift_id && (
+                            {shiftForTransaction && (
                                 <span className="flex items-center gap-1.5 text-xs mt-1 sm:mt-0">
                                     <Clock className="h-3 w-3" />
-                                    Shift: {format(new Date(transaction.shift_id), 'p')}
+                                    Shift: {format(new Date(shiftForTransaction.opened_at), 'p')}
                                 </span>
                             )}
                         </div>
@@ -93,8 +95,8 @@ export function TransactionDetailDialog({ transaction, onOpenChange }: Transacti
                     <div className="space-y-2">
                         <h4 className="font-semibold">Items</h4>
                         <div className="border rounded-md">
-                           {transaction.items.map(item => (
-                               <div key={item.id} className="flex justify-between items-start p-3 border-b last:border-none">
+                           {transaction.items.map((item, index) => (
+                               <div key={`${item.id}-${index}`} className="flex justify-between items-start p-3 border-b last:border-none">
                                    <div className="flex-1">
                                        <p className="font-medium">{item.product_snapshot.name}</p>
                                        {item.selected_modifiers_snapshot && item.selected_modifiers_snapshot.length > 0 && (
