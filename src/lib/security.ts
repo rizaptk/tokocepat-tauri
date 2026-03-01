@@ -9,34 +9,43 @@
 
 /**
  * Generates a stable device fingerprint using various browser APIs.
+ * This version uses Canvas fingerprinting for higher entropy and focuses on stable hardware/engine properties.
  */
 export async function generateDeviceFingerprint(): Promise<string> {
     if (typeof window === 'undefined') return 'server-side-fingerprint';
 
-    const getPlugins = () => {
-        if (!navigator.plugins) return [];
-        const plugins = [];
-        for (let i = 0; i < navigator.plugins.length; i++) {
-            const plugin = navigator.plugins[i];
-            if (plugin) {
-               plugins.push(plugin.name);
-            }
-        }
-        return plugins.sort();
+    // 1. Canvas Fingerprinting (High Entropy)
+    const getCanvasFingerprint = () => {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return '';
+        // Draw a complex shape with colors and fonts
+        ctx.textBaseline = "top";
+        ctx.font = "14px 'Arial'";
+        ctx.textBaseline = "alphabetic";
+        ctx.fillStyle = "#f60";
+        ctx.fillRect(125, 1, 62, 20);
+        ctx.fillStyle = "#069";
+        ctx.fillText("TokoCepat-POS-Fingerprint", 2, 15);
+        ctx.fillStyle = "rgba(102, 204, 0, 0.7)";
+        ctx.fillText("TokoCepat-POS-Fingerprint", 4, 17);
+        return canvas.toDataURL();
     };
 
     const components = {
-        userAgent: navigator.userAgent,
-        language: navigator.language,
+        // Hardware & Engine
         platform: navigator.platform,
-        screenWidth: window.screen.width,
-        screenHeight: window.screen.height,
-        colorDepth: window.screen.colorDepth,
-        timezone: new Date().getTimezoneOffset(),
-        deviceMemory: (navigator as any).deviceMemory || -1,
         hardwareConcurrency: navigator.hardwareConcurrency || -1,
-        devicePixelRatio: window.devicePixelRatio || -1,
-        plugins: getPlugins(),
+        deviceMemory: (navigator as any).deviceMemory || -1,
+        
+        // Locale & Settings (Stable)
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        language: navigator.language,
+        
+        // Graphics (The "secret sauce")
+        canvas: getCanvasFingerprint(),
+        
+        // We exclude UserAgent and ScreenSize because they change too often
     };
     
     const json = JSON.stringify(components);
