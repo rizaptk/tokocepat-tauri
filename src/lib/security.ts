@@ -1,20 +1,24 @@
 
 "use client";
 
-// This file contains placeholder logic for client-side security.
-// In a real application, this would be more complex and involve
-// server-side validation and robust cryptographic libraries.
-
-// --- Device Fingerprinting ---
+const FINGERPRINT_KEY = 'tokoc_device_fingerprint';
 
 /**
- * Generates a stable device fingerprint using various browser APIs.
- * This version uses Canvas fingerprinting for higher entropy and focuses on stable hardware/engine properties.
+ * Generates a stable device fingerprint.
+ * It first checks localStorage for a saved fingerprint. If not found, it calculates
+ * a new one based on stable hardware/browser properties (including canvas fingerprinting),
+ * saves it to localStorage, and then returns it.
  */
 export async function generateDeviceFingerprint(): Promise<string> {
     if (typeof window === 'undefined') return 'server-side-fingerprint';
 
-    // 1. Canvas Fingerprinting (High Entropy)
+    // 1. Check for a stored fingerprint first.
+    const storedFingerprint = localStorage.getItem(FINGERPRINT_KEY);
+    if (storedFingerprint) {
+        return storedFingerprint;
+    }
+
+    // 2. If not found, calculate it using Canvas and other stable properties.
     const getCanvasFingerprint = () => {
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
@@ -44,12 +48,15 @@ export async function generateDeviceFingerprint(): Promise<string> {
         
         // Graphics (The "secret sauce")
         canvas: getCanvasFingerprint(),
-        
-        // We exclude UserAgent and ScreenSize because they change too often
     };
     
     const json = JSON.stringify(components);
     const hashBuffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(json));
     const hashArray = Array.from(new Uint8Array(hashBuffer));
-    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    const newFingerprint = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+
+    // 3. Store the newly calculated fingerprint for future use.
+    localStorage.setItem(FINGERPRINT_KEY, newFingerprint);
+    
+    return newFingerprint;
 }
