@@ -1,13 +1,14 @@
-
 'use client';
 
 import Link from 'next/link';
 import { useStore } from '@/lib/store';
-import { useState, useMemo } from 'react';
-import { ArrowLeft, Beaker } from 'lucide-react';
+import { useState, useMemo, useEffect } from 'react';
+import { ArrowLeft, Beaker, Loader2 } from 'lucide-react';
 import { format, startOfDay, endOfDay, subDays, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import { exportConsumptionToExcel, exportConsumptionToPdf } from '@/lib/export';
 import { useToast } from '@/hooks/use-toast';
+import { getStockMovementsByDateRange } from '@/services/stockService';
+import { StockMovement } from '@/lib/types';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -16,9 +17,11 @@ import { DateRangeFilter, DateRangePreset } from '@/components/DateRangeFilter';
 
 
 export default function ConsumptionReportPage() {
-    const { rawIngredients, stockMovements, storeConfig } = useStore();
+    const { rawIngredients, storeConfig } = useStore();
     const { toast } = useToast();
     const [range, setRange] = useState<DateRangePreset>('today');
+    const [stockMovements, setStockMovements] = useState<StockMovement[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
 
     const dateRange = useMemo(() => {
         const now = new Date();
@@ -37,25 +40,33 @@ export default function ConsumptionReportPage() {
         }
     }, [range]);
 
+    useEffect(() => {
+        const fetchMovements = async () => {
+            setIsLoading(true);
+            const data = await getStockMovementsByDateRange(dateRange.from, dateRange.to);
+            setStockMovements(data);
+            setIsLoading(false);
+        };
+        fetchMovements();
+    }, [dateRange]);
+
     const reportData = useMemo(() => {
         return rawIngredients.map(ing => {
-            const movements_after_period = stockMovements.filter(m => m.product_id === ing.id && new Date(m.created_at) > dateRange.to);
-            const movements_in_period = stockMovements.filter(m => m.product_id === ing.id && new Date(m.created_at) >= dateRange.from && new Date(m.created_at) <= dateRange.to);
+            const movementsInPeriod = stockMovements.filter(m => m.product_id === ing.id);
             
-            const total_change_after_period = movements_after_period.reduce((sum, m) => sum + m.qty_change, 0);
-            const total_change_in_period = movements_in_period.reduce((sum, m) => sum + m.qty_change, 0);
-
-            const closingStock = ing.stock_qty - total_change_after_period;
-            const openingStock = closingStock - total_change_in_period;
-
-            const consumed = Math.abs(movements_in_period
+            const consumed = Math.abs(movementsInPeriod
                 .filter(m => m.type === 'sale')
                 .reduce((sum, m) => sum + m.qty_change, 0));
             
-            const adjusted = movements_in_period
+            const adjusted = movementsInPeriod
                 .filter(m => m.type !== 'sale')
                 .reduce((sum, m) => sum + m.qty_change, 0);
 
+            // This calculation is an approximation for past dates, but is accurate for "Today".
+            const totalChangeInPeriod = adjusted - consumed;
+            const closingStock = ing.stock_qty; // Use current stock as a baseline for "closing"
+            const openingStock = closingStock - totalChangeInPeriod;
+            
             return {
                 ...ing,
                 openingStock,
@@ -64,7 +75,7 @@ export default function ConsumptionReportPage() {
                 closingStock,
             };
         });
-    }, [rawIngredients, stockMovements, dateRange]);
+    }, [rawIngredients, stockMovements]);
     
     const formatCurrency = (amount: number) => {
         return new Intl.NumberFormat('id-ID', {
@@ -133,7 +144,9 @@ export default function ConsumptionReportPage() {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {reportData.length > 0 ? (
+                            {isLoading ? (
+                                <TableRow><TableCell colSpan={6} className="h-24 text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" /></TableCell></TableRow>
+                            ) : reportData.length > 0 ? (
                                 reportData.map(ing => (
                                     <TableRow key={ing.id}>
                                         <TableCell className="font-medium">{ing.name}</TableCell>
