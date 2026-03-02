@@ -52,7 +52,13 @@ export function TransactionDisplay({ onSelectTransaction }: TransactionDisplayPr
                         >
                             <div className="flex-1">
                                 <p className="font-semibold text-sm">{tx.invoice_number}</p>
-                                <p className="text-xs text-muted-foreground">{format(new Date(tx.created_at), 'p')}</p>
+                                <p className="text-xs text-muted-foreground">
+                                    {(() => {
+                                        const date = new Date(tx.created_at);
+                                        if (isNaN(date.getTime())) return 'Invalid Date';
+                                        return format(date, 'p');
+                                    })()}
+                                </p>
                             </div>
                             <div className="text-right">
                                 <p className="font-bold text-sm">{formatCurrency(tx.total)}</p>

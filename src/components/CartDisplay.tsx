@@ -104,7 +104,6 @@ export function CartDisplay({ onEditItem }: CartDisplayProps) {
     }
   };
 
-
   useEffect(() => {
     if (!cartContainer.current) return;
     
