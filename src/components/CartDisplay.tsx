@@ -204,28 +204,29 @@ export function CartDisplay({ onEditItem }: CartDisplayProps) {
                 <div className="mt-4 flex gap-2">
                     {isReviewing ? (
                         <>
-                            <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                    <Button variant="destructive" size="lg" className="flex-1">
-                                        <Trash2 className="mr-2"/> Void Transaction
-                                    </Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                        <AlertDialogTitle>Void Invoice {reviewingTransaction?.invoice_number}?</AlertDialogTitle>
-                                        <AlertDialogDescription>This will reverse the sale, return items to stock, and cannot be undone.</AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <div className="py-4">
-                                        <Label htmlFor="void-reason">Reason for Voiding</Label>
-                                        <Input id="void-reason" value={voidReason} onChange={(e) => setVoidReason(e.target.value)} placeholder="e.g. Customer canceled" className="mt-2" />
-                                    </div>
-                                    <AlertDialogFooter>
-                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                        <AlertDialogAction onClick={handleVoid}>Confirm Void</AlertDialogAction>
-                                    </AlertDialogFooter>
-                                </AlertDialogContent>
-                            </AlertDialog>
-
+                            {reviewingTransaction?.status !== 'voided' && (
+                                <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                        <Button variant="destructive" size="lg" className="flex-1">
+                                            <Trash2 className="mr-2"/> Void Transaction
+                                        </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                            <AlertDialogTitle>Void Invoice {reviewingTransaction?.invoice_number}?</AlertDialogTitle>
+                                            <AlertDialogDescription>This will reverse the sale, return items to stock, and cannot be undone.</AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <div className="py-4">
+                                            <Label htmlFor="void-reason">Reason for Voiding</Label>
+                                            <Input id="void-reason" value={voidReason} onChange={(e) => setVoidReason(e.target.value)} placeholder="e.g. Customer canceled" className="mt-2" />
+                                        </div>
+                                        <AlertDialogFooter>
+                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                            <AlertDialogAction onClick={handleVoid}>Confirm Void</AlertDialogAction>
+                                        </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                </AlertDialog>
+                            )}
                             <Button variant="outline" size="lg" className="flex-1" onClick={handleCancelReview}>
                                 <X className="mr-2"/> Close
                             </Button>
