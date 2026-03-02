@@ -22,7 +22,7 @@ import { useSettingsStore } from "@/lib/settings";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
 import { Label } from "@/components/ui/label";
-import { Badge } from "../ui/badge";
+import { Badge } from "@/components/ui/badge";
 
 
 const reasonOptions: Record<'add' | 'remove' | 'count', { id: string, value: StockMovementType, label: string }[]> = {
@@ -435,4 +435,3 @@ export default function InventoryPage() {
         </div>
     );
 }
-
