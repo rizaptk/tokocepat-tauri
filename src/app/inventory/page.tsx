@@ -3,9 +3,11 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { useStore } from "@/lib/store";
-import { Product, StockMovementType } from "@/lib/types";
-import { adjustStock } from "@/services/stockService";
+import { Product, StockMovementType, RawIngredient, Category } from "@/lib/types";
+import { adjustStock, adjustIngredientStock } from "@/services/stockService";
 import { useToast } from "@/hooks/use-toast";
+import { FixedSizeList as List } from 'react-window';
+import AutoSizer from 'react-virtualized-auto-sizer';
 
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -13,15 +15,14 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { ProductSearchBar } from "@/components/ProductSearchBar";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
-import { PlusCircle, Plus, Minus, Calculator, Package } from "lucide-react";
-import { ProductList } from "@/components/ProductList";
-import type { ViewMode } from "@/app/cashier/page";
-import { useGlobalBarcodeScanner } from "@/hooks/use-global-barcode-scanner";
+import { PlusCircle, Plus, Minus, Calculator, Package, Beaker } from "lucide-react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { useGlobalBarcodeScanner } from "@/hooks/use-global-barcode-scanner";
 import { useSettingsStore } from "@/lib/settings";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
 import { Label } from "@/components/ui/label";
+import { Badge } from "../ui/badge";
 
 
 const reasonOptions: Record<'add' | 'remove' | 'count', { id: string, value: StockMovementType, label: string }[]> = {
@@ -44,37 +45,46 @@ const reasonOptions: Record<'add' | 'remove' | 'count', { id: string, value: Sto
     ]
 };
 
-const StockAdjustmentPanel = ({ selectedProductId, onSave }: { selectedProductId: string | null; onSave: () => void; }) => {
+type InventoryItemType = (Product & { itemType: 'product', stock: number }) | (RawIngredient & { itemType: 'ingredient', stock: number });
+
+const StockAdjustmentPanel = ({ selectedItem, onSave }: { selectedItem: { id: string, type: 'product' | 'ingredient' } | null; onSave: () => void; }) => {
     const [mode, setMode] = useState<'add' | 'remove' | 'count' | null>(null);
     const [quantity, setQuantity] = useState('');
     const [actualCount, setActualCount] = useState('');
     const [reason, setReason] = useState('');
     const [note, setNote] = useState('');
 
-    const { products } = useStore();
+    const { products, rawIngredients } = useStore();
     const { toast } = useToast();
 
-    const product = useMemo(() => {
-        if (!selectedProductId) return null;
-        return products.find(p => p.id === selectedProductId);
-    }, [selectedProductId, products]);
+    const item = useMemo((): InventoryItemType | null => {
+        if (!selectedItem) return null;
+
+        if (selectedItem.type === 'product') {
+            const product = products.find(p => p.id === selectedItem.id);
+            return product ? { ...product, itemType: 'product', stock: product.stock } : null;
+        } else {
+            const ingredient = rawIngredients.find(i => i.id === selectedItem.id);
+            return ingredient ? { ...ingredient, itemType: 'ingredient', stock: ingredient.stock_qty } : null;
+        }
+    }, [selectedItem, products, rawIngredients]);
 
     // Reset form state when product changes
     useEffect(() => {
-        if (selectedProductId) {
+        if (selectedItem) {
             setMode(null);
             setQuantity('');
             setActualCount('');
             setReason('');
             setNote('');
         }
-    }, [selectedProductId]);
+    }, [selectedItem]);
 
     // Calculate change and new stock for the preview
     const { change, newStock, isFormValid } = useMemo(() => {
-        if (!product || !mode) return { change: 0, newStock: 0, isFormValid: false };
+        if (!item || !mode) return { change: 0, newStock: 0, isFormValid: false };
 
-        const currentStock = product.stock;
+        const currentStock = item.stock;
         let changeVal = 0;
         let formIsValid = false;
 
@@ -98,10 +108,10 @@ const StockAdjustmentPanel = ({ selectedProductId, onSave }: { selectedProductId
             newStock: currentStock + changeVal,
             isFormValid: formIsValid
         };
-    }, [mode, quantity, actualCount, reason, product]);
+    }, [mode, quantity, actualCount, reason, item]);
 
     const handleSubmit = async () => {
-        if (!isFormValid || !product || !mode) {
+        if (!isFormValid || !item || !mode) {
             toast({ variant: 'destructive', title: 'Invalid', description: 'Please complete the form with a valid reason and quantity.' });
             return;
         }
@@ -118,13 +128,21 @@ const StockAdjustmentPanel = ({ selectedProductId, onSave }: { selectedProductId
                 toast({ variant: 'destructive', title: 'Invalid Reason', description: 'Please select a valid reason.' });
                 return;
             }
+            
+            const adjustmentReason = note ? `${selectedOption.label}: ${note}` : selectedOption.label;
 
-            await adjustStock({
-                product_id: product.id,
-                type: selectedOption.value,
-                reason: note ? `${selectedOption.label}: ${note}` : selectedOption.label,
-            });
-            toast({ title: 'Stock Adjusted', description: `${product.name} stock has been updated to ${newStock}.` });
+            if (item.itemType === 'product') {
+                await adjustStock({
+                    product_id: item.id,
+                    type: selectedOption.value,
+                    qty_change: change,
+                    reason: adjustmentReason,
+                });
+            } else {
+                await adjustIngredientStock(item.id, selectedOption.value, change, adjustmentReason);
+            }
+
+            toast({ title: 'Stock Adjusted', description: `${item.name} stock has been updated to ${newStock}.` });
             onSave();
         } catch (error: any) {
             toast({ variant: 'destructive', title: 'Error', description: error.message });
@@ -135,26 +153,30 @@ const StockAdjustmentPanel = ({ selectedProductId, onSave }: { selectedProductId
         <div className="flex flex-col h-full">
             <div className="p-4 border-b">
                 <h3 className="font-semibold text-lg">Manual Stock Adjustment</h3>
-                <p className="text-sm text-muted-foreground">Select a product from the list to begin.</p>
+                <p className="text-sm text-muted-foreground">Select an item from the list to begin.</p>
             </div>
             
             <div className="flex-1 overflow-y-auto p-4 space-y-6">
-                {!product ? (
+                {!item ? (
                     <div className="flex flex-col items-center justify-center text-center text-muted-foreground h-full p-8 border border-dashed rounded-lg">
                         <Package className="w-12 h-12 mb-4" />
-                        <p>No product selected</p>
+                        <p>No item selected</p>
                     </div>
                 ) : (
                     <>
-                        {/* Product Detail */}
                         <Card>
                              <CardHeader>
-                                <CardTitle>{product.name}</CardTitle>
-                                <CardDescription>Current Stock: <span className="font-bold text-foreground">{product.stock}</span></CardDescription>
+                                <CardTitle>{item.name}</CardTitle>
+                                <div className="flex justify-between items-center">
+                                    <CardDescription>Current Stock: <span className="font-bold text-foreground">{item.stock}</span></CardDescription>
+                                     <Badge variant="outline">
+                                        {item.itemType === 'product' ? <Package className="h-3 w-3 mr-1.5"/> : <Beaker className="h-3 w-3 mr-1.5"/>}
+                                        {item.itemType}
+                                    </Badge>
+                                </div>
                             </CardHeader>
                         </Card>
                         
-                        {/* Actions */}
                         <div>
                             <Label>What happened?</Label>
                             <div className="grid grid-cols-3 gap-2 mt-2">
@@ -173,7 +195,6 @@ const StockAdjustmentPanel = ({ selectedProductId, onSave }: { selectedProductId
                             </div>
                         </div>
 
-                        {/* Dynamic Form Area */}
                         {mode && (
                             <div className="space-y-4 pt-4 border-t">
                                 {mode === 'add' || mode === 'remove' ? (
@@ -218,7 +239,6 @@ const StockAdjustmentPanel = ({ selectedProductId, onSave }: { selectedProductId
                             </div>
                         )}
                         
-                        {/* Adjustment Preview */}
                         {mode && change !== 0 && (
                             <Card className="bg-muted/50">
                                 <CardHeader>
@@ -227,7 +247,7 @@ const StockAdjustmentPanel = ({ selectedProductId, onSave }: { selectedProductId
                                 <CardContent className="space-y-2 text-sm">
                                     <div className="flex justify-between">
                                         <span className="text-muted-foreground">Previous Stock</span>
-                                        <span>{product.stock}</span>
+                                        <span>{item.stock}</span>
                                     </div>
                                     <div className={cn("flex justify-between font-semibold", change > 0 ? "text-green-600" : "text-destructive")}>
                                         <span className="text-muted-foreground">Change</span>
@@ -249,30 +269,55 @@ const StockAdjustmentPanel = ({ selectedProductId, onSave }: { selectedProductId
             </div>
             
             <div className="p-4 border-t mt-auto">
-                 <Button className="w-full" onClick={handleSubmit} disabled={!isFormValid || !product || (mode === 'count' && change === 0)}>Save Adjustment</Button>
+                 <Button className="w-full" onClick={handleSubmit} disabled={!isFormValid || !item || (mode === 'count' && change === 0)}>Save Adjustment</Button>
             </div>
         </div>
     );
 }
 
+const InventoryListItem = ({ item, isSelected, onItemClick, categories }: { item: InventoryItemType; isSelected: boolean; onItemClick: (item: InventoryItemType) => void; categories: Category[] }) => {
+    const categoryName = item.itemType === 'product' ? categories.find(c => c.id === item.category_id)?.name || 'N/A' : 'N/A';
+    
+    return (
+        <div
+            onClick={() => onItemClick(item)}
+            className={cn(
+                "flex items-center p-4 border-b transition-colors cursor-pointer",
+                isSelected ? "bg-primary/10 border-l-4 border-l-primary" : "hover:bg-accent"
+            )}
+        >
+            <div className="flex-1 min-w-0">
+                <p className="font-medium truncate">{item.name}</p>
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Badge variant={item.itemType === 'product' ? 'secondary' : 'outline'} className="text-xs">{item.itemType}</Badge>
+                    {item.itemType === 'product' && <span>{categoryName}</span>}
+                </div>
+            </div>
+            <div className="w-24 text-right">
+                <p className="font-bold text-lg">{item.stock}</p>
+                <p className="text-xs text-muted-foreground">in stock</p>
+            </div>
+        </div>
+    );
+}
+
+
 export default function InventoryPage() {
-    const { products } = useStore();
+    const { products, rawIngredients, categories } = useStore();
     const { toast } = useToast();
     const [searchTerm, setSearchTerm] = useState("");
-    const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
+    const [selectedItem, setSelectedItem] = useState<{ id: string; type: 'product' | 'ingredient' } | null>(null);
     const [isSheetOpen, setIsSheetOpen] = useState(false);
 
-    const { showMode, setShowMode } = useSettingsStore();
-
-     useEffect(() => {
-        const handleResize = () => {
-            const mobile = window.innerWidth < 768;
-            setShowMode({inventory: mobile ? 'thumbnail' : 'list'});
-        };
-        window.addEventListener('resize', handleResize);
-        handleResize(); 
-        return () => window.removeEventListener('resize', handleResize);
-    }, [setShowMode]);
+    const inventoryItems: InventoryItemType[] = useMemo(() => {
+        const stockTrackedProducts = products.filter(p => p.track_stock).map(p => ({ ...p, itemType: 'product' as const, stock: p.stock }));
+        const ingredients = rawIngredients.map(i => ({ ...i, itemType: 'ingredient' as const, stock: i.stock_qty }));
+        
+        const combined = [...stockTrackedProducts, ...ingredients];
+        
+        if (!searchTerm.trim()) return combined;
+        return combined.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()));
+    }, [products, rawIngredients, searchTerm]);
 
     const handleBarcodeScan = (barcode: string) => {
         const product = products.find(p => p.barcode === barcode);
@@ -285,14 +330,11 @@ export default function InventoryPage() {
                 });
                 return;
             }
-            setSelectedProductId(product.id);
+            handleItemSelect({ ...product, itemType: 'product', stock: product.stock });
              toast({
                 title: "Product Found",
                 description: `Selected "${product.name}" for adjustment.`,
             });
-            if (window.innerWidth < 768) {
-                setIsSheetOpen(true);
-            }
         } else {
             toast({
                 variant: "destructive",
@@ -304,49 +346,51 @@ export default function InventoryPage() {
 
     useGlobalBarcodeScanner({ onScan: handleBarcodeScan });
 
-    const handleProductSelect = (product: Product) => {
-        setSelectedProductId(product.id);
+    const handleItemSelect = (item: InventoryItemType) => {
+        setSelectedItem({ id: item.id, type: item.itemType });
         if (window.innerWidth < 768) {
             setIsSheetOpen(true);
         }
     };
 
     const handleOpenAdjustmentSheet = () => {
-        setSelectedProductId(null);
+        setSelectedItem(null);
         setIsSheetOpen(true);
     };
 
     const handleSheetOpenChange = (isOpen: boolean) => {
         setIsSheetOpen(isOpen);
         if (!isOpen) {
-            setSelectedProductId(null);
+            setSelectedItem(null);
         }
     }
     
     const handleSave = () => {
-        setSelectedProductId(null);
+        setSelectedItem(null);
         if (window.innerWidth < 768) {
             setIsSheetOpen(false);
         }
     }
-
-    const filteredProducts = useMemo(() => {
-        return products
-            .filter(p => p.track_stock)
-            .filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()));
-    }, [products, searchTerm]);
+    
+    const Row = ({ index, style }: { index: number, style: React.CSSProperties }) => (
+        <div style={style}>
+            <InventoryListItem 
+                item={inventoryItems[index]}
+                isSelected={selectedItem?.id === inventoryItems[index].id}
+                onItemClick={handleItemSelect}
+                categories={categories}
+            />
+        </div>
+    );
 
     return (
         <div className="w-full h-[calc(100vh-4rem)] md:grid md:grid-cols-10 min-h-0">
-            {/* Left Panel: Inventory List */}
             <div className="col-span-10 md:col-span-6 lg:col-span-6 h-full flex flex-col bg-muted/40">
                 <div className="p-4 border-b bg-muted/40 flex items-center gap-2 ">
                     <div className="flex-grow">
                         <ProductSearchBar
                             searchTerm={searchTerm}
                             onSearchTermChange={setSearchTerm}
-                            viewMode={showMode.inventory}
-                            onViewModeChange={(view) => setShowMode({inventory: view})}
                             onBarcodeScan={handleBarcodeScan}
                         />
                     </div>
@@ -356,29 +400,39 @@ export default function InventoryPage() {
                         </Button>
                     </div>
                 </div>
-                <div className="flex-grow bg-background">
-                    <ProductList 
-                        products={filteredProducts}
-                        viewMode={showMode.inventory}
-                        context="inventory"
-                        isLoading={products.length === 0}
-                        onItemClick={handleProductSelect}
-                        selectedProductId={selectedProductId}
-                    />
+                <div className="flex-grow bg-background h-full">
+                    {inventoryItems.length > 0 ? (
+                        <AutoSizer>
+                            {({ height, width }) => (
+                                <List
+                                    height={height}
+                                    width={width}
+                                    itemCount={inventoryItems.length}
+                                    itemSize={73} // Height of InventoryListItem (p-4 + border-b)
+                                >
+                                    {Row}
+                                </List>
+                            )}
+                        </AutoSizer>
+                    ) : (
+                         <div className="flex flex-col items-center justify-center text-center text-muted-foreground h-full p-8">
+                            <Package className="w-12 h-12 mb-4" />
+                            <p>No inventory items found.</p>
+                        </div>
+                    )}
                 </div>
             </div>
 
-            {/* Right Panel: Adjustment Form (Desktop) */}
             <aside className="hidden md:block col-span-4 lg:col-span-4 h-full bg-background min-h-0 border-l">
-               <StockAdjustmentPanel onSave={handleSave} selectedProductId={selectedProductId} />
+               <StockAdjustmentPanel onSave={handleSave} selectedItem={selectedItem} />
             </aside>
             
-            {/* Adjustment Form Sheet (Mobile) */}
              <Sheet open={isSheetOpen} onOpenChange={handleSheetOpenChange}>
                 <SheetContent side="right" className="w-full sm:w-[500px] p-0 flex flex-col h-full min-h-0">
-                    <StockAdjustmentPanel onSave={handleSave} selectedProductId={selectedProductId} />
+                    <StockAdjustmentPanel onSave={handleSave} selectedItem={selectedItem} />
                 </SheetContent>
             </Sheet>
         </div>
     );
 }
+
