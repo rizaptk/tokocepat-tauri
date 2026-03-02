@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { ParkingSquare, ShoppingCart, ReceiptText, Trash2, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import { PaymentModal } from "./PaymentModal";
 import { useToast } from "@/hooks/use-toast";
 import { CartItem, Transaction } from "@/lib/types";
@@ -24,13 +24,16 @@ interface CartDisplayProps {
 }
 
 export function CartDisplay({ onEditItem }: CartDisplayProps) {
-  const { cart, transactions, activeShift, parkCart, clearCart } = useStore();
-  const { setState } = useStore;
+  const { cart, transactions, activeShift, parkCart } = useStore();
   const { toast } = useToast();
 
   const [view, setView] = useState<'cart' | 'history'>('cart');
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  
+  // Local state for reviewing transactions from history
   const [reviewingTransaction, setReviewingTransaction] = useState<Transaction | null>(null);
+  const [reviewedItems, setReviewedItems] = useState<CartItem[]>([]);
+  
   const [voidReason, setVoidReason] = useState("");
 
   const cartContainer = useRef<HTMLDivElement>(null);
@@ -38,10 +41,19 @@ export function CartDisplay({ onEditItem }: CartDisplayProps) {
   const shiftTransactions = transactions.filter(t => t.shift_id === activeShift?.id);
   const cartItemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
+  const isReviewing = reviewingTransaction !== null;
+  const itemsToDisplay = isReviewing ? reviewedItems : cart;
+
   const taxRate = useStore.getState().storeConfig?.tax_rate ?? 0.11;
-  const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const tax = subtotal * taxRate;
-  const total = subtotal + tax;
+
+  // Calculate totals based on the currently displayed items (either real cart or reviewed transaction)
+  const { subtotal, tax, total } = useMemo(() => {
+    const currentItems = isReviewing ? reviewedItems : cart;
+    const sub = currentItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    const taxAmount = sub * taxRate;
+    const totalAmount = sub + taxAmount;
+    return { subtotal: sub, tax: taxAmount, total: totalAmount };
+  }, [isReviewing, reviewedItems, cart, taxRate]);
   
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('id-ID', {
@@ -77,13 +89,13 @@ export function CartDisplay({ onEditItem }: CartDisplayProps) {
         stock: 0,
     } as CartItem));
 
-    setState({ cart: itemsForReview });
+    setReviewedItems(itemsForReview); // Use local state
     setReviewingTransaction(tx);
     setView('cart');
   };
 
   const handleCancelReview = () => {
-    clearCart();
+    setReviewedItems([]); // Clear local state
     setReviewingTransaction(null);
   };
   
@@ -95,7 +107,7 @@ export function CartDisplay({ onEditItem }: CartDisplayProps) {
     try {
         await voidTransaction(reviewingTransaction.id, voidReason);
         toast({ title: 'Transaction Voided', description: `Invoice ${reviewingTransaction.invoice_number} has been voided.` });
-        handleCancelReview();
+        handleCancelReview(); // This now clears local state
         setView('history');
         return true;
     } catch (error: any) {
@@ -112,7 +124,8 @@ export function CartDisplay({ onEditItem }: CartDisplayProps) {
     if (!viewPort) return;
     
     setTimeout(() => {
-      if (cart.length > 3) {
+      // Only auto-scroll for the real cart, not for reviewed transactions
+      if (cart.length > 3 && !isReviewing) {
         requestAnimationFrame(() => {
           requestAnimationFrame(() => {
             viewPort.scrollTop = viewPort.scrollHeight;
@@ -121,7 +134,7 @@ export function CartDisplay({ onEditItem }: CartDisplayProps) {
       } 
     },150)
 
-  },[cart.length, cartContainer.current])
+  },[cart.length, cartContainer.current, isReviewing])
 
   return (
     <div className="flex flex-col flex-1 h-full min-h-0">
@@ -129,7 +142,7 @@ export function CartDisplay({ onEditItem }: CartDisplayProps) {
         <Button variant={view === 'cart' ? 'secondary' : 'ghost'} onClick={() => setView('cart')} className="flex-1">
             <ShoppingCart className="mr-2 h-4 w-4" />
             Cart
-            {cartItemCount > 0 && !reviewingTransaction && <Badge className="ml-2">{cartItemCount}</Badge>}
+            {cartItemCount > 0 && !isReviewing && <Badge className="ml-2">{cartItemCount}</Badge>}
         </Button>
         <Button variant={view === 'history' ? 'secondary' : 'ghost'} onClick={() => setView('history')} className="flex-1">
             <ReceiptText className="mr-2 h-4 w-4" />
@@ -138,7 +151,7 @@ export function CartDisplay({ onEditItem }: CartDisplayProps) {
         </Button>
       </header>
       
-      {view === 'cart' && cart.length === 0 ? (
+      {view === 'cart' && itemsToDisplay.length === 0 ? (
         <div className="py-6 px-6 flex-1 flex">
           <div className="flex flex-1 flex-col items-center justify-center gap-4 p-6 text-center bg-card border rounded-lg">
             <ShoppingCart className="h-16 w-16 text-muted-foreground" />
@@ -152,8 +165,8 @@ export function CartDisplay({ onEditItem }: CartDisplayProps) {
           <ScrollArea className="h-full min-h-0 border border-border bg-card rounded-lg"  ref={cartContainer}>
             <div className="flex flex-col gap-0 divide-y divide-border/40">
                 <AnimatePresence initial={false}>
-                    {cart.map(item => (
-                       <CartItemRow key={item.cartItemId} item={item} onEditItem={reviewingTransaction ? undefined : onEditItem} />
+                    {itemsToDisplay.map(item => (
+                       <CartItemRow key={item.cartItemId} item={item} onEditItem={isReviewing ? undefined : onEditItem} />
                     ))}
                 </AnimatePresence>
             </div>
@@ -165,7 +178,7 @@ export function CartDisplay({ onEditItem }: CartDisplayProps) {
       )}
 
       <footer className="p-4 md:p-6 shrink-0">
-        {view === 'cart' && cart.length > 0 && (
+        {view === 'cart' && itemsToDisplay.length > 0 && (
             <>
                 <div className="space-y-2">
                     <div className="flex justify-between">
@@ -183,7 +196,7 @@ export function CartDisplay({ onEditItem }: CartDisplayProps) {
                     </div>
                 </div>
                 <div className="mt-4 flex gap-2">
-                    {reviewingTransaction ? (
+                    {isReviewing ? (
                         <>
                             <AlertDialog>
                                 <AlertDialogTrigger asChild>
@@ -193,7 +206,7 @@ export function CartDisplay({ onEditItem }: CartDisplayProps) {
                                 </AlertDialogTrigger>
                                 <AlertDialogContent>
                                     <AlertDialogHeader>
-                                        <AlertDialogTitle>Void Invoice {reviewingTransaction.invoice_number}?</AlertDialogTitle>
+                                        <AlertDialogTitle>Void Invoice {reviewingTransaction?.invoice_number}?</AlertDialogTitle>
                                         <AlertDialogDescription>This will reverse the sale, return items to stock, and cannot be undone.</AlertDialogDescription>
                                     </AlertDialogHeader>
                                     <div className="py-4">
