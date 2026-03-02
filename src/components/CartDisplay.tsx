@@ -42,6 +42,7 @@ export function CartDisplay({ onEditItem }: CartDisplayProps) {
   const cartItemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
   const isReviewing = reviewingTransaction !== null;
+  // If reviewing, show items from local state. Otherwise, show the live cart from global state.
   const itemsToDisplay = isReviewing ? reviewedItems : cart;
 
   const taxRate = useStore.getState().storeConfig?.tax_rate ?? 0.11;
@@ -166,7 +167,12 @@ export function CartDisplay({ onEditItem }: CartDisplayProps) {
             <div className="flex flex-col gap-0 divide-y divide-border/40">
                 <AnimatePresence initial={false}>
                     {itemsToDisplay.map(item => (
-                       <CartItemRow key={item.cartItemId} item={item} onEditItem={isReviewing ? undefined : onEditItem} />
+                       <CartItemRow 
+                            key={item.cartItemId} 
+                            item={item} 
+                            onEditItem={isReviewing ? undefined : onEditItem} 
+                            isReadOnly={isReviewing}
+                        />
                     ))}
                 </AnimatePresence>
             </div>
