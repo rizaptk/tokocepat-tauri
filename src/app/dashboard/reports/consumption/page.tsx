@@ -66,6 +66,7 @@ export default function ConsumptionReportPage() {
             const totalChangeInPeriod = adjusted - consumed;
             const closingStock = ing.stock_qty; // Use current stock as a baseline for "closing"
             const openingStock = closingStock - totalChangeInPeriod;
+            const costOfConsumed = consumed * ing.cost_per_unit;
             
             return {
                 ...ing,
@@ -73,6 +74,7 @@ export default function ConsumptionReportPage() {
                 consumed,
                 adjusted,
                 closingStock,
+                costOfConsumed,
             };
         });
     }, [rawIngredients, stockMovements]);
@@ -138,20 +140,22 @@ export default function ConsumptionReportPage() {
                                 <TableHead>Ingredient</TableHead>
                                 <TableHead className="text-right">Opening</TableHead>
                                 <TableHead className="text-right">Consumed</TableHead>
+                                <TableHead className="text-right">Consumed Value</TableHead>
                                 <TableHead className="text-right">Adjusted</TableHead>
                                 <TableHead className="text-right">Closing</TableHead>
-                                <TableHead className="text-right">Value (Cost)</TableHead>
+                                <TableHead className="text-right">Closing Value</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {isLoading ? (
-                                <TableRow><TableCell colSpan={6} className="h-24 text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" /></TableCell></TableRow>
+                                <TableRow><TableCell colSpan={7} className="h-24 text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" /></TableCell></TableRow>
                             ) : reportData.length > 0 ? (
                                 reportData.map(ing => (
                                     <TableRow key={ing.id}>
                                         <TableCell className="font-medium">{ing.name}</TableCell>
                                         <TableCell className="text-right">{ing.openingStock.toLocaleString()} {ing.unit_type}</TableCell>
                                         <TableCell className="text-right text-red-500">{ing.consumed > 0 ? `-${ing.consumed.toLocaleString()}` : 0} {ing.unit_type}</TableCell>
+                                        <TableCell className="text-right text-red-500">{formatCurrency(ing.costOfConsumed)}</TableCell>
                                         <TableCell className="text-right text-blue-500">{ing.adjusted > 0 ? `+${ing.adjusted.toLocaleString()}` : ing.adjusted.toLocaleString()} {ing.unit_type}</TableCell>
                                         <TableCell className="text-right font-bold">{ing.closingStock.toLocaleString()} {ing.unit_type}</TableCell>
                                         <TableCell className="text-right">{formatCurrency(ing.closingStock * ing.cost_per_unit)}</TableCell>
@@ -159,7 +163,7 @@ export default function ConsumptionReportPage() {
                                 ))
                             ) : (
                                 <TableRow>
-                                    <TableCell colSpan={6} className="h-24 text-center">
+                                    <TableCell colSpan={7} className="h-24 text-center">
                                         No raw ingredients found.
                                     </TableCell>
                                 </TableRow>

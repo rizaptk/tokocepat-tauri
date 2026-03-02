@@ -310,10 +310,11 @@ export const exportConsumptionToExcel = (reportData: any[], dateRange: { from: D
         'Ingredient': item.name,
         'Opening Stock': item.openingStock,
         'Consumed (Sales)': item.consumed,
+        'Consumed Value': item.costOfConsumed,
         'Adjusted (Manual)': item.adjusted,
         'Closing Stock': item.closingStock,
         'Unit': item.unit_type,
-        'Value (Cost)': item.closingStock * item.cost_per_unit,
+        'Closing Value': item.closingStock * item.cost_per_unit,
     }));
     
     const worksheet = XLSX.utils.json_to_sheet(dataForExport);
@@ -343,8 +344,8 @@ export const exportConsumptionToPdf = async (reportData: any[], dateRange: { fro
     
     drawHeader();
     
-    const tableHeaders = ['Ingredient', 'Opening', 'Consumed', 'Adjusted', 'Closing', 'Cost Value'];
-    const colWidths = [150, 70, 70, 70, 70, 80];
+    const tableHeaders = ['Ingredient', 'Opening', 'Consumed', 'Consumed Val', 'Adjusted', 'Closing', 'Closing Val'];
+    const colWidths = [120, 60, 60, 70, 60, 60, 70];
     let x = margin;
     
     tableHeaders.forEach((header, i) => {
@@ -374,6 +375,7 @@ export const exportConsumptionToPdf = async (reportData: any[], dateRange: { fro
             item.name,
             `${item.openingStock.toLocaleString()} ${item.unit_type}`,
             `${item.consumed > 0 ? `-${item.consumed.toLocaleString()}` : 0}`,
+            formatCurrency(item.costOfConsumed),
             `${item.adjusted > 0 ? `+${item.adjusted.toLocaleString()}` : item.adjusted.toLocaleString()}`,
             `${item.closingStock.toLocaleString()} ${item.unit_type}`,
             formatCurrency(item.closingStock * item.cost_per_unit),
