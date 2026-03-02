@@ -96,6 +96,24 @@ export const exportInventoryToExcel = (products: (Product & { categoryName: stri
     XLSX.writeFile(workbook, `inventory_report_${storeName.replace(/\s+/g, '_')}_${date}.xlsx`);
 };
 
+export const exportStockSummaryToExcel = (reportData: any[], dateRange: { from: Date, to: Date }, storeName: string) => {
+    const dataForExport = reportData.map(item => ({
+        'Product/Ingredient': item.name,
+        'Type': item.type,
+        'Opening Stock': item.openingStock,
+        'Added (+)': item.added,
+        'Sold (-)': item.sold,
+        'Adjusted (+/-)': item.adjusted,
+        'Closing Stock': item.closingStock,
+    }));
+    
+    const worksheet = XLSX.utils.json_to_sheet(dataForExport);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Stock Summary');
+
+    const range = format(dateRange.from, 'yyyy-MM-dd') + '_to_' + format(dateRange.to, 'yyyy-MM-dd');
+    XLSX.writeFile(workbook, `stock_summary_report_${storeName.replace(/\s+/g, '_')}_${range}.xlsx`);
+};
 
 export const exportSalesToPdf = async (transactions: Transaction[], dateRange: { from: Date, to: Date }, storeName: string) => {
     const pdfDoc = await PDFDocument.create();
@@ -310,10 +328,11 @@ export const exportConsumptionToExcel = (reportData: any[], dateRange: { from: D
         'Ingredient': item.name,
         'Opening Stock': item.openingStock,
         'Consumed (Sales)': item.consumed,
+        'Consumed Value': item.costOfConsumed,
         'Adjusted (Manual)': item.adjusted,
         'Closing Stock': item.closingStock,
         'Unit': item.unit_type,
-        'Value (Cost)': item.closingStock * item.cost_per_unit,
+        'Closing Value': item.closingStock * item.cost_per_unit,
     }));
     
     const worksheet = XLSX.utils.json_to_sheet(dataForExport);
@@ -343,8 +362,8 @@ export const exportConsumptionToPdf = async (reportData: any[], dateRange: { fro
     
     drawHeader();
     
-    const tableHeaders = ['Ingredient', 'Opening', 'Consumed', 'Adjusted', 'Closing', 'Cost Value'];
-    const colWidths = [150, 70, 70, 70, 70, 80];
+    const tableHeaders = ['Ingredient', 'Opening', 'Consumed', 'Consumed Val', 'Adjusted', 'Closing', 'Closing Val'];
+    const colWidths = [120, 60, 60, 70, 60, 60, 70];
     let x = margin;
     
     tableHeaders.forEach((header, i) => {
@@ -374,6 +393,7 @@ export const exportConsumptionToPdf = async (reportData: any[], dateRange: { fro
             item.name,
             `${item.openingStock.toLocaleString()} ${item.unit_type}`,
             `${item.consumed > 0 ? `-${item.consumed.toLocaleString()}` : 0}`,
+            formatCurrency(item.costOfConsumed),
             `${item.adjusted > 0 ? `+${item.adjusted.toLocaleString()}` : item.adjusted.toLocaleString()}`,
             `${item.closingStock.toLocaleString()} ${item.unit_type}`,
             formatCurrency(item.closingStock * item.cost_per_unit),
@@ -509,6 +529,82 @@ export const exportShiftDetailsToPdf = async (shift: any, transactions: Transact
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
     link.download = `shift_report_${storeName.replace(/\s+/g, '_')}_${shift.id.substring(0,8)}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+};
+
+export const exportStockSummaryToPdf = async (reportData: any[], dateRange: { from: Date, to: Date }, storeName: string) => {
+    const pdfDoc = await PDFDocument.create();
+    let page = pdfDoc.addPage();
+    const { width, height } = page.getSize();
+    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+    const fontSize = 10;
+    const margin = 40;
+    let y = height - margin;
+
+    const drawHeader = () => {
+        page.drawText(`${storeName} - Stock Summary Report`, { x: margin, y, font: boldFont, size: 16 });
+        y -= 20;
+        page.drawText(`Period: ${format(dateRange.from, 'PPP')} to ${format(dateRange.to, 'PPP')}`, { x: margin, y, font, size: 10 });
+        y -= 25;
+    };
+    
+    drawHeader();
+    
+    const tableHeaders = ['Product', 'Type', 'Opening', 'Added', 'Sold', 'Adjusted', 'Closing'];
+    const colWidths = [160, 60, 60, 60, 60, 60, 60];
+    let x = margin;
+    
+    tableHeaders.forEach((header, i) => {
+        page.drawText(header, { x, y, font: boldFont, size: fontSize });
+        x += colWidths[i];
+    });
+    y -= 5;
+    page.drawLine({ start: { x: margin, y }, end: { x: width - margin, y }, thickness: 1 });
+    y -= 15;
+    
+    for (const item of reportData) {
+        if (y < margin) {
+            page = pdfDoc.addPage();
+            y = height - margin;
+            drawHeader();
+            let x = margin;
+            tableHeaders.forEach((header, i) => {
+                page.drawText(header, { x, y, font: boldFont, size: fontSize });
+                x += colWidths[i];
+            });
+            y -= 5;
+            page.drawLine({ start: { x: margin, y }, end: { x: width - margin, y }, thickness: 1 });
+            y -= 15;
+        }
+
+        const row = [
+            item.name,
+            item.type,
+            item.openingStock.toLocaleString(),
+            `+${item.added.toLocaleString()}`,
+            `-${item.sold.toLocaleString()}`,
+            item.adjusted.toLocaleString(),
+            item.closingStock.toLocaleString(),
+        ];
+        
+        x = margin;
+        row.forEach((cell, i) => {
+            page.drawText(cell, { x, y, font, size: 8 });
+            x += colWidths[i];
+        });
+        y -= 12;
+    }
+
+    const pdfBytes = await pdfDoc.save();
+    
+    const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    const range = format(dateRange.from, 'yyyy-MM-dd') + '_to_' + format(dateRange.to, 'yyyy-MM-dd');
+    link.download = `stock_summary_report_${storeName.replace(/\s+/g, '_')}_${range}.pdf`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
