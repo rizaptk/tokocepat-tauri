@@ -99,6 +99,7 @@ export const exportInventoryToExcel = (products: (Product & { categoryName: stri
 export const exportStockSummaryToExcel = (reportData: any[], dateRange: { from: Date, to: Date }, storeName: string) => {
     const dataForExport = reportData.map(item => ({
         'Product/Ingredient': item.name,
+        'Type': item.type,
         'Opening Stock': item.openingStock,
         'Added (+)': item.added,
         'Sold (-)': item.sold,
@@ -552,8 +553,8 @@ export const exportStockSummaryToPdf = async (reportData: any[], dateRange: { fr
     
     drawHeader();
     
-    const tableHeaders = ['Product', 'Opening', 'Added', 'Sold', 'Adjusted', 'Closing'];
-    const colWidths = [180, 70, 70, 70, 70, 70];
+    const tableHeaders = ['Product', 'Type', 'Opening', 'Added', 'Sold', 'Adjusted', 'Closing'];
+    const colWidths = [160, 60, 60, 60, 60, 60, 60];
     let x = margin;
     
     tableHeaders.forEach((header, i) => {
@@ -581,6 +582,7 @@ export const exportStockSummaryToPdf = async (reportData: any[], dateRange: { fr
 
         const row = [
             item.name,
+            item.type,
             item.openingStock.toLocaleString(),
             `+${item.added.toLocaleString()}`,
             `-${item.sold.toLocaleString()}`,

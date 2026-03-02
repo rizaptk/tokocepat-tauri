@@ -1,10 +1,9 @@
-
 'use client';
 
 import Link from 'next/link';
 import { useStore } from '@/lib/store';
 import { useState, useMemo, useEffect } from 'react';
-import { ArrowLeft, Warehouse, Loader2 } from 'lucide-react';
+import { ArrowLeft, Warehouse, Loader2, Package, Beaker } from 'lucide-react';
 import { format, startOfDay, endOfDay, subDays, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import { exportStockSummaryToExcel, exportStockSummaryToPdf } from '@/lib/export';
 import { useToast } from '@/hooks/use-toast';
@@ -15,6 +14,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { DateRangeFilter, DateRangePreset } from '@/components/DateRangeFilter';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
 
 export default function StockSummaryReportPage() {
     const { rawIngredients, products, storeConfig } = useStore();
@@ -22,6 +23,7 @@ export default function StockSummaryReportPage() {
     const [range, setRange] = useState<DateRangePreset>('today');
     const [stockMovements, setStockMovements] = useState<StockMovement[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [filterType, setFilterType] = useState<'all' | 'product' | 'ingredient'>('all');
 
     const dateRange = useMemo(() => {
         const now = new Date();
@@ -51,12 +53,17 @@ export default function StockSummaryReportPage() {
     }, [dateRange]);
 
     const allStockableItems = useMemo(() => [
-        ...products.filter(p => p.track_stock),
-        ...rawIngredients,
+        ...products.filter(p => p.track_stock).map(p => ({...p, itemType: 'product' as const})),
+        ...rawIngredients.map(i => ({...i, itemType: 'ingredient' as const})),
     ], [products, rawIngredients]);
 
     const reportData = useMemo(() => {
-        return allStockableItems.map(item => {
+        const filteredItems = allStockableItems.filter(item => {
+            if (filterType === 'all') return true;
+            return item.itemType === filterType;
+        });
+
+        return filteredItems.map(item => {
             const movementsInPeriod = stockMovements.filter(m => m.product_id === item.id);
             const totalChangeInPeriod = movementsInPeriod.reduce((sum, m) => sum + m.qty_change, 0);
             
@@ -78,6 +85,7 @@ export default function StockSummaryReportPage() {
             return {
                 id: item.id,
                 name: item.name,
+                type: item.itemType,
                 openingStock,
                 added,
                 sold,
@@ -85,7 +93,7 @@ export default function StockSummaryReportPage() {
                 closingStock: currentStock,
             };
         });
-    }, [allStockableItems, stockMovements]);
+    }, [allStockableItems, stockMovements, filterType]);
     
     const handleExcelExport = () => {
         if (storeConfig) {
@@ -105,7 +113,7 @@ export default function StockSummaryReportPage() {
 
     return (
         <div className="flex min-h-screen w-full flex-col bg-muted/40">
-           <header className="sticky top-0 flex h-16 items-center gap-4 border-b bg-background px-4 md:px-6 z-10">
+           <header className="sticky top-0 flex h-16 items-center gap-2 border-b bg-background px-4 md:px-6 z-10">
                 <Button variant="outline" size="icon" className="shrink-0" asChild>
                     <Link href="/dashboard/reports">
                         <ArrowLeft className="h-4 w-4" />
@@ -117,13 +125,25 @@ export default function StockSummaryReportPage() {
                         <Warehouse className="h-5 w-5" /> Stock Summary Report
                     </h1>
                 </div>
-                <DateRangeFilter
-                    range={range}
-                    onRangeChange={setRange}
-                    onExportExcel={handleExcelExport}
-                    onExportPdf={handlePdfExport}
-                    hasData={reportData.length > 0}
-                />
+                <div className="flex items-center gap-2">
+                    <Select value={filterType} onValueChange={(v) => setFilterType(v as any)}>
+                        <SelectTrigger className="w-full md:w-[150px]">
+                            <SelectValue placeholder="Filter type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">All Items</SelectItem>
+                            <SelectItem value="product">Products</SelectItem>
+                            <SelectItem value="ingredient">Ingredients</SelectItem>
+                        </SelectContent>
+                    </Select>
+                    <DateRangeFilter
+                        range={range}
+                        onRangeChange={setRange}
+                        onExportExcel={handleExcelExport}
+                        onExportPdf={handlePdfExport}
+                        hasData={reportData.length > 0}
+                    />
+                </div>
            </header>
           <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
             <Card>
@@ -138,6 +158,7 @@ export default function StockSummaryReportPage() {
                         <TableHeader>
                             <TableRow>
                                 <TableHead>Product / Ingredient</TableHead>
+                                <TableHead>Type</TableHead>
                                 <TableHead className="text-right">Opening</TableHead>
                                 <TableHead className="text-right">Added</TableHead>
                                 <TableHead className="text-right">Sold</TableHead>
@@ -147,11 +168,17 @@ export default function StockSummaryReportPage() {
                         </TableHeader>
                         <TableBody>
                             {isLoading ? (
-                                <TableRow><TableCell colSpan={6} className="h-24 text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" /></TableCell></TableRow>
+                                <TableRow><TableCell colSpan={7} className="h-24 text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" /></TableCell></TableRow>
                             ) : reportData.length > 0 ? (
                                 reportData.map(item => (
                                     <TableRow key={item.id}>
                                         <TableCell className="font-medium">{item.name}</TableCell>
+                                        <TableCell>
+                                            <Badge variant="outline" className={item.type === 'product' ? 'border-blue-300 bg-blue-50 text-blue-800' : 'border-green-300 bg-green-50 text-green-800'}>
+                                                {item.type === 'product' ? <Package className="h-3 w-3 mr-1.5" /> : <Beaker className="h-3 w-3 mr-1.5" />}
+                                                {item.type}
+                                            </Badge>
+                                        </TableCell>
                                         <TableCell className="text-right">{item.openingStock.toLocaleString()}</TableCell>
                                         <TableCell className="text-right text-green-600">{item.added > 0 ? `+${item.added.toLocaleString()}` : 0}</TableCell>
                                         <TableCell className="text-right text-red-500">{item.sold > 0 ? `-${item.sold.toLocaleString()}` : 0}</TableCell>
@@ -161,7 +188,7 @@ export default function StockSummaryReportPage() {
                                 ))
                             ) : (
                                 <TableRow>
-                                    <TableCell colSpan={6} className="h-24 text-center">
+                                    <TableCell colSpan={7} className="h-24 text-center">
                                         No stock-tracked items found.
                                     </TableCell>
                                 </TableRow>
