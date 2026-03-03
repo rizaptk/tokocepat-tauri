@@ -348,7 +348,10 @@ const ProductForm = ({ productId, onSave }: { productId: string | null, onSave: 
         <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="h-full flex flex-col min-h-0">
                 <div className="flex-1 min-h-0 relative overflow-hidden">
+                    
+                    {/* Implement shadow line on scrolling */}
                     <ScrollShadow scrollRef={scrollRef} side="both" />
+
                     <ScrollArea className="px-1 h-full" ref={scrollRef}>
                         <div className="space-y-6 p-4">
                             <Card>
@@ -624,6 +627,7 @@ const ProductForm = ({ productId, onSave }: { productId: string | null, onSave: 
                     </ScrollArea>
                 </div>
                 <div className="p-4 mt-auto shrink-0 flex items-center gap-4">
+                    {/* Cancel/close doesn't work */}
                     {
                         isEditing &&
                         <Button variant="outline" type="button" className="flex-1" onClick={() => {form.reset(undefined) ; onSave() }} >
