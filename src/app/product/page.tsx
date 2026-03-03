@@ -1,9 +1,9 @@
 
 "use client";
 
-import { useState, useMemo, useEffect, useRef } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import Image from 'next/image';
-import { useForm, useFieldArray } from "react-hook-form";
+import { useForm, useFieldArray, UseFormReturn } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useStore } from "@/lib/store";
@@ -17,7 +17,7 @@ import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ProductSearchBar } from "@/components/ProductSearchBar";
 import { ProductList } from "@/components/ProductList";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -25,7 +25,6 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea, ScrollAreaHandle } from "@/components/ui/scroll-area";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
@@ -47,7 +46,6 @@ import { useZxing } from "react-zxing";
 import { useGlobalBarcodeScanner } from "@/hooks/use-global-barcode-scanner";
 import { Separator } from "@/components/ui/separator";
 import { ScrollShadow } from "@/components/ui/scrollshadow";
-// import { ProductForm } from "./productForm";
 
 
 // ========= PRODUCT FORM =========
@@ -65,27 +63,27 @@ const recipeItemSchema = z.object({
 });
 
 const productFormSchema = z.object({
-  name: z.string().min(2, { message: "Product name must be at least 2 characters." }),
-  product_type: z.enum(["retail", "food_and_beverage"], { required_error: "You need to select a product type." }),
-  category_id: z.string().optional(),
-  sku: z.string().optional(),
-  barcode: z.string().optional(),
-  price: z.coerce.number().min(0, { message: "Price cannot be negative." }),
-  cost_price: z.coerce.number().min(0, { message: "Cost price cannot be negative." }).optional(),
-  stock: z.coerce.number().min(0, { message: "Stock cannot be negative." }),
-  low_stock_alert: z.coerce.number().min(0, { message: "Low stock alert cannot be negative." }).optional(),
-  track_stock: z.boolean().default(true),
-  is_active: z.boolean().default(true),
-  has_variant: z.boolean().default(false),
-  has_modifier: z.boolean().default(false),
-  is_composite: z.boolean().default(false),
-  modifier_group_ids: z.array(z.string()).optional(),
-  variants: z.array(variantSchema).optional(),
-  recipe_items: z.array(recipeItemSchema).optional(),
-  imageUrl: z.string().optional(),
-  imageHint: z.string().optional(),
+    name: z.string().min(2, { message: "Product name must be at least 2 characters." }),
+    product_type: z.enum(["retail", "food_and_beverage"], { required_error: "You need to select a product type." }),
+    category_id: z.string().optional(),
+    sku: z.string().optional(),
+    barcode: z.string().optional(),
+    price: z.coerce.number().min(0, { message: "Price cannot be negative." }),
+    cost_price: z.coerce.number().min(0, { message: "Cost price cannot be negative." }).optional(),
+    stock: z.coerce.number().min(0, { message: "Stock cannot be negative." }),
+    low_stock_alert: z.coerce.number().min(0, { message: "Low stock alert cannot be negative." }).optional(),
+    track_stock: z.boolean().default(true),
+    is_active: z.boolean().default(true),
+    has_variant: z.boolean().default(false),
+    has_modifier: z.boolean().default(false),
+    is_composite: z.boolean().default(false),
+    modifier_group_ids: z.array(z.string()).optional(),
+    variants: z.array(variantSchema).optional(),
+    recipe_items: z.array(recipeItemSchema).optional(),
+    imageUrl: z.string().optional(),
+    imageHint: z.string().optional(),
 });
-  
+
 type ProductFormValues = z.infer<typeof productFormSchema>;
 
 const BarcodeScanner = ({ onScanSuccess }: { onScanSuccess: (text: string) => void }) => {
@@ -106,11 +104,114 @@ const BarcodeScanner = ({ onScanSuccess }: { onScanSuccess: (text: string) => vo
     );
 };
 
+
+const VariantItems = React.memo(({ index, field, form, removeVariant }: { index: number, field: any, form: UseFormReturn<ProductFormValues>, removeVariant: (index: number) => void }) => {
+    return (
+        <div key={field.id} className="flex flex-col gap-2 items-end p-3 border rounded-lg bg-muted/50">
+            <div className="flex items-center justify-between w-full border-b px-2">
+                <FormLabel className="text-sm">Variant {index + 1}</FormLabel>
+                <Button type="button" variant="ghost" size="icon" className="shrink-0 text-muted-foreground hover:text-destructive" onClick={() => removeVariant(index)}>
+                    <Trash className="h-4 w-4" />
+                </Button>
+            </div>
+            <div className="flex-grow grid grid-cols-2 gap-4">
+                <FormField
+                    control={form.control}
+                    name={`variants.${index}.name`}
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel className="text-xs">Name</FormLabel>
+                            <FormControl>
+                                <Input placeholder="e.g. Small" {...field} />
+                            </FormControl>
+                        </FormItem>
+                    )}
+                />
+                <FormField
+                    control={form.control}
+                    name={`variants.${index}.additional_price`}
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel className="text-xs">Price Adj.</FormLabel>
+                            <FormControl>
+                                <div className="relative"><span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground text-xs">Rp</span><Input type="number" placeholder="0" className="pl-8" {...field} /></div>
+                            </FormControl>
+                        </FormItem>
+                    )}
+                />
+                <FormField
+                    control={form.control}
+                    name={`variants.${index}.sku`}
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel className="text-xs">SKU</FormLabel>
+                            <FormControl>
+                                <Input placeholder="SKU-S" {...field} />
+                            </FormControl>
+                        </FormItem>
+                    )}
+                />
+                <FormField
+                    control={form.control}
+                    name={`variants.${index}.stock`}
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel className="text-xs">Stock</FormLabel>
+                            <FormControl>
+                                <Input type="number" placeholder="50" {...field} />
+                            </FormControl>
+                        </FormItem>
+                    )}
+                />
+            </div>
+        </div>
+    )
+})
+
+const CompositeItem = React.memo(({ index, field, form, rawIngredients, removeRecipeItem }: { index: number, field: any, form: UseFormReturn<ProductFormValues>, rawIngredients: RawIngredient[], removeRecipeItem: (index: number) => void }) => {
+    return (
+        <div key={field.id} className="flex gap-2 items-end p-3 border rounded-lg bg-muted/50">
+            <div className="flex-grow grid grid-cols-2 gap-4">
+                <FormField
+                    control={form.control}
+                    name={`recipe_items.${index}.ingredient_id`}
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel className="text-xs">Ingredient</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value}>
+                                <FormControl><SelectTrigger><SelectValue placeholder="Select ingredient" /></SelectTrigger></FormControl>
+                                <SelectContent>{rawIngredients.map(ing => (<SelectItem key={ing.id} value={ing.id}>{ing.name}</SelectItem>))}</SelectContent>
+                            </Select>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+                <FormField
+                    control={form.control}
+                    name={`recipe_items.${index}.quantity`}
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel className="text-xs">Quantity</FormLabel>
+                            <FormControl>
+                                <Input type="number" placeholder="e.g. 18" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+            </div>
+            <Button type="button" variant="ghost" size="icon" className="shrink-0 text-muted-foreground hover:text-destructive" onClick={() => removeRecipeItem(index)}>
+                <Trash className="h-4 w-4" />
+            </Button>
+        </div>
+    )
+})
+
 const ProductForm = ({ productId, onSave }: { productId: string | null, onSave: () => void }) => {
     const { products, categories, modifierGroups, productVariants, rawIngredients, recipes } = useStore();
     const { toast } = useToast();
     const isEditing = !!productId;
-    const product = useMemo(() => products.find(p => p.id === productId), [productId, products]);
+    const product = useMemo(() => productId === null ? undefined : products.find(p => p.id === productId), [productId, products]);
     const [isScannerOpen, setIsScannerOpen] = useState(false);
     const imageInputRef = useRef<HTMLInputElement>(null);
     const scrollRef = useRef<ScrollAreaHandle>(null);
@@ -120,7 +221,7 @@ const ProductForm = ({ productId, onSave }: { productId: string | null, onSave: 
         defaultValues: {
             name: "", product_type: "retail", price: 0, cost_price: 0, stock: 0,
             low_stock_alert: 0, track_stock: true, is_active: true, has_variant: false,
-            has_modifier: false, is_composite: false, modifier_group_ids: [], sku: "", barcode: "", 
+            has_modifier: false, is_composite: false, modifier_group_ids: [], sku: "", barcode: "",
             variants: [], recipe_items: [], imageUrl: "", imageHint: ""
         },
     });
@@ -177,7 +278,7 @@ const ProductForm = ({ productId, onSave }: { productId: string | null, onSave: 
                 img.onload = () => {
                     const canvas = document.createElement('canvas');
                     let { width, height } = img;
-    
+
                     if (width > height) {
                         if (width > maxSize) {
                             height *= maxSize / width;
@@ -189,12 +290,12 @@ const ProductForm = ({ productId, onSave }: { productId: string | null, onSave: 
                             height = maxSize;
                         }
                     }
-    
+
                     canvas.width = width;
                     canvas.height = height;
                     const ctx = canvas.getContext('2d');
                     if (!ctx) return reject(new Error('Could not get canvas context'));
-    
+
                     ctx.drawImage(img, 0, 0, width, height);
                     resolve(canvas.toDataURL('image/webp', 0.9)); // Use WebP for better compression
                 };
@@ -254,7 +355,7 @@ const ProductForm = ({ productId, onSave }: { productId: string | null, onSave: 
                                 <CardHeader><CardTitle>Product Details</CardTitle></CardHeader>
                                 <CardContent className="space-y-6">
 
-                                <div className="flex items-stretch w-full gap-6">
+                                    <div className="flex items-stretch w-full gap-6">
                                         <div
                                             onClick={() => imageInputRef.current?.click()}
                                             role="button"
@@ -306,20 +407,20 @@ const ProductForm = ({ productId, onSave }: { productId: string | null, onSave: 
                                                     <FormMessage />
                                                 </FormItem>
                                             )} />
-                                    
+
                                             <div className="grow"></div>
 
-                                        <FormField control={form.control} name="is_active" render={({ field }) => (
+                                            <FormField control={form.control} name="is_active" render={({ field }) => (
                                                 <FormItem className="flex flex-row items-center justify-between">
                                                     <FormLabel className="">Product Active</FormLabel>
-                                                <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem>
+                                                    <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem>
                                             )} />
 
                                         </div>
 
-                                        
-                                </div>
-                                    
+
+                                    </div>
+
                                     <FormField control={form.control} name="barcode" render={({ field }) => (
                                         <FormItem>
                                             <FormLabel>Barcode</FormLabel>
@@ -444,65 +545,9 @@ const ProductForm = ({ productId, onSave }: { productId: string | null, onSave: 
                                     {hasVariant && (
                                         <div className="space-y-4">
                                             {variantFields.map((field, index) => (
-                                                <div key={field.id} className="flex flex-col gap-2 items-end p-3 border rounded-lg bg-muted/50">
-                                                    <div className="flex items-center justify-between w-full border-b px-2">
-                                                        <FormLabel className="text-sm">Variant {index + 1}</FormLabel>
-                                                        <Button type="button" variant="ghost" size="icon" className="shrink-0 text-muted-foreground hover:text-destructive" onClick={() => removeVariant(index)}>
-                                                            <Trash className="h-4 w-4" />
-                                                        </Button>
-                                                    </div>
-                                                    <div className="flex-grow grid grid-cols-2 gap-4">
-                                                        <FormField
-                                                            control={form.control}
-                                                            name={`variants.${index}.name`}
-                                                            render={({ field }) => (
-                                                                <FormItem>
-                                                                    <FormLabel className="text-xs">Name</FormLabel>
-                                                                    <FormControl>
-                                                                        <Input placeholder="e.g. Small" {...field} />
-                                                                    </FormControl>
-                                                                </FormItem>
-                                                            )}
-                                                        />
-                                                        <FormField
-                                                            control={form.control}
-                                                            name={`variants.${index}.additional_price`}
-                                                            render={({ field }) => (
-                                                                <FormItem>
-                                                                    <FormLabel className="text-xs">Price Adj.</FormLabel>
-                                                                    <FormControl>
-                                                                        <div className="relative"><span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground text-xs">Rp</span><Input type="number" placeholder="0" className="pl-8" {...field} /></div>
-                                                                    </FormControl>
-                                                                </FormItem>
-                                                            )}
-                                                        />
-                                                        <FormField
-                                                            control={form.control}
-                                                            name={`variants.${index}.sku`}
-                                                            render={({ field }) => (
-                                                                <FormItem>
-                                                                    <FormLabel className="text-xs">SKU</FormLabel>
-                                                                    <FormControl>
-                                                                        <Input placeholder="SKU-S" {...field} />
-                                                                    </FormControl>
-                                                                </FormItem>
-                                                            )}
-                                                        />
-                                                        <FormField
-                                                            control={form.control}
-                                                            name={`variants.${index}.stock`}
-                                                            render={({ field }) => (
-                                                                <FormItem>
-                                                                    <FormLabel className="text-xs">Stock</FormLabel>
-                                                                    <FormControl>
-                                                                        <Input type="number" placeholder="50" {...field} />
-                                                                    </FormControl>
-                                                                </FormItem>
-                                                            )}
-                                                        />
-                                                    </div>
-                                                    
-                                                </div>
+                                                <React.Fragment key={index}>
+                                                    <VariantItems index={index} field={field} form={form} removeVariant={removeVariant} />
+                                                </React.Fragment>
                                             ))}
                                             <Button type="button" variant="outline" size="sm" onClick={() => appendVariant({ name: '', additional_price: 0, stock: 0, sku: '' })}>
                                                 <PlusCircle className="mr-2 h-4 w-4" /> Add Variant
@@ -558,40 +603,9 @@ const ProductForm = ({ productId, onSave }: { productId: string | null, onSave: 
                                                 {isComposite && productType === 'food_and_beverage' && (
                                                     <div className="space-y-4 pt-4">
                                                         {recipeFields.map((field, index) => (
-                                                            <div key={field.id} className="flex gap-2 items-end p-3 border rounded-lg bg-muted/50">
-                                                                <div className="flex-grow grid grid-cols-2 gap-4">
-                                                                    <FormField
-                                                                        control={form.control}
-                                                                        name={`recipe_items.${index}.ingredient_id`}
-                                                                        render={({ field }) => (
-                                                                            <FormItem>
-                                                                                <FormLabel className="text-xs">Ingredient</FormLabel>
-                                                                                <Select onValueChange={field.onChange} value={field.value}>
-                                                                                    <FormControl><SelectTrigger><SelectValue placeholder="Select ingredient" /></SelectTrigger></FormControl>
-                                                                                    <SelectContent>{rawIngredients.map(ing => (<SelectItem key={ing.id} value={ing.id}>{ing.name}</SelectItem>))}</SelectContent>
-                                                                                </Select>
-                                                                                <FormMessage/>
-                                                                            </FormItem>
-                                                                        )}
-                                                                    />
-                                                                    <FormField
-                                                                        control={form.control}
-                                                                        name={`recipe_items.${index}.quantity`}
-                                                                        render={({ field }) => (
-                                                                            <FormItem>
-                                                                                <FormLabel className="text-xs">Quantity</FormLabel>
-                                                                                <FormControl>
-                                                                                    <Input type="number" placeholder="e.g. 18" {...field} />
-                                                                                </FormControl>
-                                                                                <FormMessage/>
-                                                                            </FormItem>
-                                                                        )}
-                                                                    />
-                                                                </div>
-                                                                <Button type="button" variant="ghost" size="icon" className="shrink-0 text-muted-foreground hover:text-destructive" onClick={() => removeRecipeItem(index)}>
-                                                                    <Trash className="h-4 w-4" />
-                                                                </Button>
-                                                            </div>
+                                                            <React.Fragment key={index}>
+                                                                <CompositeItem rawIngredients={rawIngredients} index={index} field={field} form={form} removeRecipeItem={removeRecipeItem} />
+                                                            </React.Fragment>
                                                         ))}
                                                         <Button type="button" variant="outline" size="sm" onClick={() => appendRecipeItem({ ingredient_id: '', quantity: 0 })}>
                                                             <PlusCircle className="mr-2 h-4 w-4" /> Add Ingredient
@@ -599,7 +613,7 @@ const ProductForm = ({ productId, onSave }: { productId: string | null, onSave: 
                                                     </div>
                                                 )}
 
-                                            </>   
+                                            </>
                                         )
                                     }
 
@@ -609,8 +623,14 @@ const ProductForm = ({ productId, onSave }: { productId: string | null, onSave: 
                         </div>
                     </ScrollArea>
                 </div>
-                <div className="p-4 mt-auto shrink-0">
-                    <Button type="submit" className="w-full">{isEditing ? "Save Changes" : "Create Product"}</Button>
+                <div className="p-4 mt-auto shrink-0 flex items-center gap-4">
+                    {
+                        isEditing &&
+                        <Button variant="outline" type="button" className="flex-1" onClick={() => {form.reset(undefined) ; onSave() }} >
+                            Cancel
+                        </Button>
+                    }
+                    <Button type="submit" className="flex-1">{isEditing ? "Save Changes" : "Create Product"}</Button>
                 </div>
             </form>
         </Form>
@@ -630,7 +650,7 @@ const CategoryManager = () => {
         setCategoryName(category ? category.name : "");
         setIsDialogOpen(true);
     }
-    
+
     const handleSave = async () => {
         if (!categoryName.trim()) return;
         try {
@@ -667,82 +687,82 @@ const CategoryManager = () => {
                 <Button size="sm" onClick={() => openDialog(null)}><PlusCircle className="mr-2 h-4 w-4" /> Add</Button>
             </div>
             <ScrollArea className="flex-1">
-            <Card className="rounded-lg">
-                <CardContent className="p-0">
+                <Card className="rounded-lg">
+                    <CardContent className="p-0">
 
-                <div className="divide-y">
+                        <div className="divide-y">
 
-                    {categories.map((cat) => (
-                    <div
-                        key={cat.id}
-                        className="flex items-center justify-between px-4 py-4"
-                    >
+                            {categories.map((cat) => (
+                                <div
+                                    key={cat.id}
+                                    className="flex items-center justify-between px-4 py-4"
+                                >
 
-                        {/* Left Side */}
-                        <div className="flex flex-col">
-                        <span className="font-medium text-base">
-                            {cat.name}
-                        </span>
-                        {/* <span className="text-xs text-muted-foreground">
+                                    {/* Left Side */}
+                                    <div className="flex flex-col">
+                                        <span className="font-medium text-base">
+                                            {cat.name}
+                                        </span>
+                                        {/* <span className="text-xs text-muted-foreground">
                             Category
                         </span> */}
+                                    </div>
+
+                                    {/* Right Actions */}
+                                    <div className="flex items-center gap-2">
+
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            onClick={() => openDialog(cat)}
+                                        >
+                                            <Edit className="h-4 w-4" />
+                                        </Button>
+
+                                        <AlertDialog>
+                                            <AlertDialogTrigger asChild>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="text-destructive"
+                                                >
+                                                    <Trash className="h-4 w-4" />
+                                                </Button>
+                                            </AlertDialogTrigger>
+
+                                            <AlertDialogContent>
+                                                <AlertDialogHeader>
+                                                    <AlertDialogTitle>
+                                                        Delete "{cat.name}"?
+                                                    </AlertDialogTitle>
+                                                    <AlertDialogDescription>
+                                                        This will soft-delete the category.
+                                                        It cannot be used for new products.
+                                                    </AlertDialogDescription>
+                                                </AlertDialogHeader>
+
+                                                <AlertDialogFooter>
+                                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                    <AlertDialogAction
+                                                        onClick={() => handleDelete(cat.id)}
+                                                    >
+                                                        Confirm Delete
+                                                    </AlertDialogAction>
+                                                </AlertDialogFooter>
+                                            </AlertDialogContent>
+                                        </AlertDialog>
+
+                                    </div>
+
+                                </div>
+                            ))}
+
                         </div>
 
-                        {/* Right Actions */}
-                        <div className="flex items-center gap-2">
-
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => openDialog(cat)}
-                        >
-                            <Edit className="h-4 w-4" />
-                        </Button>
-
-                        <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                className="text-destructive"
-                            >
-                                <Trash className="h-4 w-4" />
-                            </Button>
-                            </AlertDialogTrigger>
-
-                            <AlertDialogContent>
-                            <AlertDialogHeader>
-                                <AlertDialogTitle>
-                                Delete "{cat.name}"?
-                                </AlertDialogTitle>
-                                <AlertDialogDescription>
-                                This will soft-delete the category.
-                                It cannot be used for new products.
-                                </AlertDialogDescription>
-                            </AlertDialogHeader>
-
-                            <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction
-                                onClick={() => handleDelete(cat.id)}
-                                >
-                                Confirm Delete
-                                </AlertDialogAction>
-                            </AlertDialogFooter>
-                            </AlertDialogContent>
-                        </AlertDialog>
-
-                        </div>
-
-                    </div>
-                    ))}
-
-                </div>
-
-                </CardContent>
-            </Card>
+                    </CardContent>
+                </Card>
             </ScrollArea>
-             {/* <ScrollArea className="flex-grow">
+            {/* <ScrollArea className="flex-grow">
                 <Card>
                     <CardContent className="pt-6">
 
@@ -770,7 +790,7 @@ const CategoryManager = () => {
                     </CardContent>
                 </Card>
              </ScrollArea> */}
-             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <DialogContent>
                     <DialogHeader><DialogTitle>{categoryToEdit ? 'Edit' : 'Add'} Category</DialogTitle></DialogHeader>
                     <div className="py-4"><Label htmlFor="cat-name">Category Name</Label><Input id="cat-name" value={categoryName} onChange={(e) => setCategoryName(e.target.value)} autoFocus /></div>
@@ -819,7 +839,7 @@ const ModifierManager = () => {
             await deleteModifierGroup(id);
         } catch (e) { toast({ variant: "destructive", title: "Error deleting group" }); }
     };
-    
+
     const openItemDialog = (groupId: string, item: ModifierItem | null) => {
         setActiveGroupId(groupId);
         setItemToEdit(item);
@@ -838,7 +858,7 @@ const ModifierManager = () => {
             setIsItemDialogOpen(false);
         } catch (e) { toast({ variant: "destructive", title: "Error saving item" }); }
     };
-    
+
     const handleItemDelete = async (groupId: string, itemId: string) => {
         try {
             await deleteModifierItem(groupId, itemId);
@@ -946,7 +966,7 @@ const ModifierManager = () => {
                                         <Button
                                             variant="outline"
                                             onClick={() => openGroupDialog(group)}
-                                            >
+                                        >
                                             <Edit className="h-4 w-4 mr-1" />
                                             Edit
                                         </Button>
@@ -957,7 +977,7 @@ const ModifierManager = () => {
                                                     variant="outline"
                                                     className="text-destructive hover:text-destructive"
                                                     onClick={() => handleGroupDelete(group.id)}
-                                                    >
+                                                >
                                                     <Trash className="h-4 w-4 mr-1" />
                                                     Delete
                                                 </Button>
@@ -991,29 +1011,29 @@ const ModifierManager = () => {
 
                 </div>
             </ScrollArea>
-            
+
             {/* Group Dialog */}
             <Dialog open={isGroupDialogOpen} onOpenChange={setIsGroupDialogOpen}>
                 <DialogContent>
                     <DialogHeader><DialogTitle>{groupToEdit ? 'Edit' : 'Add'} Group</DialogTitle></DialogHeader>
                     <div className="py-4 space-y-4">
-                        <div className="space-y-2"><Label htmlFor="g-name">Group Name</Label><Input id="g-name" value={groupFormData.name} onChange={(e) => setGroupFormData({...groupFormData, name: e.target.value})} /></div>
-                        <div className="flex items-center space-x-2"><Switch id="g-req" checked={groupFormData.required} onCheckedChange={(c) => setGroupFormData({...groupFormData, required: c, min_select: c ? Math.max(1, groupFormData.min_select) : groupFormData.min_select })} /><Label htmlFor="g-req">Required</Label></div>
+                        <div className="space-y-2"><Label htmlFor="g-name">Group Name</Label><Input id="g-name" value={groupFormData.name} onChange={(e) => setGroupFormData({ ...groupFormData, name: e.target.value })} /></div>
+                        <div className="flex items-center space-x-2"><Switch id="g-req" checked={groupFormData.required} onCheckedChange={(c) => setGroupFormData({ ...groupFormData, required: c, min_select: c ? Math.max(1, groupFormData.min_select) : groupFormData.min_select })} /><Label htmlFor="g-req">Required</Label></div>
                         <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2"><Label htmlFor="g-min">Min Select</Label><Input id="g-min" type="number" value={groupFormData.min_select} onChange={(e) => setGroupFormData({...groupFormData, min_select: Number(e.target.value)})} min={groupFormData.required ? 1 : 0} /></div>
-                            <div className="space-y-2"><Label htmlFor="g-max">Max Select</Label><Input id="g-max" type="number" value={groupFormData.max_select} onChange={(e) => setGroupFormData({...groupFormData, max_select: Number(e.target.value)})} min={groupFormData.min_select} /></div>
+                            <div className="space-y-2"><Label htmlFor="g-min">Min Select</Label><Input id="g-min" type="number" value={groupFormData.min_select} onChange={(e) => setGroupFormData({ ...groupFormData, min_select: Number(e.target.value) })} min={groupFormData.required ? 1 : 0} /></div>
+                            <div className="space-y-2"><Label htmlFor="g-max">Max Select</Label><Input id="g-max" type="number" value={groupFormData.max_select} onChange={(e) => setGroupFormData({ ...groupFormData, max_select: Number(e.target.value) })} min={groupFormData.min_select} /></div>
                         </div>
                     </div>
                     <DialogFooter><Button variant="outline" onClick={() => setIsGroupDialogOpen(false)}>Cancel</Button><Button onClick={handleGroupSave}>Save</Button></DialogFooter>
                 </DialogContent>
             </Dialog>
             {/* Item Dialog */}
-             <Dialog open={isItemDialogOpen} onOpenChange={setIsItemDialogOpen}>
+            <Dialog open={isItemDialogOpen} onOpenChange={setIsItemDialogOpen}>
                 <DialogContent>
                     <DialogHeader><DialogTitle>{itemToEdit ? 'Edit' : 'Add'} Item</DialogTitle></DialogHeader>
                     <div className="py-4 space-y-4">
-                        <div className="space-y-2"><Label htmlFor="i-name">Item Name</Label><Input id="i-name" value={itemFormData.name} onChange={(e) => setItemFormData({...itemFormData, name: e.target.value})} /></div>
-                        <div className="space-y-2"><Label htmlFor="i-price">Additional Price</Label><div className="relative"><span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">Rp</span><Input id="i-price" type="number" value={itemFormData.additional_price || ''} onChange={(e) => setItemFormData({...itemFormData, additional_price: Number(e.target.value)})} className="pl-10" /></div></div>
+                        <div className="space-y-2"><Label htmlFor="i-name">Item Name</Label><Input id="i-name" value={itemFormData.name} onChange={(e) => setItemFormData({ ...itemFormData, name: e.target.value })} /></div>
+                        <div className="space-y-2"><Label htmlFor="i-price">Additional Price</Label><div className="relative"><span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">Rp</span><Input id="i-price" type="number" value={itemFormData.additional_price || ''} onChange={(e) => setItemFormData({ ...itemFormData, additional_price: Number(e.target.value) })} className="pl-10" /></div></div>
                     </div>
                     <DialogFooter><Button variant="outline" onClick={() => setIsItemDialogOpen(false)}>Cancel</Button><Button onClick={handleItemSave}>Save</Button></DialogFooter>
                 </DialogContent>
@@ -1120,9 +1140,9 @@ const IngredientManager = () => {
                                     <div className="flex items-center gap-2">
                                         <Package className="h-4 w-4 shrink-0 text-purple-500" />
                                         <span>
-                                        <span className="font-medium">
-                                            {ing.stock_qty.toLocaleString()} {ing.unit_type}
-                                        </span>
+                                            <span className="font-medium">
+                                                {ing.stock_qty.toLocaleString()} {ing.unit_type}
+                                            </span>
                                         </span>
                                     </div>
 
@@ -1130,7 +1150,7 @@ const IngredientManager = () => {
                                     <div className="flex items-center gap-2">
                                         <Banknote className="h-4 w-4 shrink-0 text-green-600" />
                                         <span>
-                                        {formatCurrency(ing.cost_per_unit)} / {ing.unit_type}
+                                            {formatCurrency(ing.cost_per_unit)} / {ing.unit_type}
                                         </span>
                                     </div>
                                 </div>
@@ -1275,10 +1295,10 @@ const ProductEditor = ({ selectedProductId, onProductUpdate, activeTab, onTabCha
         <Tabs value={activeTab} onValueChange={onTabChange} className="h-full flex flex-col min-h-0">
             <div className="px-4 py-4 grid grid-cols-1 w-full overflow-x-auto shrink-0">
                 <TabsList className="grid w-full grid-cols-4">
-                    <TabsTrigger value="product"><Package className="w-4 h-4 mr-2 text-primary"/>Product</TabsTrigger>
-                    <TabsTrigger value="categories"><Library className="w-4 h-4 mr-2 text-destructive"/>Categories</TabsTrigger>
-                    <TabsTrigger value="modifiers"><SlidersHorizontal className="w-4 h-4 mr-2 text-purple-500"/>Modifiers</TabsTrigger>
-                    <TabsTrigger value="ingredients"><Beaker className="w-4 h-4 mr-2 text-green-600"/>Ingredients</TabsTrigger>
+                    <TabsTrigger value="product"><Package className="w-4 h-4 mr-2 text-primary" />Product</TabsTrigger>
+                    <TabsTrigger value="categories"><Library className="w-4 h-4 mr-2 text-destructive" />Categories</TabsTrigger>
+                    <TabsTrigger value="modifiers"><SlidersHorizontal className="w-4 h-4 mr-2 text-purple-500" />Modifiers</TabsTrigger>
+                    <TabsTrigger value="ingredients"><Beaker className="w-4 h-4 mr-2 text-green-600" />Ingredients</TabsTrigger>
                 </TabsList>
             </div>
             <TabsContent value="product" className="grid grid-cols-1 w-full mt-0 overflow-x-auto min-h-0">
@@ -1324,7 +1344,7 @@ export default function ProductManagementPage() {
             setIsDrawerOpen(true);
         }
     };
-    
+
     const handleBarcodeScan = (barcode: string) => {
         const product = products.find(p => p.barcode === barcode || p.sku === barcode);
         if (product) {
@@ -1349,7 +1369,7 @@ export default function ProductManagementPage() {
         setActiveTab("product");
         setIsDrawerOpen(true);
     }
-    
+
     const handleSaveChanges = () => {
         setSelectedProductId(null);
         // data will refetch via zustand listener, no need for manual refresh
@@ -1370,7 +1390,7 @@ export default function ProductManagementPage() {
                             onBarcodeScan={handleBarcodeScan}
                         />
                         <Button onClick={handleAddNew} variant="outline" size="sm" className="md:hidden inline-flex size-10">
-                           <PlusCircle className="h-4 w-4"/>
+                            <PlusCircle className="h-4 w-4" />
                         </Button>
                     </div>
                 </div>
@@ -1395,7 +1415,7 @@ export default function ProductManagementPage() {
 
             {/* Right Panel: Editor (Desktop) */}
             <aside className="hidden md:block col-span-4 lg:col-span-4 md:col-span-5 h-full min-h-0">
-                <ProductEditor 
+                <ProductEditor
                     selectedProductId={selectedProductId}
                     onProductUpdate={handleSaveChanges}
                     activeTab={activeTab}
@@ -1406,7 +1426,7 @@ export default function ProductManagementPage() {
             {/* Editor Drawer (Mobile) */}
             <Sheet open={isDrawerOpen} onOpenChange={setIsDrawerOpen}>
                 <SheetContent side="right" className="w-full sm:w-[500px] p-0">
-                     <ProductEditor 
+                    <ProductEditor
                         selectedProductId={selectedProductId}
                         onProductUpdate={handleSaveChanges}
                         activeTab={activeTab}
