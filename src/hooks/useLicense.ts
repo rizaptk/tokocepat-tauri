@@ -30,7 +30,6 @@ export function useLicense() {
 
     const sendHeartbeat = useCallback(async () => {
         if (!navigator.onLine) {
-            console.log('[useLicense/sendHeartbeat] Skipping heartbeat, user is offline.');
             return;
         }
 
@@ -42,8 +41,6 @@ export function useLicense() {
                 token: licenseData?.jwt,
                 deviceId: currentDeviceId
             };
-            console.log('[useLicense/sendHeartbeat] Sending heartbeat with body:', { ...body, token: body.token ? 'JWT_PRESENT' : null });
-
 
             const response = await fetch('/api/heartbeat', {
                 method: 'POST',
@@ -51,16 +48,12 @@ export function useLicense() {
                 body: JSON.stringify(body),
             });
             const data = await response.json();
-            console.log('[useLicense/sendHeartbeat] Received response from server:', data);
             
             if (data.status === 'activation_required' && data.ticketId) {
                 // FIX: Prevent redirect loop if already on the activation page
                 const currentPath = window.location.pathname;
                 if (!currentPath.startsWith('/aktivasi')) {
-                    console.log(`[useLicense/sendHeartbeat] Server indicated activation is required for ticket ${data.ticketId}. Redirecting...`);
                     window.location.href = `/aktivasi?ticket=${data.ticketId}`;
-                } else {
-                    console.log(`[useLicense/sendHeartbeat] Activation required, but already on /aktivasi page. No redirect needed.`);
                 }
             }
 
@@ -73,8 +66,6 @@ export function useLicense() {
         if (!isInitialized) return;
 
         const checkLicense = async () => {
-            console.log('[useLicense/checkLicense] Starting license check...');
-            
             const licenseData = await getLicenseData();
             
             // If there's no local license, send a heartbeat immediately to check for pending activations.
@@ -85,17 +76,12 @@ export function useLicense() {
             
             const currentDeviceId = await generateDeviceFingerprint();
 
-            console.log('[useLicense/checkLicense] Local license data found:', licenseData ? { ...licenseData, jwt: 'JWT_PRESENT' } : null);
-            console.log('[useLicense/checkLicense] Current Device ID:', `${currentDeviceId.substring(0, 10)}...`);
-
             if (!licenseData || !licenseData.jwt || !licenseData.deviceId) {
-                console.log('[useLicense/checkLicense] Determined Status: NOT_FOUND');
                 setStatus('NOT_FOUND');
                 return;
             }
             
             if (currentDeviceId !== licenseData.deviceId) {
-                 console.log('[useLicense/checkLicense] Determined Status: CLONED (Device ID mismatch)');
                 setStatus('CLONED');
                 return;
             }
@@ -103,16 +89,13 @@ export function useLicense() {
             let payload;
             try {
                 payload = decodeJwt(licenseData.jwt);
-                 console.log('[useLicense/checkLicense] JWT Decoded Payload:', payload);
             } catch (e) {
                  console.error("[useLicense/checkLicense] Failed to decode JWT:", e);
-                 console.log('[useLicense/checkLicense] Determined Status: INVALID');
                  setStatus('INVALID');
                  return;
             }
             
             if (!payload) {
-                console.log('[useLicense/checkLicense] Determined Status: INVALID (Payload is null)');
                 setStatus('INVALID');
                 return;
             }
@@ -120,7 +103,6 @@ export function useLicense() {
             const currentTime = new Date();
             const lastKnownTime = new Date(licenseData.lastKnownTime);
             if (currentTime < lastKnownTime) {
-                console.log('[useLicense/checkLicense] Determined Status: TAMPERED (Clock moved backwards)');
                 setStatus('TAMPERED');
                 return;
             }
@@ -128,7 +110,6 @@ export function useLicense() {
             const expiryDate = payload.exp ? new Date(payload.exp * 1000) : null;
 
             if (expiryDate && currentTime > expiryDate) {
-                 console.log('[useLicense/checkLicense] Determined Status: EXPIRED');
                 setStatus('EXPIRED');
                 setLicenseDetails({
                     ...payload,
@@ -151,7 +132,6 @@ export function useLicense() {
                 }
             }
             
-            console.log(`[useLicense/checkLicense] Determined Final Status: ${finalStatus}`, details);
             setStatus(finalStatus);
             setLicenseDetails(details);
             
@@ -160,7 +140,6 @@ export function useLicense() {
             }
 
             // Save updated lastKnownTime to DB
-            console.log('[useLicense/checkLicense] Updating lastKnownTime in local DB.');
             await saveLicenseData(licenseData.jwt, currentDeviceId);
         };
 

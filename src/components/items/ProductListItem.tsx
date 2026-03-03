@@ -70,7 +70,7 @@ export function ProductListItem({
         "flex items-center px-4 gap-0 h-[54px] bg-card border-b-border border-x",
         "transition-colors",
         "hover:bg-accent",
-        isSelected && "border-primary",
+        isSelected && "bg-background",
         isOutOfStock && "opacity-60 cursor-not-allowed",
         !is_active && "opacity-80 relative"
       )}

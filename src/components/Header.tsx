@@ -22,6 +22,7 @@ import { useStore } from "@/lib/store";
 import { useState, useMemo, useCallback } from "react";
 import { Label } from "./ui/label";
 import { PendingCartsDialog } from "./PendingCartsDialog";
+import { ThemeToggle } from "./ThemeButtons";
 
 
 export function Header() {
@@ -120,7 +121,10 @@ export function Header() {
                 </AlertDialogFooter>
             </AlertDialogContent>
             </AlertDialog>
+            <ThemeToggle />
         </div>
+
+
     </header>
     <PendingCartsDialog isOpen={isPendingCartDialogOpen} onOpenChange={setIsPendingCartDialogOpen} />
     </>

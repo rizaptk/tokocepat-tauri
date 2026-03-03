@@ -1,38 +1,49 @@
 
 "use client";
 
-import { useState } from 'react';
-import { Search, Barcode, Grid, List, Rows, SlidersHorizontal } from "lucide-react";
+import React, { useDeferredValue, useEffect, useState } from 'react';
+import { Search, Barcode, SlidersHorizontal, Image, StretchHorizontal, Equal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import type { ViewMode } from "@/app/cashier/page";
 import { BarcodeScanner } from './BarcodeScanner';
+import { useProductSearch } from '@/lib/useProductSearch';
 
 interface ProductSearchBarProps {
-    searchTerm: string;
-    onSearchTermChange: (term: string) => void;
     viewMode?: ViewMode;
     onViewModeChange?: (mode: ViewMode) => void;
     onBarcodeScan?: (barcode: string) => void;
 }
 
-export function ProductSearchBar({ searchTerm, onSearchTermChange, viewMode, onViewModeChange, onBarcodeScan }: ProductSearchBarProps) {
+export const ProductSearchBar = React.memo(({ viewMode, onViewModeChange, onBarcodeScan }: ProductSearchBarProps) => {
     const [isScannerOpen, setIsScannerOpen] = useState(false);
+
+    const [localValue, setLocalValue] = useState('');
+
+    const execQuery = useProductSearch(q => q.setQuery);
+
+    const deferredValue = useDeferredValue(localValue.trim(), '');
+
+    // Only notify parent if value truly changed
+    useEffect(() => {
+        execQuery(deferredValue);
+    }, [deferredValue]);
 
     const handleScanSuccess = (barcode: string) => {
         if (onBarcodeScan) {
             onBarcodeScan(barcode);
-            onSearchTermChange('');
+            setLocalValue('');
+            execQuery('');
         }
         setIsScannerOpen(false);
-    }
-    
+    };
+
     const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-        if (e.key === 'Enter' && searchTerm.trim() && onBarcodeScan) {
-            e.preventDefault(); // Prevent any default form submission
-            handleScanSuccess(searchTerm.trim());
+        if (e.key === 'Enter' && localValue.trim() && onBarcodeScan) {
+            e.preventDefault();
+            handleScanSuccess(localValue.trim());
         }
     };
 
@@ -43,17 +54,18 @@ export function ProductSearchBar({ searchTerm, onSearchTermChange, viewMode, onV
                 <Input
                     type="search"
                     placeholder="Search products or scan barcode..."
-                    className="w-full px-10"
-                    value={searchTerm}
-                    onChange={(e) => onSearchTermChange(e.target.value)}
+                    className="w-full px-10 bg-card"
+                    value={localValue}
+                    onChange={(e) => setLocalValue(e.target.value)}
                     onKeyDown={handleKeyDown}
+                    size="base"
                     shape="full"
                 />
                 {onBarcodeScan && (
                     <Dialog open={isScannerOpen} onOpenChange={setIsScannerOpen}>
                         <DialogTrigger asChild>
-                            <Button variant="ghost" size="sm" className="shrink-0 size-9 absolute right-2 top-0.5 rounded-full [&_svg]:text-muted-foreground">
-                                <Barcode className="size-5" />
+                            <Button variant="ghost" size="sm" className="shrink-0 absolute right-0.5 h-9 w-12 top-0.5 bottom-0.5 rounded-full [&_svg]:text-muted-foreground [&_svg]:size-5">
+                                <Barcode className="size-6" />
                             </Button>
                         </DialogTrigger>
                         <DialogContent>
@@ -69,20 +81,20 @@ export function ProductSearchBar({ searchTerm, onSearchTermChange, viewMode, onV
             {viewMode && onViewModeChange && (
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                        <Button variant="outline" size="icon" className="shrink-0 rounded-full [&_svg]:text-muted-foreground">
+                        <Button variant="secondary" size="icon" className="shrink-0 rounded-full">
                            <SlidersHorizontal className="h-5 w-5" />
                         </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent>
                         <DropdownMenuRadioGroup value={viewMode} onValueChange={(value) => onViewModeChange(value as ViewMode)}>
                             <DropdownMenuRadioItem value="card" className='py-2'>
-                                <Grid className="mr-2 size-4" /> Card View
+                                <Image className="mr-2 size-4 text-emerald-500" /> Card View
                             </DropdownMenuRadioItem>
                              <DropdownMenuRadioItem value="thumbnail" className='py-2'>
-                                <Rows className="mr-2 size-4" /> Thumbnail View
+                                <StretchHorizontal className="mr-2 size-4 text-rose-500" /> Thumbnail View
                             </DropdownMenuRadioItem>
                              <DropdownMenuRadioItem value="list" className='py-2'>
-                                <List className="mr-2 size-4" /> List View
+                                <Equal className="mr-2 size-4 text-purple-500" /> List View
                             </DropdownMenuRadioItem>
                         </DropdownMenuRadioGroup>
                     </DropdownMenuContent>
@@ -90,4 +102,4 @@ export function ProductSearchBar({ searchTerm, onSearchTermChange, viewMode, onV
             )}
         </div>
     )
-}
+})

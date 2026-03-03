@@ -45,7 +45,7 @@ export function TransactionDisplay({ onSelectTransaction }: TransactionDisplayPr
                         <div
                             key={tx.id}
                             className={cn(
-                                "flex items-center p-3 gap-3 cursor-pointer hover:bg-accent",
+                                "flex items-center py-3 px-5 gap-3 cursor-pointer hover:bg-accent",
                                 tx.status === 'voided' && 'opacity-50'
                             )}
                             onClick={() => onSelectTransaction(tx)}

@@ -18,6 +18,7 @@ import { LicenseManager } from '@/components/LicenseManager';
 import { SubscriptionManager } from './_components/SubscriptionManager';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Shield, CreditCard, Database, Trash2, Loader2 } from 'lucide-react';
+import { ThemeToggle } from '@/components/ThemeButtons';
 
 
 export default function SettingsPage() {
@@ -126,10 +127,11 @@ export default function SettingsPage() {
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-muted/40">
-        <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b bg-background px-4 md:px-6">
+        <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b bg-background px-4 md:px-6 justify-between">
             <Link href="/">
             <TokoCepatLogo />
             </Link>
+            <ThemeToggle />
         </header>
         <main className="flex flex-1 flex-col lg:flex-row">
 

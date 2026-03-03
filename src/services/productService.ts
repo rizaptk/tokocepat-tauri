@@ -179,7 +179,12 @@ export async function searchProducts(term: string): Promise<Product[]> {
     const productsRef = collection(db, 'products');
     // Using the custom 'like' operator assumed to be in firesqlite v0.0.5
     // also filtering for active products only.
-    const q = query(productsRef, where('is_active', '==', true), where('name', 'like', term));
+    // implement != operator for optional field i.e. is_active to make sure only field with is_active != false will shown per firesqlite v0.0.7
+    const q = query(
+        productsRef, 
+        where('is_active', '!=', false), 
+        where('name', 'like', term)
+    );
     
     try {
         const snapshot = await getDocs(q);

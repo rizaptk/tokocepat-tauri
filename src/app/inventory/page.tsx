@@ -1,13 +1,14 @@
 
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, memo } from "react";
 import { useStore } from "@/lib/store";
 import { Product, StockMovementType, RawIngredient, Category } from "@/lib/types";
 import { adjustStock, adjustIngredientStock } from "@/services/stockService";
 import { useToast } from "@/hooks/use-toast";
 import { FixedSizeList as List } from 'react-window';
 import AutoSizer from 'react-virtualized-auto-sizer';
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -16,13 +17,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { ProductSearchBar } from "@/components/ProductSearchBar";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { PlusCircle, Plus, Minus, Calculator, Package, Beaker } from "lucide-react";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useGlobalBarcodeScanner } from "@/hooks/use-global-barcode-scanner";
-import { useSettingsStore } from "@/lib/settings";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { useProductSearch } from "@/lib/useProductSearch";
 
 
 const reasonOptions: Record<'add' | 'remove' | 'count', { id: string, value: StockMovementType, label: string }[]> = {
@@ -47,7 +48,7 @@ const reasonOptions: Record<'add' | 'remove' | 'count', { id: string, value: Sto
 
 type InventoryItemType = (Product & { itemType: 'product', stock: number }) | (RawIngredient & { itemType: 'ingredient', stock: number });
 
-const StockAdjustmentPanel = ({ selectedItem, onSave }: { selectedItem: { id: string, type: 'product' | 'ingredient' } | null; onSave: () => void; }) => {
+const StockAdjustmentPanel = ({ selectedItem, onSave, onCancel }: { selectedItem: { id: string, type: 'product' | 'ingredient' } | null; onSave: () => void; onCancel: () => void; }) => {
     const [mode, setMode] = useState<'add' | 'remove' | 'count' | null>(null);
     const [quantity, setQuantity] = useState('');
     const [actualCount, setActualCount] = useState('');
@@ -150,18 +151,20 @@ const StockAdjustmentPanel = ({ selectedItem, onSave }: { selectedItem: { id: st
     };
     
     return (
-        <div className="flex flex-col h-full">
-            <div className="p-4 border-b">
+        <div className="flex flex-col h-full min-h-0">
+            <div className="p-4">
                 <h3 className="font-semibold text-lg">Manual Stock Adjustment</h3>
-                <p className="text-sm text-muted-foreground">Select an item from the list to begin.</p>
+                {/* <p className="text-sm text-muted-foreground">Select an item from the list to begin.</p> */}
             </div>
-            
-            <div className="flex-1 overflow-y-auto p-4 space-y-6">
+            <ScrollArea className="flex-1 min-h-0 [&>[data-radix-scroll-area-viewport]>div]:!block [&>[data-radix-scroll-area-viewport]>div]:!h-full">
+            <div className="p-4 space-y-6 h-full">
                 {!item ? (
-                    <div className="flex flex-col items-center justify-center text-center text-muted-foreground h-full p-8 border border-dashed rounded-lg">
-                        <Package className="w-12 h-12 mb-4" />
-                        <p>No item selected</p>
-                    </div>
+                    <Card className="h-full">
+                        <div className="flex flex-col items-center justify-center text-center text-muted-foreground h-full p-8">
+                            <Package className="w-12 h-12 mb-4" />
+                            <p>No item selected</p>
+                        </div>
+                    </Card>
                 ) : (
                     <>
                         <Card>
@@ -175,72 +178,74 @@ const StockAdjustmentPanel = ({ selectedItem, onSave }: { selectedItem: { id: st
                                     </Badge>
                                 </div>
                             </CardHeader>
+                            <CardContent className="space-y-2">
+
+                                    <div>
+                                        <Label>What happened?</Label>
+                                        <div className="grid grid-cols-3 gap-2 mt-2">
+                                            <Button variant={mode === 'add' ? 'default' : 'outline'} onClick={() => setMode('add')} className="flex-col h-16 bg-green-500/10 border-green-500 text-green-700 hover:bg-green-500/20 hover:text-green-800 data-[state=active]:bg-green-500 data-[state=active]:text-white">
+                                                <Plus className="w-5 h-5 mb-1" />
+                                                <span className="text-xs">Add Stock</span>
+                                            </Button>
+                                            <Button variant={mode === 'remove' ? 'destructive' : 'outline'} onClick={() => setMode('remove')} className="flex-col h-16">
+                                                <Minus className="w-5 h-5 mb-1" />
+                                                <span className="text-xs">Remove Stock</span>
+                                            </Button>
+                                            <Button variant={mode === 'count' ? 'default' : 'outline'} onClick={() => setMode('count')} className="flex-col h-16 bg-blue-500/10 border-blue-500 text-blue-700 hover:bg-blue-500/20 hover:text-blue-800 data-[state=active]:bg-blue-500 data-[state=active]:text-white">
+                                                <Calculator className="w-5 h-5 mb-1" />
+                                                <span className="text-xs">Count Stock</span>
+                                            </Button>
+                                        </div>
+                                    </div>
+
+                                    {mode && (
+                                        <div className="space-y-4 pt-4">
+                                            {mode === 'add' || mode === 'remove' ? (
+                                                <div className="space-y-4">
+                                                    <div className="space-y-2">
+                                                        <Label htmlFor="quantity">Quantity to {mode}</Label>
+                                                        <Input id="quantity" type="number" placeholder="Enter a positive number" value={quantity} onChange={(e) => setQuantity(e.target.value)} min="1"/>
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        <Label htmlFor="reason-select">Reason</Label>
+                                                        <Select value={reason} onValueChange={setReason}>
+                                                            <SelectTrigger><SelectValue placeholder="Select a reason" /></SelectTrigger>
+                                                            <SelectContent>
+                                                                {reasonOptions[mode].map(opt => <SelectItem key={opt.id} value={opt.id}>{opt.label}</SelectItem>)}
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <div className="space-y-4">
+                                                    <div className="space-y-2">
+                                                        <Label htmlFor="actual-count">Actual Physical Count</Label>
+                                                        <Input id="actual-count" type="number" placeholder="e.g. 142" value={actualCount} onChange={(e) => setActualCount(e.target.value)} />
+                                                    </div>
+                                                    {change !== 0 && (
+                                                        <div className="space-y-2">
+                                                            <Label htmlFor="reason-count">Reason for Difference</Label>
+                                                            <Select value={reason} onValueChange={setReason}>
+                                                                <SelectTrigger><SelectValue placeholder="Select a reason" /></SelectTrigger>
+                                                                <SelectContent>
+                                                                    {reasonOptions.count.map(opt => <SelectItem key={opt.id} value={opt.id}>{opt.label}</SelectItem>)}
+                                                                </SelectContent>
+                                                            </Select>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+                                            <div className="space-y-2">
+                                                <Label htmlFor="note">Note (Optional)</Label>
+                                                <Textarea id="note" placeholder="e.g., 'Box was found open'" value={note} onChange={e => setNote(e.target.value)} />
+                                            </div>
+                                        </div>
+                                    )}
+                            </CardContent>
                         </Card>
                         
-                        <div>
-                            <Label>What happened?</Label>
-                            <div className="grid grid-cols-3 gap-2 mt-2">
-                                <Button variant={mode === 'add' ? 'default' : 'outline'} onClick={() => setMode('add')} className="flex-col h-16 bg-green-500/10 border-green-500 text-green-700 hover:bg-green-500/20 hover:text-green-800 data-[state=active]:bg-green-500 data-[state=active]:text-white">
-                                    <Plus className="w-5 h-5 mb-1" />
-                                    <span className="text-xs">Add Stock</span>
-                                </Button>
-                                 <Button variant={mode === 'remove' ? 'destructive' : 'outline'} onClick={() => setMode('remove')} className="flex-col h-16">
-                                    <Minus className="w-5 h-5 mb-1" />
-                                     <span className="text-xs">Remove Stock</span>
-                                </Button>
-                                 <Button variant={mode === 'count' ? 'default' : 'outline'} onClick={() => setMode('count')} className="flex-col h-16 bg-blue-500/10 border-blue-500 text-blue-700 hover:bg-blue-500/20 hover:text-blue-800 data-[state=active]:bg-blue-500 data-[state=active]:text-white">
-                                    <Calculator className="w-5 h-5 mb-1" />
-                                    <span className="text-xs">Count Stock</span>
-                                </Button>
-                            </div>
-                        </div>
-
-                        {mode && (
-                            <div className="space-y-4 pt-4 border-t">
-                                {mode === 'add' || mode === 'remove' ? (
-                                    <div className="space-y-4">
-                                        <div className="space-y-2">
-                                            <Label htmlFor="quantity">Quantity to {mode}</Label>
-                                            <Input id="quantity" type="number" placeholder="Enter a positive number" value={quantity} onChange={(e) => setQuantity(e.target.value)} min="1"/>
-                                        </div>
-                                         <div className="space-y-2">
-                                            <Label htmlFor="reason-select">Reason</Label>
-                                            <Select value={reason} onValueChange={setReason}>
-                                                <SelectTrigger><SelectValue placeholder="Select a reason" /></SelectTrigger>
-                                                <SelectContent>
-                                                    {reasonOptions[mode].map(opt => <SelectItem key={opt.id} value={opt.id}>{opt.label}</SelectItem>)}
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <div className="space-y-4">
-                                        <div className="space-y-2">
-                                            <Label htmlFor="actual-count">Actual Physical Count</Label>
-                                            <Input id="actual-count" type="number" placeholder="e.g. 142" value={actualCount} onChange={(e) => setActualCount(e.target.value)} />
-                                        </div>
-                                        {change !== 0 && (
-                                            <div className="space-y-2">
-                                                <Label htmlFor="reason-count">Reason for Difference</Label>
-                                                <Select value={reason} onValueChange={setReason}>
-                                                    <SelectTrigger><SelectValue placeholder="Select a reason" /></SelectTrigger>
-                                                    <SelectContent>
-                                                        {reasonOptions.count.map(opt => <SelectItem key={opt.id} value={opt.id}>{opt.label}</SelectItem>)}
-                                                    </SelectContent>
-                                                </Select>
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
-                                 <div className="space-y-2">
-                                    <Label htmlFor="note">Note (Optional)</Label>
-                                    <Textarea id="note" placeholder="e.g., 'Box was found open'" value={note} onChange={e => setNote(e.target.value)} />
-                                </div>
-                            </div>
-                        )}
-                        
                         {mode && change !== 0 && (
-                            <Card className="bg-muted/50">
+                            <Card>
                                 <CardHeader>
                                     <CardTitle className="text-base">Adjustment Summary</CardTitle>
                                 </CardHeader>
@@ -267,9 +272,13 @@ const StockAdjustmentPanel = ({ selectedItem, onSave }: { selectedItem: { id: st
                     </>
                 )}
             </div>
+            </ScrollArea>
             
-            <div className="p-4 border-t mt-auto">
-                 <Button className="w-full" onClick={handleSubmit} disabled={!isFormValid || !item || (mode === 'count' && change === 0)}>Save Adjustment</Button>
+            <div className="p-4 mt-auto flex gap-2">
+                 <Button variant="outline" className="flex-1" onClick={onCancel}>
+                    Cancel
+                 </Button>
+                 <Button className="flex-[2]" onClick={handleSubmit} disabled={!isFormValid || !item || (mode === 'count' && change === 0)}>Save Adjustment</Button>
             </div>
         </div>
     );
@@ -282,8 +291,8 @@ const InventoryListItem = ({ item, isSelected, onItemClick, categories }: { item
         <div
             onClick={() => onItemClick(item)}
             className={cn(
-                "flex items-center p-4 border-b transition-colors cursor-pointer",
-                isSelected ? "bg-primary/10 border-l-4 border-l-primary" : "hover:bg-accent"
+                "flex items-center p-4 border-b transition-colors cursor-pointer bg-card border hover:bg-accent h-[80px]",
+                isSelected ? "bg-background" : ""
             )}
         >
             <div className="flex-1 min-w-0">
@@ -305,9 +314,10 @@ const InventoryListItem = ({ item, isSelected, onItemClick, categories }: { item
 export default function InventoryPage() {
     const { products, rawIngredients, categories } = useStore();
     const { toast } = useToast();
-    const [searchTerm, setSearchTerm] = useState("");
     const [selectedItem, setSelectedItem] = useState<{ id: string; type: 'product' | 'ingredient' } | null>(null);
     const [isSheetOpen, setIsSheetOpen] = useState(false);
+
+    const { query } = useProductSearch();
 
     const inventoryItems: InventoryItemType[] = useMemo(() => {
         const stockTrackedProducts = products.filter(p => p.track_stock).map(p => ({ ...p, itemType: 'product' as const, stock: p.stock }));
@@ -315,9 +325,9 @@ export default function InventoryPage() {
         
         const combined = [...stockTrackedProducts, ...ingredients];
         
-        if (!searchTerm.trim()) return combined;
-        return combined.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()));
-    }, [products, rawIngredients, searchTerm]);
+        if (!query.trim()) return combined;
+        return combined.filter(p => p.name.toLowerCase().includes(query.toLowerCase()));
+    }, [products, rawIngredients, query]);
 
     const handleBarcodeScan = (barcode: string) => {
         const product = products.find(p => p.barcode === barcode);
@@ -371,9 +381,14 @@ export default function InventoryPage() {
             setIsSheetOpen(false);
         }
     }
+
+    const handleCancel = () => {
+        setSelectedItem(null);
+        setIsSheetOpen(false);
+    }
     
-    const Row = ({ index, style }: { index: number, style: React.CSSProperties }) => (
-        <div style={style}>
+    const Row = memo(({ index, style }: { index: number, style: React.CSSProperties }) => (
+        <div style={style} className="px-4 pb-4 pt-0">
             <InventoryListItem 
                 item={inventoryItems[index]}
                 isSelected={selectedItem?.id === inventoryItems[index].id}
@@ -381,16 +396,14 @@ export default function InventoryPage() {
                 categories={categories}
             />
         </div>
-    );
+    ));
 
     return (
         <div className="w-full h-[calc(100vh-4rem)] md:grid md:grid-cols-10 min-h-0">
-            <div className="col-span-10 md:col-span-6 lg:col-span-6 h-full flex flex-col bg-muted/40">
-                <div className="p-4 border-b bg-muted/40 flex items-center gap-2 ">
+            <div className="col-span-10 md:col-span-6 lg:col-span-6 h-full flex flex-col">
+                <div className="p-4 flex items-center gap-2 ">
                     <div className="flex-grow">
                         <ProductSearchBar
-                            searchTerm={searchTerm}
-                            onSearchTermChange={setSearchTerm}
                             onBarcodeScan={handleBarcodeScan}
                         />
                     </div>
@@ -402,18 +415,34 @@ export default function InventoryPage() {
                 </div>
                 <div className="flex-grow bg-background h-full">
                     {inventoryItems.length > 0 ? (
-                        <AutoSizer>
-                            {({ height, width }) => (
-                                <List
-                                    height={height}
-                                    width={width}
-                                    itemCount={inventoryItems.length}
-                                    itemSize={73} // Height of InventoryListItem (p-4 + border-b)
-                                >
-                                    {Row}
-                                </List>
-                            )}
-                        </AutoSizer>
+                        <>
+                            <div className="px-4 w-full">
+                                <div className="rounded-t-lg h-14 w-full border bg-card flex items-center px-4">
+                                    <div className="flex-1">
+                                        <span className="text-sm font-semibold text-muted-foreground">Item Name & Category</span>
+                                    </div>
+                                    <div className="w-24 text-right">
+                                        <span className="text-sm font-semibold text-muted-foreground">Stock</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="h-full">
+                                <AutoSizer>
+                                    {({ height, width }) => (
+                                        <List
+                                            itemKey={(index) => inventoryItems[index].id}
+                                            className="no-scrollbar"
+                                            height={height - 60}
+                                            width={width}
+                                            itemCount={inventoryItems.length}
+                                            itemSize={79} // Height of InventoryListItem (p-4 + border-b)
+                                        >
+                                            {Row}
+                                        </List>
+                                    )}
+                                </AutoSizer>
+                            </div>
+                        </>
                     ) : (
                          <div className="flex flex-col items-center justify-center text-center text-muted-foreground h-full p-8">
                             <Package className="w-12 h-12 mb-4" />
@@ -423,13 +452,13 @@ export default function InventoryPage() {
                 </div>
             </div>
 
-            <aside className="hidden md:block col-span-4 lg:col-span-4 h-full bg-background min-h-0 border-l">
-               <StockAdjustmentPanel onSave={handleSave} selectedItem={selectedItem} />
+            <aside className="hidden md:block col-span-4 lg:col-span-4 h-full min-h-0">
+               <StockAdjustmentPanel onSave={handleSave} onCancel={handleCancel} selectedItem={selectedItem} />
             </aside>
             
              <Sheet open={isSheetOpen} onOpenChange={handleSheetOpenChange}>
                 <SheetContent side="right" className="w-full sm:w-[500px] p-0 flex flex-col h-full min-h-0">
-                    <StockAdjustmentPanel onSave={handleSave} selectedItem={selectedItem} />
+                    <StockAdjustmentPanel onSave={handleSave} onCancel={handleCancel} selectedItem={selectedItem} />
                 </SheetContent>
             </Sheet>
         </div>

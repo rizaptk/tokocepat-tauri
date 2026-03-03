@@ -23,7 +23,7 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { ScrollArea, ScrollAreaHandle } from "@/components/ui/scroll-area";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -46,6 +46,8 @@ import { adjustIngredientStock } from "@/services/stockService";
 import { useZxing } from "react-zxing";
 import { useGlobalBarcodeScanner } from "@/hooks/use-global-barcode-scanner";
 import { Separator } from "@/components/ui/separator";
+import { ScrollShadow } from "@/components/ui/scrollshadow";
+// import { ProductForm } from "./productForm";
 
 
 // ========= PRODUCT FORM =========
@@ -111,6 +113,7 @@ const ProductForm = ({ productId, onSave }: { productId: string | null, onSave: 
     const product = useMemo(() => products.find(p => p.id === productId), [productId, products]);
     const [isScannerOpen, setIsScannerOpen] = useState(false);
     const imageInputRef = useRef<HTMLInputElement>(null);
+    const scrollRef = useRef<ScrollAreaHandle>(null);
 
     const form = useForm<ProductFormValues>({
         resolver: zodResolver(productFormSchema),
@@ -158,6 +161,8 @@ const ProductForm = ({ productId, onSave }: { productId: string | null, onSave: 
             form.reset(form.formState.defaultValues);
         }
     }, [product, form, productVariants, recipes]);
+
+
 
     const handleScanSuccess = (barcode: string) => {
         form.setValue('barcode', barcode, { shouldValidate: true });
@@ -241,9 +246,9 @@ const ProductForm = ({ productId, onSave }: { productId: string | null, onSave: 
     return (
         <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="h-full flex flex-col min-h-0">
-                <div className="flex-1 min-h-0">
-
-                    <ScrollArea className="p-1 h-full">
+                <div className="flex-1 min-h-0 relative overflow-hidden">
+                    <ScrollShadow scrollRef={scrollRef} side="both" />
+                    <ScrollArea className="px-1 h-full" ref={scrollRef}>
                         <div className="space-y-6 p-4">
                             <Card>
                                 <CardHeader><CardTitle>Product Details</CardTitle></CardHeader>
@@ -378,9 +383,6 @@ const ProductForm = ({ productId, onSave }: { productId: string | null, onSave: 
                                             <FormItem className={cn("flex flex-row items-center justify-between", (hasVariant || isComposite) && "opacity-50")}>
                                                 <div className="space-y-0.5">
                                                     <FormLabel className="text-base">Track Stock (Parent)</FormLabel>
-                                                    {/* <FormDescription>
-                                                    {hasVariant ? "Disabled. Stock is tracked per variant." : isComposite ? "Disabled. Stock is tracked by recipe ingredients." : "Automatically deduct stock for each sale."}
-                                                    </FormDescription> */}
                                                 </div>
                                                 <FormControl>
                                                     <Switch
@@ -602,15 +604,12 @@ const ProductForm = ({ productId, onSave }: { productId: string | null, onSave: 
                                     }
 
                                     <Separator />
-
-                                    
-
                                 </CardContent>
                             </Card>
                         </div>
                     </ScrollArea>
                 </div>
-                <div className="p-4 border-t mt-auto shrink-0">
+                <div className="p-4 mt-auto shrink-0">
                     <Button type="submit" className="w-full">{isEditing ? "Save Changes" : "Create Product"}</Button>
                 </div>
             </form>
@@ -1274,7 +1273,7 @@ const ProductEditor = ({ selectedProductId, onProductUpdate, activeTab, onTabCha
 }) => {
     return (
         <Tabs value={activeTab} onValueChange={onTabChange} className="h-full flex flex-col min-h-0">
-            <div className="px-4 py-4 grid grid-cols-1 w-full overflow-x-auto shrink-0 border-b">
+            <div className="px-4 py-4 grid grid-cols-1 w-full overflow-x-auto shrink-0">
                 <TabsList className="grid w-full grid-cols-4">
                     <TabsTrigger value="product"><Package className="w-4 h-4 mr-2 text-primary"/>Product</TabsTrigger>
                     <TabsTrigger value="categories"><Library className="w-4 h-4 mr-2 text-destructive"/>Categories</TabsTrigger>
@@ -1304,7 +1303,7 @@ export default function ProductManagementPage() {
     const { products } = useStore();
     const { toast } = useToast();
     const [viewMode, setViewMode] = useState<"card" | "thumbnail" | "list">('card');
-    const [searchTerm, setSearchTerm] = useState("");
+    // const [searchTerm, setSearchTerm] = useState("");
     const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
     const [isDrawerOpen, setIsDrawerOpen] = useState(false);
     const [activeTab, setActiveTab] = useState("product");
@@ -1313,10 +1312,10 @@ export default function ProductManagementPage() {
         setViewMode(window.innerWidth < 768 ? 'thumbnail' : 'card');
     }, []);
 
-    const filteredProducts = useMemo(() =>
-        products.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase())),
-        [products, searchTerm]
-    );
+    // const filteredProducts = useMemo(() =>
+    //     products.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase())),
+    //     [products, searchTerm]
+    // );
 
     const handleSelectProduct = (product: Product) => {
         setSelectedProductId(product.id);
@@ -1362,12 +1361,10 @@ export default function ProductManagementPage() {
     return (
         <div className="w-full h-[calc(100vh-64px)] md:grid md:grid-cols-10 min-h-0 flex-1">
             {/* Left Panel: Product List */}
-            <div className="col-span-10 md:col-span-5 lg:col-span-6 h-full flex flex-col bg-muted/40 min-h-0">
-                <div className="p-4 border-b">
+            <div className="col-span-10 md:col-span-5 lg:col-span-6 h-full flex flex-col min-h-0">
+                <div className="p-4">
                     <div className="flex items-center gap-2">
                         <ProductSearchBar
-                            searchTerm={searchTerm}
-                            onSearchTermChange={setSearchTerm}
                             viewMode={viewMode}
                             onViewModeChange={setViewMode}
                             onBarcodeScan={handleBarcodeScan}
@@ -1379,14 +1376,14 @@ export default function ProductManagementPage() {
                 </div>
                 <div className="flex-grow">
                     <ProductList
-                        products={filteredProducts}
+                        products={products}
                         viewMode={viewMode}
                         onItemClick={handleSelectProduct}
                         selectedProductId={selectedProductId}
                         context="product"
                     />
                 </div>
-                <div className="p-4 border-t md:hidden flex gap-2">
+                <div className="p-4 md:hidden flex gap-2">
                     <Button onClick={handleAddNew} className="w-full">
                         <PlusCircle className="mr-2 h-4 w-4" /> Add Product
                     </Button>
@@ -1397,7 +1394,7 @@ export default function ProductManagementPage() {
             </div>
 
             {/* Right Panel: Editor (Desktop) */}
-            <aside className="hidden md:block col-span-4 lg:col-span-4 md:col-span-5 border-l h-full min-h-0">
+            <aside className="hidden md:block col-span-4 lg:col-span-4 md:col-span-5 h-full min-h-0">
                 <ProductEditor 
                     selectedProductId={selectedProductId}
                     onProductUpdate={handleSaveChanges}

@@ -147,7 +147,7 @@ export function CartDisplay({ onEditItem }: CartDisplayProps) {
         <Button variant={view === 'history' ? 'secondary' : 'ghost'} onClick={() => setView('history')} className="flex-1">
             <ReceiptText className="mr-2 h-4 w-4" />
             History
-            {shiftTransactions.length > 0 && <Badge variant="secondary" className="ml-2">{shiftTransactions.length}</Badge>}
+            {shiftTransactions.length > 0 && <Badge variant="success" className="ml-2">{shiftTransactions.length}</Badge>}
         </Button>
       </header>
       

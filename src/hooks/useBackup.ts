@@ -27,15 +27,12 @@ export function useAutoBackup() {
                 // Safety Check 2: Ensure the DB is not empty before backing up
                 const configDoc = await firesqlite.getDoc(firesqlite.doc(db, 'store_config', 'main'));
                 if (!configDoc.exists()) {
-                    console.warn("[Auto-Backup] Skipped: Local database appears uninitialized. This is a safeguard.");
                     backupInProgress.current = false;
                     return;
                 }
 
                 const success = await performBackup(firesqlite, isFinal);
-                if (success) {
-                    console.log("[Auto-Backup] Background backup successful.");
-                } else {
+                if (!success) {
                     console.warn("[Auto-Backup] Background backup failed or was not required.");
                 }
             } catch (error) {

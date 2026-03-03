@@ -16,11 +16,8 @@ export async function POST(request: Request) {
         const body = await request.json().catch(() => ({}));
         const { token, deviceId } = body;
         
-        console.log('[Heartbeat API] Received request:', { deviceId: deviceId ? `${deviceId.substring(0,10)}...` : 'N/A', hasToken: !!token });
-
         // If client is unlicensed, check if there's a license ready for them to activate.
         if (!token && deviceId) {
-             console.log(`[Heartbeat API] Unlicensed client. Checking for a resolved ticket for device ${deviceId.substring(0,10)}...`);
              const ticketsRef = db.collection('paymentTickets');
              
              // Query for a ticket matching the device that is resolved but not yet claimed.
@@ -33,18 +30,12 @@ export async function POST(request: Request) {
                 .limit(1);
 
              const ticketSnapshot = await ticketQuery.get();
-             console.log(`[Heartbeat API] Query found ${ticketSnapshot.size} resolved ticket(s) for this device.`);
 
              // Find the first document that does NOT have a `claimedAt` timestamp.
              const userTicketDoc = ticketSnapshot.docs.find(doc => !doc.data().claimedAt);
 
-
              if (userTicketDoc) {
-                console.log(`[Heartbeat API] SUCCESS: Found resolved, unclaimed ticket ${userTicketDoc.id}. Instructing client to activate.`);
-                // Tell the client that activation is required and provide the ticket ID to use.
                 return NextResponse.json({ status: 'activation_required', ticketId: userTicketDoc.id }, { status: 200 });
-             } else {
-                 console.log(`[Heartbeat API] No pending activation ticket found for this device. Either none exist, or the latest one has already been claimed.`);
              }
         }
 
@@ -55,7 +46,6 @@ export async function POST(request: Request) {
                 const { payload } = await jose.jwtVerify(token, secret);
                 const licenseKey = payload.sub as string;
                 const plan = (payload.plan as string) || 'N/A';
-                console.log(`[Heartbeat API] Token VERIFIED for device ${deviceId.substring(0,10)}... with license key ${licenseKey}`);
 
                 const licensesRef = db.collection('licenses');
                 const query = licensesRef.where('key', '==', licenseKey).limit(1);
@@ -77,17 +67,14 @@ export async function POST(request: Request) {
                 
                 sessionData = { customerId, customerEmail, licenseKey, plan, lastSeen: admin.firestore.FieldValue.serverTimestamp() };
             } catch (e: any) {
-                console.warn(`[Heartbeat API] Token VERIFICATION FAILED for device ${deviceId.substring(0,10)}... Reason: ${e.code || e.message}.`);
                 sessionData = { customerId: 'unlicensed', customerEmail: 'unlicensed', licenseKey: 'Invalid Token', plan: 'Invalid Token', lastSeen: admin.firestore.FieldValue.serverTimestamp() };
             }
             
-            console.log('[Heartbeat API] Saving session data to Firestore:', { deviceId: deviceId.substring(0,10) + '...', ...sessionData, lastSeen: 'now' });
             const sessionRef = db.collection('online_sessions').doc(deviceId);
             await sessionRef.set(sessionData, { merge: true });
         }
 
         // Default response for a simple heartbeat or if no action is needed
-        console.log('[Heartbeat API] Returning default "ok" status.');
         return NextResponse.json({ status: 'ok' }, { status: 200 });
 
     } catch (error: any) {

@@ -60,7 +60,7 @@ export const CartItemRow = ({ item, onEditItem, isReadOnly = false }: CartItemRo
                     }
                 }}
                 className={cn(
-                    "flex items-start gap-4 p-4 relative z-10",
+                    "flex items-start gap-3 p-4 relative z-10",
                     onEditItem && (item.has_modifier || item.has_variant) && !isReadOnly && "cursor-pointer hover:bg-accent"
                 )}
                 onClick={() => onEditItem && !isReadOnly && onEditItem(item)}
@@ -78,7 +78,7 @@ export const CartItemRow = ({ item, onEditItem, isReadOnly = false }: CartItemRo
                         {item.quantity} x {formatCurrency(item.price)}
                     </p>
                 </div>
-                <div className="hidden md:flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                <div className="hidden md:flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
                     <Button
                         variant="ghost"
                         size="icon"

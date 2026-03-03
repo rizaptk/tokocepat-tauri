@@ -163,7 +163,7 @@ export function ProductThumbnailItem({
       className={cn(
         "group flex items-center gap-3 p-3 transition-colors duration-100 border border-border bg-card h-[78px] rounded-md",
         "hover:shadow-md",
-        isSelected && "border-primary",
+        isSelected && "bg-background",
         isOutOfStock && "opacity-60 cursor-not-allowed",
         !is_active && "opacity-80 relative"
       )}

@@ -5,7 +5,7 @@ import { useDbStore } from "@/lib/db-store";
 import { useStore } from "@/lib/store";
 import { seedDatabase } from "@/lib/database";
 import { useEffect, useState } from "react";
-import { Product, ProductVariant, ModifierGroup, Transaction, Shift, StoreConfig, Category, PendingCart, RawIngredient, Recipe, StockMovement } from '@/lib/types';
+import { Product, ProductVariant, ModifierGroup, Transaction, Shift, StoreConfig, Category, PendingCart, RawIngredient, Recipe } from '@/lib/types';
 import { TokoCepatLogo } from "./TokoCepatLogo";
 
 export function DbProvider({ children }: { children: React.ReactNode }) {
