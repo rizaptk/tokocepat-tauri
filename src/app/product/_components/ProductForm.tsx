@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useMemo, useEffect, useRef } from "react";
@@ -79,6 +80,13 @@ interface ProductFormProps {
     onCancel: () => void;
 }
 
+const initialFormValues: ProductFormData = {
+    name: "", product_type: "retail", price: 0, cost_price: 0, stock: 0,
+    low_stock_alert: 0, track_stock: true, is_active: true, has_variant: false,
+    has_modifier: false, is_composite: false, modifier_group_ids: [], sku: "", barcode: "",
+    variants: [], recipe_items: [], imageUrl: "", imageHint: ""
+};
+
 export const ProductForm = ({ productId, onSave, onCancel }: ProductFormProps) => {
     const { products, categories, modifierGroups, productVariants, rawIngredients, recipes } = useStore();
     const { toast } = useToast();
@@ -90,12 +98,7 @@ export const ProductForm = ({ productId, onSave, onCancel }: ProductFormProps) =
 
     const form = useForm<ProductFormData>({
         resolver: zodResolver(productFormSchema),
-        defaultValues: {
-            name: "", product_type: "retail", price: 0, cost_price: 0, stock: 0,
-            low_stock_alert: 0, track_stock: true, is_active: true, has_variant: false,
-            has_modifier: false, is_composite: false, modifier_group_ids: [], sku: "", barcode: "",
-            variants: [], recipe_items: [], imageUrl: "", imageHint: ""
-        },
+        defaultValues: initialFormValues,
     });
 
     const { fields: variantFields, append: appendVariant, remove: removeVariant } = useFieldArray({
@@ -129,7 +132,7 @@ export const ProductForm = ({ productId, onSave, onCancel }: ProductFormProps) =
                 imageHint: product.imageHint,
             });
         } else {
-            form.reset(form.formState.defaultValues);
+            form.reset(initialFormValues);
         }
     }, [product, form, productVariants, recipes]);
 
