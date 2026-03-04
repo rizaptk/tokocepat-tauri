@@ -8,16 +8,18 @@ import { useToast } from '@/hooks/use-toast';
 import { clearTransactionData } from '@/services/dataService';
 import { formatDistanceToNow } from 'date-fns';
 import { getBackupMetadata, promptAndSetBackupFile, performBackup } from '@/lib/backupService';
+import { printerManager, type PrinterInfo } from '@/lib/webUSBPrinter';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { TokoCepatLogo } from '@/components/TokoCepatLogo';
 import Link from 'next/link';
 import { LicenseManager } from '@/components/LicenseManager';
 import { SubscriptionManager } from './_components/SubscriptionManager';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Shield, CreditCard, Database, Trash2, Loader2 } from 'lucide-react';
+import { Shield, CreditCard, Database, Trash2, Loader2, Printer, Usb, AlertTriangle } from 'lucide-react';
 import { ThemeToggle } from '@/components/ThemeButtons';
 
 
@@ -29,15 +31,41 @@ export default function SettingsPage() {
   const [isClearDataAlertOpen, setIsClearDataAlertOpen] = useState(false);
   const [lastBackup, setLastBackup] = useState<string | null>(null);
   const [isBackupLoading, setIsBackupLoading] = useState(false);
+  
+  // Printer state
+  const [printers, setPrinters] = useState<PrinterInfo[]>([]);
+  const [isPairing, setIsPairing] = useState(false);
+
 
   const fetchBackupStatus = async () => {
     const meta = await getBackupMetadata();
     setLastBackup(meta.lastBackup);
   };
+
+  const loadPrinters = async () => {
+    const paired = await printerManager.getPairedDevices();
+    setPrinters(paired);
+  };
   
   useEffect(() => {
       fetchBackupStatus();
+      loadPrinters();
   }, []);
+  
+  const handlePairPrinter = async () => {
+    setIsPairing(true);
+    try {
+        const newDevice = await printerManager.request();
+        if (newDevice) {
+            toast({ title: "Printer Paired", description: `${newDevice.productName} is now ready for printing.` });
+            await loadPrinters(); // Refresh list
+        }
+    } catch (err: any) {
+        toast({ variant: 'destructive', title: "Pairing Failed", description: err.message });
+    } finally {
+        setIsPairing(false);
+    }
+  };
 
   const handleBackup = async () => {
     if (!firesqlite) {
@@ -135,12 +163,9 @@ export default function SettingsPage() {
         </header>
         <main className="flex flex-1 flex-col lg:flex-row">
 
-            {/* LEFT — HERO / CONTROL PANEL */}
             <section className="lg:w-2/5 border-b lg:border-b-0 lg:border-r bg-background p-8 flex flex-col justify-between">
 
                 <div className="space-y-8">
-
-                    {/* Header */}
                     <div className="space-y-3">
                         <h1 className="text-3xl font-bold tracking-tight">
                         System Settings
@@ -151,7 +176,6 @@ export default function SettingsPage() {
                         </p>
                     </div>
 
-                    {/* System Overview Cards */}
                     <div className="grid gap-4">
                         <div className="rounded-xl border p-4">
                             <div className="flex items-center gap-3">
@@ -168,6 +192,15 @@ export default function SettingsPage() {
                                 <div>
                                 <p className="text-sm font-medium">Subscription</p>
                                 <p className="text-xs text-muted-foreground">Billing & plan management</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="rounded-xl border p-4">
+                            <div className="flex items-center gap-3">
+                                <Printer className="h-5 w-5 text-primary" />
+                                <div>
+                                <p className="text-sm font-medium">Printer</p>
+                                <p className="text-xs text-muted-foreground">Direct receipt printing</p>
                                 </div>
                             </div>
                         </div>
@@ -190,31 +223,15 @@ export default function SettingsPage() {
                             </div>
                         </div>
                     </div>
-
-                    {/* Quick Database Actions */}
-                    <div className="space-y-3 pt-6 border-t">
-                        <p className="text-sm font-medium text-muted-foreground">
-                            Quick Actions
-                        </p>
-                        <div className="flex flex-col gap-3">
-                            <Button variant="outline" onClick={handleBackup}>
-                                <Database className="mr-2 h-4 w-4" /> Download Manual Backup
-                            </Button>
-                            <Button variant="outline" onClick={() => setIsRestoreAlertOpen(true)}>
-                                <Database className="mr-2 h-4 w-4" /> Restore from File
-                            </Button>
-                        </div>
-                    </div>
                 </div>
             </section>
 
-
-            {/* RIGHT — SETTINGS WORKSPACE  */}
             <section className="flex-1 p-8">
                 <Tabs defaultValue="license" className="w-full">
-                    <TabsList className="grid w-full grid-cols-4 mb-8">
+                    <TabsList className="grid w-full grid-cols-5 mb-8">
                         <TabsTrigger value="license"><Shield className="mr-2 h-4 w-4" />License</TabsTrigger>
                         <TabsTrigger value="subscription"><CreditCard className="mr-2 h-4 w-4" />Subscription</TabsTrigger>
+                        <TabsTrigger value="printer"><Printer className="mr-2 h-4 w-4" />Printer</TabsTrigger>
                         <TabsTrigger value="database"><Database className="mr-2 h-4 w-4" />Database</TabsTrigger>
                         <TabsTrigger value="danger"><Trash2 className="mr-2 h-4 w-4" />Danger</TabsTrigger>
                     </TabsList>
@@ -233,6 +250,42 @@ export default function SettingsPage() {
                     
                     <TabsContent value="subscription">
                         <SubscriptionManager />
+                    </TabsContent>
+
+                    <TabsContent value="printer">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Direct Printer Setup</CardTitle>
+                                <CardDescription>Connect to a USB thermal printer for automatic receipt printing.</CardDescription>
+                            </CardHeader>
+                            <CardContent className="space-y-6">
+                                <div className="p-4 rounded-lg border bg-muted/50">
+                                    <h4 className="font-semibold">Paired Devices</h4>
+                                    {printers.length > 0 ? (
+                                        <ul className="text-sm list-disc pl-5 mt-2 text-muted-foreground">
+                                            {printers.map(p => <li key={`${p.vendorId}-${p.productId}`}>{p.productName || 'Unnamed Printer'}</li>)}
+                                        </ul>
+                                    ) : (
+                                        <p className="text-sm text-muted-foreground mt-2">No printers have been paired with this site yet.</p>
+                                    )}
+                                </div>
+                                <Button onClick={handlePairPrinter} disabled={isPairing}>
+                                    {isPairing ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Usb className="mr-2 h-4 w-4"/>}
+                                    Pair New Printer
+                                </Button>
+                                <Alert>
+                                    <AlertTriangle className="h-4 w-4" />
+                                    <AlertTitle>Important Setup Instructions</AlertTitle>
+                                    <AlertDescription>
+                                        <ul className="list-disc pl-5 space-y-2 mt-2">
+                                            <li>This feature requires an <b>HTTPS</b> connection.</li>
+                                            <li><b>Windows Users:</b> You must use the <a href="https://zadig.akeo.ie/" target="_blank" rel="noopener noreferrer" className="underline font-semibold">Zadig tool</a> to replace the printer driver with 'WinUSB'. This is a one-time setup per printer.</li>
+                                            <li>To unpair a device, go to your browser's site settings (usually a lock icon in the address bar) and remove the USB permission for this website.</li>
+                                        </ul>
+                                    </AlertDescription>
+                                </Alert>
+                            </CardContent>
+                        </Card>
                     </TabsContent>
                     
                     <TabsContent value="database">
@@ -264,6 +317,9 @@ export default function SettingsPage() {
                                     </Button>
                                     <Button variant="outline" onClick={() => setIsRestoreAlertOpen(true)}>
                                         <Database className="mr-2 h-4 w-4" /> Manual Restore
+                                    </Button>
+                                     <Button variant="outline" onClick={handleBackup}>
+                                        <Database className="mr-2 h-4 w-4" /> Download Manual Backup
                                     </Button>
                                 </div>
                                 <input type="file" ref={fileInputRef} onChange={onFileSelected} accept=".db,.sqlite,.sqlite3" hidden />

@@ -19,7 +19,8 @@ import { useToast } from '@/hooks/use-toast';
 import { CheckCircle2, AlertCircle, Banknote, Delete, ReceiptText } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Transaction } from '@/lib/types';
-import { generateReceiptText, printReceipt } from '@/lib/receipt';
+import { generateReceiptBinary } from '@/lib/receipt';
+import { printerManager } from '@/lib/webUSBPrinter';
 
 
 type PaymentModalProps = {
@@ -53,21 +54,7 @@ export function PaymentModal({ isOpen, setIsOpen, total }: PaymentModalProps) {
       minimumFractionDigits: 0,
     }).format(amount);
   };
-
-  // Common IDR Denominations for Quick-Click
-  // const denominations = [20000, 50000, 100000];
   
-  // Suggested amounts based on total
-  // const suggestions = useMemo(() => {
-  //   const sets = new Set<number>();
-  //   if (total > 0) {
-  //     sets.add(total); // Exact amount
-  //     denominations.forEach(d => {
-  //       if (d > total) sets.add(d);
-  //     });
-  //   }
-  //   return Array.from(sets).sort((a, b) => a - b).slice(0, 4);
-  // }, [total]);
   const suggestions = useMemo(() => {
     if (!total || total <= 0) return [];
 
@@ -76,14 +63,12 @@ export function PaymentModal({ isOpen, setIsOpen, total }: PaymentModalProps) {
 
     const remainder100 = total % 100000;
 
-    // 🔥 If in 120k–149k psychological zone → only show 50k anchor
     if (remainder100 >= 120000 - 100000 && remainder100 < 50000) {
       return [total, ceil50];
     }
 
     const diffTo50 = ceil50 - total;
 
-    // Near 50k anchor (≤5k)
     if (diffTo50 <= 5000) {
       return [total, ceil50];
     }
@@ -99,7 +84,6 @@ export function PaymentModal({ isOpen, setIsOpen, total }: PaymentModalProps) {
     const alldenom = result.slice(0, 2);
     const final = [total, ...alldenom]
 
-    // return result.slice(0, 2);
     return final;
   }, [total]);
 
@@ -129,16 +113,32 @@ export function PaymentModal({ isOpen, setIsOpen, total }: PaymentModalProps) {
     }, 200);
   };
   
-  const handlePrint = () => {
+  const handlePrint = async () => {
     if (transactionDetails && storeConfig) {
-      const receiptText = generateReceiptText(transactionDetails, storeConfig);
-      printReceipt(receiptText);
-    } else {
-      toast({
-        variant: "destructive",
-        title: "Cannot Print",
-        description: "Transaction details or store configuration is missing.",
-      });
+      try {
+        const paired = await printerManager.getPairedDevices();
+        if (paired.length > 0) {
+          await printerManager.connect();
+          const binaryData = generateReceiptBinary(transactionDetails, storeConfig);
+          await printerManager.print(binaryData);
+        } else {
+          toast({
+              title: "Payment Successful",
+              description: "No printer connected. Please pair one in Settings to enable automatic receipts.",
+          });
+        }
+      } catch (err: any) {
+        console.error("Direct print failed:", err);
+        toast({
+          variant: 'destructive',
+          title: 'Print Failed',
+          description: err.message || "Could not connect to the printer. Check connection and permissions in Settings."
+        });
+      } finally {
+        if ((printerManager as any).device) {
+             await printerManager.disconnect();
+        }
+      }
     }
   };
 
@@ -167,13 +167,11 @@ export function PaymentModal({ isOpen, setIsOpen, total }: PaymentModalProps) {
               </DialogHeader>
 
               <div className="mt-6 space-y-6">
-                {/* Total Display */}
                 <div className="bg-muted/50 rounded-xl p-4 flex justify-between items-center border">
                   <span className="text-sm font-medium text-muted-foreground">Total Amount Due</span>
                   <span className="text-2xl font-bold tracking-tight">{formatCurrency(total)}</span>
                 </div>
 
-                {/* Input Section */}
                 <div className="space-y-3">
                   <Label htmlFor="cash" className="text-sm font-semibold">Cash Received</Label>
                   <div className="relative">
@@ -202,7 +200,6 @@ export function PaymentModal({ isOpen, setIsOpen, total }: PaymentModalProps) {
                   </div>
                 </div>
 
-                {/* Quick Cash Suggestions */}
                 <div className={`grid ${suggestions.length > 2 ? 'grid-cols-3' : 'grid-cols-2'} gap-2`}>
                   {suggestions.map((amt) => (
                     <Button
@@ -217,7 +214,6 @@ export function PaymentModal({ isOpen, setIsOpen, total }: PaymentModalProps) {
                   ))}
                 </div>
 
-                {/* Change Calculation */}
                 <div className={cn(
                   "rounded-lg p-4 transition-all border flex justify-between items-center",
                   change >= 0 ? "bg-green-50 border-green-100 dark:bg-green-950/20" : "bg-orange-50 border-orange-100 dark:bg-orange-950/20"
@@ -252,7 +248,6 @@ export function PaymentModal({ isOpen, setIsOpen, total }: PaymentModalProps) {
             </DialogFooter>
           </>
         ) : (
-          /* Success State - Professional Receipt Look */
           <div className="p-8 text-center">
             <div className="mb-6 flex flex-col items-center">
               <div className="h-20 w-20 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mb-4">
@@ -282,7 +277,7 @@ export function PaymentModal({ isOpen, setIsOpen, total }: PaymentModalProps) {
 
             <div className="mt-8 grid grid-cols-2 gap-3">
               <Button variant="outline" className="gap-2" onClick={handlePrint}>
-                <ReceiptText className="h-4 w-4" /> Print Receipt
+                <ReceiptText className="h-4 w-4" /> Re-Print Receipt
               </Button>
               <Button onClick={resetAndClose} className="font-bold">
                 New Order
