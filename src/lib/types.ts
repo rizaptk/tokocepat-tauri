@@ -6,11 +6,25 @@ export interface Category {
     is_active: boolean;
 }
 
+export interface CategoryTaxOverride {
+  category_id: string;
+  tax_rate: number;
+}
+
+export interface TaxSettings {
+  default_rate: number;
+  product_type_overrides: {
+    food_and_beverage?: number;
+  };
+  category_overrides: CategoryTaxOverride[];
+}
+
 export interface StoreConfig {
     id: string;
     store_name: string;
     address?: string;
-    tax_rate: number;
+    tax_rate: number; // Legacy, will be default rate from tax_settings
+    tax_settings?: TaxSettings;
     currency: string;
     receipt_footer?: string;
 }

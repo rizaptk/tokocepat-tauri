@@ -22,6 +22,32 @@ export const getTransactionsByDateRange = async (from: Date, to: Date): Promise<
     return snapshot.docs.map((doc: any) => doc.data() as Transaction);
 };
 
+const getTaxRateForItem = (item: CartItem, storeConfig: StoreConfig): number => {
+    const { tax_settings, tax_rate } = storeConfig;
+
+    if (!tax_settings) {
+        return tax_rate; // Fallback to old system
+    }
+
+    // 1. Check for category override
+    if (item.category_id) {
+        const categoryOverride = tax_settings.category_overrides.find(
+            co => co.category_id === item.category_id
+        );
+        if (categoryOverride && typeof categoryOverride.tax_rate === 'number') {
+            return categoryOverride.tax_rate;
+        }
+    }
+
+    // 2. Check for product type override
+    if (item.product_type === 'food_and_beverage' && typeof tax_settings.product_type_overrides.food_and_beverage === 'number') {
+        return tax_settings.product_type_overrides.food_and_beverage!;
+    }
+
+    // 3. Fallback to default rate from new system
+    return tax_settings.default_rate;
+};
+
 export const createTransaction = async (cart: CartItem[], activeShift: Shift, storeConfig: StoreConfig, cashReceived: number): Promise<Transaction | null> => {
     const { db, firesqlite } = useDbStore.getState();
     const { recipes } = useStore.getState();
@@ -35,8 +61,13 @@ export const createTransaction = async (cart: CartItem[], activeShift: Shift, st
     const { doc, getDoc, setDoc, updateDoc } = firesqlite;
 
     const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
-    const taxRate = storeConfig?.tax_rate ?? 0.11;
-    const tax_amount = subtotal * taxRate;
+
+    const tax_amount = cart.reduce((taxSum, item) => {
+        const itemTaxRate = getTaxRateForItem(item, storeConfig);
+        const itemTotal = item.price * item.quantity;
+        return taxSum + (itemTotal * itemTaxRate);
+    }, 0);
+    
     const total = subtotal + tax_amount;
 
     if (cashReceived < total) {

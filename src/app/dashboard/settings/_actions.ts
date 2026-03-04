@@ -4,9 +4,27 @@
 import { z } from 'zod';
 import { db } from '@/lib/firebase-admin';
 import { revalidatePath } from 'next/cache';
-import { SubscriptionPlan, PaymentInstructions, PaymentTicket } from '@/lib/types';
+import { SubscriptionPlan, PaymentInstructions, PaymentTicket, StoreConfig } from '@/lib/types';
 import { randomBytes } from 'crypto';
 import * as jose from 'jose';
+
+export async function updateStoreConfigAction(data: Partial<StoreConfig>): Promise<{ success: boolean; error?: string }> {
+    try {
+        const { tax_rate, ...updateData } = data;
+        
+        // If tax_settings.default_rate is being updated, also update the legacy tax_rate
+        if (updateData.tax_settings?.default_rate !== undefined) {
+             updateData.tax_rate = updateData.tax_settings.default_rate;
+        }
+
+        await db.collection('app_settings').doc('store_config').set(updateData, { merge: true });
+        revalidatePath('/dashboard/settings');
+        return { success: true };
+    } catch (error: any) {
+        console.error("Failed to update store config:", error);
+        return { success: false, error: 'An unexpected server error occurred.' };
+    }
+}
 
 
 // --- Helper function to find or create customer ---

@@ -1,25 +1,27 @@
 
 'use client';
 
-import { useDbStore } from '@/lib/db-store';
 import { useRef, useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { clearTransactionData } from '@/services/dataService';
 import { formatDistanceToNow } from 'date-fns';
 import { getBackupMetadata, promptAndSetBackupFile, performBackup } from '@/lib/backupService';
 import { printerManager, type PrinterInfo } from '@/lib/webUSBprinter';
+import { clearTransactionData } from '@/services/dataService';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { TokoCepatLogo } from '@/components/TokoCepatLogo';
 import Link from 'next/link';
 import { LicenseManager } from '@/components/LicenseManager';
 import { SubscriptionManager } from './_components/SubscriptionManager';
+import { StoreInfoForm } from './_components/StoreInfoForm';
+import { TaxSettingsForm } from './_components/TaxSettingsForm';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Shield, CreditCard, Database, Trash2, Loader2, Printer, Usb, AlertTriangle } from 'lucide-react';
+import { Shield, CreditCard, Database, Trash2, Loader2, Printer, Usb, AlertTriangle, Store, Percent } from 'lucide-react';
+import { TokoCepatLogo } from '@/components/TokoCepatLogo';
 import { ThemeToggle } from '@/components/ThemeButtons';
+import { useDbStore } from '@/lib/db-store';
 
 
 export default function SettingsPage() {
@@ -60,7 +62,6 @@ export default function SettingsPage() {
             await loadPrinters(); // Refresh list
         }
     } catch (err: any) {
-        // Silently ignore the error if the user cancels the dialog.
         if (err.name !== 'NotFoundError') {
             toast({ variant: 'destructive', title: "Pairing Failed", description: err.message });
         }
@@ -173,70 +174,42 @@ export default function SettingsPage() {
                         System Settings
                         </h1>
                         <p className="text-muted-foreground">
-                        Manage licensing, subscription, database operations,
+                        Manage store info, taxes, licensing, database,
                         and system-level controls.
                         </p>
                     </div>
 
                     <div className="grid gap-4">
-                        <div className="rounded-xl border p-4">
-                            <div className="flex items-center gap-3">
-                                <Shield className="h-5 w-5 text-primary" />
-                                <div>
-                                <p className="text-sm font-medium">License</p>
-                                <p className="text-xs text-muted-foreground">Activation & validation</p>
-                                </div>
-                            </div>
-                        </div>
-                        <div className="rounded-xl border p-4">
-                            <div className="flex items-center gap-3">
-                                <CreditCard className="h-5 w-5 text-primary" />
-                                <div>
-                                <p className="text-sm font-medium">Subscription</p>
-                                <p className="text-xs text-muted-foreground">Billing & plan management</p>
-                                </div>
-                            </div>
-                        </div>
-                        <div className="rounded-xl border p-4">
-                            <div className="flex items-center gap-3">
-                                <Printer className="h-5 w-5 text-primary" />
-                                <div>
-                                <p className="text-sm font-medium">Printer</p>
-                                <p className="text-xs text-muted-foreground">Direct receipt printing</p>
-                                </div>
-                            </div>
-                        </div>
-                        <div className="rounded-xl border p-4">
-                            <div className="flex items-center gap-3">
-                                <Database className="h-5 w-5 text-primary" />
-                                <div>
-                                <p className="text-sm font-medium">Database</p>
-                                <p className="text-xs text-muted-foreground">Backup & restore operations</p>
-                                </div>
-                            </div>
-                        </div>
-                        <div className="rounded-xl border border-destructive/40 bg-destructive/5 p-4">
-                            <div className="flex items-center gap-3">
-                                <Trash2 className="h-5 w-5 text-destructive" />
-                                <div>
-                                <p className="text-sm font-medium text-destructive">Danger Zone</p>
-                                <p className="text-xs text-muted-foreground">Irreversible system actions</p>
-                                </div>
-                            </div>
-                        </div>
+                        <div className="rounded-xl border p-4"><div className="flex items-center gap-3"><Store className="h-5 w-5 text-primary" /><div><p className="text-sm font-medium">Store Info</p><p className="text-xs text-muted-foreground">Name, address, and receipt</p></div></div></div>
+                        <div className="rounded-xl border p-4"><div className="flex items-center gap-3"><Percent className="h-5 w-5 text-primary" /><div><p className="text-sm font-medium">Taxes</p><p className="text-xs text-muted-foreground">Tax rates and rules</p></div></div></div>
+                        <div className="rounded-xl border p-4"><div className="flex items-center gap-3"><Shield className="h-5 w-5 text-primary" /><div><p className="text-sm font-medium">License</p><p className="text-xs text-muted-foreground">Activation & validation</p></div></div></div>
+                        <div className="rounded-xl border p-4"><div className="flex items-center gap-3"><CreditCard className="h-5 w-5 text-primary" /><div><p className="text-sm font-medium">Subscription</p><p className="text-xs text-muted-foreground">Billing & plan management</p></div></div></div>
+                        <div className="rounded-xl border p-4"><div className="flex items-center gap-3"><Printer className="h-5 w-5 text-primary" /><div><p className="text-sm font-medium">Printer</p><p className="text-xs text-muted-foreground">Direct receipt printing</p></div></div></div>
+                        <div className="rounded-xl border p-4"><div className="flex items-center gap-3"><Database className="h-5 w-5 text-primary" /><div><p className="text-sm font-medium">Database</p><p className="text-xs text-muted-foreground">Backup & restore</p></div></div></div>
+                        <div className="rounded-xl border border-destructive/40 bg-destructive/5 p-4"><div className="flex items-center gap-3"><Trash2 className="h-5 w-5 text-destructive" /><div><p className="text-sm font-medium text-destructive">Danger Zone</p><p className="text-xs text-muted-foreground">Irreversible actions</p></div></div></div>
                     </div>
                 </div>
             </section>
 
             <section className="flex-1 p-8">
-                <Tabs defaultValue="license" className="w-full">
-                    <TabsList className="grid w-full grid-cols-5 mb-8">
+                <Tabs defaultValue="store" className="w-full">
+                    <TabsList className="grid w-full grid-cols-3 md:grid-cols-4 lg:grid-cols-7 mb-8">
+                        <TabsTrigger value="store"><Store className="mr-2 h-4 w-4" />Store</TabsTrigger>
+                        <TabsTrigger value="taxes"><Percent className="mr-2 h-4 w-4" />Taxes</TabsTrigger>
                         <TabsTrigger value="license"><Shield className="mr-2 h-4 w-4" />License</TabsTrigger>
                         <TabsTrigger value="subscription"><CreditCard className="mr-2 h-4 w-4" />Subscription</TabsTrigger>
                         <TabsTrigger value="printer"><Printer className="mr-2 h-4 w-4" />Printer</TabsTrigger>
                         <TabsTrigger value="database"><Database className="mr-2 h-4 w-4" />Database</TabsTrigger>
-                        <TabsTrigger value="danger"><Trash2 className="mr-2 h-4 w-4" />Danger</TabsTrigger>
+                        <TabsTrigger value="danger" className="text-destructive"><Trash2 className="mr-2 h-4 w-4" />Danger</TabsTrigger>
                     </TabsList>
+                    
+                    <TabsContent value="store">
+                       <StoreInfoForm />
+                    </TabsContent>
+
+                    <TabsContent value="taxes">
+                        <TaxSettingsForm />
+                    </TabsContent>
                     
                     <TabsContent value="license">
                         <Card>
