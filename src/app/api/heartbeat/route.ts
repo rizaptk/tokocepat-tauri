@@ -20,22 +20,21 @@ export async function POST(request: Request) {
         if (!token && deviceId) {
              const ticketsRef = db.collection('paymentTickets');
              
-             // Query for a ticket matching the device that is resolved but not yet claimed.
-             // THIS QUERY REQUIRES A COMPOSITE INDEX in Firestore:
-             // collection: paymentTickets, fields: deviceId (asc), status (asc), createdAt (desc)
+             // This query requires a composite index on deviceId (asc) and createdAt (desc).
              const ticketQuery = ticketsRef
                 .where('deviceId', '==', deviceId)
-                .where('status', '==', 'resolved')
                 .orderBy('createdAt', 'desc')
                 .limit(1);
 
              const ticketSnapshot = await ticketQuery.get();
 
-             // Find the first document that does NOT have a `claimedAt` timestamp.
-             const userTicketDoc = ticketSnapshot.docs.find(doc => !doc.data().claimedAt);
-
-             if (userTicketDoc) {
-                return NextResponse.json({ status: 'activation_required', ticketId: userTicketDoc.id }, { status: 200 });
+             if (!ticketSnapshot.empty) {
+                const ticketDoc = ticketSnapshot.docs[0];
+                const ticket = ticketDoc.data();
+                // Check if the most recent ticket for this device is resolved and unclaimed
+                if (ticket.status === 'resolved' && !ticket.claimedAt) {
+                    return NextResponse.json({ status: 'activation_required', ticketId: ticketDoc.id }, { status: 200 });
+                }
              }
         }
 

@@ -15,18 +15,15 @@ export async function GET(request: Request) {
             // Fetch ticket status for a specific device
             const snapshot = await db.collection('paymentTickets')
                 .where('deviceId', '==', deviceId)
+                .orderBy('createdAt', 'desc')
+                .limit(1)
                 .get();
 
             if (snapshot.empty) {
                 return NextResponse.json({ status: null });
             }
 
-            // Sort in-memory to find the most recent ticket, avoiding a composite index
-            const sortedDocs = snapshot.docs.sort((a, b) => 
-                b.data().createdAt.toDate().getTime() - a.data().createdAt.toDate().getTime()
-            );
-            
-            const ticketDoc = sortedDocs[0];
+            const ticketDoc = snapshot.docs[0];
             const ticket = ticketDoc.data();
 
             if (ticket.status === 'rejected' || (ticket.status === 'resolved' && ticket.claimedAt)) {
