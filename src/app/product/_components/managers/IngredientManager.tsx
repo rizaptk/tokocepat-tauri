@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { useStore } from '@/lib/store';
 import { useToast } from '@/hooks/use-toast';
 import { RawIngredient, StockMovementType } from '@/lib/types';
@@ -12,11 +12,12 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { ScrollArea, ScrollAreaHandle } from '@/components/ui/scroll-area';
 import { Card } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { PlusCircle, Edit, Trash, Package, Banknote } from 'lucide-react';
+import { ScrollShadow } from '@/components/ui/scrollshadow';
 
 const adjustmentTypes: { value: StockMovementType, label: string }[] = [
     { value: 'initial_balance', label: 'Opening Balance (+)' },
@@ -39,6 +40,8 @@ const IngredientManagerComponent = () => {
 
     const defaultAdjustmentState = { type: 'correction' as StockMovementType, qty_change: 0, reason: '' };
     const [adjustmentData, setAdjustmentData] = useState(defaultAdjustmentState);
+
+    const scrollRef = useRef<ScrollAreaHandle>(null);
 
     const openDialog = (ingredient: RawIngredient | null) => {
         setIngredientToEdit(ingredient);
@@ -94,37 +97,40 @@ const IngredientManagerComponent = () => {
     const formatCurrency = (amount: number) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount);
 
     return (
-        <div className="p-4 h-full flex flex-col">
-            <div className="flex justify-between items-center mb-4">
+        <div className="p-0 h-full flex flex-col min-h-0">
+            <div className="flex justify-between items-center my-4 px-4">
                 <h3 className="font-semibold">Manage Raw Ingredients</h3>
                 <Button size="sm" onClick={() => openDialog(null)}><PlusCircle className="mr-2 h-4 w-4" /> Add</Button>
             </div>
-            <ScrollArea className="flex-1 min-h-0">
-                <div className="space-y-3">
-                    {rawIngredients.map((ing) => (
-                        <Card key={ing.id} className="p-4">
-                            <div className="flex items-start justify-between gap-3">
-                                <div className="flex-1 space-y-1">
-                                    <p className="font-semibold leading-tight mb-3">{ing.name}</p>
-                                    <div className="flex items-center gap-2"><Package className="h-4 w-4 shrink-0 text-purple-500" /><span><span className="font-medium">{ing.stock_qty.toLocaleString()} {ing.unit_type}</span></span></div>
-                                    <div className="flex items-center gap-2"><Banknote className="h-4 w-4 shrink-0 text-green-600" /><span>{formatCurrency(ing.cost_per_unit)} / {ing.unit_type}</span></div>
+            <div className='flex-1 min-h-0 flex flex-col overflow-hidden relative px-4'>
+                <ScrollShadow scrollRef={scrollRef} side="top" />
+                <ScrollArea className="flex-1 min-h-0 -mx-4 px-4" ref={scrollRef}>
+                    <div className="space-y-3">
+                        {rawIngredients.map((ing) => (
+                            <Card key={ing.id} className="p-4">
+                                <div className="flex items-start justify-between gap-3">
+                                    <div className="flex-1 space-y-1">
+                                        <p className="font-semibold leading-tight mb-3">{ing.name}</p>
+                                        <div className="flex items-center gap-2"><Package className="h-4 w-4 shrink-0 text-purple-500" /><span><span className="font-medium">{ing.stock_qty.toLocaleString()} {ing.unit_type}</span></span></div>
+                                        <div className="flex items-center gap-2"><Banknote className="h-4 w-4 shrink-0 text-green-600" /><span>{formatCurrency(ing.cost_per_unit)} / {ing.unit_type}</span></div>
+                                    </div>
+                                    <Button size="sm" variant="outline" onClick={() => openAdjustmentDialog(ing)}>Adjust</Button>
                                 </div>
-                                <Button size="sm" variant="outline" onClick={() => openAdjustmentDialog(ing)}>Adjust</Button>
-                            </div>
-                            <Separator className="my-3" />
-                            <div className="flex justify-end gap-2">
-                                <Button variant="ghost" size="sm" onClick={() => openDialog(ing)}><Edit className="h-4 w-4 mr-1" />Edit</Button>
-                                <AlertDialog>
-                                    <AlertDialogTrigger asChild><Button variant="ghost" size="sm" className="text-destructive hover:text-destructive"><Trash className="h-4 w-4 mr-1" />Delete</Button></AlertDialogTrigger>
-                                    <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Delete "{ing.name}"?</AlertDialogTitle></AlertDialogHeader>
-                                        <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDelete(ing.id)}>Confirm Delete</AlertDialogAction></AlertDialogFooter>
-                                    </AlertDialogContent>
-                                </AlertDialog>
-                            </div>
-                        </Card>
-                    ))}
-                </div>
-            </ScrollArea>
+                                <Separator className="my-3" />
+                                <div className="flex justify-end gap-2">
+                                    <Button variant="ghost" size="sm" onClick={() => openDialog(ing)}><Edit className="h-4 w-4 mr-1" />Edit</Button>
+                                    <AlertDialog>
+                                        <AlertDialogTrigger asChild><Button variant="ghost" size="sm" className="text-destructive hover:text-destructive"><Trash className="h-4 w-4 mr-1" />Delete</Button></AlertDialogTrigger>
+                                        <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Delete "{ing.name}"?</AlertDialogTitle></AlertDialogHeader>
+                                            <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDelete(ing.id)}>Confirm Delete</AlertDialogAction></AlertDialogFooter>
+                                        </AlertDialogContent>
+                                    </AlertDialog>
+                                </div>
+                            </Card>
+                        ))}
+                    </div>
+                </ScrollArea>
+            </div>
             <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
                 <DialogContent>
                     <DialogHeader><DialogTitle>{ingredientToEdit ? 'Edit' : 'Add'} Ingredient</DialogTitle></DialogHeader>

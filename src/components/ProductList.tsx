@@ -45,7 +45,7 @@ const CardGridItem = React.memo(({ product, onItemClick, selectedProductId, cont
   if (!product) return null;
 
   return (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.15 }}
@@ -98,9 +98,10 @@ const CardRow = ({ index, style, data }: { index: number, style: React.CSSProper
 const ListItem = React.memo(({ index, style, data }: { index: number, style: React.CSSProperties, data: any }) => {
   const { products, viewMode, onItemClick, selectedProductId, context } = data;
   const product = products[index];
+  const isEven = index % 2 === 0;
 
   const content = viewMode === 'thumbnail' ? (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.15 }}
@@ -114,7 +115,7 @@ const ListItem = React.memo(({ index, style, data }: { index: number, style: Rea
       />
     </motion.div>
   ) : (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.15 }}
@@ -125,6 +126,7 @@ const ListItem = React.memo(({ index, style, data }: { index: number, style: Rea
         onItemClick={onItemClick}
         isSelected={product.id === selectedProductId}
         context={context}
+        isEvent={isEven}
       />
     </motion.div>
   );
@@ -237,7 +239,7 @@ export function ProductList({ products, viewMode, isLoading, onItemClick, select
         </div>
       }
       <div className="relative flex-1 overflow-hidden" ref={containerRef}>
-        <div className={`absolute top-0 h-0 transition-opacity duration-150 pointer-events-none shadow border-b left-1 right-1 z-10 ${isScrolling ? 'opacity-100' : 'opacity-0'}`}></div>
+        <div className={`absolute h-0 transition-opacity duration-150 pointer-events-none shadow border-b ${viewMode == 'list' ? '-top-px left-3 right-3' : 'left-2 right-2 top-0'}   z-10 ${isScrolling ? 'opacity-100' : 'opacity-0'}`}></div>
         <AutoSizer>
           {({ height, width }) => {
             if (!width || !height) return null;
@@ -292,11 +294,11 @@ export function ProductList({ products, viewMode, isLoading, onItemClick, select
         {/* Overlay Scrollbar */}
         <div
           ref={trackRef}
-          className="absolute right-4 top-0 bottom-0 w-2 opacity-0 transition-opacity duration-200 z-20"
+          className="absolute right-2 top-0 bottom-0 w-2 opacity-0 transition-opacity duration-200 z-20"
         >
           <div
             ref={thumbRef}
-            className="absolute w-full rounded-full bg-primary/40 hover:bg-primary/60 cursor-pointer"
+            className="absolute w-full rounded-full bg-border/40 hover:bg-border/70 cursor-pointer"
           />
         </div>
       </div>

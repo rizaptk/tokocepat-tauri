@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { useStore } from '@/lib/store';
 import { useToast } from '@/hooks/use-toast';
 import { ModifierGroup, ModifierItem } from '@/lib/types';
@@ -11,9 +11,10 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { ScrollArea, ScrollAreaHandle } from '@/components/ui/scroll-area';
 import { Card } from '@/components/ui/card';
 import { PlusCircle, Edit, Trash, DiamondPlus } from 'lucide-react';
+import { ScrollShadow } from '@/components/ui/scrollshadow';
 
 const ModifierManagerComponent = () => {
     const { modifierGroups } = useStore();
@@ -28,6 +29,8 @@ const ModifierManagerComponent = () => {
     const [groupFormData, setGroupFormData] = useState(defaultGroupState);
     const defaultItemState = { name: "", additional_price: 0 };
     const [itemFormData, setItemFormData] = useState(defaultItemState);
+
+    const scrollRef = useRef<ScrollAreaHandle>(null);
 
     const openGroupDialog = (group: ModifierGroup | null) => {
         setGroupToEdit(group);
@@ -81,58 +84,61 @@ const ModifierManagerComponent = () => {
     const formatCurrency = (amount: number) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount);
 
     return (
-        <div className="p-4 h-full flex flex-col">
-            <div className="flex justify-between items-center mb-4">
+        <div className="p-0 h-full flex flex-col min-h-0">
+            <div className="flex justify-between items-center my-4 px-4">
                 <h3 className="font-semibold">Manage Modifiers</h3>
                 <Button size="sm" onClick={() => openGroupDialog(null)}><PlusCircle className="mr-2 h-4 w-4" /> Add Group</Button>
             </div>
-            <ScrollArea className="flex-1 min-h-0 -mx-4">
-                <div className="px-4 space-y-4">
-                    {modifierGroups.map(group => (
-                        <Card key={group.id} className="overflow-hidden">
-                            <div className="p-4 border-b">
-                                <div className="flex items-start justify-between gap-3">
-                                    <div className="flex-1">
-                                        <p className="font-semibold text-base leading-tight">{group.name}</p>
-                                        <p className="text-sm text-muted-foreground mt-1">{group.required ? "Required" : "Optional"} • Select {group.min_select}–{group.max_select}</p>
+            <div className='flex-1 min-h-0 flex flex-col overflow-hidden relative px-4'>
+                <ScrollShadow scrollRef={scrollRef} side="top" />
+                <ScrollArea ref={scrollRef} className="flex-1 min-h-0 -mx-4">
+                    <div className="px-4 space-y-4">
+                        {modifierGroups.map(group => (
+                            <Card key={group.id} className="overflow-hidden">
+                                <div className="p-4 border-b">
+                                    <div className="flex items-start justify-between gap-3">
+                                        <div className="flex-1">
+                                            <p className="font-semibold text-base leading-tight">{group.name}</p>
+                                            <p className="text-sm text-muted-foreground mt-1">{group.required ? "Required" : "Optional"} • Select {group.min_select}–{group.max_select}</p>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                            <div className="divide-y divide-border/40">
-                                {group.items.map(item => (
-                                    <div key={item.id} className="p-4 flex items-center justify-between gap-3 hover:bg-background">
-                                        <div className="flex-1">
-                                            <p className="font-medium flex gap-2"><DiamondPlus className="size-4 mt-1 shrink-0 text-green-600" />{item.name}</p>
-                                            <p className="text-sm text-muted-foreground pl-6">{formatCurrency(item.additional_price)}</p>
+                                <div className="divide-y divide-border/40">
+                                    {group.items.map(item => (
+                                        <div key={item.id} className="p-4 flex items-center justify-between gap-3 hover:bg-background">
+                                            <div className="flex-1">
+                                                <p className="font-medium flex gap-2"><DiamondPlus className="size-4 mt-1 shrink-0 text-green-600" />{item.name}</p>
+                                                <p className="text-sm text-muted-foreground pl-6">{formatCurrency(item.additional_price)}</p>
+                                            </div>
+                                            <div className="flex items-center gap-1 shrink-0">
+                                                <Button variant="ghost" size="icon" onClick={() => openItemDialog(group.id, item)}><Edit className="h-4 w-4" /></Button>
+                                                <AlertDialog>
+                                                    <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="text-destructive hover:text-destructive"><Trash className="h-4 w-4" /></Button></AlertDialogTrigger>
+                                                    <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Delete "{item.name}"?</AlertDialogTitle></AlertDialogHeader>
+                                                        <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleItemDelete(group.id, item.id)}>Delete</AlertDialogAction></AlertDialogFooter>
+                                                    </AlertDialogContent>
+                                                </AlertDialog>
+                                            </div>
                                         </div>
-                                        <div className="flex items-center gap-1 shrink-0">
-                                            <Button variant="ghost" size="icon" onClick={() => openItemDialog(group.id, item)}><Edit className="h-4 w-4" /></Button>
+                                    ))}
+                                    <div className="p-4 flex justify-between items-center gap-4">
+                                        <Button variant="outline" className="grow" onClick={() => openItemDialog(group.id, null)}><PlusCircle className="mr-2 h-4 w-4" />Add Item</Button>
+                                        <div className="flex justify-end gap-2">
+                                            <Button variant="outline" onClick={() => openGroupDialog(group)}><Edit className="h-4 w-4 mr-1" />Edit</Button>
                                             <AlertDialog>
-                                                <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="text-destructive hover:text-destructive"><Trash className="h-4 w-4" /></Button></AlertDialogTrigger>
-                                                <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Delete "{item.name}"?</AlertDialogTitle></AlertDialogHeader>
-                                                    <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleItemDelete(group.id, item.id)}>Delete</AlertDialogAction></AlertDialogFooter>
+                                                <AlertDialogTrigger asChild><Button variant="outline" className="text-destructive hover:text-destructive" onClick={() => handleGroupDelete(group.id)}><Trash className="h-4 w-4 mr-1" />Delete</Button></AlertDialogTrigger>
+                                                <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Delete "{group.name}"?</AlertDialogTitle><AlertDialogDescription>This will permanently delete the group and all its items.</AlertDialogDescription></AlertDialogHeader>
+                                                    <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleGroupDelete(group.id)}>Delete</AlertDialogAction></AlertDialogFooter>
                                                 </AlertDialogContent>
                                             </AlertDialog>
                                         </div>
                                     </div>
-                                ))}
-                                <div className="p-4 flex justify-between items-center gap-4">
-                                    <Button variant="outline" className="grow" onClick={() => openItemDialog(group.id, null)}><PlusCircle className="mr-2 h-4 w-4" />Add Item</Button>
-                                    <div className="flex justify-end gap-2">
-                                        <Button variant="outline" onClick={() => openGroupDialog(group)}><Edit className="h-4 w-4 mr-1" />Edit</Button>
-                                        <AlertDialog>
-                                            <AlertDialogTrigger asChild><Button variant="outline" className="text-destructive hover:text-destructive" onClick={() => handleGroupDelete(group.id)}><Trash className="h-4 w-4 mr-1" />Delete</Button></AlertDialogTrigger>
-                                            <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Delete "{group.name}"?</AlertDialogTitle><AlertDialogDescription>This will permanently delete the group and all its items.</AlertDialogDescription></AlertDialogHeader>
-                                                <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleGroupDelete(group.id)}>Delete</AlertDialogAction></AlertDialogFooter>
-                                            </AlertDialogContent>
-                                        </AlertDialog>
-                                    </div>
                                 </div>
-                            </div>
-                        </Card>
-                    ))}
-                </div>
-            </ScrollArea>
+                            </Card>
+                        ))}
+                    </div>
+                </ScrollArea>
+            </div>
             <Dialog open={isGroupDialogOpen} onOpenChange={setIsGroupDialogOpen}>
                 <DialogContent>
                     <DialogHeader><DialogTitle>{groupToEdit ? 'Edit' : 'Add'} Group</DialogTitle></DialogHeader>

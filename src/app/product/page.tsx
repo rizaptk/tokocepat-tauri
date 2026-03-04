@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useMemo, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useStore } from "@/lib/store";
 import { Product } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";

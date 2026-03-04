@@ -27,7 +27,7 @@
         "./src/*"
       ]
     },
-    "types": ["@types/wicg-file-system-access"],
+    "types": ["@types/wicg-file-system-access", "w3c-web-usb"],
   },
   "include": [
     "next-env.d.ts",

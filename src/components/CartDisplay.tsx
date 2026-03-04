@@ -3,7 +3,7 @@
     
 import { useStore } from "@/lib/store";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { ScrollArea, ScrollAreaHandle } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { ParkingSquare, ShoppingCart, ReceiptText, Trash2, X } from "lucide-react";
 import { useEffect, useRef, useState, useMemo } from "react";
@@ -36,7 +36,7 @@ export function CartDisplay({ onEditItem }: CartDisplayProps) {
   
   const [voidReason, setVoidReason] = useState("");
 
-  const cartContainer = useRef<HTMLDivElement>(null);
+  const cartContainer = useRef<ScrollAreaHandle>(null);
   
   const shiftTransactions = transactions.filter(t => t.shift_id === activeShift?.id);
   const cartItemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
@@ -118,9 +118,9 @@ export function CartDisplay({ onEditItem }: CartDisplayProps) {
   };
 
   useEffect(() => {
-    if (!cartContainer.current) return;
+    if (!cartContainer.current || !cartContainer.current.viewport) return;
     
-    const viewPort = cartContainer.current.querySelector("[data-radix-scroll-area-viewport]") as HTMLDivElement;
+    const viewPort = cartContainer.current.viewport as HTMLDivElement;
     if (!viewPort) return;
     
     setTimeout(() => {

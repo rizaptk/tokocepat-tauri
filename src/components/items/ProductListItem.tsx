@@ -15,6 +15,7 @@ type ProductListItemProps = {
   isSelected?: boolean;
   context?: "cashier" | "product" | "inventory";
   style?: React.CSSProperties;
+  isEvent?: boolean;
 };
 
 const columnClass = {
@@ -30,6 +31,7 @@ export function ProductListItem({
   isSelected,
   context = "cashier",
   style,
+  isEvent = false,
 }: ProductListItemProps) {
   const { categories } = useStore();
 
@@ -60,76 +62,82 @@ export function ProductListItem({
   };
 
   return (
-    <div
-      style={style}
-      onClick={handleSelect}
-      role="button"
-      tabIndex={isOutOfStock ? -1 : 0}
-      aria-disabled={isOutOfStock}
-      className={cn(
-        "flex items-center px-4 gap-0 h-[54px] bg-card border-b-border border-x",
-        "transition-colors",
-        "hover:bg-accent",
-        isSelected && "bg-background",
-        isOutOfStock && "opacity-60 cursor-not-allowed",
-        !is_active && "opacity-80 relative"
-      )}
-    >
-      {/* NAME SECTION */}
-      <div className={columnClass.name}>
-        <span className="font-medium truncate">
-          {product.name}
-        </span>
+    <>
+      <div className={cn('bg-card h-[54px]')} >
 
-        {product.has_modifier && context === "product" && (
-          <SlidersHorizontal className="h-3.5 w-3.5 text-primary shrink-0 ml-2" />
-        )}
-      </div>
-
-      {
-        !is_active && (
-          <div className="absolute inset-0">
-            <Badge variant="destructive" className="text-xs">
-              Inactive
-            </Badge>
-          </div>
-        )
-      }
-
-      {/* CATEGORY (hide earlier on small screens) */}
-      {category && (
-        <span className={columnClass.category}>
-          {category.name}
-        </span>
-      )}
-
-      {/* STOCK */}
-      {context !== "cashier" && product.track_stock && (
         <div
+          style={style}
+          onClick={handleSelect}
+          role="button"
+          tabIndex={isOutOfStock ? -1 : 0}
+          aria-disabled={isOutOfStock}
           className={cn(
-            columnClass.stock,
-            isLowStock || isOutOfStock
-              ? "text-destructive font-medium"
-              : "text-muted-foreground"
+            "flex items-center px-4 gap-0 h-[54px] border-b-border border-x",
+            "transition-colors",
+            "hover:bg-accent",
+            isEvent && 'bg-primary/5',
+            isSelected && "bg-background",
+            isOutOfStock && "opacity-60 cursor-not-allowed",
+            !is_active && "opacity-80 relative"
           )}
         >
-          {isLowStock && <TriangleAlert className="h-3.5 w-3.5" />}
-          {isOutOfStock ? 0 : product.stock}
+          {/* NAME SECTION */}
+          <div className={columnClass.name}>
+            <span className="font-medium truncate">
+              {product.name}
+            </span>
+
+            {product.has_modifier && context === "product" && (
+              <SlidersHorizontal className="h-3.5 w-3.5 text-primary shrink-0 ml-2" />
+            )}
+          </div>
+
+          {
+            !is_active && (
+              <div className="absolute inset-0">
+                <Badge variant="destructive" className="text-xs">
+                  Inactive
+                </Badge>
+              </div>
+            )
+          }
+
+          {/* CATEGORY (hide earlier on small screens) */}
+          {category && (
+            <span className={columnClass.category}>
+              {category.name}
+            </span>
+          )}
+
+          {/* STOCK */}
+          {context !== "cashier" && product.track_stock && (
+            <div
+              className={cn(
+                columnClass.stock,
+                isLowStock || isOutOfStock
+                  ? "text-destructive font-medium"
+                  : "text-muted-foreground"
+              )}
+            >
+              {isLowStock && <TriangleAlert className="h-3.5 w-3.5" />}
+              {isOutOfStock ? 0 : product.stock}
+            </div>
+          )}
+
+          {/* do not remove, filler to make table like list */}
+          {context !== "cashier" && !product.track_stock && (
+            <div className={columnClass.stock}>
+              
+            </div>
+          )}
+
+
+          {/* PRICE (ALWAYS VISIBLE) */}
+          <div className={columnClass.price}>
+            {formatCurrency(product.price)}
+          </div>
         </div>
-      )}
-
-      {/* do not remove, filler to make table like list */}
-      {context !== "cashier" && !product.track_stock && (
-        <div className={columnClass.stock}>
-          
-        </div>
-      )}
-
-
-      {/* PRICE (ALWAYS VISIBLE) */}
-      <div className={columnClass.price}>
-        {formatCurrency(product.price)}
       </div>
-    </div>
+    </>
   );
 }

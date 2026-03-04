@@ -6,6 +6,7 @@ import { ScrollArea as ScrollAreaPrimitive } from "radix-ui"
 import { cn } from "@/lib/utils"
 
 export interface ScrollAreaHandle {
+  viewport: HTMLDivElement | null,
   getScrollTop(): number
   getScrollBottom(): number,
   subscribe: (cb: () => void) => () => void
@@ -42,6 +43,7 @@ const ScrollArea = React.forwardRef<
   }, [handleScroll])
 
   React.useImperativeHandle(ref, () => ({
+    viewport: viewportRef.current,
     getScrollTop: () => {
       return viewportRef.current?.scrollTop ?? 0
     },

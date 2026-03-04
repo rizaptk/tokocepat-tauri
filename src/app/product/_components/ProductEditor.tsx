@@ -29,13 +29,13 @@ export const ProductEditor = ({ selectedProductId, onProductUpdate, onClose, act
             <TabsContent value="product" className="grid grid-cols-1 w-full mt-0 overflow-x-auto min-h-0">
                 <ProductForm productId={selectedProductId} onSave={onProductUpdate} onCancel={onClose} />
             </TabsContent>
-            <TabsContent value="categories" className="grid grid-cols-1 w-full mt-0 overflow-x-auto">
+            <TabsContent value="categories" className="grid grid-cols-1 w-full mt-0 overflow-x-auto min-h-0">
                 <CategoryManager />
             </TabsContent>
-            <TabsContent value="modifiers" className="grid grid-cols-1 w-full mt-0 overflow-x-auto">
+            <TabsContent value="modifiers" className="grid grid-cols-1 w-full mt-0 overflow-x-auto min-h-0">
                 <ModifierManager />
             </TabsContent>
-            <TabsContent value="ingredients" className="grid grid-cols-1 w-full mt-0 overflow-x-auto">
+            <TabsContent value="ingredients" className="grid grid-cols-1 w-full mt-0 overflow-x-auto min-h-0">
                 <IngredientManager />
             </TabsContent>
         </Tabs>
