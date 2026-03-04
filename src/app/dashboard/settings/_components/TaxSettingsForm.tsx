@@ -24,7 +24,10 @@ const categoryOverrideSchema = z.object({
 const taxSettingsSchema = z.object({
   default_rate: z.coerce.number().min(0).max(1, 'Rate must be between 0 and 1.'),
   product_type_overrides: z.object({
-    food_and_beverage: z.coerce.number().min(0).max(1).optional(),
+    food_and_beverage: z.preprocess(
+      (val) => (val === "" || val === null ? undefined : val),
+      z.coerce.number().min(0).max(1).optional()
+    ),
   }),
   category_overrides: z.array(categoryOverrideSchema),
 });
@@ -99,7 +102,7 @@ export function TaxSettingsForm() {
                                 <FormField control={form.control} name="product_type_overrides.food_and_beverage" render={({ field }) => (
                                     <FormItem>
                                         <FormLabel>Food & Beverage Rate</FormLabel>
-                                        <FormControl><div className="relative"><Input type="number" step="0.01" {...field} placeholder="e.g. 0.10" /><Percent className="absolute right-3 top-2.5 h-4 w-4 text-muted-foreground" /></div></FormControl>
+                                        <FormControl><div className="relative"><Input type="number" step="0.01" {...field} value={field.value ?? ''} placeholder="e.g. 0.10" /><Percent className="absolute right-3 top-2.5 h-4 w-4 text-muted-foreground" /></div></FormControl>
                                         <FormDescription>Overrides the default rate for all F&B products.</FormDescription>
                                         <FormMessage />
                                     </FormItem>
