@@ -1,4 +1,3 @@
-
 'use server';
 
 import { NextResponse } from 'next/server';
@@ -20,20 +19,21 @@ export async function POST(request: Request) {
         if (!token && deviceId) {
              const ticketsRef = db.collection('paymentTickets');
              
-             // This query requires a composite index on deviceId (asc) and createdAt (desc).
-             const ticketQuery = ticketsRef
-                .where('deviceId', '==', deviceId)
-                .orderBy('createdAt', 'desc')
-                .limit(1);
-
+             // Fetch all tickets for the device and sort in memory.
+             // This is more robust than relying on a composite index that might not be available.
+             const ticketQuery = ticketsRef.where('deviceId', '==', deviceId);
              const ticketSnapshot = await ticketQuery.get();
 
              if (!ticketSnapshot.empty) {
-                const ticketDoc = ticketSnapshot.docs[0];
-                const ticket = ticketDoc.data();
+                const sortedDocs = ticketSnapshot.docs.sort((a, b) => 
+                    b.data().createdAt.toDate().getTime() - a.data().createdAt.toDate().getTime()
+                );
+                const mostRecentDoc = sortedDocs[0];
+                const ticket = mostRecentDoc.data();
+                
                 // Check if the most recent ticket for this device is resolved and unclaimed
                 if (ticket.status === 'resolved' && !ticket.claimedAt) {
-                    return NextResponse.json({ status: 'activation_required', ticketId: ticketDoc.id }, { status: 200 });
+                    return NextResponse.json({ status: 'activation_required', ticketId: mostRecentDoc.id }, { status: 200 });
                 }
              }
         }

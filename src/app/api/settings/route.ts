@@ -1,4 +1,3 @@
-
 'use server';
 
 import { NextResponse } from 'next/server';
@@ -12,19 +11,23 @@ export async function GET(request: Request) {
 
     try {
         if (deviceId) {
-            // Fetch ticket status for a specific device
+            // Fetch all tickets for the device and sort in-memory to be robust
             const snapshot = await db.collection('paymentTickets')
                 .where('deviceId', '==', deviceId)
-                .orderBy('createdAt', 'desc')
-                .limit(1)
                 .get();
 
             if (snapshot.empty) {
                 return NextResponse.json({ status: null });
             }
 
-            const ticketDoc = snapshot.docs[0];
+            // Sort docs in memory to find the most recent ticket
+            const sortedDocs = snapshot.docs.sort((a, b) => 
+                b.data().createdAt.toDate().getTime() - a.data().createdAt.toDate().getTime()
+            );
+
+            const ticketDoc = sortedDocs[0];
             const ticket = ticketDoc.data();
+
 
             if (ticket.status === 'rejected' || (ticket.status === 'resolved' && ticket.claimedAt)) {
                 return NextResponse.json({ status: null });
