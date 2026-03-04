@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -19,9 +19,7 @@ import { useToast } from '@/hooks/use-toast';
 import { CheckCircle2, AlertCircle, Banknote, Delete, ReceiptText } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Transaction } from '@/lib/types';
-import { generateReceiptBinary } from '@/lib/receipt';
-import { printerManager } from '@/lib/webUSBPrinter';
-
+import { usePrintStore } from '@/lib/print-store';
 
 type PaymentModalProps = {
   isOpen: boolean;
@@ -36,17 +34,14 @@ export function PaymentModal({ isOpen, setIsOpen, total }: PaymentModalProps) {
   const [status, setStatus] = useState<PaymentStatus>('pending');
   const [transactionDetails, setTransactionDetails] = useState<Transaction | null>(null);
   
-  const { checkout, storeConfig } = useStore((state) => ({ 
-    checkout: state.checkout, 
-    storeConfig: state.storeConfig 
-  }));
+  const { checkout } = useStore();
+  const { addToQueue } = usePrintStore();
   const { toast } = useToast();
 
   const numericCash = parseFloat(cashReceived) || 0;
   const change = numericCash - total;
   const isInsufficient = numericCash < total && numericCash > 0;
 
-  // Professional IDR Formatter
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('id-ID', {
       style: 'currency',
@@ -101,6 +96,8 @@ export function PaymentModal({ isOpen, setIsOpen, total }: PaymentModalProps) {
     if (transaction) {
       setTransactionDetails(transaction);
       setStatus('success');
+      // Add to print queue and forget
+      addToQueue(transaction);
     }
   };
 
@@ -113,42 +110,12 @@ export function PaymentModal({ isOpen, setIsOpen, total }: PaymentModalProps) {
     }, 200);
   };
   
-  const handlePrint = async () => {
-    if (transactionDetails && storeConfig) {
-      try {
-        const paired = await printerManager.getPairedDevices();
-        if (paired.length > 0) {
-          await printerManager.connect();
-          const binaryData = generateReceiptBinary(transactionDetails, storeConfig);
-          await printerManager.print(binaryData);
-        } else {
-          toast({
-              title: "Payment Successful",
-              description: "No printer connected. Please pair one in Settings to enable automatic receipts.",
-          });
-        }
-      } catch (err: any) {
-        console.error("Direct print failed:", err);
-        toast({
-          variant: 'destructive',
-          title: 'Print Failed',
-          description: err.message || "Could not connect to the printer. Check connection and permissions in Settings."
-        });
-      } finally {
-        if ((printerManager as any).device) {
-             await printerManager.disconnect();
-        }
-      }
+  const handleReprint = () => {
+    if (transactionDetails) {
+        addToQueue(transactionDetails);
+        toast({ title: 'Reprinting...', description: 'Receipt has been sent to the print queue.' });
     }
   };
-
-  useEffect(() => {
-    if (status === 'success' && transactionDetails && storeConfig) {
-        handlePrint();
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status, transactionDetails, storeConfig]);
-
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && resetAndClose()}>
@@ -276,7 +243,7 @@ export function PaymentModal({ isOpen, setIsOpen, total }: PaymentModalProps) {
             </div>
 
             <div className="mt-8 grid grid-cols-2 gap-3">
-              <Button variant="outline" className="gap-2" onClick={handlePrint}>
+              <Button variant="outline" className="gap-2" onClick={handleReprint}>
                 <ReceiptText className="h-4 w-4" /> Re-Print Receipt
               </Button>
               <Button onClick={resetAndClose} className="font-bold">

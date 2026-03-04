@@ -1,3 +1,4 @@
+
 "use client";
 
 import { usePathname } from 'next/navigation';
@@ -10,6 +11,7 @@ import { SideNav } from './SideNav';
 import { useLicense } from '@/hooks/useLicense';
 import { useMemo } from 'react';
 import { ThemeSwitcher } from './ThemeSwitcher';
+import { PrintManager } from './PrintManager';
 
 export default function ClientLayout({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
@@ -30,6 +32,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
         <DbProvider>
             <BackupManager />
             <LicenseProvider>
+                <PrintManager />
                 <div className={!isMobile && isLicensed ? 'pl-16' : ''}>{children}</div>
                 {
                     isLicensed &&

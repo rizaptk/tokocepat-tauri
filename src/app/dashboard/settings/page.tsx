@@ -60,7 +60,10 @@ export default function SettingsPage() {
             await loadPrinters(); // Refresh list
         }
     } catch (err: any) {
-        toast({ variant: 'destructive', title: "Pairing Failed", description: err.message });
+        // Silently ignore the error if the user cancels the dialog.
+        if (err.name !== 'NotFoundError') {
+            toast({ variant: 'destructive', title: "Pairing Failed", description: err.message });
+        }
     } finally {
         setIsPairing(false);
     }
