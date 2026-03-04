@@ -30,6 +30,8 @@ type ProductListProps = {
   selectedProductId?: string | null;
   context?: 'cashier' | 'product' | 'inventory';
   setScrollTop?: (top: number) => void;
+  selectedProductIds?: Set<string>;
+  onToggleSelection?: (id: string) => void;
 };
 
 // Constants for layout calculation
@@ -41,7 +43,7 @@ const LIST_ROW_HEIGHT = 56;
 // --- Components for Card Grid View ---
 
 // 1. Memoized item for performance. This is one cell in the grid.
-const CardGridItem = React.memo(({ product, onItemClick, selectedProductId, context, columnCount }: { product: Product, onItemClick?: (product: Product) => void, selectedProductId?: string | null, context?: 'cashier' | 'product' | 'inventory', columnCount: number }) => {
+const CardGridItem = React.memo(({ product, onItemClick, selectedProductId, context, columnCount, selectedProductIds, onToggleSelection }: { product: Product, onItemClick?: (product: Product) => void, selectedProductId?: string | null, context?: 'cashier' | 'product' | 'inventory', columnCount: number, selectedProductIds?: Set<string>, onToggleSelection?: (id: string) => void }) => {
   if (!product) return null;
 
   return (
@@ -56,6 +58,8 @@ const CardGridItem = React.memo(({ product, onItemClick, selectedProductId, cont
         onItemClick={onItemClick}
         isSelected={product.id === selectedProductId}
         context={context}
+        selectedProductIds={selectedProductIds}
+        onToggleSelection={onToggleSelection}
       />
     </motion.div>
   );
@@ -65,7 +69,7 @@ CardGridItem.displayName = 'CardGridItem';
 
 // 2. The Row component that react-window will render.
 const CardRow = ({ index, style, data }: { index: number, style: React.CSSProperties, data: any }) => {
-  const { products, columnCount, totalItems, onItemClick, selectedProductId, context } = data;
+  const { products, columnCount, totalItems, onItemClick, selectedProductId, context, selectedProductIds, onToggleSelection } = data;
 
   const itemsInRow = [];
   const startIndex = index * columnCount;
@@ -81,6 +85,8 @@ const CardRow = ({ index, style, data }: { index: number, style: React.CSSProper
           selectedProductId={selectedProductId}
           context={context}
           columnCount={columnCount}
+          selectedProductIds={selectedProductIds}
+          onToggleSelection={onToggleSelection}
         />
       );
     }
@@ -96,7 +102,7 @@ const CardRow = ({ index, style, data }: { index: number, style: React.CSSProper
 // --- Component for List/Thumbnail View ---
 
 const ListItem = React.memo(({ index, style, data }: { index: number, style: React.CSSProperties, data: any }) => {
-  const { products, viewMode, onItemClick, selectedProductId, context } = data;
+  const { products, viewMode, onItemClick, selectedProductId, context, selectedProductIds, onToggleSelection } = data;
   const product = products[index];
   const isEven = index % 2 === 0;
 
@@ -112,6 +118,8 @@ const ListItem = React.memo(({ index, style, data }: { index: number, style: Rea
         onItemClick={onItemClick}
         isSelected={product.id === selectedProductId}
         context={context}
+        selectedProductIds={selectedProductIds}
+        onToggleSelection={onToggleSelection}
       />
     </motion.div>
   ) : (
@@ -127,6 +135,8 @@ const ListItem = React.memo(({ index, style, data }: { index: number, style: Rea
         isSelected={product.id === selectedProductId}
         context={context}
         isEvent={isEven}
+        selectedProductIds={selectedProductIds}
+        onToggleSelection={onToggleSelection}
       />
     </motion.div>
   );
@@ -161,7 +171,7 @@ const LoadingSkeleton = ({ viewMode }: { viewMode: ViewMode }) => {
 }
 
 // --- Main ProductList Component ---
-export function ProductList({ products, viewMode, isLoading, onItemClick, selectedProductId, context = 'cashier', setScrollTop }: ProductListProps) {
+export function ProductList({ products, viewMode, isLoading, onItemClick, selectedProductId, context = 'cashier', setScrollTop, selectedProductIds, onToggleSelection }: ProductListProps) {
 
   const outerRef = useRef<HTMLDivElement>(null);
   const thumbRef = useRef<HTMLDivElement>(null);
@@ -261,7 +271,9 @@ export function ProductList({ products, viewMode, isLoading, onItemClick, select
                     totalItems: filteredProducts.length,
                     onItemClick,
                     selectedProductId,
-                    context
+                    context,
+                    selectedProductIds,
+                    onToggleSelection,
                   }}
                 >
                   {CardRow}
@@ -282,7 +294,9 @@ export function ProductList({ products, viewMode, isLoading, onItemClick, select
                     viewMode,
                     onItemClick,
                     selectedProductId,
-                    context
+                    context,
+                    selectedProductIds,
+                    onToggleSelection,
                   }}
                 >
                   {ListItem}

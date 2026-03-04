@@ -11,9 +11,11 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { ProductSearchBar } from "@/components/ProductSearchBar";
 import { ProductList } from "@/components/ProductList";
+import { exportBarcodeStickersToPdf } from "@/lib/export";
+
 
 // Icons
-import { PlusCircle, Menu } from "lucide-react";
+import { PlusCircle, Menu, Printer } from "lucide-react";
 
 // Services
 import { useGlobalBarcodeScanner } from "@/hooks/use-global-barcode-scanner";
@@ -29,6 +31,7 @@ export default function ProductManagementPage() {
     const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
     const [isDrawerOpen, setIsDrawerOpen] = useState(false);
     const [activeTab, setActiveTab] = useState("product");
+    const [selectedProductIds, setSelectedProductIds] = useState<Set<string>>(new Set());
 
     useEffect(() => {
         setViewMode(window.innerWidth < 768 ? 'thumbnail' : 'card');
@@ -41,6 +44,32 @@ export default function ProductManagementPage() {
             setIsDrawerOpen(true);
         }
     };
+    
+    const handleToggleSelection = (productId: string) => {
+        setSelectedProductIds(prev => {
+            const newSet = new Set(prev);
+            if (newSet.has(productId)) {
+                newSet.delete(productId);
+            } else {
+                newSet.add(productId);
+            }
+            return newSet;
+        });
+    };
+
+    const handlePrintLabels = () => {
+        const selectedProducts = products.filter(p => selectedProductIds.has(p.id) && p.barcode);
+        if (selectedProducts.length > 0) {
+            exportBarcodeStickersToPdf(selectedProducts);
+        } else {
+            toast({
+                variant: "destructive",
+                title: "No Products Selected",
+                description: "Please select products with barcodes to print labels for.",
+            });
+        }
+    };
+
 
     const handleBarcodeScan = (barcode: string) => {
         const product = products.find(p => p.barcode === barcode || p.sku === barcode);
@@ -93,6 +122,10 @@ export default function ProductManagementPage() {
                             onViewModeChange={setViewMode}
                             onBarcodeScan={handleBarcodeScan}
                         />
+                         <Button onClick={handlePrintLabels} variant="outline" size="sm" disabled={selectedProductIds.size === 0} className="hidden md:flex">
+                            <Printer className="mr-2 h-4 w-4" />
+                            Print Labels ({selectedProductIds.size})
+                        </Button>
                         <Button onClick={handleAddNew} variant="outline" size="sm" className="md:hidden inline-flex size-10">
                             <PlusCircle className="h-4 w-4" />
                         </Button>
@@ -105,14 +138,17 @@ export default function ProductManagementPage() {
                         onItemClick={handleSelectProduct}
                         selectedProductId={selectedProductId}
                         context="product"
+                        selectedProductIds={selectedProductIds}
+                        onToggleSelection={handleToggleSelection}
                     />
                 </div>
                 <div className="p-4 md:hidden flex gap-2">
+                     <Button onClick={handlePrintLabels} variant="outline" className="w-full" disabled={selectedProductIds.size === 0}>
+                        <Printer className="mr-2 h-4 w-4" />
+                        Print ({selectedProductIds.size})
+                    </Button>
                     <Button onClick={handleAddNew} className="w-full">
                         <PlusCircle className="mr-2 h-4 w-4" /> Add Product
-                    </Button>
-                    <Button variant="outline" onClick={() => setIsDrawerOpen(true)} className="w-full">
-                        <Menu className="mr-2 h-4 w-4" /> Manage
                     </Button>
                 </div>
             </div>

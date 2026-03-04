@@ -10,6 +10,7 @@ import { ShoppingCart, SlidersHorizontal, TriangleAlert } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useMemo } from 'react';
 import React from 'react';
+import { Checkbox } from './ui/checkbox';
 
 type ProductCardProps = {
   product: Product;
@@ -17,9 +18,11 @@ type ProductCardProps = {
   isSelected?: boolean;
   context?: 'cashier' | 'product' | 'inventory';
   style?: React.CSSProperties;
+  selectedProductIds?: Set<string>;
+  onToggleSelection?: (id: string) => void;
 };
 
-export function ProductCard({ product, onItemClick, isSelected, context = 'cashier', style }: ProductCardProps) {
+export function ProductCard({ product, onItemClick, isSelected, context = 'cashier', style, selectedProductIds, onToggleSelection }: ProductCardProps) {
   const { categories } = useStore();
   const category = useMemo(() => categories.find(c => c.id === product.category_id), [categories, product.category_id]);
 
@@ -41,11 +44,14 @@ export function ProductCard({ product, onItemClick, isSelected, context = 'cashi
   const isLowStock = product.track_stock && product.low_stock_alert != null && product.stock > 0 && product.stock <= product.low_stock_alert;
   const is_active = product.is_active;
 
+  const isChecked = selectedProductIds?.has(product.id) ?? false;
+
+
   return (
     <Card 
       style={style}
       className={cn(
-        "flex flex-col h-full overflow-hidden transition-all hover:shadow-lg",
+        "flex flex-col h-full overflow-hidden transition-all hover:shadow-lg relative",
         isSelected && "ring-2 ring-primary ring-offset-2",
         isOutOfStock ? "cursor-not-allowed" : "cursor-pointer",
         !is_active && "opacity-80"
@@ -58,6 +64,12 @@ export function ProductCard({ product, onItemClick, isSelected, context = 'cashi
       aria-label={`Select ${product.name}`}
       aria-disabled={isOutOfStock}
     >
+      {onToggleSelection && context === 'product' && (
+        <div className="absolute top-2 left-2 z-20 p-1 bg-background/50 backdrop-blur-sm rounded-full" onClick={(e) => e.stopPropagation()}>
+            <Checkbox checked={isChecked} onCheckedChange={() => onToggleSelection(product.id)} />
+        </div>
+      )}
+
       <CardHeader className="p-0 relative">
         <div className="relative sm:aspect-[5/3] aspec-[4/3] w-full">
           <Image

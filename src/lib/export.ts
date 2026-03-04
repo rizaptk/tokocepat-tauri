@@ -1,9 +1,8 @@
 
-
 import * as XLSX from 'xlsx';
 import { Transaction, Product, StoreConfig, StockMovement } from '@/lib/types';
 import { format, parseISO } from 'date-fns';
-import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
+import { PDFDocument, rgb, StandardFonts, PageSizes } from 'pdf-lib';
 
 const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('id-ID', {
@@ -534,78 +533,85 @@ export const exportShiftDetailsToPdf = async (shift: any, transactions: Transact
     document.body.removeChild(link);
 };
 
-export const exportStockSummaryToPdf = async (reportData: any[], dateRange: { from: Date, to: Date }, storeName: string) => {
+export const exportBarcodeStickersToPdf = async (products: Product[]) => {
+    // --- PDF Configuration ---
+    const page = PageSizes.Letter; // [612, 792] points
+    const pageMargin = 36; // 0.5 inch
+    const stickerWidth = 192; // 2.66 inches
+    const stickerHeight = 72; // 1 inch
+    const gapX = 12;
+    const gapY = 0;
+    const cols = 3;
+    const rows = 10;
+    // -------------------------
+
     const pdfDoc = await PDFDocument.create();
-    let page = pdfDoc.addPage();
-    const { width, height } = page.getSize();
     const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
     const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
-    const fontSize = 10;
-    const margin = 40;
-    let y = height - margin;
+    const monoFont = await pdfDoc.embedFont(StandardFonts.Courier);
 
-    const drawHeader = () => {
-        page.drawText(`${storeName} - Stock Summary Report`, { x: margin, y, font: boldFont, size: 16 });
-        y -= 20;
-        page.drawText(`Period: ${format(dateRange.from, 'PPP')} to ${format(dateRange.to, 'PPP')}`, { x: margin, y, font, size: 10 });
-        y -= 25;
-    };
+    let productIndex = 0;
     
-    drawHeader();
-    
-    const tableHeaders = ['Product', 'Type', 'Opening', 'Added', 'Sold', 'Adjusted', 'Closing'];
-    const colWidths = [160, 60, 60, 60, 60, 60, 60];
-    let x = margin;
-    
-    tableHeaders.forEach((header, i) => {
-        page.drawText(header, { x, y, font: boldFont, size: fontSize });
-        x += colWidths[i];
-    });
-    y -= 5;
-    page.drawLine({ start: { x: margin, y }, end: { x: width - margin, y }, thickness: 1 });
-    y -= 15;
-    
-    for (const item of reportData) {
-        if (y < margin) {
-            page = pdfDoc.addPage();
-            y = height - margin;
-            drawHeader();
-            let x = margin;
-            tableHeaders.forEach((header, i) => {
-                page.drawText(header, { x, y, font: boldFont, size: fontSize });
-                x += colWidths[i];
-            });
-            y -= 5;
-            page.drawLine({ start: { x: margin, y }, end: { x: width - margin, y }, thickness: 1 });
-            y -= 15;
-        }
-
-        const row = [
-            item.name,
-            item.type,
-            item.openingStock.toLocaleString(),
-            `+${item.added.toLocaleString()}`,
-            `-${item.sold.toLocaleString()}`,
-            item.adjusted.toLocaleString(),
-            item.closingStock.toLocaleString(),
-        ];
+    while (productIndex < products.length) {
+        const currentPage = pdfDoc.addPage(page);
         
-        x = margin;
-        row.forEach((cell, i) => {
-            page.drawText(cell, { x, y, font, size: 8 });
-            x += colWidths[i];
-        });
-        y -= 12;
+        for (let r = 0; r < rows; r++) {
+            for (let c = 0; c < cols; c++) {
+                if (productIndex >= products.length) break;
+
+                const product = products[productIndex];
+                if (!product.barcode) {
+                    productIndex++;
+                    c--; // Retry this cell with the next product
+                    continue;
+                }
+
+                const x = pageMargin + c * (stickerWidth + gapX);
+                const y = page[1] - pageMargin - stickerHeight - r * (stickerHeight + gapY);
+
+                // --- Draw Sticker Content ---
+                // Name (truncated)
+                let productName = product.name;
+                if (productName.length > 25) {
+                    productName = productName.substring(0, 22) + '...';
+                }
+                currentPage.drawText(productName, {
+                    x: x + 5,
+                    y: y + stickerHeight - 20,
+                    font: boldFont,
+                    size: 10,
+                });
+
+                // Price
+                currentPage.drawText(formatCurrency(product.price), {
+                    x: x + 5,
+                    y: y + stickerHeight - 38,
+                    font,
+                    size: 9,
+                });
+                
+                // Barcode String
+                currentPage.drawText(`*${product.barcode}*`, {
+                    x: x + 5,
+                    y: y + stickerHeight - 60,
+                    font: monoFont, // Use monospaced for barcode-like appearance
+                    size: 11,
+                });
+
+                productIndex++;
+            }
+            if (productIndex >= products.length) break;
+        }
     }
 
     const pdfBytes = await pdfDoc.save();
-    
     const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+    const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    const range = format(dateRange.from, 'yyyy-MM-dd') + '_to_' + format(dateRange.to, 'yyyy-MM-dd');
-    link.download = `stock_summary_report_${storeName.replace(/\s+/g, '_')}_${range}.pdf`;
+    link.href = url;
+    link.download = 'barcode_labels.pdf';
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    URL.revokeObjectURL(url);
 };
