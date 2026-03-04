@@ -1,4 +1,3 @@
-
 "use client";
     
 import { useStore } from "@/lib/store";
@@ -9,7 +8,7 @@ import { ParkingSquare, ShoppingCart, ReceiptText, Trash2, X } from "lucide-reac
 import { useEffect, useRef, useState, useMemo } from "react";
 import { PaymentModal } from "./PaymentModal";
 import { useToast } from "@/hooks/use-toast";
-import { CartItem, Transaction } from "@/lib/types";
+import { CartItem, Transaction, StoreConfig } from "@/lib/types";
 import { AnimatePresence } from 'framer-motion';
 import { CartItemRow } from './CartItemRow';
 import { TransactionDisplay } from './TransactionDisplay';
@@ -19,12 +18,39 @@ import { Label } from "./ui/label";
 import { voidTransaction } from "@/services/transactionService";
 import { Badge } from "./ui/badge";
 
+// Helper function for tax calculation
+const getTaxRateForItem = (item: CartItem, storeConfig: StoreConfig): number => {
+    const { tax_settings, tax_rate } = storeConfig;
+
+    if (!tax_settings) {
+        return tax_rate; // Fallback to old system
+    }
+
+    // 1. Check for category override
+    if (item.category_id) {
+        const categoryOverride = tax_settings.category_overrides.find(
+            co => co.category_id === item.category_id
+        );
+        if (categoryOverride && typeof categoryOverride.tax_rate === 'number') {
+            return categoryOverride.tax_rate;
+        }
+    }
+
+    // 2. Check for product type override
+    if (item.product_type === 'food_and_beverage' && typeof tax_settings.product_type_overrides.food_and_beverage === 'number') {
+        return tax_settings.product_type_overrides.food_and_beverage!;
+    }
+
+    // 3. Fallback to default rate from new system
+    return tax_settings.default_rate;
+};
+
 interface CartDisplayProps {
     onEditItem?: (item: CartItem) => void;
 }
 
 export function CartDisplay({ onEditItem }: CartDisplayProps) {
-  const { cart, transactions, activeShift, parkCart } = useStore();
+  const { cart, transactions, activeShift, parkCart, storeConfig } = useStore();
   const { toast } = useToast();
 
   const [view, setView] = useState<'cart' | 'history'>('cart');
@@ -45,16 +71,21 @@ export function CartDisplay({ onEditItem }: CartDisplayProps) {
   // If reviewing, show items from local state. Otherwise, show the live cart from global state.
   const itemsToDisplay = isReviewing ? reviewedItems : cart;
 
-  const taxRate = useStore.getState().storeConfig?.tax_rate ?? 0.11;
-
   // Calculate totals based on the currently displayed items (either real cart or reviewed transaction)
   const { subtotal, tax, total } = useMemo(() => {
     const currentItems = isReviewing ? reviewedItems : cart;
     const sub = currentItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
-    const taxAmount = sub * taxRate;
+    
+    const taxAmount = currentItems.reduce((taxSum, item) => {
+        if (!storeConfig) return taxSum + (item.price * item.quantity * 0.11); // Fallback
+        const itemTaxRate = getTaxRateForItem(item, storeConfig);
+        const itemTotal = item.price * item.quantity;
+        return taxSum + (itemTotal * itemTaxRate);
+    }, 0);
+
     const totalAmount = sub + taxAmount;
     return { subtotal: sub, tax: taxAmount, total: totalAmount };
-  }, [isReviewing, reviewedItems, cart, taxRate]);
+  }, [isReviewing, reviewedItems, cart, storeConfig]);
   
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('id-ID', {
@@ -191,7 +222,7 @@ export function CartDisplay({ onEditItem }: CartDisplayProps) {
                         <span>{formatCurrency(subtotal)}</span>
                     </div>
                     <div className="flex justify-between">
-                        <span>Tax ({Math.round(taxRate * 100)}%)</span>
+                        <span>Tax</span>
                         <span>{formatCurrency(tax)}</span>
                     </div>
                     <Separator className="my-2"/>
