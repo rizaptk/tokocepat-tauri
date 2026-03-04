@@ -301,9 +301,14 @@ export default function DashboardPage() {
 
           {/* Shift History */}
           <Card>
-            <CardHeader>
-              <CardTitle>Shift History</CardTitle>
-              <CardDescription>Closed operational sessions.</CardDescription>
+            <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                    <CardTitle>Shift History</CardTitle>
+                    <CardDescription>Recent closed sessions.</CardDescription>
+                </div>
+                <Button asChild variant="link" className="text-sm -mr-4">
+                    <Link href="/dashboard/reports/shifts">View All</Link>
+                </Button>
             </CardHeader>
             <CardContent>
               {closedShifts.length === 0 ? (
@@ -314,7 +319,7 @@ export default function DashboardPage() {
               ) : (
                 <Table>
                   <TableBody>
-                    {closedShifts.map(shift => (
+                    {closedShifts.slice(0, 5).map(shift => (
                       <TableRow
                         key={shift.id}
                         onClick={() => router.push(`/dashboard/shifts/${shift.id}`)}
@@ -340,5 +345,7 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+    
 
     

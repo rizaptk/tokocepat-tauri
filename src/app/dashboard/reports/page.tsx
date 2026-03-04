@@ -38,7 +38,7 @@ const reportLinks = [
     {
         title: 'Shift History',
         description: 'Review summaries for all closed shifts.',
-        href: '/dashboard',
+        href: '/dashboard/reports/shifts',
         icon: BookOpen,
         comingSoon: false,
     },
@@ -157,3 +157,5 @@ export default function ReportsPage() {
         </div>
     );
 }
+
+    
