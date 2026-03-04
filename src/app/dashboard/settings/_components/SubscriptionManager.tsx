@@ -2,8 +2,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useActionState, useEffect, useRef, useState, useTransition } from 'react';
-import { useFormStatus } from 'react-dom';
+import { useEffect, useRef, useState, useTransition } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,7 +10,6 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Send, Loader2, Check, Info, WifiOff, Zap, Clock, RefreshCw, CheckCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { submitPaymentTicketAction, type FormState, getPublicSettings, activateTrialAction, getTicketStatusForDevice } from '../_actions';
 import { SubscriptionPlan, PaymentInstructions, PaymentTicket } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -143,15 +141,6 @@ const TicketStatusCard = ({ statusInfo, onRefresh }: { statusInfo: TicketStatusI
     );
 }
 
-const SubmitButton = () => {
-    const { pending } = useFormStatus();
-    return (
-        <Button type="submit" className="w-full" disabled={pending}>
-            {pending ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Submitting...</> : <><Send className="mr-2 h-4 w-4" />Submit Payment Ticket</>}
-        </Button>
-    )
-}
-
 export function SubscriptionManager() {
     const { toast } = useToast();
     const [settings, setSettings] = useState<{ plans: SubscriptionPlan[], instructions: PaymentInstructions } | null>(null);
@@ -161,18 +150,10 @@ export function SubscriptionManager() {
     const [isTrialUsed, setIsTrialUsed] = useState(true);
     const [deviceId, setDeviceId] = useState<string | null>(null);
     const [ticketStatus, setTicketStatus] = useState<TicketStatusInfo | null>(null);
-    
-    const [formValues, setFormValues] = useState({
-        customerName: '',
-        customerEmail: '',
-        customerWhatsapp: '',
-        proofOfPaymentUrl: '',
-        userNotes: '',
-    });
+    const [formErrors, setFormErrors] = useState<any>({});
+    const [isSubmitting, startSubmitTransition] = useTransition();
 
     const formRef = useRef<HTMLFormElement>(null);
-    const initialState: FormState = { message: '' };
-    const [state, formAction] = useActionState(submitPaymentTicketAction, initialState);
 
     const fetchStatusAndSettings = async () => {
         setLoading(true);
@@ -183,20 +164,19 @@ export function SubscriptionManager() {
         setIsTrialUsed(trialHasBeenUsed);
         
         try {
-            // A simple fetch to check online status. The heartbeat route is fine for this.
-            await fetch('/api/heartbeat', { 
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({})
-            });
+            await fetch('/api/heartbeat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) });
             
             setIsOnline(true);
-            const [data, status] = await Promise.all([
-                getPublicSettings(),
-                getTicketStatusForDevice(generatedDeviceId)
+            const [settingsRes, statusRes] = await Promise.all([
+                fetch('/api/settings'),
+                fetch(`/api/settings?deviceId=${generatedDeviceId}`)
             ]);
-            setSettings(data);
-            setTicketStatus(status);
+
+            const settingsData = await settingsRes.json();
+            const statusData = await statusRes.json();
+
+            setSettings(settingsData);
+            setTicketStatus(statusData.status);
 
         } catch (error) {
             setIsOnline(false);
@@ -209,63 +189,70 @@ export function SubscriptionManager() {
         fetchStatusAndSettings();
     }, []);
 
-    useEffect(() => {
-        if (state.message === 'success') {
-            toast({
-                title: 'Ticket Submitted!',
-                description: 'Your payment proof has been received. Please wait for admin verification.',
-            });
-             setTicketStatus({
-                status: 'pending',
-                plan: selectedPlan?.name || 'Selected Plan',
-                createdAt: new Date().toISOString(),
-                ticketId: '' // We don't have the ID client-side, but it's okay for the UI state
-            });
-            formRef.current?.reset();
-            setFormValues({
-                customerName: '',
-                customerEmail: '',
-                customerWhatsapp: '',
-                proofOfPaymentUrl: '',
-                userNotes: '',
-            });
-            setSelectedPlan(null);
-        } else if (state.errors?._form) {
-            toast({
-                variant: 'destructive',
-                title: 'An error occurred',
-                description: state.errors._form.join(', '),
-            });
-        }
-    }, [state, toast, selectedPlan]);
-
-    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-        const { name, value } = e.target;
-        setFormValues(prev => ({ ...prev, [name]: value }));
-    };
-
     const handleActivateTrial = async (planId: string) => {
         if (!deviceId) {
             toast({ variant: 'destructive', title: 'Error', description: 'Device ID could not be determined.' });
             return;
         }
         try {
-            const result = await activateTrialAction(planId, deviceId);
+            const response = await fetch('/api/license/activate-trial', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ planId, deviceId }),
+            });
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.error);
+            
+            await saveLicenseData(result.token, deviceId);
+            localStorage.setItem('tokoc_trial_activated_on_device', 'true');
+            toast({ title: 'Trial Activated!', description: 'Your free trial has started. The app will now reload.' });
+            setTimeout(() => window.location.reload(), 1500);
 
-            if (result.error) {
-                throw new Error(result.error);
-            }
-            if (result.token) {
-                 await saveLicenseData(result.token, deviceId);
-                localStorage.setItem('tokoc_trial_activated_on_device', 'true');
-                toast({ title: 'Trial Activated!', description: 'Your free trial has started. The app will now reload.' });
-                setTimeout(() => window.location.reload(), 1500);
-            }
         } catch (error: any) {
             toast({ variant: 'destructive', title: 'Trial Activation Failed', description: error.message });
         }
     };
 
+    const handleFormSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+        startSubmitTransition(async () => {
+            const formData = new FormData(e.currentTarget);
+            const data = Object.fromEntries(formData.entries());
+            setFormErrors({});
+
+            const response = await fetch('/api/tickets', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data),
+            });
+
+            const result = await response.json();
+
+            if (!response.ok) {
+                if (result.errors) {
+                    setFormErrors(result.errors);
+                    if (result.errors._form) {
+                        toast({ variant: 'destructive', title: 'An error occurred', description: result.errors._form.join(', ') });
+                    }
+                } else {
+                     toast({ variant: 'destructive', title: 'An error occurred', description: result.message || 'Failed to submit ticket.' });
+                }
+            } else {
+                toast({
+                    title: 'Ticket Submitted!',
+                    description: 'Your payment proof has been received. Please wait for admin verification.',
+                });
+                setTicketStatus({
+                    status: 'pending',
+                    plan: selectedPlan?.name || 'Selected Plan',
+                    createdAt: new Date().toISOString(),
+                    ticketId: ''
+                });
+                formRef.current?.reset();
+                setSelectedPlan(null);
+            }
+        });
+    }
 
     if (loading) {
         return (
@@ -364,43 +351,44 @@ export function SubscriptionManager() {
                         </div>
 
                         <h3 className="text-lg font-semibold">Step 3: Submit Your Proof</h3>
-                        <form ref={formRef} action={formAction} className="space-y-6">
+                        <form ref={formRef} onSubmit={handleFormSubmit} className="space-y-6">
                             <input type="hidden" name="plan" value={selectedPlan.name} />
                             <input type="hidden" name="deviceId" value={deviceId || ''} />
                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                  <div className="space-y-2">
                                     <Label htmlFor="customerName">Full Name</Label>
-                                    <Input id="customerName" name="customerName" placeholder="e.g. Budi Santoso" required value={formValues.customerName} onChange={handleInputChange} />
-                                     {state?.errors?.customerName && <p className="text-sm font-medium text-destructive pt-1">{state.errors.customerName}</p>}
+                                    <Input id="customerName" name="customerName" placeholder="e.g. Budi Santoso" required />
+                                     {formErrors?.customerName && <p className="text-sm font-medium text-destructive pt-1">{formErrors.customerName}</p>}
                                 </div>
                                 <div className="space-y-2">
                                     <Label htmlFor="customerWhatsapp">WhatsApp Number</Label>
-                                    <Input id="customerWhatsapp" name="customerWhatsapp" type="tel" placeholder="e.g. 08123456789" required value={formValues.customerWhatsapp} onChange={handleInputChange} />
-                                     {state?.errors?.customerWhatsapp && <p className="text-sm font-medium text-destructive pt-1">{state.errors.customerWhatsapp}</p>}
+                                    <Input id="customerWhatsapp" name="customerWhatsapp" type="tel" placeholder="e.g. 08123456789" required />
+                                     {formErrors?.customerWhatsapp && <p className="text-sm font-medium text-destructive pt-1">{formErrors.customerWhatsapp}</p>}
                                 </div>
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="customerEmail">Your Email</Label>
-                                <Input id="customerEmail" name="customerEmail" type="email" placeholder="you@example.com" required value={formValues.customerEmail} onChange={handleInputChange} />
-                                {state?.errors?.customerEmail && <p className="text-sm font-medium text-destructive pt-1">{state.errors.customerEmail}</p>}
+                                <Input id="customerEmail" name="customerEmail" type="email" placeholder="you@example.com" required />
+                                {formErrors?.customerEmail && <p className="text-sm font-medium text-destructive pt-1">{formErrors.customerEmail}</p>}
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="proofOfPaymentUrl">Proof of Payment URL</Label>
-                                <Input id="proofOfPaymentUrl" name="proofOfPaymentUrl" type="url" placeholder="https://imgur.com/your-proof" required value={formValues.proofOfPaymentUrl} onChange={handleInputChange} />
+                                <Input id="proofOfPaymentUrl" name="proofOfPaymentUrl" type="url" placeholder="https://imgur.com/your-proof" required />
                                 <p className="text-xs text-muted-foreground">Upload your transfer receipt to a service like Imgur or Google Drive and paste the public link here.</p>
-                                {state?.errors?.proofOfPaymentUrl && <p className="text-sm font-medium text-destructive pt-1">{state.errors.proofOfPaymentUrl}</p>}
+                                {formErrors?.proofOfPaymentUrl && <p className="text-sm font-medium text-destructive pt-1">{formErrors.proofOfPaymentUrl}</p>}
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="userNotes">Notes (Optional)</Label>
-                                <Textarea id="userNotes" name="userNotes" placeholder="e.g., Payment for account renewal." value={formValues.userNotes} onChange={handleInputChange} />
+                                <Textarea id="userNotes" name="userNotes" placeholder="e.g., Payment for account renewal." />
                             </div>
-                             {state?.errors?.deviceId && <p className="text-sm font-medium text-destructive text-center">{state.errors.deviceId}</p>}
-                            {state?.errors?._form && <p className="text-sm font-medium text-destructive text-center">{state.errors._form}</p>}
-                            <SubmitButton />
+                             {formErrors?.deviceId && <p className="text-sm font-medium text-destructive text-center">{formErrors.deviceId}</p>}
+                            {formErrors?._form && <p className="text-sm font-medium text-destructive text-center">{formErrors._form}</p>}
+                            <Button type="submit" className="w-full" disabled={isSubmitting}>
+                                {isSubmitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Submitting...</> : <><Send className="mr-2 h-4 w-4" />Submit Payment Ticket</>}
+                            </Button>
                         </form>
                     </div>
                 )}
-
             </CardContent>
         </Card>
     )

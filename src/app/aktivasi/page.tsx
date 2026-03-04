@@ -5,7 +5,6 @@ import { Suspense, useState, useEffect, useTransition } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { generateDeviceFingerprint } from '@/lib/security';
 import { saveLicenseData } from '@/services/dataService';
-import { claimLicenseAction } from './_actions';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -38,15 +37,27 @@ function ActivationComponent() {
         }
         
         startActivation(async () => {
-            const result = await claimLicenseAction(ticketId, deviceId);
-            if (result.token) {
+             try {
+                const response = await fetch('/api/license/claim', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ticketId, deviceId }),
+                });
+
+                const result = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(result.error || 'An unknown error occurred.');
+                }
+                
                 await saveLicenseData(result.token, deviceId);
                 toast({ title: 'Activation Successful!', description: 'Your license is now active. Redirecting...' });
                 setTimeout(() => {
                     window.location.href = '/dashboard';
                 }, 1500);
-            } else {
-                toast({ variant: 'destructive', title: 'Activation Failed', description: result.error || 'An unknown error occurred.' });
+
+            } catch (error: any) {
+                toast({ variant: 'destructive', title: 'Activation Failed', description: error.message });
             }
         });
     };
