@@ -22,7 +22,6 @@ import { SelectedModifier } from '@/lib/types';
 import { useIsMobile } from '@/lib/ismobile-store';
 import { useGlobalBarcodeScanner } from '@/hooks/use-global-barcode-scanner';
 import { useSettingsStore } from '@/lib/settings';
-import { useDebounce } from '@/hooks/useDebounce';
 import { useProductSearch } from '@/lib/useProductSearch';
 
 export type ViewMode = 'card' | 'thumbnail' | 'list';
