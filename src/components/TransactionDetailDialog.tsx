@@ -6,7 +6,6 @@ import { Transaction } from "@/lib/types";
 import { useStore } from "@/lib/store";
 import { useToast } from "@/hooks/use-toast";
 import { voidTransaction } from "@/services/transactionService";
-import { generateReceiptText, printReceipt } from "@/lib/receipt";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 
@@ -18,6 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { ReceiptText, Trash2, Printer, Clock } from "lucide-react";
+import { usePrintStore } from "@/lib/print-store";
 
 interface TransactionDetailDialogProps {
     transaction: Transaction | null;
@@ -33,7 +33,8 @@ const formatCurrency = (amount: number) => {
 };
 
 export function TransactionDetailDialog({ transaction, onOpenChange }: TransactionDetailDialogProps) {
-    const { storeConfig, shifts } = useStore();
+    const { shifts } = useStore();
+    const { addToQueue } = usePrintStore();
     const { toast } = useToast();
     const [voidReason, setVoidReason] = useState("");
     const [isVoidAlertOpen, setIsVoidAlertOpen] = useState(false);
@@ -62,11 +63,11 @@ export function TransactionDetailDialog({ transaction, onOpenChange }: Transacti
     };
 
     const handlePrint = () => {
-        if (storeConfig) {
-            const receiptText = generateReceiptText(transaction, storeConfig);
-            printReceipt(receiptText);
+        if (transaction) {
+            addToQueue(transaction);
+            toast({ title: 'Sent to Printer', description: 'Receipt has been added to the print queue.' });
         } else {
-            toast({ variant: "destructive", title: "Cannot Print", description: "Store configuration is missing." });
+            toast({ variant: "destructive", title: "Cannot Print", description: "Transaction data is missing." });
         }
     };
 
