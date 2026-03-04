@@ -32,9 +32,14 @@ export function generateReceiptBinary(transaction: Transaction, storeConfig: Sto
         .align('center')
         .bold(true)
         .line(storeConfig.store_name.toUpperCase())
-        .bold(false)
-        .line(storeConfig.address || 'Alamat tidak diatur')
-        .newline();
+        .bold(false);
+
+    // Only print address if it exists and is not empty
+    if (storeConfig.address && storeConfig.address.trim()) {
+        encoder.line(storeConfig.address);
+    }
+    
+    encoder.newline();
 
     // --- Transaction Info ---
     encoder
@@ -76,9 +81,15 @@ export function generateReceiptBinary(transaction: Transaction, storeConfig: Sto
         .newline();
 
     // --- Footer ---
+    encoder.align('center');
+
+    if (storeConfig.receipt_footer && storeConfig.receipt_footer.trim()) {
+        encoder.line(storeConfig.receipt_footer);
+    } else {
+        encoder.line('Thank You!');
+    }
+    
     encoder
-        .align('center')
-        .line(storeConfig.receipt_footer || 'Thank You!')
         .newline()
         .newline()
         .cut(); // Native cut command
