@@ -7,7 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useEffect, useTransition } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { updateStoreConfigAction } from '../_actions';
+import { updateStoreConfig } from '@/services/settingsService';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -49,11 +49,11 @@ export function StoreInfoForm() {
 
     const onSubmit = (data: StoreInfoFormValues) => {
         startTransition(async () => {
-            const result = await updateStoreConfigAction(data);
-            if (result.success) {
+            try {
+                await updateStoreConfig(data);
                 toast({ title: 'Success', description: 'Store information updated.' });
-            } else {
-                toast({ variant: 'destructive', title: 'Error', description: result.error });
+            } catch (error: any) {
+                toast({ variant: 'destructive', title: 'Error', description: error.message || 'Could not update store info.' });
             }
         });
     };

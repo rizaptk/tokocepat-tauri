@@ -7,7 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useEffect, useTransition } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { updateStoreConfigAction } from '../_actions';
+import { updateStoreConfig } from '@/services/settingsService';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -67,11 +67,16 @@ export function TaxSettingsForm() {
 
     const onSubmit = (data: TaxSettingsFormValues) => {
         startTransition(async () => {
-            const result = await updateStoreConfigAction({ tax_settings: data });
-            if (result.success) {
+            try {
+                // Also update the legacy tax_rate for compatibility
+                const updatePayload = {
+                    tax_settings: data,
+                    tax_rate: data.default_rate
+                };
+                await updateStoreConfig(updatePayload);
                 toast({ title: 'Success', description: 'Tax settings updated.' });
-            } else {
-                toast({ variant: 'destructive', title: 'Error', description: result.error });
+            } catch (error: any) {
+                toast({ variant: 'destructive', title: 'Error', description: error.message || 'Could not update tax settings.' });
             }
         });
     };
