@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useDbStore } from '@/lib/db-store';
@@ -8,7 +7,7 @@ import { useToast } from '@/hooks/use-toast';
 import { clearTransactionData } from '@/services/dataService';
 import { formatDistanceToNow } from 'date-fns';
 import { getBackupMetadata, promptAndSetBackupFile, performBackup } from '@/lib/backupService';
-import { printerManager, type PrinterInfo } from '@/lib/webUSBPrinter';
+import { printerManager, type PrinterInfo } from '@/lib/webUSBprinter';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
