@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { Product, ProductVariant } from '@/lib/types';
 import { useStore } from '@/lib/store';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter } from '@/components/ui/sheet';
@@ -10,6 +10,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Separator } from './ui/separator';
+import { useGlobalKeydown } from '@/hooks/use-global-keydown';
 
 interface VariantPanelProps {
     item: Product | null;
@@ -21,6 +22,7 @@ export function VariantPanel({ item, onOpenChange, onConfirm }: VariantPanelProp
     const { productVariants } = useStore();
     const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null);
     const [isDesktop, setIsDesktop] = useState(false);
+    const contentRef = useRef<HTMLDivElement>(null);
 
     const variantsForProduct = useMemo(() => {
         if (!item) return [];
@@ -62,6 +64,13 @@ export function VariantPanel({ item, onOpenChange, onConfirm }: VariantPanelProp
         }
     };
     
+    useGlobalKeydown({
+        key: 'Enter',
+        handler: handleConfirm,
+        enabled: !!item && !!selectedVariant,
+        bindTo: contentRef,
+    });
+    
     const formatCurrency = (amount: number) => {
         return new Intl.NumberFormat('id-ID', {
           style: 'currency',
@@ -72,7 +81,7 @@ export function VariantPanel({ item, onOpenChange, onConfirm }: VariantPanelProp
 
     return (
         <Sheet open={!!item} onOpenChange={onOpenChange}>
-            <SheetContent side={isDesktop ? 'right' : 'bottom'} className={isDesktop ? "w-[400px] sm:w-[540px] flex flex-col" : "h-auto flex flex-col"}>
+            <SheetContent ref={contentRef} side={isDesktop ? 'right' : 'bottom'} className={isDesktop ? "w-[400px] sm:w-[540px] flex flex-col" : "h-auto flex flex-col"}>
                 {item && (
                     <>
                         <SheetHeader>

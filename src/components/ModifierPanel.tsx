@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { Product, ModifierGroup, ModifierItem, SelectedModifier, CartItem } from '@/lib/types';
 import { useStore } from '@/lib/store';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter } from '@/components/ui/sheet';
@@ -11,6 +11,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Separator } from './ui/separator';
+import { useGlobalKeydown } from '@/hooks/use-global-keydown';
 
 interface ModifierPanelProps {
     item: Product | CartItem | null;
@@ -22,6 +23,7 @@ export function ModifierPanel({ item, onOpenChange, onConfirm }: ModifierPanelPr
     const { modifierGroups: allModifierGroups } = useStore();
     const [selectedModifiers, setSelectedModifiers] = useState<Record<string, ModifierItem[]>>({});
     const [isDesktop, setIsDesktop] = useState(false);
+    const contentRef = useRef<HTMLDivElement>(null);
 
     const isEditing = item && 'cartItemId' in item;
     const productData = item as Product; // Treat both Product and CartItem as Product for data access
@@ -127,6 +129,13 @@ export function ModifierPanel({ item, onOpenChange, onConfirm }: ModifierPanelPr
         onConfirm(flattenedModifiers);
     };
 
+    useGlobalKeydown({
+        key: 'Enter',
+        handler: handleConfirm,
+        enabled: !!item && validation.isValid,
+        bindTo: contentRef,
+    });
+
     const formatCurrency = (amount: number) => {
         return new Intl.NumberFormat('id-ID', {
           style: 'currency',
@@ -137,7 +146,7 @@ export function ModifierPanel({ item, onOpenChange, onConfirm }: ModifierPanelPr
 
     return (
         <Sheet open={!!item} onOpenChange={onOpenChange}>
-            <SheetContent side={isDesktop ? 'right' : 'bottom'} className={isDesktop ? "w-[400px] sm:w-[540px] flex flex-col" : "h-[90vh] flex flex-col"}>
+            <SheetContent ref={contentRef} side={isDesktop ? 'right' : 'bottom'} className={isDesktop ? "w-[400px] sm:w-[540px] flex flex-col" : "h-[90vh] flex flex-col"}>
                 {productData && (
                     <>
                         <SheetHeader>
