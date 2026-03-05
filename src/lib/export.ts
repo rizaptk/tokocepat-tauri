@@ -3,6 +3,8 @@ import * as XLSX from 'xlsx';
 import { Transaction, Product, StoreConfig, StockMovement } from '@/lib/types';
 import { format, parseISO } from 'date-fns';
 import { PDFDocument, rgb, StandardFonts, PageSizes } from 'pdf-lib';
+/** @ts-ignore - bwip-js does not provide types for browser-side buffer generation */
+import bwipjs from 'bwip-js';
 
 const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('id-ID', {
@@ -13,7 +15,7 @@ const formatCurrency = (amount: number) => {
 };
 
 export const exportSalesToExcel = (transactions: Transaction[], dateRange: { from: Date, to: Date }, storeName: string) => {
-    
+
     const dataForExport = transactions.map(tx => {
         const txCost = tx.items.reduce((itemSum, item) => itemSum + ((item.cost_snapshot || 0) * item.qty), 0);
         const txProfit = tx.subtotal - txCost;
@@ -29,7 +31,7 @@ export const exportSalesToExcel = (transactions: Transaction[], dateRange: { fro
             'Total': tx.total,
         };
     });
-    
+
     // Add summary row
     const totalRevenue = transactions.reduce((sum, tx) => sum + tx.total, 0);
     const totalProfit = dataForExport.reduce((sum, row) => sum + row.Profit, 0);
@@ -47,10 +49,10 @@ export const exportSalesToExcel = (transactions: Transaction[], dateRange: { fro
         'Tax': totalTax,
         'Total': totalRevenue,
     };
-    
+
     const worksheet = XLSX.utils.json_to_sheet(dataForExport);
     XLSX.utils.sheet_add_json(worksheet, [summary], { origin: -1, skipHeader: true });
-    
+
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Sales Report');
 
@@ -87,7 +89,7 @@ export const exportInventoryToExcel = (products: (Product & { categoryName: stri
 
     const worksheet = XLSX.utils.json_to_sheet(dataForExport);
     XLSX.utils.sheet_add_json(worksheet, [summary], { origin: -1, skipHeader: true });
-    
+
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Inventory Report');
 
@@ -105,7 +107,7 @@ export const exportStockSummaryToExcel = (reportData: any[], dateRange: { from: 
         'Adjusted (+/-)': item.adjusted,
         'Closing Stock': item.closingStock,
     }));
-    
+
     const worksheet = XLSX.utils.json_to_sheet(dataForExport);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Stock Summary');
@@ -149,7 +151,7 @@ export const exportSalesToPdf = async (transactions: Transaction[], dateRange: {
         return sum + (tx.subtotal - txCost);
     }, 0);
     const totalTax = transactions.reduce((sum, tx) => sum + tx.tax_amount, 0);
-    
+
     page.drawText(`Total Revenue: ${formatCurrency(totalRevenue)}`, { x: margin, y, font, size: fontSize });
     y -= 15;
     page.drawText(`Total Tax: ${formatCurrency(totalTax)}`, { x: margin, y, font, size: fontSize });
@@ -180,7 +182,7 @@ export const exportSalesToPdf = async (transactions: Transaction[], dateRange: {
         if (y < margin) {
             // For simplicity, we'll assume it fits on one page. 
             // A real implementation would add a new page here.
-            break; 
+            break;
         }
         const txCost = tx.items.reduce((itemSum, item) => itemSum + ((item.cost_snapshot || 0) * item.qty), 0);
         const txProfit = tx.subtotal - txCost;
@@ -204,7 +206,7 @@ export const exportSalesToPdf = async (transactions: Transaction[], dateRange: {
     }
 
     const pdfBytes = await pdfDoc.save();
-    
+
     // Trigger download
     const blob = new Blob([pdfBytes], { type: 'application/pdf' });
     const link = document.createElement('a');
@@ -259,13 +261,13 @@ export const exportStockMovementToPdf = async (movements: ReportRow[], dateRange
         page.drawText(`Period: ${format(dateRange.from, 'PPP')} to ${format(dateRange.to, 'PPP')}`, { x: margin, y, font, size: 10 });
         y -= 25;
     };
-    
+
     drawHeader();
-    
+
     const tableHeaders = ['Date', 'Product', 'Type', 'Open', 'Qty', 'Result', 'Ref'];
     const colWidths = [70, 130, 55, 40, 40, 45, 150];
     let x = margin;
-    
+
     // Draw table header
     tableHeaders.forEach((header, i) => {
         page.drawText(header, { x, y, font: boldFont, size: fontSize });
@@ -274,7 +276,7 @@ export const exportStockMovementToPdf = async (movements: ReportRow[], dateRange
     y -= 5;
     page.drawLine({ start: { x: margin, y }, end: { x: width - margin, y }, thickness: 1 });
     y -= 15;
-    
+
     for (const m of movements) {
         if (y < margin) {
             page = pdfDoc.addPage();
@@ -299,7 +301,7 @@ export const exportStockMovementToPdf = async (movements: ReportRow[], dateRange
             m.resultingStock.toString(),
             m.referenceDisplay,
         ];
-        
+
         x = margin;
         row.forEach((cell, i) => {
             const textWidth = font.widthOfTextAtSize(cell, 8);
@@ -311,7 +313,7 @@ export const exportStockMovementToPdf = async (movements: ReportRow[], dateRange
     }
 
     const pdfBytes = await pdfDoc.save();
-    
+
     const blob = new Blob([pdfBytes], { type: 'application/pdf' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
@@ -333,7 +335,7 @@ export const exportConsumptionToExcel = (reportData: any[], dateRange: { from: D
         'Unit': item.unit_type,
         'Closing Value': item.closingStock * item.cost_per_unit,
     }));
-    
+
     const worksheet = XLSX.utils.json_to_sheet(dataForExport);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Consumption Report');
@@ -358,13 +360,13 @@ export const exportConsumptionToPdf = async (reportData: any[], dateRange: { fro
         page.drawText(`Period: ${format(dateRange.from, 'PPP')} to ${format(dateRange.to, 'PPP')}`, { x: margin, y, font, size: 10 });
         y -= 25;
     };
-    
+
     drawHeader();
-    
+
     const tableHeaders = ['Ingredient', 'Opening', 'Consumed', 'Consumed Val', 'Adjusted', 'Closing', 'Closing Val'];
     const colWidths = [120, 60, 60, 70, 60, 60, 70];
     let x = margin;
-    
+
     tableHeaders.forEach((header, i) => {
         page.drawText(header, { x, y, font: boldFont, size: fontSize });
         x += colWidths[i];
@@ -372,7 +374,7 @@ export const exportConsumptionToPdf = async (reportData: any[], dateRange: { fro
     y -= 5;
     page.drawLine({ start: { x: margin, y }, end: { x: width - margin, y }, thickness: 1 });
     y -= 15;
-    
+
     for (const item of reportData) {
         if (y < margin) {
             page = pdfDoc.addPage();
@@ -397,7 +399,7 @@ export const exportConsumptionToPdf = async (reportData: any[], dateRange: { fro
             `${item.closingStock.toLocaleString()} ${item.unit_type}`,
             formatCurrency(item.closingStock * item.cost_per_unit),
         ];
-        
+
         x = margin;
         row.forEach((cell, i) => {
             page.drawText(cell, { x, y, font, size: 8 });
@@ -407,7 +409,7 @@ export const exportConsumptionToPdf = async (reportData: any[], dateRange: { fro
     }
 
     const pdfBytes = await pdfDoc.save();
-    
+
     const blob = new Blob([pdfBytes], { type: 'application/pdf' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
@@ -440,7 +442,7 @@ export const exportShiftDetailsToPdf = async (shift: any, transactions: Transact
     // Shift Summary
     const openedAt = typeof shift.opened_at === 'string' ? parseISO(shift.opened_at) : new Date(shift.opened_at);
     const closedAt = shift.closed_at ? (typeof shift.closed_at === 'string' ? parseISO(shift.closed_at) : new Date(shift.closed_at)) : null;
-    
+
     page.drawText(`Shift ID: ${shift.id}`, { x: margin, y, font, size: 12 });
     y -= 18;
     page.drawText(`Period: ${format(openedAt, 'PPP p')} to ${closedAt ? format(closedAt, 'PPP p') : 'Ongoing'}`, {
@@ -468,7 +470,7 @@ export const exportShiftDetailsToPdf = async (shift: any, transactions: Transact
     let x = margin;
     summaryData.forEach(item => {
         page.drawText(item.label, { x, y, font, size: fontSize });
-        page.drawText(item.value, { x: x + 120, y, font: boldFont, size: fontSize, color: item.color || rgb(0,0,0) });
+        page.drawText(item.value, { x: x + 120, y, font: boldFont, size: fontSize, color: item.color || rgb(0, 0, 0) });
         y -= 15;
     });
     y -= 15;
@@ -495,9 +497,9 @@ export const exportShiftDetailsToPdf = async (shift: any, transactions: Transact
         if (y < margin) {
             // For simplicity, we'll assume it fits on one page. 
             // A real implementation would add a new page here.
-            break; 
+            break;
         }
-        
+
         // Handle cases where created_at might be a UUID string or invalid date string
         let txDate = typeof tx.created_at === 'string' ? parseISO(tx.created_at) : new Date(tx.created_at);
         if (isNaN(txDate.getTime())) {
@@ -515,103 +517,273 @@ export const exportShiftDetailsToPdf = async (shift: any, transactions: Transact
 
         x = margin;
         row.forEach((cell, i) => {
-            page.drawText(cell, { x, y, font, size: 8, color: tx.status === 'voided' ? rgb(0.5, 0.5, 0.5) : rgb(0,0,0) });
+            page.drawText(cell, { x, y, font, size: 8, color: tx.status === 'voided' ? rgb(0.5, 0.5, 0.5) : rgb(0, 0, 0) });
             x += colWidths[i];
         });
         y -= 12;
     }
 
     const pdfBytes = await pdfDoc.save();
-    
+
     // Trigger download
     const blob = new Blob([pdfBytes], { type: 'application/pdf' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
-    link.download = `shift_report_${storeName.replace(/\s+/g, '_')}_${shift.id.substring(0,8)}.pdf`;
+    link.download = `shift_report_${storeName.replace(/\s+/g, '_')}_${shift.id.substring(0, 8)}.pdf`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
 };
 
-export const exportBarcodeStickersToPdf = async (products: Product[]) => {
-    // --- PDF Configuration ---
-    const page = PageSizes.Letter; // [612, 792] points
-    const pageMargin = 36; // 0.5 inch
-    const stickerWidth = 192; // 2.66 inches
-    const stickerHeight = 72; // 1 inch
-    const gapX = 12;
-    const gapY = 0;
-    const cols = 3;
-    const rows = 10;
-    // -------------------------
+// export const exportBarcodeStickersToPdf = async (products: Product[]) => {
+//     // --- PDF Configuration ---
+//     const page = PageSizes.Letter; // [612, 792] points
+//     const pageMargin = 36; // 0.5 inch
+//     const stickerWidth = 192; // 2.66 inches
+//     const stickerHeight = 72; // 1 inch
+//     const gapX = 12;
+//     const gapY = 0;
+//     const cols = 3;
+//     const rows = 10;
+//     // -------------------------
 
-    const pdfDoc = await PDFDocument.create();
-    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
-    const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
-    const monoFont = await pdfDoc.embedFont(StandardFonts.Courier);
+//     const pdfDoc = await PDFDocument.create();
+//     const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+//     const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+//     const monoFont = await pdfDoc.embedFont(StandardFonts.Courier);
 
-    let productIndex = 0;
-    
-    while (productIndex < products.length) {
-        const currentPage = pdfDoc.addPage(page);
-        
-        for (let r = 0; r < rows; r++) {
-            for (let c = 0; c < cols; c++) {
-                if (productIndex >= products.length) break;
+//     let productIndex = 0;
 
-                const product = products[productIndex];
-                if (!product.barcode) {
-                    productIndex++;
-                    c--; // Retry this cell with the next product
-                    continue;
-                }
+//     while (productIndex < products.length) {
+//         const currentPage = pdfDoc.addPage(page);
 
-                const x = pageMargin + c * (stickerWidth + gapX);
-                const y = page[1] - pageMargin - stickerHeight - r * (stickerHeight + gapY);
+//         for (let r = 0; r < rows; r++) {
+//             for (let c = 0; c < cols; c++) {
+//                 if (productIndex >= products.length) break;
 
-                // --- Draw Sticker Content ---
-                // Name (truncated)
-                let productName = product.name;
-                if (productName.length > 25) {
-                    productName = productName.substring(0, 22) + '...';
-                }
-                currentPage.drawText(productName, {
-                    x: x + 5,
-                    y: y + stickerHeight - 20,
-                    font: boldFont,
-                    size: 10,
-                });
+//                 const product = products[productIndex];
+//                 if (!product.barcode) {
+//                     productIndex++;
+//                     c--; // Retry this cell with the next product
+//                     continue;
+//                 }
 
-                // Price
-                currentPage.drawText(formatCurrency(product.price), {
-                    x: x + 5,
-                    y: y + stickerHeight - 38,
-                    font,
-                    size: 9,
-                });
-                
-                // Barcode String
-                currentPage.drawText(`*${product.barcode}*`, {
-                    x: x + 5,
-                    y: y + stickerHeight - 60,
-                    font: monoFont, // Use monospaced for barcode-like appearance
-                    size: 11,
-                });
+//                 const x = pageMargin + c * (stickerWidth + gapX);
+//                 const y = page[1] - pageMargin - stickerHeight - r * (stickerHeight + gapY);
 
-                productIndex++;
-            }
-            if (productIndex >= products.length) break;
+//                 // --- Draw Sticker Content ---
+//                 // Name (truncated)
+//                 let productName = product.name;
+//                 if (productName.length > 25) {
+//                     productName = productName.substring(0, 22) + '...';
+//                 }
+//                 currentPage.drawText(productName, {
+//                     x: x + 5,
+//                     y: y + stickerHeight - 20,
+//                     font: boldFont,
+//                     size: 10,
+//                 });
+
+//                 // Price
+//                 currentPage.drawText(formatCurrency(product.price), {
+//                     x: x + 5,
+//                     y: y + stickerHeight - 38,
+//                     font,
+//                     size: 9,
+//                 });
+
+//                 // Barcode String
+//                 currentPage.drawText(`*${product.barcode}*`, {
+//                     x: x + 5,
+//                     y: y + stickerHeight - 60,
+//                     font: monoFont, // Use monospaced for barcode-like appearance
+//                     size: 11,
+//                 });
+
+//                 productIndex++;
+//             }
+//             if (productIndex >= products.length) break;
+//         }
+//     }
+
+//     const pdfBytes = await pdfDoc.save();
+//     const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+//     const url = URL.createObjectURL(blob);
+//     const link = document.createElement('a');
+//     link.href = url;
+//     link.download = 'barcode_labels.pdf';
+//     document.body.appendChild(link);
+//     link.click();
+//     document.body.removeChild(link);
+//     URL.revokeObjectURL(url);
+// };
+
+const mmToPt = (mm: number) => mm * 2.83465
+
+interface LabelOptions {
+    pageSize?: [number, number]
+    labelWidthMm?: number
+    labelHeightMm?: number
+    repeat?: number
+    marginMm?: number
+    gapMm?: number
+}
+
+export const exportBarcodeStickersToPdf = async (
+    products: Product[],
+    options: LabelOptions = {}
+) => {
+
+    const {
+        pageSize = PageSizes.A4,
+        labelWidthMm = 38,
+        labelHeightMm = 13,
+        repeat = 1,
+        marginMm = 5,
+        gapMm = 2
+    } = options
+
+    const labelWidth = mmToPt(labelWidthMm)
+    const labelHeight = mmToPt(labelHeightMm)
+
+    const margin = mmToPt(marginMm)
+    const gap = mmToPt(gapMm)
+
+    const pageWidth = pageSize[0]
+    const pageHeight = pageSize[1]
+
+    const cols = Math.floor((pageWidth - margin * 2 + gap) / (labelWidth + gap))
+    const rows = Math.floor((pageHeight - margin * 2 + gap) / (labelHeight + gap))
+
+    const pdfDoc = await PDFDocument.create()
+
+    const font = await pdfDoc.embedFont(StandardFonts.Helvetica)
+    const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold)
+    const monoFont = await pdfDoc.embedFont(StandardFonts.Courier)
+
+    const barcodeCache = new Map<string, any>()
+
+    async function getBarcode(barcode: string) {
+
+        if (barcodeCache.has(barcode)) {
+            return barcodeCache.get(barcode)
+        }
+
+        const canvas = document.createElement("canvas")
+
+        await bwipjs.toCanvas(canvas, {
+            bcid: "code128",
+            text: barcode,
+            scale: 2,
+            height: 6,
+            includetext: false
+        })
+
+        const pngBytes = await fetch(canvas.toDataURL()).then(r => r.arrayBuffer())
+
+        const img = await pdfDoc.embedPng(pngBytes)
+
+        barcodeCache.set(barcode, img)
+
+        return img
+    }
+
+    const expandedProducts: Product[] = []
+
+    for (const p of products) {
+        for (let i = 0; i < repeat; i++) {
+            expandedProducts.push(p)
         }
     }
 
-    const pdfBytes = await pdfDoc.save();
-    const blob = new Blob([pdfBytes], { type: 'application/pdf' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'barcode_labels.pdf';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-};
+    let productIndex = 0
+
+    while (productIndex < expandedProducts.length) {
+
+        const page = pdfDoc.addPage(pageSize)
+
+        for (let r = 0; r < rows; r++) {
+            for (let c = 0; c < cols; c++) {
+
+                if (productIndex >= expandedProducts.length) break
+
+                const product = expandedProducts[productIndex]
+
+                if (!product.barcode) {
+                    productIndex++
+                    c--
+                    continue
+                }
+
+                const x = margin + c * (labelWidth + gap)
+
+                const y =
+                    pageHeight -
+                    margin -
+                    labelHeight -
+                    r * (labelHeight + gap)
+
+                let name = product.name
+
+                if (name.length > 18) {
+                    name = name.substring(0, 16) + "..."
+                }
+
+                page.drawText(name, {
+                    x: x + 3,
+                    y: y + labelHeight - 8,
+                    size: 6,
+                    font: boldFont
+                })
+
+                page.drawText(formatCurrency(product.price), {
+                    x: x + labelWidth - font.widthOfTextAtSize(formatCurrency(product.price), 6) - 3,
+                    y: y + labelHeight - 8,
+                    size: 6,
+                    font
+                })
+
+                const barcodeImg = await getBarcode(product.barcode)
+
+                page.drawImage(barcodeImg, {
+                    x: x + 3,
+                    y: y + labelHeight - 28,
+                    width: labelWidth - 6,
+                    height: labelHeight * 0.45
+                })
+
+                const barcodeTextWidth = monoFont.widthOfTextAtSize(product.barcode, 6);
+
+                page.drawText(product.barcode, {
+                    x: x + (labelWidth / 2) - (barcodeTextWidth / 2),
+                    y: y + 2,
+                    size: 6,
+                    font: monoFont
+                })
+
+                productIndex++
+            }
+
+            if (productIndex >= expandedProducts.length) break
+        }
+    }
+
+    const pdfBytes = await pdfDoc.save()
+
+    const blob = new Blob([pdfBytes], { type: "application/pdf" })
+
+    const url = URL.createObjectURL(blob)
+
+    const link = document.createElement("a")
+
+    link.href = url
+    link.download = "barcode_labels.pdf"
+
+    document.body.appendChild(link)
+
+    link.click()
+
+    document.body.removeChild(link)
+
+    URL.revokeObjectURL(url)
+}

@@ -12,6 +12,8 @@ import { ProductListItem } from './items/ProductListItem';
 import { useOverlayScrollbar } from '@/hooks/useScrollOverlay';
 import { useProductSearch } from '@/lib/useProductSearch';
 import { motion } from 'framer-motion';
+import { useGlobalKeydown } from '@/hooks/use-global-keydown';
+import { useActiveProduct } from '@/lib/product-active-store';
 
 type ViewMode = 'card' | 'thumbnail' | 'list';
 
@@ -30,8 +32,6 @@ type ProductListProps = {
   selectedProductId?: string | null;
   context?: 'cashier' | 'product' | 'inventory';
   setScrollTop?: (top: number) => void;
-  selectedProductIds?: Set<string>;
-  onToggleSelection?: (id: string) => void;
 };
 
 // Constants for layout calculation
@@ -43,7 +43,7 @@ const LIST_ROW_HEIGHT = 56;
 // --- Components for Card Grid View ---
 
 // 1. Memoized item for performance. This is one cell in the grid.
-const CardGridItem = React.memo(({ product, onItemClick, selectedProductId, context, columnCount, selectedProductIds, onToggleSelection }: { product: Product, onItemClick?: (product: Product) => void, selectedProductId?: string | null, context?: 'cashier' | 'product' | 'inventory', columnCount: number, selectedProductIds?: Set<string>, onToggleSelection?: (id: string) => void }) => {
+const CardGridItem = React.memo(({ product, onItemClick, selectedProductId, context, columnCount }: { product: Product, onItemClick?: (product: Product) => void, selectedProductId?: string | null, context?: 'cashier' | 'product' | 'inventory', columnCount: number}) => {
   if (!product) return null;
 
   return (
@@ -58,8 +58,6 @@ const CardGridItem = React.memo(({ product, onItemClick, selectedProductId, cont
         onItemClick={onItemClick}
         isSelected={product.id === selectedProductId}
         context={context}
-        selectedProductIds={selectedProductIds}
-        onToggleSelection={onToggleSelection}
       />
     </motion.div>
   );
@@ -69,8 +67,7 @@ CardGridItem.displayName = 'CardGridItem';
 
 // 2. The Row component that react-window will render.
 const CardRow = ({ index, style, data }: { index: number, style: React.CSSProperties, data: any }) => {
-  const { products, columnCount, totalItems, onItemClick, selectedProductId, context, selectedProductIds, onToggleSelection } = data;
-
+  const { products, columnCount, totalItems, onItemClick, selectedProductId, context } = data;
   const itemsInRow = [];
   const startIndex = index * columnCount;
 
@@ -85,8 +82,6 @@ const CardRow = ({ index, style, data }: { index: number, style: React.CSSProper
           selectedProductId={selectedProductId}
           context={context}
           columnCount={columnCount}
-          selectedProductIds={selectedProductIds}
-          onToggleSelection={onToggleSelection}
         />
       );
     }
@@ -118,8 +113,6 @@ const ListItem = React.memo(({ index, style, data }: { index: number, style: Rea
         onItemClick={onItemClick}
         isSelected={product.id === selectedProductId}
         context={context}
-        selectedProductIds={selectedProductIds}
-        onToggleSelection={onToggleSelection}
       />
     </motion.div>
   ) : (
@@ -135,8 +128,6 @@ const ListItem = React.memo(({ index, style, data }: { index: number, style: Rea
         isSelected={product.id === selectedProductId}
         context={context}
         isEvent={isEven}
-        selectedProductIds={selectedProductIds}
-        onToggleSelection={onToggleSelection}
       />
     </motion.div>
   );
@@ -171,7 +162,7 @@ const LoadingSkeleton = ({ viewMode }: { viewMode: ViewMode }) => {
 }
 
 // --- Main ProductList Component ---
-export function ProductList({ products, viewMode, isLoading, onItemClick, selectedProductId, context = 'cashier', setScrollTop, selectedProductIds, onToggleSelection }: ProductListProps) {
+export function ProductList({ products, viewMode, isLoading, onItemClick, selectedProductId, context = 'cashier', setScrollTop }: ProductListProps) {
 
   const outerRef = useRef<HTMLDivElement>(null);
   const thumbRef = useRef<HTMLDivElement>(null);
@@ -198,6 +189,50 @@ export function ProductList({ products, viewMode, isLoading, onItemClick, select
   })
 
   const [isScrolling, setIsCrolling] = useState(false);
+  const { activeIndex, setActiveIndex, setActiveId } = useActiveProduct();
+
+  useGlobalKeydown({
+    key: 'ArrowUp',
+    handler: () => {
+      if (activeIndex === null || activeIndex === undefined || (activeIndex > filteredProducts.length - 1)) {
+        setActiveIndex(filteredProducts.length - 1);
+        const lastProduct = filteredProducts[filteredProducts.length - 1];
+        setActiveId(lastProduct.id);
+        return;
+      }
+
+      const newindex = activeIndex > 0 ? activeIndex - 1 : filteredProducts.length - 1;
+      setActiveIndex(newindex);
+      const prevProduct = filteredProducts[newindex];
+      setActiveId(prevProduct.id);
+    },
+    enabled: true
+  });
+
+  useGlobalKeydown({
+    key: 'ArrowDown',
+    handler: () => {
+      if (activeIndex === null || activeIndex === undefined) {
+        setActiveIndex(0);
+        const firstProduct = filteredProducts[0];
+        setActiveId(firstProduct.id);
+        return;
+      }
+
+      if (activeIndex > filteredProducts.length - 1) {
+        setActiveIndex(filteredProducts.length - 1);
+        const lastProduct = filteredProducts[filteredProducts.length - 1];
+        setActiveId(lastProduct.id);
+        return;
+      }
+
+      const newindex = activeIndex < filteredProducts.length - 1 ? activeIndex + 1 : 0;
+      setActiveIndex(newindex);
+      const nextProduct = filteredProducts[newindex];
+      setActiveId(nextProduct.id);
+    },
+    enabled: true
+  });
 
   useEffect(() => {
     const unsubscribe = subscribe(() => {
@@ -272,8 +307,6 @@ export function ProductList({ products, viewMode, isLoading, onItemClick, select
                     onItemClick,
                     selectedProductId,
                     context,
-                    selectedProductIds,
-                    onToggleSelection,
                   }}
                 >
                   {CardRow}
@@ -295,8 +328,6 @@ export function ProductList({ products, viewMode, isLoading, onItemClick, select
                     onItemClick,
                     selectedProductId,
                     context,
-                    selectedProductIds,
-                    onToggleSelection,
                   }}
                 >
                   {ListItem}

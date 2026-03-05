@@ -2,15 +2,17 @@
 "use client";
 
 import Image from 'next/image';
-import { Product, Category } from '@/lib/types';
+import { Product } from '@/lib/types';
 import { useStore } from '@/lib/store';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ShoppingCart, SlidersHorizontal, TriangleAlert } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useMemo } from 'react';
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Checkbox } from './ui/checkbox';
+import { useSelectedChecked } from '@/hooks/useDeferedCheck';
+import { useActiveProduct } from '@/lib/product-active-store';
 
 type ProductCardProps = {
   product: Product;
@@ -18,13 +20,26 @@ type ProductCardProps = {
   isSelected?: boolean;
   context?: 'cashier' | 'product' | 'inventory';
   style?: React.CSSProperties;
-  selectedProductIds?: Set<string>;
-  onToggleSelection?: (id: string) => void;
 };
 
-export function ProductCard({ product, onItemClick, isSelected, context = 'cashier', style, selectedProductIds, onToggleSelection }: ProductCardProps) {
+export function ProductCard({ product, onItemClick, isSelected, context = 'cashier', style }: ProductCardProps) {
+  const cardRef = useRef<HTMLDivElement>(null);
   const { categories } = useStore();
   const category = useMemo(() => categories.find(c => c.id === product.category_id), [categories, product.category_id]);
+
+  const [checked, toggleChecked] = useSelectedChecked(product.id);
+  const { activeId } = useActiveProduct();
+
+  const arrowActive = activeId === product.id;
+
+  useEffect(() => {
+    if (arrowActive && cardRef.current) {
+      cardRef.current.scrollIntoView({
+        behavior: 'smooth',
+        block: 'nearest',
+      });
+    }
+  }, [arrowActive]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('id-ID', {
@@ -44,17 +59,18 @@ export function ProductCard({ product, onItemClick, isSelected, context = 'cashi
   const isLowStock = product.track_stock && product.low_stock_alert != null && product.stock > 0 && product.stock <= product.low_stock_alert;
   const is_active = product.is_active;
 
-  const isChecked = selectedProductIds?.has(product.id) ?? false;
-
+  // const isChecked = selectedProductIds?.has(product.id) ?? false;
 
   return (
     <Card 
+      ref={cardRef}
       style={style}
       className={cn(
         "flex flex-col h-full overflow-hidden transition-all hover:shadow-lg relative",
         isSelected && "ring-2 ring-primary ring-offset-2",
         isOutOfStock ? "cursor-not-allowed" : "cursor-pointer",
-        !is_active && "opacity-80"
+        !is_active && "opacity-80",
+        arrowActive && "ring-4 ring-primary ring-offset-2 shadow-lg"
 
       )}
       onClick={!isOutOfStock ? handleSelect : undefined}
@@ -64,9 +80,9 @@ export function ProductCard({ product, onItemClick, isSelected, context = 'cashi
       aria-label={`Select ${product.name}`}
       aria-disabled={isOutOfStock}
     >
-      {onToggleSelection && context === 'product' && (
-        <div className="absolute top-2 left-2 z-20 p-1 bg-background/50 backdrop-blur-sm rounded-full" onClick={(e) => e.stopPropagation()}>
-            <Checkbox checked={isChecked} onCheckedChange={() => onToggleSelection(product.id)} />
+      {context === 'product' &&  product.barcode && (
+        <div className="absolute top-2 left-2 z-20 p-1 bg-background/50 backdrop-blur-sm rounded-sm size-8 grid place-items-center" onClick={(e) => e.stopPropagation()}>
+            <Checkbox className='rounded-none bg-card' checked={checked} onCheckedChange={toggleChecked} />
         </div>
       )}
 

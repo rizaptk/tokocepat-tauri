@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -20,6 +20,7 @@ import { CheckCircle2, AlertCircle, Banknote, Delete, ReceiptText } from 'lucide
 import { cn } from '@/lib/utils';
 import type { Transaction } from '@/lib/types';
 import { usePrintStore } from '@/lib/print-store';
+import { useGlobalKeydown } from '@/hooks/use-global-keydown';
 
 type PaymentModalProps = {
   isOpen: boolean;
@@ -33,7 +34,7 @@ export function PaymentModal({ isOpen, setIsOpen, total }: PaymentModalProps) {
   const [cashReceived, setCashReceived] = useState<string>('');
   const [status, setStatus] = useState<PaymentStatus>('pending');
   const [transactionDetails, setTransactionDetails] = useState<Transaction | null>(null);
-  
+
   const { checkout } = useStore();
   const { addToQueue } = usePrintStore();
   const { toast } = useToast();
@@ -49,7 +50,7 @@ export function PaymentModal({ isOpen, setIsOpen, total }: PaymentModalProps) {
       minimumFractionDigits: 0,
     }).format(amount);
   };
-  
+
   const suggestions = useMemo(() => {
     if (!total || total <= 0) return [];
 
@@ -109,13 +110,30 @@ export function PaymentModal({ isOpen, setIsOpen, total }: PaymentModalProps) {
       setTransactionDetails(null);
     }, 200);
   };
-  
+
   const handleReprint = () => {
     if (transactionDetails) {
-        addToQueue(transactionDetails);
-        toast({ title: 'Reprinting...', description: 'Receipt has been sent to the print queue.' });
+      addToQueue(transactionDetails);
+      toast({ title: 'Reprinting...', description: 'Receipt has been sent to the print queue.' });
     }
   };
+
+  const handleEnter = useCallback(() => {
+    if (status === 'pending') {
+      if (numericCash >= total) {
+        handlePayment();
+      }
+    } else if (status === 'success') {
+      if (numericCash >= total)
+        resetAndClose();
+    }
+  }, [status, numericCash]);
+
+  useGlobalKeydown({
+    key: 'enter',
+    handler: handleEnter,
+    enabled: true
+  })
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && resetAndClose()}>
@@ -155,9 +173,10 @@ export function PaymentModal({ isOpen, setIsOpen, total }: PaymentModalProps) {
                       onChange={(e) => setCashReceived(e.target.value)}
                       placeholder="0"
                       autoFocus
+                      enable-global-keydown="true"
                     />
                     {cashReceived && (
-                      <button 
+                      <button
                         onClick={() => setCashReceived('')}
                         className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                       >
@@ -204,9 +223,9 @@ export function PaymentModal({ isOpen, setIsOpen, total }: PaymentModalProps) {
 
             <DialogFooter className="p-6 bg-muted/30 border-t">
               <Button variant="ghost" onClick={resetAndClose} className="flex-1 hover:bg-destructive/10 h-12 hover:text-destructive">Cancel</Button>
-              <Button 
+              <Button
                 variant="default"
-                onClick={handlePayment} 
+                onClick={handlePayment}
                 className="flex-1 h-12 text-base font-bold"
                 disabled={numericCash < total}
               >
@@ -225,21 +244,21 @@ export function PaymentModal({ isOpen, setIsOpen, total }: PaymentModalProps) {
             </div>
 
             <div className="bg-muted/50 rounded-xl p-6 space-y-4 border border-dashed border-muted-foreground/50">
-               <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Total Amount</span>
-                  <span className="font-semibold">{formatCurrency(transactionDetails?.total || 0)}</span>
-               </div>
-               <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Cash Received</span>
-                  <span className="font-semibold">{formatCurrency(numericCash)}</span>
-               </div>
-               <Separator />
-               <div className="flex justify-between items-center">
-                  <span className="font-bold text-lg">Change</span>
-                  <span className="text-2xl font-black text-primary">
-                    {formatCurrency(transactionDetails?.change || 0)}
-                  </span>
-               </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Total Amount</span>
+                <span className="font-semibold">{formatCurrency(transactionDetails?.total || 0)}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Cash Received</span>
+                <span className="font-semibold">{formatCurrency(numericCash)}</span>
+              </div>
+              <Separator />
+              <div className="flex justify-between items-center">
+                <span className="font-bold text-lg">Change</span>
+                <span className="text-2xl font-black text-primary">
+                  {formatCurrency(transactionDetails?.change || 0)}
+                </span>
+              </div>
             </div>
 
             <div className="mt-8 grid grid-cols-2 gap-3">

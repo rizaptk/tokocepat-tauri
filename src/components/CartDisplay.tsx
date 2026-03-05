@@ -17,6 +17,7 @@ import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { voidTransaction } from "@/services/transactionService";
 import { Badge } from "./ui/badge";
+import { useGlobalKeydown } from "@/hooks/use-global-keydown";
 
 // Helper function for tax calculation
 const getTaxRateForItem = (item: CartItem, storeConfig: StoreConfig): number => {
@@ -106,6 +107,16 @@ export function CartDisplay({ onEditItem }: CartDisplayProps) {
     }
     setIsPaymentModalOpen(true);
   }
+
+  useGlobalKeydown({
+    key: 'space', 
+    handler: () => {
+      if (view === 'cart' && !isReviewing && cart.length > 0) {
+        handleProcessPayment();
+      }
+    }, 
+    enabled: true}
+  );
 
   const handleReviewTransaction = (tx: Transaction) => {
     const itemsForReview = tx.items.map(txItem => ({

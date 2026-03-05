@@ -60,6 +60,7 @@ export const ProductSearchBar = React.memo(({ viewMode, onViewModeChange, onBarc
                     onKeyDown={handleKeyDown}
                     size="base"
                     shape="full"
+                    enable-global-keydown="true"
                 />
                 {onBarcodeScan && (
                     <Dialog open={isScannerOpen} onOpenChange={setIsScannerOpen}>

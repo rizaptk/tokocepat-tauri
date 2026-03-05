@@ -3,12 +3,10 @@
 
 import React, { useState, useMemo, useEffect, useRef } from "react";
 import Image from 'next/image';
-import { useForm, useFieldArray, UseFormReturn } from "react-hook-form";
+import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useStore } from "@/lib/store";
-import { Product, RecipeItem } from "@/lib/types";
-import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
 // UI Components
@@ -35,6 +33,7 @@ import { addProduct, updateProduct } from "@/services/productService";
 import { BarcodeScanner } from './BarcodeScanner';
 import { VariantItem } from './VariantItem';
 import { RecipeItem as CompositeItem } from './RecipeItem';
+import { useToast } from "@/hooks/use-toast";
 
 // Form Schema & Types
 const variantSchema = z.object({

@@ -36,12 +36,6 @@ export default function CashierPage() {
     const { isMobile } = useIsMobile();
     const { query } = useProductSearch();
 
-    // Local state for UI
-    // const [searchTerm, setSearchTerm] = useState('');
-    // const debouncedSearchTerm = useDebounce(query, 30);
-    // const [searchedProducts, setSearchedProducts] = useState<Product[] | null>(null);
-    // const [isSearching, setIsSearching] = useState(false);
-
     const [openingCash, setOpeningCash] = useState(0);
     const [itemToSelectVariant, setItemToSelectVariant] = useState<Product | null>(null);
     const [itemToModify, setItemToModify] = useState<Product | CartItem | ItemWithVariant | null>(null);
@@ -63,23 +57,7 @@ export default function CashierPage() {
         return () => window.removeEventListener('resize', handleResize);
     }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-    // useEffect(() => {
-    //     if (debouncedSearchTerm) {
-    //         const term = debouncedSearchTerm.toLowerCase();
-    //         const results = products.filter(p =>
-    //             p.is_active &&
-    //             (p.name.toLowerCase().includes(term) || p.barcode?.includes(term))
-    //         );
-    //         setSearchedProducts(results);
-    //     } else {
-    //         setSearchedProducts(null);
-    //     }
-    // }, [debouncedSearchTerm, products]);
-
     const displayedProducts = useMemo(() => {
-        // if (query && searchedProducts) {
-        //     return searchedProducts ?? []; // If searching, show search results (or empty array while loading)
-        // }
         return products.filter(p => p.is_active); // If not searching, show all active products from global store
     }, [products]);
 

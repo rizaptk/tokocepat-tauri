@@ -10,6 +10,8 @@ import { SlidersHorizontal, TriangleAlert } from "lucide-react";
 import { useMemo } from "react";
 import React from "react";
 import { Checkbox } from "../ui/checkbox";
+import { useSelectedProduct } from "@/lib/product-select-store";
+import { useSelectedChecked } from "@/hooks/useDeferedCheck";
 
 type ProductThumbnailItemProps = {
   product: Product;
@@ -17,8 +19,6 @@ type ProductThumbnailItemProps = {
   isSelected?: boolean;
   context?: "cashier" | "product" | "inventory";
   style?: React.CSSProperties;
-  selectedProductIds?: Set<string>;
-  onToggleSelection?: (id: string) => void;
 };
 
 export function ProductThumbnailItem({
@@ -27,10 +27,10 @@ export function ProductThumbnailItem({
   isSelected,
   context = "cashier",
   style,
-  selectedProductIds,
-  onToggleSelection
 }: ProductThumbnailItemProps) {
   const { categories } = useStore();
+
+  const [checked, toggleChecked] = useSelectedChecked(product.id);
 
   const category = useMemo(
     () => categories.find((c) => c.id === product.category_id),
@@ -57,7 +57,6 @@ export function ProductThumbnailItem({
     product.stock > 0 &&
     product.stock <= product.low_stock_alert;
   const is_active = product.is_active;
-  const isChecked = selectedProductIds?.has(product.id) ?? false;
 
 
   return (
@@ -76,9 +75,9 @@ export function ProductThumbnailItem({
       )}
     >
       {/* CHECKBOX */}
-      {onToggleSelection && context === 'product' && (
-        <div className="flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
-            <Checkbox checked={isChecked} onCheckedChange={() => onToggleSelection(product.id)} />
+      {context === 'product' && (
+        <div className={cn('flex items-center justify-center',`${!!product.barcode ? '' : '!opacity-40 grayscale'}`)} onClick={(e) => e.stopPropagation()}>
+            <Checkbox className="rounded-none bg-card" checked={checked} onCheckedChange={toggleChecked} />
         </div>
       )}
 

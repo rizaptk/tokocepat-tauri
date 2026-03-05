@@ -9,6 +9,7 @@ import { useMemo } from "react";
 import React from "react";
 import { Badge } from "../ui/badge";
 import { Checkbox } from "../ui/checkbox";
+import { useSelectedChecked } from "@/hooks/useDeferedCheck";
 
 
 type ProductListItemProps = {
@@ -18,12 +19,10 @@ type ProductListItemProps = {
   context?: "cashier" | "product" | "inventory";
   style?: React.CSSProperties;
   isEvent?: boolean;
-  selectedProductIds?: Set<string>;
-  onToggleSelection?: (id: string) => void;
 };
 
 const columnClass = {
-  checkbox: "flex items-center justify-center w-12 h-[54px]",
+  checkbox: "flex items-center justify-center w-9 h-[54px]",
   name: "flex items-center gap-2 flex-1 min-w-0 h-[54px]",
   category: "hidden md:flex items-center text-sm text-muted-foreground truncate max-w-[160px] w-[160px] px-2 border-l border-l-border/50 h-[54px]",
   stock: "hidden sm:flex items-center justify-end gap-1 text-sm tabular-nums shrink-0 w-20 border-l border-l-border/50 px-2 text-right h-[54px]",
@@ -36,11 +35,12 @@ export function ProductListItem({
   isSelected,
   context = "cashier",
   style,
-  isEvent = false,
-  selectedProductIds,
-  onToggleSelection,
+  isEvent = false
 }: ProductListItemProps) {
   const { categories } = useStore();
+  // const { selectedIds, setSelectedIds } = useSelectedProduct();
+
+  const [checked, toggleChecked] = useSelectedChecked(product.id);
 
   const category = useMemo(
     () => categories.find((c) => c.id === product.category_id),
@@ -68,7 +68,8 @@ export function ProductListItem({
     }
   };
 
-  const isChecked = selectedProductIds?.has(product.id) ?? false;
+
+  // const isChecked = selectedProductIds?.has(product.id) ?? false;
 
   return (
     <>
@@ -81,7 +82,7 @@ export function ProductListItem({
           tabIndex={isOutOfStock ? -1 : 0}
           aria-disabled={isOutOfStock}
           className={cn(
-            "flex items-center px-0 gap-0 h-[54px] border-b-border border-x",
+            "flex items-center px-4 gap-0 h-[54px] border-b-border border-x",
             "transition-colors",
             "hover:bg-accent",
             isEvent && 'bg-primary/5',
@@ -90,15 +91,20 @@ export function ProductListItem({
             !is_active && "opacity-80 relative"
           )}
         >
-          {/* CHECKBOX */}
-          {onToggleSelection && context === 'product' && (
-            <div className={columnClass.checkbox} onClick={(e) => e.stopPropagation()}>
-              <Checkbox checked={isChecked} onCheckedChange={() => onToggleSelection(product.id)} />
-            </div>
-          )}
 
           {/* NAME SECTION */}
-          <div className={cn(columnClass.name, 'px-4')}>
+          <div className={cn(columnClass.name, 'px-0')}>
+            {/* CHECKBOX */}
+            {context === 'product' && (
+              <div className={cn(columnClass.checkbox,`${!!product.barcode ? '' : '!opacity-40 grayscale'}`)} onClick={(e) => e.stopPropagation()}>
+                <Checkbox
+                  disabled={!product.barcode}
+                  className={`rounded-none bg-card`}
+                  checked={checked}
+                  onCheckedChange={toggleChecked}
+                />
+              </div>
+            )}
             <span className="font-medium truncate">
               {product.name}
             </span>
@@ -143,7 +149,7 @@ export function ProductListItem({
           {/* do not remove, filler to make table like list */}
           {context !== "cashier" && !product.track_stock && (
             <div className={columnClass.stock}>
-              
+
             </div>
           )}
 

@@ -303,30 +303,33 @@ const ColumnClass = {
     stock: "flex flex-col items-end justify-center shrink-0 text-right tabular-nums whitespace-nowrap w-24 border-l border-l-border/50 h-full px-2"
 }
 
-const InventoryListItem = ({ item, isSelected, onItemClick, categories }: { item: InventoryItemType; isSelected: boolean; onItemClick: (item: InventoryItemType) => void; categories: Category[] }) => {
+const InventoryListItem = ({ item, isSelected, onItemClick, categories, isEven }: { item: InventoryItemType; isSelected: boolean; onItemClick: (item: InventoryItemType) => void; categories: Category[], isEven: boolean}) => {
     const categoryName = item.itemType === 'product' ? categories.find(c => c.id === item.category_id)?.name || 'N/A' : 'N/A';
 
     return (
-        <div
-            onClick={() => onItemClick(item)}
-            className={cn(
-                "flex items-center px-4 transition-colors cursor-pointer bg-card border-x border-b border-b-border/50 hover:bg-accent h-[64px]",
-                isSelected ? "bg-background" : ""
-            )}
-        >
-            <div className={ColumnClass.name}>
-                <p className="font-medium truncate">{item.name}</p>
-            </div>
-            <div className={ColumnClass.type}>
-                <Badge variant={item.itemType === 'product' ? 'success' : 'warning'} className="text-[10px] uppercase px-1.5 py-0">
-                    {item.itemType}
-                </Badge>
-            </div>
-            <div className={ColumnClass.category}>
-                <span className="truncate">{categoryName}</span>
-            </div>
-            <div className={ColumnClass.stock}>
-                <p className="font-bold text-base">{item.stock}</p>
+        <div className="bg-card border-x border-b border-b-border/50 p-0 h-[56px]">
+            <div
+                data-item
+                onClick={() => onItemClick(item)}
+                className={cn(
+                    "flex items-center px-4 transition-colors cursor-pointer  hover:bg-accent h-[56px]",
+                    isSelected ? "bg-background" : isEven ? 'bg-border/20' : ''
+                )}
+            >
+                <div className={ColumnClass.name}>
+                    <p className="font-medium truncate">{item.name}</p>
+                </div>
+                <div className={ColumnClass.type}>
+                    <Badge variant={item.itemType === 'product' ? 'success' : 'warning'} className="text-[10px] uppercase px-1.5 py-0">
+                        {item.itemType}
+                    </Badge>
+                </div>
+                <div className={ColumnClass.category}>
+                    <span className="truncate">{categoryName}</span>
+                </div>
+                <div className={ColumnClass.stock}>
+                    <p className="font-bold text-base">{item.stock}</p>
+                </div>
             </div>
         </div>
     );
@@ -432,16 +435,20 @@ export default function InventoryPage() {
         setIsSheetOpen(false);
     }
 
-    const Row = memo(({ index, style }: { index: number, style: React.CSSProperties }) => (
-        <div style={style} className="px-4 pb-4 pt-0">
-            <InventoryListItem
-                item={inventoryItems[index]}
-                isSelected={selectedItem?.id === inventoryItems[index].id}
-                onItemClick={handleItemSelect}
-                categories={categories}
-            />
-        </div>
-    ));
+    const Row = memo(({ index, style }: { index: number, style: React.CSSProperties }) => {
+        const isEven = index % 2 === 0;
+        return (
+            <div style={style} className="px-4 pb-4 pt-0">
+                <InventoryListItem
+                    item={inventoryItems[index]}
+                    isSelected={selectedItem?.id === inventoryItems[index].id}
+                    onItemClick={handleItemSelect}
+                    categories={categories}
+                    isEven={isEven}
+                />
+            </div>
+        )
+    });
 
     return (
         <div className="w-full h-[calc(100vh-4rem)] md:grid md:grid-cols-10 min-h-0">
@@ -488,7 +495,7 @@ export default function InventoryPage() {
                                             height={height}
                                             width={width}
                                             itemCount={inventoryItems.length}
-                                            itemSize={64}
+                                            itemSize={56}
                                         >
                                             {Row}
                                         </List>

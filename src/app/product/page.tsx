@@ -12,16 +12,31 @@ import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { ProductSearchBar } from "@/components/ProductSearchBar";
 import { ProductList } from "@/components/ProductList";
 import { exportBarcodeStickersToPdf } from "@/lib/export";
+import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from "@/components/ui/popover"
+import { Label } from "@/components/ui/label"
+import { Input } from "@/components/ui/input"
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select"
 
 
 // Icons
-import { PlusCircle, Menu, Printer } from "lucide-react";
+import { PlusCircle, Printer } from "lucide-react";
 
 // Services
 import { useGlobalBarcodeScanner } from "@/hooks/use-global-barcode-scanner";
 
 // Sub-components
 import { ProductEditor } from "./_components/ProductEditor";
+import { useSelectedProduct } from "@/lib/product-select-store";
 
 
 export default function ProductManagementPage() {
@@ -31,7 +46,18 @@ export default function ProductManagementPage() {
     const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
     const [isDrawerOpen, setIsDrawerOpen] = useState(false);
     const [activeTab, setActiveTab] = useState("product");
-    const [selectedProductIds, setSelectedProductIds] = useState<Set<string>>(new Set());
+    const { selectedIds: selectedProductIds } = useSelectedProduct();
+    const [printOptions, setPrintOptions] = useState({
+        repeat: 1,
+        labelWidthMm: 38,
+        labelHeightMm: 13,
+        pageSizeName: 'A4',
+    });
+
+    const paperSizeMap: Record<string, [number, number] | undefined> = {
+        'A4': [595.28, 841.89],
+        'Letter': [612, 792],
+    };
 
     useEffect(() => {
         setViewMode(window.innerWidth < 768 ? 'thumbnail' : 'card');
@@ -45,22 +71,15 @@ export default function ProductManagementPage() {
         }
     };
     
-    const handleToggleSelection = (productId: string) => {
-        setSelectedProductIds(prev => {
-            const newSet = new Set(prev);
-            if (newSet.has(productId)) {
-                newSet.delete(productId);
-            } else {
-                newSet.add(productId);
-            }
-            return newSet;
-        });
-    };
-
     const handlePrintLabels = () => {
         const selectedProducts = products.filter(p => selectedProductIds.has(p.id) && p.barcode);
         if (selectedProducts.length > 0) {
-            exportBarcodeStickersToPdf(selectedProducts);
+            exportBarcodeStickersToPdf(selectedProducts, {
+                repeat: printOptions.repeat,
+                labelWidthMm: printOptions.labelWidthMm,
+                labelHeightMm: printOptions.labelHeightMm,
+                pageSize: paperSizeMap[printOptions.pageSizeName],
+            });
         } else {
             toast({
                 variant: "destructive",
@@ -111,6 +130,71 @@ export default function ProductManagementPage() {
         }
     }
 
+    const popoverContent = (
+        <PopoverContent className="w-80">
+            <div className="grid gap-4">
+                <div className="space-y-2">
+                    <h4 className="font-medium leading-none">Print Labels</h4>
+                    <p className="text-sm text-muted-foreground">
+                        Set the options for printing labels.
+                    </p>
+                </div>
+                <div className="grid gap-2">
+                    <div className="grid grid-cols-3 items-center gap-4">
+                        <Label htmlFor="repeat">Repeat</Label>
+                        <Input
+                            id="repeat"
+                            type="number"
+                            defaultValue={printOptions.repeat}
+                            onChange={(e) => setPrintOptions(o => ({ ...o, repeat: parseInt(e.target.value) || 1 }))}
+                            className="col-span-2 h-8"
+                        />
+                    </div>
+                    <div className="grid grid-cols-3 items-center gap-4">
+                        <Label>Label Size</Label>
+                        <div className="col-span-2 flex gap-1">
+                            <Input
+                                id="labelWidth"
+                                type="number"
+                                placeholder="W"
+                                defaultValue={printOptions.labelWidthMm}
+                                onChange={(e) => setPrintOptions(o => ({ ...o, labelWidthMm: parseInt(e.target.value) || 38 }))}
+                                className="h-8"
+                            />
+                             <Input
+                                id="labelHeight"
+                                type="number"
+                                placeholder="H"
+                                defaultValue={printOptions.labelHeightMm}
+                                onChange={(e) => setPrintOptions(o => ({ ...o, labelHeightMm: parseInt(e.target.value) || 13 }))}
+                                className="h-8"
+                            />
+                        </div>
+                    </div>
+                     <div className="grid grid-cols-3 items-center gap-4">
+                        <Label htmlFor="pageSize">Paper Size</Label>
+                        <Select
+                            defaultValue={printOptions.pageSizeName}
+                            onValueChange={(value) => setPrintOptions(o => ({...o, pageSizeName: value}))}
+                        >
+                            <SelectTrigger className="col-span-2 h-8">
+                                <SelectValue placeholder="Select paper size" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {Object.keys(paperSizeMap).map(name => (
+                                    <SelectItem key={name} value={name}>{name}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                </div>
+                <Button onClick={handlePrintLabels} className="w-full">
+                    <Printer className="mr-2 h-4 w-4" /> Print ({selectedProductIds.size})
+                </Button>
+            </div>
+        </PopoverContent>
+    );
+
     return (
         <div className="w-full h-[calc(100vh-64px)] md:grid md:grid-cols-10 min-h-0 flex-1">
             {/* Left Panel: Product List */}
@@ -122,10 +206,21 @@ export default function ProductManagementPage() {
                             onViewModeChange={setViewMode}
                             onBarcodeScan={handleBarcodeScan}
                         />
-                         <Button onClick={handlePrintLabels} variant="outline" size="sm" disabled={selectedProductIds.size === 0} className="hidden md:flex">
-                            <Printer className="mr-2 h-4 w-4" />
-                            Print Labels ({selectedProductIds.size})
-                        </Button>
+                        {
+                            selectedProductIds.size > 0 && (
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                        <Button variant="outline" size="sm" className="hidden md:flex relative rounded-full size-10">
+                                            <Printer className="h-5 w-5" />
+                                            <div className="text-[10px] grid place-items-center leading-none absolute -top-0.5 -right-0.5 bg-destructive rounded-full text-destructive-foreground size-4">
+                                            {selectedProductIds.size}
+                                            </div>
+                                        </Button>
+                                    </PopoverTrigger>
+                                    {popoverContent}
+                                </Popover>
+                            )
+                        }
                         <Button onClick={handleAddNew} variant="outline" size="sm" className="md:hidden inline-flex size-10">
                             <PlusCircle className="h-4 w-4" />
                         </Button>
@@ -138,15 +233,18 @@ export default function ProductManagementPage() {
                         onItemClick={handleSelectProduct}
                         selectedProductId={selectedProductId}
                         context="product"
-                        selectedProductIds={selectedProductIds}
-                        onToggleSelection={handleToggleSelection}
                     />
                 </div>
                 <div className="p-4 md:hidden flex gap-2">
-                     <Button onClick={handlePrintLabels} variant="outline" className="w-full" disabled={selectedProductIds.size === 0}>
-                        <Printer className="mr-2 h-4 w-4" />
-                        Print ({selectedProductIds.size})
-                    </Button>
+                     <Popover>
+                        <PopoverTrigger asChild>
+                            <Button variant="outline" className="w-full" disabled={selectedProductIds.size === 0}>
+                                <Printer className="mr-2 h-4 w-4" />
+                                Print ({selectedProductIds.size})
+                            </Button>
+                        </PopoverTrigger>
+                        {popoverContent}
+                     </Popover>
                     <Button onClick={handleAddNew} className="w-full">
                         <PlusCircle className="mr-2 h-4 w-4" /> Add Product
                     </Button>
