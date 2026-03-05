@@ -171,7 +171,6 @@ export function ProductList({ products, viewMode, isLoading, onItemClick, select
 
   const { query } = useProductSearch();
   const { activeIndex, activeId, setActive, clearActive } = useActiveProduct();
-  const [columnCount, setColumnCount] = useState(1);
   const [isScrolling, setIsScrolling] = useState(false);
 
   const filteredProducts = useMemo(() => {
@@ -191,6 +190,10 @@ export function ProductList({ products, viewMode, isLoading, onItemClick, select
     let newIndex = activeIndex ?? -1;
 
     if (viewMode === 'card') {
+      if (!containerRef.current) return;
+      const width = containerRef.current.offsetWidth;
+      const columnCount = Math.max(1, Math.floor(width / CARD_MIN_WIDTH));
+      
       const currentRow = Math.floor(newIndex / columnCount);
       const currentCol = newIndex % columnCount;
       if (direction === 'down') newIndex = Math.min(newIndex + columnCount, filteredProducts.length - 1);
@@ -288,11 +291,8 @@ export function ProductList({ products, viewMode, isLoading, onItemClick, select
             if (!width || !height) return null;
 
             if (viewMode === 'card') {
-              const newColumnCount = Math.max(1, Math.floor(width / CARD_MIN_WIDTH));
-              if (newColumnCount !== columnCount) {
-                  setColumnCount(newColumnCount);
-              }
-              const rowCount = Math.ceil(filteredProducts.length / newColumnCount);
+              const columnCount = Math.max(1, Math.floor(width / CARD_MIN_WIDTH));
+              const rowCount = Math.ceil(filteredProducts.length / columnCount);
               return (
                 <List
                   height={height}
@@ -303,7 +303,7 @@ export function ProductList({ products, viewMode, isLoading, onItemClick, select
                   outerRef={outerRef}
                   itemData={{
                     products: filteredProducts,
-                    columnCount: newColumnCount,
+                    columnCount: columnCount,
                     totalItems: filteredProducts.length,
                     onItemClick,
                     selectedProductId,
