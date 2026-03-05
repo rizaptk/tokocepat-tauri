@@ -10,8 +10,8 @@ import { useIsMobile } from '@/lib/ismobile-store';
 import { SideNav } from './SideNav';
 import { useLicense } from '@/hooks/useLicense';
 import { useMemo } from 'react';
-import { ThemeSwitcher } from './ThemeSwitcher';
 import { PrintManager } from './PrintManager';
+import { ThemeSwitcher } from './ThemeSwitcher';
 
 export default function ClientLayout({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
@@ -30,6 +30,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
     // For all non-admin routes, apply the client-side providers and bottom nav.
     return (
         <DbProvider>
+            <ThemeSwitcher />
             <BackupManager />
             <LicenseProvider>
                 <PrintManager />
@@ -41,10 +42,6 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
                         <BottomNav /> :
                         <SideNav />
                     )
-                }
-                {
-                    isLicensed &&
-                    <ThemeSwitcher />
                 }
             </LicenseProvider>
         </DbProvider>
