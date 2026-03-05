@@ -210,21 +210,21 @@ export function ProductList({ products, viewMode, isLoading, onItemClick, select
     }
   }
 
-  useGlobalKeydown({ key: 'ArrowDown', handler: () => handleNavigate('down'), enabled: context === 'cashier' });
-  useGlobalKeydown({ key: 'ArrowUp', handler: () => handleNavigate('up'), enabled: context === 'cashier' });
-  useGlobalKeydown({ key: 'ArrowRight', handler: () => handleNavigate('right'), enabled: context === 'cashier' });
-  useGlobalKeydown({ key: 'ArrowLeft', handler: () => handleNavigate('left'), enabled: context === 'cashier' });
+  useGlobalKeydown({ key: 'ArrowDown', handler: () => handleNavigate('down'), enabled: context === 'cashier', bindTo: containerRef });
+  useGlobalKeydown({ key: 'ArrowUp', handler: () => handleNavigate('up'), enabled: context === 'cashier', bindTo: containerRef });
+  useGlobalKeydown({ key: 'ArrowRight', handler: () => handleNavigate('right'), enabled: context === 'cashier', bindTo: containerRef });
+  useGlobalKeydown({ key: 'ArrowLeft', handler: () => handleNavigate('left'), enabled: context === 'cashier', bindTo: containerRef });
 
   const handleActionKey = () => {
-    if (context !== 'cashier' || activeId === null) return;
+    if (activeId === null) return;
     const product = filteredProducts.find(p => p.id === activeId);
     if (product && onItemClick) {
         onItemClick(product);
         clearActive();
     }
   }
-  useGlobalKeydown({ key: 'Enter', handler: handleActionKey, enabled: true });
-  useGlobalKeydown({ key: 'Space', handler: handleActionKey, enabled: true });
+  useGlobalKeydown({ key: 'Enter', handler: handleActionKey, enabled: context === 'cashier', bindTo: containerRef });
+  useGlobalKeydown({ key: 'Space', handler: handleActionKey, enabled: context === 'cashier', bindTo: containerRef });
   // --- End Keyboard Navigation ---
 
 

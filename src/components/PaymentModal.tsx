@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useRef } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -34,6 +34,7 @@ export function PaymentModal({ isOpen, setIsOpen, total }: PaymentModalProps) {
   const [cashReceived, setCashReceived] = useState<string>('');
   const [status, setStatus] = useState<PaymentStatus>('pending');
   const [transactionDetails, setTransactionDetails] = useState<Transaction | null>(null);
+  const dialogContentRef = useRef<HTMLDivElement>(null);
 
   const { checkout } = useStore();
   const { addToQueue } = usePrintStore();
@@ -83,7 +84,7 @@ export function PaymentModal({ isOpen, setIsOpen, total }: PaymentModalProps) {
     return final;
   }, [total]);
 
-  const handlePayment = async () => {
+  const handlePayment = useCallback(async () => {
     if (numericCash < total) {
       toast({
         variant: "destructive",
@@ -100,16 +101,16 @@ export function PaymentModal({ isOpen, setIsOpen, total }: PaymentModalProps) {
       // Add to print queue and forget
       addToQueue(transaction);
     }
-  };
+  }, [checkout, numericCash, total, toast, addToQueue]);
 
-  const resetAndClose = () => {
+  const resetAndClose = useCallback(() => {
     setIsOpen(false);
     setTimeout(() => {
       setCashReceived('');
       setStatus('pending');
       setTransactionDetails(null);
     }, 200);
-  };
+  }, [setIsOpen]);
 
   const handleReprint = () => {
     if (transactionDetails) {
@@ -124,20 +125,20 @@ export function PaymentModal({ isOpen, setIsOpen, total }: PaymentModalProps) {
         handlePayment();
       }
     } else if (status === 'success') {
-      if (numericCash >= total)
-        resetAndClose();
+      resetAndClose();
     }
-  }, [status, numericCash]);
+  }, [status, numericCash, total, handlePayment, resetAndClose]);
 
   useGlobalKeydown({
     key: 'enter',
     handler: handleEnter,
-    enabled: true
-  })
+    enabled: isOpen,
+    bindTo: dialogContentRef
+  });
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && resetAndClose()}>
-      <DialogContent className="sm:max-w-[480px] p-0 overflow-hidden gap-0 bg-card">
+      <DialogContent ref={dialogContentRef} className="sm:max-w-[480px] p-0 overflow-hidden gap-0 bg-card">
         {status === 'pending' ? (
           <>
             <div className="p-6 pb-4">

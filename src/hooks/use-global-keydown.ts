@@ -1,26 +1,50 @@
 'use client'
 
-import { useEffect } from 'react';
+import { useEffect, type RefObject } from 'react';
 
 interface Props {
     key: string;
     handler: () => void;
     enabled?: boolean;
+    bindTo?: RefObject<HTMLElement | null>;
 }
 
-export function useGlobalKeydown({ key, handler, enabled = true }: Props) {
+export function useGlobalKeydown({ key, handler, enabled = true, bindTo }: Props) {
     useEffect(() => {
         if (!enabled) return;
 
         const handleKeyDown = (event: KeyboardEvent) => {
-            // Don't trigger if user is typing in an input or textarea
+            // Check if the keydown is bound to a specific element and if it's visible on top.
+            if (bindTo?.current) {
+                const boundEl = bindTo.current;
+                const rect = boundEl.getBoundingClientRect();
+                
+                // If the element is not in the viewport, don't trigger.
+                if (rect.width === 0 || rect.height === 0 || rect.bottom < 0 || rect.right < 0 || rect.top > window.innerHeight || rect.left > window.innerWidth) {
+                    return;
+                }
+
+                // Check if the element is the topmost element at its center.
+                // This prevents firing if a modal is on top.
+                const centerX = rect.left + rect.width / 2;
+                const centerY = rect.top + rect.height / 2;
+                const topElement = document.elementFromPoint(centerX, centerY);
+
+                if (!topElement || !boundEl.contains(topElement)) {
+                    return;
+                }
+            }
+            
+            // Don't trigger if user is typing in an input or textarea, unless it's explicitly allowed
             const target = event.target as HTMLElement;
             if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
-                const enableglobal = target.attributes.getNamedItem('enable-global-keydown')?.value === 'true';
-                if (!enableglobal) return;
+                const enableGlobal = target.attributes.getNamedItem('enable-global-keydown')?.value === 'true';
+                if (!enableGlobal) return;
             }
 
             if (event.code.toLowerCase() === key.toLowerCase()) {
+                // Prevent default browser actions for keys like Space, Enter, or arrows.
+                event.preventDefault();
                 handler();
             }
         };
@@ -29,5 +53,5 @@ export function useGlobalKeydown({ key, handler, enabled = true }: Props) {
         return () => {
             window.removeEventListener('keydown', handleKeyDown);
         };
-    }, [key, handler, enabled]);
+    }, [key, handler, enabled, bindTo]);
 }
