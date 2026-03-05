@@ -5,12 +5,12 @@ import { Product } from "@/lib/types";
 import { useStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
 import { SlidersHorizontal, TriangleAlert } from "lucide-react";
-import { useMemo } from "react";
+import { useMemo, useRef, useEffect } from "react";
 import React from "react";
 import { Badge } from "../ui/badge";
 import { Checkbox } from "../ui/checkbox";
 import { useSelectedChecked } from "@/hooks/useDeferedCheck";
-
+import { useActiveProduct } from "@/lib/product-active-store";
 
 type ProductListItemProps = {
   product: Product;
@@ -38,10 +38,19 @@ export function ProductListItem({
   isEvent = false
 }: ProductListItemProps) {
   const { categories } = useStore();
-  // const { selectedIds, setSelectedIds } = useSelectedProduct();
-
   const [checked, toggleChecked] = useSelectedChecked(product.id);
+  const itemRef = useRef<HTMLDivElement>(null);
+  
+  const { activeId, navigationSource, clearNavigationSource } = useActiveProduct();
+  const isActive = activeId === product.id;
 
+  useEffect(() => {
+    if (isActive && navigationSource === 'keyboard') {
+      itemRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      clearNavigationSource();
+    }
+  }, [isActive, navigationSource, clearNavigationSource]);
+  
   const category = useMemo(
     () => categories.find((c) => c.id === product.category_id),
     [categories, product.category_id]
@@ -69,12 +78,8 @@ export function ProductListItem({
   };
 
 
-  // const isChecked = selectedProductIds?.has(product.id) ?? false;
-
   return (
-    <>
-      <div className={cn('bg-card h-[54px]')} >
-
+      <div className={cn('bg-card h-[54px]')} ref={itemRef}>
         <div
           style={style}
           onClick={handleSelect}
@@ -87,11 +92,11 @@ export function ProductListItem({
             "hover:bg-accent",
             isEvent && 'bg-primary/5',
             isSelected && "bg-background",
+            isActive && "ring-2 ring-primary ring-offset-2",
             isOutOfStock && "opacity-60 cursor-not-allowed",
             !is_active && "opacity-80 relative"
           )}
         >
-
           {/* NAME SECTION */}
           <div className={cn(columnClass.name, 'px-0')}>
             {/* CHECKBOX */}
@@ -160,6 +165,5 @@ export function ProductListItem({
           </div>
         </div>
       </div>
-    </>
   );
 }

@@ -7,11 +7,11 @@ import { useStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
 import { Badge } from "../ui/badge";
 import { SlidersHorizontal, TriangleAlert } from "lucide-react";
-import { useMemo } from "react";
+import { useMemo, useRef, useEffect } from "react";
 import React from "react";
 import { Checkbox } from "../ui/checkbox";
-import { useSelectedProduct } from "@/lib/product-select-store";
 import { useSelectedChecked } from "@/hooks/useDeferedCheck";
+import { useActiveProduct } from "@/lib/product-active-store";
 
 type ProductThumbnailItemProps = {
   product: Product;
@@ -29,8 +29,18 @@ export function ProductThumbnailItem({
   style,
 }: ProductThumbnailItemProps) {
   const { categories } = useStore();
-
   const [checked, toggleChecked] = useSelectedChecked(product.id);
+  const itemRef = useRef<HTMLDivElement>(null);
+
+  const { activeId, navigationSource, clearNavigationSource } = useActiveProduct();
+  const isActive = activeId === product.id;
+
+  useEffect(() => {
+    if (isActive && navigationSource === 'keyboard') {
+      itemRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      clearNavigationSource();
+    }
+  }, [isActive, navigationSource, clearNavigationSource]);
 
   const category = useMemo(
     () => categories.find((c) => c.id === product.category_id),
@@ -61,6 +71,7 @@ export function ProductThumbnailItem({
 
   return (
     <div
+      ref={itemRef}
       style={style}
       onClick={handleSelect}
       role="button"
@@ -70,6 +81,7 @@ export function ProductThumbnailItem({
         "group flex items-center gap-3 p-3 transition-colors duration-100 border border-border bg-card h-[78px] rounded-md",
         "hover:shadow-md",
         isSelected && "bg-background",
+        isActive && "ring-2 ring-primary ring-offset-2",
         isOutOfStock && "opacity-60 cursor-not-allowed",
         !is_active && "opacity-80 relative"
       )}

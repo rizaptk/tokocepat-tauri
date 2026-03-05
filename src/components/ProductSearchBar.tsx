@@ -20,18 +20,14 @@ interface ProductSearchBarProps {
 
 export const ProductSearchBar = React.memo(({ viewMode, onViewModeChange, onBarcodeScan }: ProductSearchBarProps) => {
     const [isScannerOpen, setIsScannerOpen] = useState(false);
-
     const [localValue, setLocalValue] = useState('');
-    const { setSearchFocued } = useActiveProduct();
-
+    const { setSearchFocued, clearActive } = useActiveProduct();
     const execQuery = useProductSearch(q => q.setQuery);
-
     const deferredValue = useDeferredValue(localValue.trim(), '');
 
-    // Only notify parent if value truly changed
     useEffect(() => {
         execQuery(deferredValue);
-    }, [deferredValue]);
+    }, [deferredValue, execQuery]);
 
     const handleScanSuccess = (barcode: string) => {
         if (onBarcodeScan) {
@@ -43,10 +39,17 @@ export const ProductSearchBar = React.memo(({ viewMode, onViewModeChange, onBarc
     };
 
     const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        // Barcode scanners often terminate with 'Enter'
         if (e.key === 'Enter' && localValue.trim() && onBarcodeScan) {
             e.preventDefault();
             handleScanSuccess(localValue.trim());
         }
+    };
+    
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setLocalValue(e.target.value);
+        // User is typing, so clear any keyboard-based navigation selection
+        clearActive();
     };
 
     return (
@@ -58,7 +61,7 @@ export const ProductSearchBar = React.memo(({ viewMode, onViewModeChange, onBarc
                     placeholder="Search products or scan barcode..."
                     className="w-full px-10 bg-card"
                     value={localValue}
-                    onChange={(e) => setLocalValue(e.target.value)}
+                    onChange={handleInputChange}
                     onKeyDown={handleKeyDown}
                     size="base"
                     shape="full"

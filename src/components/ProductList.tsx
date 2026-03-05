@@ -14,7 +14,6 @@ import { useProductSearch } from '@/lib/useProductSearch';
 import { motion } from 'framer-motion';
 import { useGlobalKeydown } from '@/hooks/use-global-keydown';
 import { useActiveProduct } from '@/lib/product-active-store';
-import { set } from 'date-fns';
 
 type ViewMode = 'card' | 'thumbnail' | 'list';
 
@@ -98,7 +97,7 @@ const CardRow = ({ index, style, data }: { index: number, style: React.CSSProper
 // --- Component for List/Thumbnail View ---
 
 const ListItem = React.memo(({ index, style, data }: { index: number, style: React.CSSProperties, data: any }) => {
-  const { products, viewMode, onItemClick, selectedProductId, context, selectedProductIds, onToggleSelection } = data;
+  const { products, viewMode, onItemClick, selectedProductId, context } = data;
   const product = products[index];
   const isEven = index % 2 === 0;
 
@@ -163,7 +162,7 @@ const LoadingSkeleton = ({ viewMode }: { viewMode: ViewMode }) => {
 }
 
 // --- Main ProductList Component ---
-export function ProductList({ products, viewMode, isLoading, onItemClick, selectedProductId, context = 'cashier', setScrollTop }: ProductListProps) {
+export function ProductList({ products, viewMode, isLoading, onItemClick, selectedProductId, context = 'cashier' }: ProductListProps) {
 
   const outerRef = useRef<HTMLDivElement>(null);
   const thumbRef = useRef<HTMLDivElement>(null);
@@ -171,6 +170,9 @@ export function ProductList({ products, viewMode, isLoading, onItemClick, select
   const containerRef = useRef<HTMLDivElement>(null);
 
   const { query } = useProductSearch();
+  const { activeIndex, activeId, setActive, clearActive } = useActiveProduct();
+  const [columnCount, setColumnCount] = useState(1);
+  const [isScrolling, setIsScrolling] = useState(false);
 
   const filteredProducts = useMemo(() => {
     if (query.length === 0) {
@@ -182,6 +184,47 @@ export function ProductList({ products, viewMode, isLoading, onItemClick, select
     );
   }, [products, query]);
 
+  // --- Keyboard Navigation ---
+  const handleNavigate = (direction: 'up' | 'down' | 'left' | 'right') => {
+    if (filteredProducts.length === 0) return;
+    
+    let newIndex = activeIndex ?? -1;
+
+    if (viewMode === 'card') {
+      const currentRow = Math.floor(newIndex / columnCount);
+      const currentCol = newIndex % columnCount;
+      if (direction === 'down') newIndex = Math.min(newIndex + columnCount, filteredProducts.length - 1);
+      else if (direction === 'up') newIndex = Math.max(newIndex - columnCount, 0);
+      else if (direction === 'right') newIndex = Math.min(newIndex + 1, filteredProducts.length - 1);
+      else if (direction === 'left') newIndex = Math.max(newIndex - 1, 0);
+    } else { // list or thumbnail
+      if (direction === 'down') newIndex = newIndex >= filteredProducts.length - 1 ? 0 : newIndex + 1;
+      else if (direction === 'up') newIndex = newIndex <= 0 ? filteredProducts.length - 1 : newIndex - 1;
+    }
+    
+    if (newIndex >= 0 && newIndex < filteredProducts.length) {
+      setActive(newIndex, filteredProducts[newIndex].id, 'keyboard');
+    }
+  }
+
+  useGlobalKeydown({ key: 'ArrowDown', handler: () => handleNavigate('down'), enabled: context === 'cashier' });
+  useGlobalKeydown({ key: 'ArrowUp', handler: () => handleNavigate('up'), enabled: context === 'cashier' });
+  useGlobalKeydown({ key: 'ArrowRight', handler: () => handleNavigate('right'), enabled: context === 'cashier' });
+  useGlobalKeydown({ key: 'ArrowLeft', handler: () => handleNavigate('left'), enabled: context === 'cashier' });
+
+  const handleActionKey = () => {
+    if (context !== 'cashier' || activeId === null) return;
+    const product = filteredProducts.find(p => p.id === activeId);
+    if (product && onItemClick) {
+        onItemClick(product);
+        clearActive();
+    }
+  }
+  useGlobalKeydown({ key: 'Enter', handler: handleActionKey, enabled: true });
+  useGlobalKeydown({ key: 'Space', handler: handleActionKey, enabled: true });
+  // --- End Keyboard Navigation ---
+
+
   const { subscribe, getScrollTop } = useOverlayScrollbar({
     outerRef, thumbRef, trackRef, containerRef, options: {
       autoHideDelay: 800,
@@ -189,68 +232,15 @@ export function ProductList({ products, viewMode, isLoading, onItemClick, select
     }
   })
 
-  const [isScrolling, setIsCrolling] = useState(false);
-  const { activeIndex, setActiveIndex, setActiveId, searchFocued } = useActiveProduct();
-
-  useGlobalKeydown({
-    key: 'ArrowUp',
-    handler: () => {
-      if (activeIndex === null || activeIndex === undefined || (activeIndex > filteredProducts.length - 1)) {
-        setActiveIndex(filteredProducts.length - 1);
-        const lastProduct = filteredProducts[filteredProducts.length - 1];
-        setActiveId(lastProduct.id);
-        return;
-      }
-
-      const newindex = activeIndex > 0 ? activeIndex - 1 : filteredProducts.length - 1;
-      setActiveIndex(newindex);
-      const prevProduct = filteredProducts[newindex];
-      setActiveId(prevProduct.id);
-    },
-    enabled: true
-  });
-
-  useEffect(() => {
-    if (!searchFocued) {
-      setActiveIndex(null);
-      setActiveId(null);
-    }
-  },[searchFocued])
-
-  useGlobalKeydown({
-    key: 'ArrowDown',
-    handler: () => {
-      if (activeIndex === null || activeIndex === undefined) {
-        setActiveIndex(0);
-        const firstProduct = filteredProducts[0];
-        setActiveId(firstProduct.id);
-        return;
-      }
-
-      if (activeIndex > filteredProducts.length - 1) {
-        setActiveIndex(filteredProducts.length - 1);
-        const lastProduct = filteredProducts[filteredProducts.length - 1];
-        setActiveId(lastProduct.id);
-        return;
-      }
-
-      const newindex = activeIndex < filteredProducts.length - 1 ? activeIndex + 1 : 0;
-      setActiveIndex(newindex);
-      const nextProduct = filteredProducts[newindex];
-      setActiveId(nextProduct.id);
-    },
-    enabled: true
-  });
-
   useEffect(() => {
     const unsubscribe = subscribe(() => {
       const scrolltop = getScrollTop();
-      setIsCrolling(scrolltop > 0);
+      setIsScrolling(scrolltop > 0);
     });
     return () => {
       unsubscribe();
     };
-  }, []);
+  }, [subscribe, getScrollTop]);
 
   if (isLoading) {
     return <div className="h-full w-full"><LoadingSkeleton viewMode={viewMode} /></div>;
@@ -270,7 +260,7 @@ export function ProductList({ products, viewMode, isLoading, onItemClick, select
   return (
     <div className="w-full h-full flex flex-col relative">
       {
-        viewMode == 'list' &&
+        viewMode === 'list' &&
         <div className='px-4'>
           <div className='flex w-full items-center h-[54px] border bg-card rounded-t-lg px-4'>
             <div className={columnClass.name}>
@@ -292,14 +282,17 @@ export function ProductList({ products, viewMode, isLoading, onItemClick, select
         </div>
       }
       <div className="relative flex-1 overflow-hidden" ref={containerRef}>
-        <div className={`absolute h-0 transition-opacity duration-150 pointer-events-none shadow border-b ${viewMode == 'list' ? '-top-px left-3 right-3' : 'left-2 right-2 top-0'}   z-10 ${isScrolling ? 'opacity-100' : 'opacity-0'}`}></div>
+        <div className={`absolute h-0 transition-opacity duration-150 pointer-events-none shadow border-b ${viewMode === 'list' ? '-top-px left-3 right-3' : 'left-2 right-2 top-0'} z-10 ${isScrolling ? 'opacity-100' : 'opacity-0'}`}></div>
         <AutoSizer>
           {({ height, width }) => {
             if (!width || !height) return null;
 
             if (viewMode === 'card') {
-              const columnCount = Math.max(2, Math.floor(width / CARD_MIN_WIDTH));
-              const rowCount = Math.ceil(filteredProducts.length / columnCount);
+              const newColumnCount = Math.max(1, Math.floor(width / CARD_MIN_WIDTH));
+              if (newColumnCount !== columnCount) {
+                  setColumnCount(newColumnCount);
+              }
+              const rowCount = Math.ceil(filteredProducts.length / newColumnCount);
               return (
                 <List
                   height={height}
@@ -310,7 +303,7 @@ export function ProductList({ products, viewMode, isLoading, onItemClick, select
                   outerRef={outerRef}
                   itemData={{
                     products: filteredProducts,
-                    columnCount,
+                    columnCount: newColumnCount,
                     totalItems: filteredProducts.length,
                     onItemClick,
                     selectedProductId,

@@ -8,8 +8,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/componen
 import { Badge } from '@/components/ui/badge';
 import { ShoppingCart, SlidersHorizontal, TriangleAlert } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useMemo } from 'react';
-import React, { useEffect, useRef } from 'react';
+import { useMemo, useEffect, useRef } from 'react';
 import { Checkbox } from './ui/checkbox';
 import { useSelectedChecked } from '@/hooks/useDeferedCheck';
 import { useActiveProduct } from '@/lib/product-active-store';
@@ -26,20 +25,19 @@ export function ProductCard({ product, onItemClick, isSelected, context = 'cashi
   const cardRef = useRef<HTMLDivElement>(null);
   const { categories } = useStore();
   const category = useMemo(() => categories.find(c => c.id === product.category_id), [categories, product.category_id]);
+  
+  const { activeId, navigationSource, clearNavigationSource } = useActiveProduct();
+  const isActive = activeId === product.id;
 
   const [checked, toggleChecked] = useSelectedChecked(product.id);
-  const { activeId } = useActiveProduct();
-
-  const arrowActive = activeId === product.id;
 
   useEffect(() => {
-    if (arrowActive && cardRef.current) {
-      cardRef.current.scrollIntoView({
-        behavior: 'smooth',
-        block: 'nearest',
-      });
+    if (isActive && navigationSource === 'keyboard') {
+      cardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      // Reset the source so subsequent re-renders don't trigger a scroll.
+      clearNavigationSource();
     }
-  }, [arrowActive]);
+  }, [isActive, navigationSource, clearNavigationSource]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('id-ID', {
@@ -59,8 +57,6 @@ export function ProductCard({ product, onItemClick, isSelected, context = 'cashi
   const isLowStock = product.track_stock && product.low_stock_alert != null && product.stock > 0 && product.stock <= product.low_stock_alert;
   const is_active = product.is_active;
 
-  // const isChecked = selectedProductIds?.has(product.id) ?? false;
-
   return (
     <Card 
       ref={cardRef}
@@ -70,8 +66,7 @@ export function ProductCard({ product, onItemClick, isSelected, context = 'cashi
         isSelected && "ring-2 ring-primary ring-offset-2",
         isOutOfStock ? "cursor-not-allowed" : "cursor-pointer",
         !is_active && "opacity-80",
-        arrowActive && "ring-4 ring-primary ring-offset-2 shadow-lg"
-
+        isActive && "ring-4 ring-primary ring-offset-2 shadow-lg"
       )}
       onClick={!isOutOfStock ? handleSelect : undefined}
       role="button"
