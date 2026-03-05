@@ -1,8 +1,9 @@
-import { useEffect, useLayoutEffect, useRef } from "react";
+import { use, useEffect, useLayoutEffect, useRef } from "react";
 
 type OverlayScrollbarOptions = {
     autoHideDelay?: number;
     minThumbHeight?: number;
+    scrollStopDelay?: number;
 };
 
 interface UseOverlayScrollbarProps {
@@ -17,6 +18,7 @@ export function useOverlayScrollbar({ outerRef, thumbRef, trackRef, containerRef
     const {
         autoHideDelay = 800,
         minThumbHeight = 24,
+        scrollStopDelay = 150,
     } = options || {};
 
     const hideTimeout = useRef<number>(-1);
@@ -25,6 +27,8 @@ export function useOverlayScrollbar({ outerRef, thumbRef, trackRef, containerRef
 
     const scrollTopRef = useRef(0);
     const scrollBottomRef = useRef(0);
+    const scrollingRef = useRef(false);
+    const scrollStopTimeout = useRef<number>(-1);
 
     const listeners = useRef(new Set<() => void>());
 
@@ -91,6 +95,14 @@ export function useOverlayScrollbar({ outerRef, thumbRef, trackRef, containerRef
             };
 
             const onScroll = () => {
+                clearTimeout(scrollStopTimeout.current);
+                scrollingRef.current = true;
+                
+                scrollStopTimeout.current = window.setTimeout(() => {
+                    scrollingRef.current = false;
+                    listeners.current.forEach((listener) => listener());
+                }, scrollStopDelay);
+
                 cancelAnimationFrame(rafId.current);
                 rafId.current = requestAnimationFrame(updateThumb);
 
@@ -103,6 +115,8 @@ export function useOverlayScrollbar({ outerRef, thumbRef, trackRef, containerRef
 
                 scrollTopRef.current = scrollTop;
                 scrollBottomRef.current = scrollBottom;
+                scrollingRef.current = true;
+
                 listeners.current.forEach((listener) => listener());
 
                 trackEl.style.opacity = "1";
@@ -197,6 +211,7 @@ export function useOverlayScrollbar({ outerRef, thumbRef, trackRef, containerRef
     return {
         getScrollTop: () => scrollTopRef.current,
         getScrollBottom: () => scrollBottomRef.current,
+        getIsScrolling: () => scrollingRef.current,
         subscribe: (cb: () => void) => {
             listeners.current.add(cb);
             return () => listeners.current.delete(cb);

@@ -10,6 +10,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenu
 import type { ViewMode } from "@/app/cashier/page";
 import { BarcodeScanner } from './BarcodeScanner';
 import { useProductSearch } from '@/lib/useProductSearch';
+import { useActiveProduct } from '@/lib/product-active-store';
 
 interface ProductSearchBarProps {
     viewMode?: ViewMode;
@@ -21,6 +22,7 @@ export const ProductSearchBar = React.memo(({ viewMode, onViewModeChange, onBarc
     const [isScannerOpen, setIsScannerOpen] = useState(false);
 
     const [localValue, setLocalValue] = useState('');
+    const { setSearchFocued } = useActiveProduct();
 
     const execQuery = useProductSearch(q => q.setQuery);
 
@@ -61,6 +63,8 @@ export const ProductSearchBar = React.memo(({ viewMode, onViewModeChange, onBarc
                     size="base"
                     shape="full"
                     enable-global-keydown="true"
+                    onFocus={() => setSearchFocued(true)}
+                    onBlur={() => setSearchFocued(false)}
                 />
                 {onBarcodeScan && (
                     <Dialog open={isScannerOpen} onOpenChange={setIsScannerOpen}>

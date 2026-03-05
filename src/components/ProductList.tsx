@@ -14,6 +14,7 @@ import { useProductSearch } from '@/lib/useProductSearch';
 import { motion } from 'framer-motion';
 import { useGlobalKeydown } from '@/hooks/use-global-keydown';
 import { useActiveProduct } from '@/lib/product-active-store';
+import { set } from 'date-fns';
 
 type ViewMode = 'card' | 'thumbnail' | 'list';
 
@@ -189,7 +190,7 @@ export function ProductList({ products, viewMode, isLoading, onItemClick, select
   })
 
   const [isScrolling, setIsCrolling] = useState(false);
-  const { activeIndex, setActiveIndex, setActiveId } = useActiveProduct();
+  const { activeIndex, setActiveIndex, setActiveId, searchFocued } = useActiveProduct();
 
   useGlobalKeydown({
     key: 'ArrowUp',
@@ -208,6 +209,13 @@ export function ProductList({ products, viewMode, isLoading, onItemClick, select
     },
     enabled: true
   });
+
+  useEffect(() => {
+    if (!searchFocued) {
+      setActiveIndex(null);
+      setActiveId(null);
+    }
+  },[searchFocued])
 
   useGlobalKeydown({
     key: 'ArrowDown',
