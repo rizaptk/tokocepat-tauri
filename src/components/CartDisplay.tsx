@@ -1,3 +1,4 @@
+
 "use client";
     
 import { useStore } from "@/lib/store";
@@ -64,6 +65,7 @@ export function CartDisplay({ onEditItem }: CartDisplayProps) {
   const [voidReason, setVoidReason] = useState("");
 
   const cartContainer = useRef<ScrollAreaHandle>(null);
+  const cartDisplayRef = useRef<HTMLDivElement>(null);
   
   const shiftTransactions = transactions.filter(t => t.shift_id === activeShift?.id);
   const cartItemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
@@ -115,8 +117,9 @@ export function CartDisplay({ onEditItem }: CartDisplayProps) {
         handleProcessPayment();
       }
     }, 
-    enabled: true}
-  );
+    enabled: true,
+    bindTo: cartDisplayRef,
+  });
 
   const handleReviewTransaction = (tx: Transaction) => {
     const itemsForReview = tx.items.map(txItem => ({
@@ -179,7 +182,7 @@ export function CartDisplay({ onEditItem }: CartDisplayProps) {
   },[cart.length, cartContainer.current, isReviewing])
 
   return (
-    <div className="flex flex-col flex-1 h-full min-h-0">
+    <div ref={cartDisplayRef} className="flex flex-col flex-1 h-full min-h-0">
       <header className="hidden md:flex h-16 items-center justify-between px-6 shrink-0 gap-2">
         <Button variant={view === 'cart' ? 'secondary' : 'ghost'} onClick={() => setView('cart')} className="flex-1">
             <ShoppingCart className="mr-2 h-4 w-4" />
