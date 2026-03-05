@@ -37,13 +37,13 @@ type ProductListProps = {
 // Constants for layout calculation
 const CARD_MIN_WIDTH = 210;
 const CARD_ROW_HEIGHT = 280;
-const THUMBNAIL_ROW_HEIGHT = 82;
+const THUMBNAIL_ROW_HEIGHT = 86;
 const LIST_ROW_HEIGHT = 56;
 
 // --- Components for Card Grid View ---
 
 // 1. Memoized item for performance. This is one cell in the grid.
-const CardGridItem = React.memo(({ product, onItemClick, selectedProductId, context, columnCount }: { product: Product, onItemClick?: (product: Product) => void, selectedProductId?: string | null, context?: 'cashier' | 'product' | 'inventory', columnCount: number}) => {
+const CardGridItem = React.memo(({ product, onItemClick, selectedProductId, context, columnCount }: { product: Product, onItemClick?: (product: Product) => void, selectedProductId?: string | null, context?: 'cashier' | 'product' | 'inventory', columnCount: number }) => {
   if (!product) return null;
 
   return (
@@ -106,7 +106,7 @@ const ListItem = React.memo(({ index, style, data }: { index: number, style: Rea
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.15 }}
-      className="p-4 h-full"
+      className="px-5 py-1 h-full"
     >
       <ProductThumbnailItem
         product={product}
@@ -186,16 +186,16 @@ export function ProductList({ products, viewMode, isLoading, onItemClick, select
   // --- Keyboard Navigation ---
   const handleNavigate = (direction: 'up' | 'down' | 'left' | 'right') => {
     if (filteredProducts.length === 0) return;
-    
+
     let newIndex = activeIndex ?? -1;
 
     if (viewMode === 'card') {
       if (!containerRef.current) return;
       const width = containerRef.current.offsetWidth;
       const columnCount = Math.max(1, Math.floor(width / CARD_MIN_WIDTH));
-      
-      const currentRow = Math.floor(newIndex / columnCount);
-      const currentCol = newIndex % columnCount;
+
+      // const currentRow = Math.floor(newIndex / columnCount);
+      // const currentCol = newIndex % columnCount;
       if (direction === 'down') newIndex = Math.min(newIndex + columnCount, filteredProducts.length - 1);
       else if (direction === 'up') newIndex = Math.max(newIndex - columnCount, 0);
       else if (direction === 'right') newIndex = Math.min(newIndex + 1, filteredProducts.length - 1);
@@ -204,7 +204,7 @@ export function ProductList({ products, viewMode, isLoading, onItemClick, select
       if (direction === 'down') newIndex = newIndex >= filteredProducts.length - 1 ? 0 : newIndex + 1;
       else if (direction === 'up') newIndex = newIndex <= 0 ? filteredProducts.length - 1 : newIndex - 1;
     }
-    
+
     if (newIndex >= 0 && newIndex < filteredProducts.length) {
       setActive(newIndex, filteredProducts[newIndex].id, 'keyboard');
     }
@@ -219,8 +219,8 @@ export function ProductList({ products, viewMode, isLoading, onItemClick, select
     if (activeId === null) return;
     const product = filteredProducts.find(p => p.id === activeId);
     if (product && onItemClick) {
-        onItemClick(product);
-        clearActive();
+      onItemClick(product);
+      clearActive();
     }
   }
   useGlobalKeydown({ key: 'Enter', handler: handleActionKey, enabled: context === 'cashier', bindTo: containerRef });

@@ -81,14 +81,14 @@ export function ProductThumbnailItem({
         "group flex items-center gap-3 p-3 transition-colors duration-100 border border-border bg-card h-[78px] rounded-md",
         "hover:shadow-md",
         isSelected && "bg-background",
-        isActive && "ring-2 ring-primary ring-offset-2",
+        isActive && "ring-1 ring-primary ring-inset text-primary bg-primary/5",
         isOutOfStock && "opacity-60 cursor-not-allowed",
         !is_active && "opacity-80 relative"
       )}
     >
       {/* CHECKBOX */}
       {context === 'product' && (
-        <div className={cn('flex items-center justify-center',`${!!product.barcode ? '' : '!opacity-40 grayscale'}`)} onClick={(e) => e.stopPropagation()}>
+        <div className={cn('flex items-center justify-center',`${!!product.barcode ? '' : '!opacity-20 grayscale pointer-events-none'}`)} onClick={(e) => e.stopPropagation()}>
             <Checkbox className="rounded-none bg-card" checked={checked} onCheckedChange={toggleChecked} />
         </div>
       )}

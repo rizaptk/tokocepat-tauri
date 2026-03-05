@@ -193,7 +193,7 @@ export default function SettingsPage() {
 
             <section className="flex-1 p-8">
                 <Tabs defaultValue="store" className="w-full">
-                    <TabsList className="grid w-full grid-cols-3 md:grid-cols-4 lg:grid-cols-7 mb-8">
+                    <TabsList className="w-full mb-8 overflow-x-auto overflow-y-hidden no-scrollbar">
                         <TabsTrigger value="store"><Store className="mr-2 h-4 w-4" />Store</TabsTrigger>
                         <TabsTrigger value="taxes"><Percent className="mr-2 h-4 w-4" />Taxes</TabsTrigger>
                         <TabsTrigger value="license"><Shield className="mr-2 h-4 w-4" />License</TabsTrigger>

@@ -6,7 +6,7 @@ import { Product } from '@/lib/types';
 import { useStore } from '@/lib/store';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { ShoppingCart, SlidersHorizontal, TriangleAlert } from 'lucide-react';
+import { Layers2, ShoppingCart, SlidersHorizontal, TriangleAlert } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useMemo, useEffect, useRef } from 'react';
 import { Checkbox } from './ui/checkbox';
@@ -23,9 +23,11 @@ type ProductCardProps = {
 
 export function ProductCard({ product, onItemClick, isSelected, context = 'cashier', style }: ProductCardProps) {
   const cardRef = useRef<HTMLDivElement>(null);
-  const { categories } = useStore();
-  const category = useMemo(() => categories.find(c => c.id === product.category_id), [categories, product.category_id]);
+  const { categories, productVariants } = useStore();
   
+  const category = useMemo(() => categories.find(c => c.id === product.category_id), [categories, product.category_id]);
+  const variants = useMemo(() => productVariants.filter(v => v.product_id === product.id), [productVariants, product.id]);
+
   const { activeId, navigationSource, clearNavigationSource } = useActiveProduct();
   const isActive = activeId === product.id;
 
@@ -66,7 +68,7 @@ export function ProductCard({ product, onItemClick, isSelected, context = 'cashi
         isSelected && "ring-2 ring-primary ring-offset-2",
         isOutOfStock ? "cursor-not-allowed" : "cursor-pointer",
         !is_active && "opacity-80",
-        isActive && "ring-4 ring-primary ring-offset-2 shadow-lg"
+        isActive && "ring-2 ring-primary ring-offset-0 shadow-lg"
       )}
       onClick={!isOutOfStock ? handleSelect : undefined}
       role="button"
@@ -103,11 +105,24 @@ export function ProductCard({ product, onItemClick, isSelected, context = 'cashi
               <Badge variant="destructive" className="text-sm">Out of Stock</Badge>
             </div>
           )}
-          {context === 'cashier' && (
-            <div className="h-7 w-7 rounded-full flex items-center justify-center bg-background absolute bottom-2 left-2">
-              <ShoppingCart className="h-4 w-4 text-primary" />
-            </div>)
-          }
+          
+          {(product.has_variant || product.has_modifier) && (
+            <div className='absolute left-1 top-2 flex flex-col gap-1'>
+              {product.has_variant && (
+                <Badge variant="secondary" className='bg-background/70 hover:bg-background backdrop-blur-md text-[10px] h-5 px-1.5 border-none shadow-sm flex gap-1 w-fit' title={'Variants'}>
+                  <Layers2 className="h-3 w-3 text-primary" />
+                  <span>{variants?.length} Variants</span>
+                </Badge>
+              )}
+              {product.has_modifier && (
+                <Badge variant="secondary" className='bg-background/70 hover:bg-background backdrop-blur-md text-[10px] h-5 px-1.5 border-none shadow-sm flex gap-1 w-fit' title={'Customizable'}>
+                  <SlidersHorizontal className="h-3 w-3 text-orange-500" />
+                  <span>Customizable</span>
+                </Badge>
+              )}
+            </div>
+          )}
+
           {context !== 'cashier' && (
             <Badge variant={isLowStock ? "destructive" : "secondary"} className='absolute bottom-2 left-2'>
               {product.track_stock ? `${product.stock}` : 'Untracked'}
@@ -115,12 +130,7 @@ export function ProductCard({ product, onItemClick, isSelected, context = 'cashi
           )}
           {category && <Badge variant="secondary" className='truncate text-xs absolute bottom-2 right-2 max-w-[70%]'>{category.name}</Badge>}
         </div>
-        <div className="absolute top-2 right-2 z-10 flex gap-1">
-            {product.has_modifier && context === 'product' && (
-                <Badge variant="secondary" className="bg-black/50 text-white backdrop-blur-sm">
-                    <SlidersHorizontal className="h-3 w-3" />
-                </Badge>
-            )}
+        <div className="absolute top-2 right-1 z-10 flex gap-1">
             {isLowStock && (
                  <Badge variant="destructive" className="bg-yellow-500/80 text-black backdrop-blur-sm items-center">
                     <TriangleAlert className="h-3 w-3" />
@@ -132,7 +142,12 @@ export function ProductCard({ product, onItemClick, isSelected, context = 'cashi
         <CardTitle className="text-base font-medium line-clamp-2">{product.name}</CardTitle>
       </CardContent>
       <CardFooter className="flex items-center justify-between p-4 pt-0 mt-auto">
-        <p className="font-semibold text-foreground">{formatCurrency(product.price)}</p>
+        <span className="font-semibold text-foreground">{formatCurrency(product.price)}</span>
+        {context === 'cashier' && (
+            <div className="h-7 w-7 rounded-full border flex items-center justify-center bg-background">
+              <ShoppingCart className="h-4 w-4 text-primary" />
+            </div>)
+          }
       </CardFooter>
     </Card>
   );

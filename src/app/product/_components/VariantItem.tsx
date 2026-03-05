@@ -16,6 +16,7 @@ interface VariantItemProps {
 }
 
 const VariantItemComponent: React.FC<VariantItemProps> = ({ index, field, form, removeVariant }) => {
+    
     return (
         <div key={field.id} className="flex flex-col gap-2 items-end p-3 border rounded-lg bg-muted/50">
             <div className="flex items-center justify-between w-full border-b px-2">

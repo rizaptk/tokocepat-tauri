@@ -21,7 +21,8 @@ interface ProductSearchBarProps {
 export const ProductSearchBar = React.memo(({ viewMode, onViewModeChange, onBarcodeScan }: ProductSearchBarProps) => {
     const [isScannerOpen, setIsScannerOpen] = useState(false);
     const [localValue, setLocalValue] = useState('');
-    const { setSearchFocued, clearActive } = useActiveProduct();
+    const [lastInputTime, setLastInputTime] = useState(0);
+    const { clearActive } = useActiveProduct();
     const execQuery = useProductSearch(q => q.setQuery);
     const deferredValue = useDeferredValue(localValue.trim(), '');
 
@@ -39,14 +40,21 @@ export const ProductSearchBar = React.memo(({ viewMode, onViewModeChange, onBarc
     };
 
     const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-        // Barcode scanners often terminate with 'Enter'
         if (e.key === 'Enter' && localValue.trim() && onBarcodeScan) {
-            e.preventDefault();
-            handleScanSuccess(localValue.trim());
+            const now = Date.now();
+            const timeDiff = now - lastInputTime;
+            
+            // Barcode scanners typically input characters very rapidly (usually < 50ms between keys)
+            // and terminate with Enter. If the last key was very recent, it's likely a scanner.
+            if (timeDiff < 100 || localValue.length > 5) {
+                e.preventDefault();
+                handleScanSuccess(localValue.trim());
+            }
         }
     };
     
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setLastInputTime(Date.now());
         setLocalValue(e.target.value);
         // User is typing, so clear any keyboard-based navigation selection
         clearActive();
@@ -59,20 +67,20 @@ export const ProductSearchBar = React.memo(({ viewMode, onViewModeChange, onBarc
                 <Input
                     type="search"
                     placeholder="Search products or scan barcode..."
-                    className="w-full px-10 bg-card"
+                    className="w-full pl-10 pe-14 bg-card"
                     value={localValue}
                     onChange={handleInputChange}
                     onKeyDown={handleKeyDown}
                     size="base"
                     shape="full"
                     enable-global-keydown="true"
-                    onFocus={() => setSearchFocued(true)}
-                    onBlur={() => setSearchFocued(false)}
+                    // onFocus={() => setSearchFocued(true)}
+                    onBlur={() => clearActive()}
                 />
                 {onBarcodeScan && (
                     <Dialog open={isScannerOpen} onOpenChange={setIsScannerOpen}>
                         <DialogTrigger asChild>
-                            <Button variant="ghost" size="sm" className="shrink-0 absolute right-0.5 h-9 w-12 top-0.5 bottom-0.5 rounded-full [&_svg]:text-muted-foreground [&_svg]:size-5">
+                            <Button variant="ghost" size="sm" className="shrink-0 absolute right-1 h-8 w-12 top-1 bottom-1 rounded-r-full border-l [&_svg]:text-muted-foreground [&_svg]:size-5">
                                 <Barcode className="size-6" />
                             </Button>
                         </DialogTrigger>

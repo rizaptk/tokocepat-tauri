@@ -31,7 +31,7 @@ type ItemWithVariant = Product & { _selectedVariant: ProductVariant };
 
 export default function CashierPage() {
     // Global state from Zustand
-    const { products, activeShift, openShift, saveItemToCart } = useStore();
+    const { products, activeShift, openShift, saveItemToCart, categories } = useStore();
     const { toast } = useToast();
     const { isMobile } = useIsMobile();
     const { query } = useProductSearch();
@@ -40,6 +40,7 @@ export default function CashierPage() {
     const [itemToSelectVariant, setItemToSelectVariant] = useState<Product | null>(null);
     const [itemToModify, setItemToModify] = useState<Product | CartItem | ItemWithVariant | null>(null);
 
+    const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
     const [scrollTop, setScrollTop] = useState(0);
 
     // Responsive and view state
@@ -58,8 +59,11 @@ export default function CashierPage() {
     }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
     const displayedProducts = useMemo(() => {
-        return products.filter(p => p.is_active); // If not searching, show all active products from global store
-    }, [products]);
+        return products.filter(p => {
+            const matchesCategory = !selectedCategoryId || p.category_id === selectedCategoryId;
+            return p.is_active && matchesCategory;
+        });
+    }, [products, selectedCategoryId]);
 
 
     const handleOpenShift = () => {
@@ -193,14 +197,38 @@ export default function CashierPage() {
             {/* Desktop & Tablet Layout: Split View */}
             <div className="hidden md:grid md:grid-cols-2 xl:grid-cols-10 flex-1 overflow-hidden">
                 <main className="xl:col-span-6 flex flex-col overflow-hidden relative">
-                    <div className={`z-10 p-4 border-b transition-all ${scrollTop > 0 ? 'border-b-border shadow-md' : 'border-b-transparent'}`}>
+                    <div className={`z-10 p-4 flex flex-col gap-4 border-b transition-all ${scrollTop > 0 ? 'border-b-border shadow-md' : 'border-b-transparent'}`}>
                         <ProductSearchBar
-                            // searchTerm={query}
-                            // onSearchTermChange={setSearchTerm}
                             viewMode={showMode.cart}
                             onViewModeChange={(view) => setShowMode({ cart: view })}
                             onBarcodeScan={handleBarcodeScan}
                         />
+                        {
+                            categories.length > 0 &&
+                            <div className='flex flex-row items-center gap-4 overflow-x-auto no-scrollbar'>
+                                <Button
+                                    variant={selectedCategoryId === null ? 'secondary' : 'outline'}
+                                    size="sm"
+                                    className="rounded-full px-4 shrink-0"
+                                    onClick={() => setSelectedCategoryId(null)}
+                                >
+                                    All
+                                </Button>
+                                {
+                                    categories.map(category => (
+                                        <Button
+                                            key={category.id}
+                                            variant={selectedCategoryId === category.id ? 'secondary' : 'outline'}
+                                            size="sm"
+                                            className="rounded-full px-4 shrink-0"
+                                            onClick={() => setSelectedCategoryId(category.id)}
+                                        >
+                                            {category.name}
+                                        </Button>
+                                    ))
+                                }
+                            </div>
+                        }
                     </div>
                     <div className="flex-1">
                         <ProductList products={displayedProducts} viewMode={showMode.cart} isLoading={products.length === 0} onItemClick={handleProductSelect} context="cashier" setScrollTop={setScrollTop} />

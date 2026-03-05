@@ -37,6 +37,7 @@ import { useGlobalBarcodeScanner } from "@/hooks/use-global-barcode-scanner";
 // Sub-components
 import { ProductEditor } from "./_components/ProductEditor";
 import { useSelectedProduct } from "@/lib/product-select-store";
+import { Separator } from "@/components/ui/separator";
 
 
 export default function ProductManagementPage() {
@@ -199,7 +200,7 @@ export default function ProductManagementPage() {
         <div className="w-full h-[calc(100vh-64px)] md:grid md:grid-cols-10 min-h-0 flex-1">
             {/* Left Panel: Product List */}
             <div className="col-span-10 md:col-span-5 lg:col-span-6 h-full flex flex-col min-h-0">
-                <div className="p-4">
+                <div className="p-4 flex flex-col w-full gap-4">
                     <div className="flex items-center gap-2">
                         <ProductSearchBar
                             viewMode={viewMode}
@@ -225,6 +226,33 @@ export default function ProductManagementPage() {
                             <PlusCircle className="h-4 w-4" />
                         </Button>
                     </div>
+
+                    <div className="flex items-center gap-4 overflow-x-auto no-scrollbar">
+                        {/* active secondary non aktive outline */}
+                        <Button variant="secondary" className="rounded-full px-4 shrink-0">
+                            All
+                        </Button>
+                        <Button variant="outline" className="rounded-full px-4 shrink-0">
+                            Product
+                        </Button>
+                        <Button variant="outline" className="rounded-full px-4 shrink-0">
+                            Ingredient
+                        </Button>
+                        
+                        <Separator orientation="vertical" />
+
+                        {/* check filter - inactive outline */}
+                        <Button variant="destructive" className="rounded-full px-4 shrink-0">
+                            Variants
+                        </Button>
+                        <Button variant="default" className="rounded-full px-4 shrink-0">
+                            Modifiers
+                        </Button>
+                        <Button variant="warning" className="rounded-full px-4 shrink-0">
+                            Inactive
+                        </Button>
+                    </div>
+
                 </div>
                 <div className="flex-grow">
                     <ProductList

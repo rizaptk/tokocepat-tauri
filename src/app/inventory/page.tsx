@@ -453,15 +453,45 @@ export default function InventoryPage() {
     return (
         <div className="w-full h-[calc(100vh-4rem)] md:grid md:grid-cols-10 min-h-0">
             <div className="col-span-10 md:col-span-6 lg:col-span-6 h-full flex flex-col min-h-0">
-                <div className="p-4 flex items-center gap-2 ">
-                    <div className="flex-grow">
-                        <ProductSearchBar
-                            onBarcodeScan={handleBarcodeScan}
-                        />
+                <div className="flex flex-col gap-4 p-4">
+                    <div className="flex items-center gap-2 ">
+                        <div className="flex-grow">
+                            <ProductSearchBar
+                                onBarcodeScan={handleBarcodeScan}
+                            />
+                        </div>
+                        <div className="md:hidden">
+                            <Button onClick={handleOpenAdjustmentSheet}>
+                                <PlusCircle className="mr-2 h-4 w-4" /> Adjustment
+                            </Button>
+                        </div>
                     </div>
-                    <div className="md:hidden">
-                        <Button onClick={handleOpenAdjustmentSheet}>
-                            <PlusCircle className="mr-2 h-4 w-4" /> Adjustment
+                    <div className="flex items-center gap-4 overflow-x-auto no-scrollbar">
+                        {/* active secondary non aktive outline */}
+                        <Button variant="secondary" className="rounded-full px-4 shrink-0">
+                            All
+                        </Button>
+                        <Button variant="outline" className="rounded-full px-4 shrink-0">
+                            Product
+                        </Button>
+                        <Button variant="outline" className="rounded-full px-4 shrink-0">
+                            Ingredient
+                        </Button>
+                        
+                        <Separator orientation="vertical" />
+
+                        {/* check filter - inactive outline */}
+                        <Button variant="destructive" className="rounded-full px-4 shrink-0">
+                            Low Stock
+                        </Button>
+                        <Button variant="warning" className="rounded-full px-4 shrink-0">
+                            Out of Stock
+                        </Button>
+                        <Button variant="default" className="rounded-full px-4 shrink-0">
+                            New
+                        </Button>
+                        <Button variant="secondary" className="rounded-full px-4 shrink-0">
+                            No Sales
                         </Button>
                     </div>
                 </div>

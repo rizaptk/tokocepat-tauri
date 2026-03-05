@@ -24,7 +24,7 @@ type ProductListItemProps = {
 const columnClass = {
   checkbox: "flex items-center justify-center w-9 h-[54px]",
   name: "flex items-center gap-2 flex-1 min-w-0 h-[54px]",
-  category: "hidden md:flex items-center text-sm text-muted-foreground truncate max-w-[160px] w-[160px] px-2 border-l border-l-border/50 h-[54px]",
+  category: "hidden md:flex items-center text-sm opacity-70 truncate max-w-[160px] w-[160px] px-2 border-l border-l-border/50 h-[54px]",
   stock: "hidden sm:flex items-center justify-end gap-1 text-sm tabular-nums shrink-0 w-20 border-l border-l-border/50 px-2 text-right h-[54px]",
   price: "flex items-center justify-end shrink-0 text-right tabular-nums whitespace-nowrap w-36 border-l border-l-border/50 h-[54px]"
 }
@@ -92,7 +92,7 @@ export function ProductListItem({
             "hover:bg-accent",
             isEvent && 'bg-primary/5',
             isSelected && "bg-background",
-            isActive && "ring-2 ring-primary ring-offset-2",
+            isActive && "bg-primary/10 text-primary ring-1 ring-inset ring-primary",
             isOutOfStock && "opacity-60 cursor-not-allowed",
             !is_active && "opacity-80 relative"
           )}
