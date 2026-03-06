@@ -335,7 +335,9 @@ export default function SettingsPage() {
             <AlertDialogContent>
                 <AlertDialogHeader>
                     <AlertDialogTitle>Reset All Application Data?</AlertDialogTitle>
-                    <AlertDialogDescription>This action is permanent and cannot be undone. It will delete all products, categories, sales, shifts, and inventory history. Your license will NOT be affected. The app will restart with fresh demo data.</AlertDialogDescription>
+                    <AlertDialogDescription>
+                        This action is permanent and cannot be undone. It will delete all local business data and clear your auto-backup file configuration. If you wish to preserve the current backup, please make a copy of the file before proceeding. Your license will not be affected.
+                    </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                     <AlertDialogCancel>Cancel</AlertDialogCancel>

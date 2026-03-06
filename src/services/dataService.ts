@@ -2,6 +2,7 @@
 
 import { useDbStore } from '@/lib/db-store';
 import { seedDatabase } from '@/lib/database';
+import { clearBackupConfig } from '@/lib/backupService';
 
 export type LicenseDbData = {
     jwt: string;
@@ -45,6 +46,9 @@ export const resetApplicationData = async (): Promise<{ success: boolean, messag
         // After clearing, re-seed the database to get a fresh start
         await seedDatabase(firesqlite, db, true); // force re-seed
         
+        // Clear backup file handle
+        await clearBackupConfig();
+
         return { success: true };
     } catch (error: any) {
         console.error("Failed to reset application data:", error);

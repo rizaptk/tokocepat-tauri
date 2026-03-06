@@ -47,6 +47,24 @@ const idbKeyval = {
             };
         });
     },
+    delete: (key: IDBValidKey): Promise<void> => {
+        return new Promise((resolve, reject) => {
+            if (typeof window === 'undefined' || !window.indexedDB) return resolve();
+            const request = indexedDB.open('tokoc-keyval', 1);
+            request.onupgradeneeded = () => {
+                 if (!request.result.objectStoreNames.contains('store')) {
+                    request.result.createObjectStore('store');
+                }
+            };
+            request.onerror = () => reject(request.error);
+            request.onsuccess = () => {
+                const tx = request.result.transaction('store', 'readwrite');
+                tx.objectStore('store').delete(key);
+                tx.oncomplete = () => resolve();
+                tx.onerror = () => reject(tx.error);
+            };
+        });
+    },
 };
 
 const FILE_HANDLE_KEY = 'db-backup-file-handle';
@@ -70,6 +88,16 @@ async function verifyPermission(handle: FileSystemFileHandle, withWrite: boolean
 export async function hasBackupConfig(): Promise<boolean> {
     const handle = await idbKeyval.get<FileSystemFileHandle>(FILE_HANDLE_KEY);
     return !!handle;
+}
+
+export async function clearBackupConfig(): Promise<void> {
+    await Promise.all([
+        idbKeyval.delete(FILE_HANDLE_KEY),
+        idbKeyval.delete(LAST_BACKUP_KEY),
+        idbKeyval.delete(LAST_BACKUP_SIGNATURE_KEY),
+    ]);
+    fileHandle = null; // Also clear the in-memory handle
+    console.log("Backup configuration cleared.");
 }
 
 export async function getBackupFileHandle(requestWrite: boolean = false): Promise<FileSystemFileHandle | null> {
