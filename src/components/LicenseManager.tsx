@@ -41,7 +41,7 @@ export function LicenseManager() {
                 throw new Error(data.error || 'An unknown error occurred during activation.');
             }
             
-            await saveLicenseData(data.token);
+            await saveLicenseData(data.token, deviceId);
 
             toast({ title: 'Activation Successful!', description: 'The application will now reload.' });
 

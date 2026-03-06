@@ -52,7 +52,8 @@ export async function POST(request: Request) {
         const planName = licenseData.plan;
         const plansRef = db.collection('app_settings').doc('subscriptionPlans');
         const plansSnap = await plansRef.get();
-        const allPlans = (plansSnap.exists() ? plansSnap.data()?.plans : []) as SubscriptionPlan[];
+        // SAFER LOOKUP: Default to empty array if plans field doesn't exist
+        const allPlans = (plansSnap.data()?.plans || []) as SubscriptionPlan[];
         const selectedPlan = allPlans.find(p => p.name === planName);
 
         if (selectedPlan && selectedPlan.isTrial) {
