@@ -1,4 +1,3 @@
-
 'use client';
 
 import Link from 'next/link';
@@ -54,8 +53,9 @@ export default function StockSummaryReportPage() {
     }, [dateRange]);
 
     const allStockableItems = useMemo(() => {
+        // Corrected logic to align with inventory page
         const stockableProducts = products
-            .filter(p => p.track_stock && !p.has_variant)
+            .filter(p => p.track_stock) // Only filter by track_stock
             .map(p => ({ ...p, name: p.name, stock: p.stock, itemType: 'product' as const }));
 
         const stockableVariants = productVariants
