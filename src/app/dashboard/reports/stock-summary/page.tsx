@@ -4,7 +4,7 @@
 import Link from 'next/link';
 import { useStore } from '@/lib/store';
 import { useState, useMemo, useEffect } from 'react';
-import { ArrowLeft, Warehouse, Loader2, Package, Beaker } from 'lucide-react';
+import { ArrowLeft, Warehouse, Loader2, Package, Beaker, Layers2 } from 'lucide-react';
 import { format, startOfDay, endOfDay, subDays, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import { exportStockSummaryToExcel, exportStockSummaryToPdf } from '@/lib/export';
 import { useToast } from '@/hooks/use-toast';
@@ -24,7 +24,7 @@ export default function StockSummaryReportPage() {
     const [range, setRange] = useState<DateRangePreset>('today');
     const [stockMovements, setStockMovements] = useState<StockMovement[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [filterType, setFilterType] = useState<'all' | 'product' | 'ingredient'>('all');
+    const [filterType, setFilterType] = useState<'all' | 'product' | 'ingredient' | 'variant'>('all');
 
     const dateRange = useMemo(() => {
         const now = new Date();
@@ -54,12 +54,10 @@ export default function StockSummaryReportPage() {
     }, [dateRange]);
 
     const allStockableItems = useMemo(() => {
-        // Products that track stock directly (not via variants)
         const stockableProducts = products
             .filter(p => p.track_stock && !p.has_variant)
             .map(p => ({ ...p, name: p.name, stock: p.stock, itemType: 'product' as const }));
 
-        // Variants that track stock
         const stockableVariants = productVariants
             .filter(v => v.track_stock)
             .map(v => {
@@ -69,7 +67,7 @@ export default function StockSummaryReportPage() {
                     id: v.id,
                     name: `${parent?.name || 'Product'} (${v.name})`,
                     stock: v.stock,
-                    itemType: 'product' as const, // Treat as product for filtering
+                    itemType: 'variant' as const,
                 };
             });
         
@@ -154,6 +152,7 @@ export default function StockSummaryReportPage() {
                         <SelectContent>
                             <SelectItem value="all">All Items</SelectItem>
                             <SelectItem value="product">Products</SelectItem>
+                            <SelectItem value="variant">Variants</SelectItem>
                             <SelectItem value="ingredient">Ingredients</SelectItem>
                         </SelectContent>
                     </Select>
@@ -195,8 +194,12 @@ export default function StockSummaryReportPage() {
                                     <TableRow key={item.id}>
                                         <TableCell className="font-medium">{item.name}</TableCell>
                                         <TableCell>
-                                            <Badge variant="outline" className={item.type === 'product' ? 'border-blue-300 bg-blue-50 text-blue-800' : 'border-green-300 bg-green-50 text-green-800'}>
-                                                {item.type === 'product' ? <Package className="h-3 w-3 mr-1.5" /> : <Beaker className="h-3 w-3 mr-1.5" />}
+                                            <Badge variant="outline" className={
+                                                item.type === 'product' ? 'border-blue-300 bg-blue-50 text-blue-800' : 
+                                                item.type === 'variant' ? 'border-purple-300 bg-purple-50 text-purple-800' :
+                                                'border-green-300 bg-green-50 text-green-800'
+                                            }>
+                                                {item.type === 'product' ? <Package className="h-3 w-3 mr-1.5" /> : item.type === 'variant' ? <Layers2 className="h-3 w-3 mr-1.5" /> : <Beaker className="h-3 w-3 mr-1.5" />}
                                                 {item.type}
                                             </Badge>
                                         </TableCell>

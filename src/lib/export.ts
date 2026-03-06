@@ -222,7 +222,7 @@ type ReportRow = StockMovement & {
     referenceDisplay: string;
     openingStock: number;
     resultingStock: number;
-    productType: 'Product' | 'Ingredient';
+    productType: 'Product' | 'Ingredient' | 'Variant';
 };
 
 export const exportStockMovementToExcel = (movements: ReportRow[], dateRange: { from: Date, to: Date }, storeName: string) => {
@@ -295,7 +295,7 @@ export const exportStockMovementToPdf = async (movements: ReportRow[], dateRange
         const row = [
             format(new Date(m.created_at), 'yy-MM-dd HH:mm'),
             m.product_name_snapshot,
-            m.type,
+            m.productType,
             m.openingStock.toString(),
             m.qty_change.toString(),
             m.resultingStock.toString(),
@@ -415,6 +415,82 @@ export const exportConsumptionToPdf = async (reportData: any[], dateRange: { fro
     link.href = URL.createObjectURL(blob);
     const range = format(dateRange.from, 'yyyy-MM-dd') + '_to_' + format(dateRange.to, 'yyyy-MM-dd');
     link.download = `consumption_report_${storeName.replace(/\s+/g, '_')}_${range}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+};
+
+export const exportStockSummaryToPdf = async (reportData: any[], dateRange: { from: Date, to: Date }, storeName: string) => {
+    const pdfDoc = await PDFDocument.create();
+    let page = pdfDoc.addPage();
+    const { width, height } = page.getSize();
+    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+    const fontSize = 9;
+    const margin = 40;
+    let y = height - margin;
+
+    const drawHeader = () => {
+        page.drawText(`${storeName} - Stock Summary Report`, { x: margin, y, font: boldFont, size: 16 });
+        y -= 20;
+        page.drawText(`Period: ${format(dateRange.from, 'PPP')} to ${format(dateRange.to, 'PPP')}`, { x: margin, y, font, size: 10 });
+        y -= 25;
+    };
+
+    drawHeader();
+
+    const tableHeaders = ['Product/Ingredient', 'Type', 'Opening', 'Added', 'Sold', 'Adjusted', 'Closing'];
+    const colWidths = [180, 60, 50, 50, 50, 50, 50];
+    let x = margin;
+
+    tableHeaders.forEach((header, i) => {
+        page.drawText(header, { x, y, font: boldFont, size: fontSize });
+        x += colWidths[i];
+    });
+    y -= 5;
+    page.drawLine({ start: { x: margin, y }, end: { x: width - margin, y }, thickness: 1 });
+    y -= 15;
+
+    for (const item of reportData) {
+        if (y < margin) {
+            page = pdfDoc.addPage();
+            y = height - margin;
+            drawHeader();
+            let x = margin;
+            tableHeaders.forEach((header, i) => {
+                page.drawText(header, { x, y, font: boldFont, size: fontSize });
+                x += colWidths[i];
+            });
+            y -= 5;
+            page.drawLine({ start: { x: margin, y }, end: { x: width - margin, y }, thickness: 1 });
+            y -= 15;
+        }
+
+        const row = [
+            item.name,
+            item.type.charAt(0).toUpperCase() + item.type.slice(1),
+            item.openingStock.toLocaleString(),
+            item.added > 0 ? `+${item.added.toLocaleString()}` : '0',
+            item.sold > 0 ? `-${item.sold.toLocaleString()}` : '0',
+            item.adjusted !== 0 ? item.adjusted.toLocaleString() : '0',
+            item.closingStock.toLocaleString(),
+        ];
+
+        x = margin;
+        row.forEach((cell, i) => {
+            page.drawText(cell, { x, y, font, size: 8 });
+            x += colWidths[i];
+        });
+        y -= 12;
+    }
+
+    const pdfBytes = await pdfDoc.save();
+
+    const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    const range = format(dateRange.from, 'yyyy-MM-dd') + '_to_' + format(dateRange.to, 'yyyy-MM-dd');
+    link.download = `stock_summary_report_${storeName.replace(/\s+/g, '_')}_${range}.pdf`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
