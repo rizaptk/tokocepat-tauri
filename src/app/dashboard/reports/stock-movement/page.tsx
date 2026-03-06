@@ -4,7 +4,7 @@
 import Link from 'next/link';
 import { useStore } from '@/lib/store';
 import { useState, useMemo, useCallback, useEffect } from 'react';
-import { ArrowLeft, History, PackageSearch, Filter, X, Package, Beaker, Loader2 } from 'lucide-react';
+import { ArrowLeft, History, PackageSearch, Filter, X, Package, Beaker, Loader2, Layers2 } from 'lucide-react';
 import { format, startOfDay, endOfDay, subDays, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import { exportStockMovementToExcel, exportStockMovementToPdf } from '@/lib/export';
 import { useToast } from '@/hooks/use-toast';
@@ -24,7 +24,7 @@ type ReportRow = StockMovement & {
     referenceDisplay: string;
     openingStock: number;
     resultingStock: number;
-    productType: 'Product' | 'Ingredient';
+    productType: 'Product' | 'Ingredient' | 'Variant';
 };
 
 const movementTypeLabels: Record<string, { label: string, color: string }> = {
@@ -37,7 +37,7 @@ const movementTypeLabels: Record<string, { label: string, color: string }> = {
 };
 
 export default function StockMovementReportPage() {
-    const { products, rawIngredients, transactions, storeConfig } = useStore();
+    const { products, rawIngredients, transactions, storeConfig, productVariants } = useStore();
     const { toast } = useToast();
     const [range, setRange] = useState<DateRangePreset>('today');
     const [filterProductId, setFilterProductId] = useState<string | null>(null);
@@ -71,10 +71,25 @@ export default function StockMovementReportPage() {
         fetchMovements();
     }, [dateRange]);
     
-    const allStockableItems = useMemo(() => [
-        ...products.filter(p => p.track_stock).map(p => ({ ...p, id: p.id, name: p.name, stock: p.stock, itemType: 'Product' as const })),
-        ...rawIngredients.map(i => ({ ...i, id: i.id, name: i.name, stock: i.stock_qty, itemType: 'Ingredient' as const }))
-    ], [products, rawIngredients]);
+    const allStockableItems = useMemo(() => {
+        const simpleProducts = products
+            .filter(p => !p.has_variant)
+            .map(p => ({ id: p.id, name: p.name, itemType: 'Product' as const }));
+
+        const allVariants = productVariants
+            .map(v => {
+                const parent = products.find(p => p.id === v.product_id);
+                return {
+                    id: v.id,
+                    name: `${parent?.name || 'Product'} (${v.name})`,
+                    itemType: 'Variant' as const,
+                };
+            });
+        
+        const allIngredients = rawIngredients.map(i => ({ id: i.id, name: i.name, itemType: 'Ingredient' as const }));
+        
+        return [...simpleProducts, ...allVariants, ...allIngredients];
+    }, [products, productVariants, rawIngredients]);
 
     const txIdToInvoiceMap = useMemo(() =>
         new Map(transactions.map(tx => [tx.id, tx.invoice_number])),
@@ -93,14 +108,6 @@ export default function StockMovementReportPage() {
     const reportData = useMemo((): ReportRow[] => {
         if (isLoading) return [];
         const allMovementsSorted = [...stockMovements].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-
-        const relevantProductIds = filterProductId ? [filterProductId] : allStockableItems.map(item => item.id);
-        
-        const productStates = new Map<string, { runningStock: number, itemType: 'Product' | 'Ingredient' }>();
-
-        // This logic to calculate opening/resulting stock from current state is complex and can be error-prone.
-        // For now, we will display the data as is from the fetched movements and omit the running total columns
-        // as a more robust ledger-style calculation on the backend would be required for 100% accuracy on historical data.
         
         const movementsInPeriod = allMovementsSorted.filter(m => {
             const productMatch = !filterProductId || m.product_id === filterProductId;
@@ -109,12 +116,14 @@ export default function StockMovementReportPage() {
 
         const finalReportRows = movementsInPeriod.map(movement => {
             const item = allStockableItems.find(p => p.id === movement.product_id);
+            const productType = item?.itemType || 'Product';
+
             return {
                 ...movement,
                 openingStock: 0, // Placeholder
                 resultingStock: 0, // Placeholder
                 referenceDisplay: getReferenceDisplay(movement),
-                productType: item?.itemType || 'Product'
+                productType: productType
             } as ReportRow;
         });
 
@@ -123,7 +132,7 @@ export default function StockMovementReportPage() {
     }, [stockMovements, filterProductId, allStockableItems, getReferenceDisplay, isLoading]);
     
     const selectedProductName = useMemo(() => {
-        if (!filterProductId) return "All Products";
+        if (!filterProductId) return "All Products & Ingredients";
         return allStockableItems.find(p => p.id === filterProductId)?.name || "Unknown";
     }, [filterProductId, allStockableItems]);
     
@@ -184,12 +193,12 @@ export default function StockMovementReportPage() {
                                 </PopoverTrigger>
                                 <PopoverContent className="w-[300px] p-0" align="end">
                                     <Command>
-                                        <CommandInput placeholder="Filter product..." />
+                                        <CommandInput placeholder="Filter item..." />
                                         <CommandList>
-                                            <CommandEmpty>No products found.</CommandEmpty>
+                                            <CommandEmpty>No items found.</CommandEmpty>
                                             <CommandGroup>
                                                 <CommandItem onSelect={() => setFilterProductId(null)}>
-                                                    All Products
+                                                    All Products & Ingredients
                                                 </CommandItem>
                                                 {allStockableItems.map(p => (
                                                     <CommandItem key={p.id} onSelect={() => setFilterProductId(p.id)}>
@@ -231,7 +240,7 @@ export default function StockMovementReportPage() {
                                         <TableCell className="font-medium">{m.product_name_snapshot}</TableCell>
                                         <TableCell>
                                             <Badge variant="outline" className="text-xs">
-                                                {m.productType === 'Ingredient' ? <Beaker className="h-3 w-3 mr-1.5"/> : <Package className="h-3 w-3 mr-1.5"/>}
+                                                {m.productType === 'Ingredient' ? <Beaker className="h-3 w-3 mr-1.5"/> : m.productType === 'Variant' ? <Layers2 className="h-3 w-3 mr-1.5" /> : <Package className="h-3 w-3 mr-1.5"/>}
                                                 {m.productType}
                                             </Badge>
                                         </TableCell>

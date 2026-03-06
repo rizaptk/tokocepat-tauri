@@ -4,7 +4,7 @@
 import Link from 'next/link';
 import { useStore } from '@/lib/store';
 import { useMemo } from 'react';
-import { ArrowLeft, Warehouse, DollarSign, Package } from 'lucide-react';
+import { ArrowLeft, Warehouse, DollarSign, Package, FileDown } from 'lucide-react';
 import { exportInventoryToExcel } from '@/lib/export';
 
 import { Button } from '@/components/ui/button';
@@ -32,7 +32,7 @@ export default function InventoryReportPage() {
         const items: any[] = [];
         products.forEach(p => {
             if (p.has_variant) {
-                const variants = productVariants.filter(v => v.product_id === p.id);
+                const variants = productVariants.filter(v => v.product_id === p.id && v.track_stock);
                 variants.forEach(v => {
                     items.push({
                         id: v.id,

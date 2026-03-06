@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -18,7 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 
 export default function StockSummaryReportPage() {
-    const { rawIngredients, products, storeConfig } = useStore();
+    const { rawIngredients, products, productVariants, storeConfig } = useStore();
     const { toast } = useToast();
     const [range, setRange] = useState<DateRangePreset>('today');
     const [stockMovements, setStockMovements] = useState<StockMovement[]>([]);
@@ -52,10 +53,30 @@ export default function StockSummaryReportPage() {
         fetchMovements();
     }, [dateRange]);
 
-    const allStockableItems = useMemo(() => [
-        ...products.filter(p => p.track_stock).map(p => ({...p, itemType: 'product' as const})),
-        ...rawIngredients.map(i => ({...i, itemType: 'ingredient' as const})),
-    ], [products, rawIngredients]);
+    const allStockableItems = useMemo(() => {
+        // Products that track stock directly (not via variants)
+        const stockableProducts = products
+            .filter(p => p.track_stock && !p.has_variant)
+            .map(p => ({ ...p, name: p.name, stock: p.stock, itemType: 'product' as const }));
+
+        // Variants that track stock
+        const stockableVariants = productVariants
+            .filter(v => v.track_stock)
+            .map(v => {
+                const parent = products.find(p => p.id === v.product_id);
+                return {
+                    ...v,
+                    id: v.id,
+                    name: `${parent?.name || 'Product'} (${v.name})`,
+                    stock: v.stock,
+                    itemType: 'product' as const, // Treat as product for filtering
+                };
+            });
+        
+        const stockableIngredients = rawIngredients.map(i => ({ ...i, name: i.name, stock: i.stock_qty, itemType: 'ingredient' as const }));
+
+        return [...stockableProducts, ...stockableVariants, ...stockableIngredients];
+    }, [products, productVariants, rawIngredients]);
 
     const reportData = useMemo(() => {
         const filteredItems = allStockableItems.filter(item => {
@@ -67,7 +88,7 @@ export default function StockSummaryReportPage() {
             const movementsInPeriod = stockMovements.filter(m => m.product_id === item.id);
             const totalChangeInPeriod = movementsInPeriod.reduce((sum, m) => sum + m.qty_change, 0);
             
-            const currentStock = 'stock' in item ? item.stock : item.stock_qty;
+            const currentStock = item.stock;
             const openingStock = currentStock - totalChangeInPeriod;
             
             const added = movementsInPeriod
