@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useMemo, useEffect, memo, useRef } from "react";
@@ -384,7 +385,7 @@ export default function InventoryPage() {
     const inventoryItems: InventoryItemType[] = useMemo(() => {
         const stockTrackedProducts = products.filter(p => p.track_stock).map(p => ({ ...p, itemType: 'product' as const, stock: p.stock }));
         const ingredients = rawIngredients.map(i => ({ ...i, itemType: 'ingredient' as const, stock: i.stock_qty }));
-        const variants = productVariants.map(v => {
+        const variants = productVariants.filter(v => v.track_stock).map(v => {
             const parent = products.find(p => p.id === v.product_id);
             return { ...v, itemType: 'variant' as const, stock: v.stock, parentName: parent?.name || 'Unknown' };
         });
@@ -403,9 +404,16 @@ export default function InventoryPage() {
                 break;
             case 'low_stock':
                 combined = combined.filter(item => {
-                    if (item.itemType === 'product') {
+                    const isProduct = item.itemType === 'product';
+                    const isVariant = item.itemType === 'variant';
+
+                    if (isProduct) {
                         const p = item as Product;
                         return p.track_stock && p.low_stock_alert != null && p.stock > 0 && p.stock <= p.low_stock_alert;
+                    }
+                    if (isVariant) {
+                        const v = item as ProductVariant;
+                        return v.track_stock && v.low_stock_alert != null && v.stock > 0 && v.stock <= v.low_stock_alert;
                     }
                     return false;
                 });
@@ -418,7 +426,10 @@ export default function InventoryPage() {
         }
 
         if (!query.trim()) return combined;
-        return combined.filter(p => p.name.toLowerCase().includes(query.toLowerCase()));
+        return combined.filter(p => {
+            const nameToSearch = p.itemType === 'variant' ? `${(p as any).parentName} ${p.name}` : p.name;
+            return nameToSearch.toLowerCase().includes(query.toLowerCase());
+        });
     }, [products, rawIngredients, productVariants, query, filter]);
 
     const handleBarcodeScan = (barcode: string) => {

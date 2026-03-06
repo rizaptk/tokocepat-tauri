@@ -35,9 +35,9 @@ const baseProducts: Product[] = [
 export const initialProducts: Product[] = [...baseProducts];
 
 export const initialVariants: ProductVariant[] = [
-    { id: 'pv1', product_id: '9', name: 'Biji Utuh', additional_price: 0, stock: 20, sku: 'COFFEE-BEAN' },
-    { id: 'pv2', product_id: '9', name: 'Giling Halus', additional_price: 1000, stock: 15, sku: 'COFFEE-FINE' },
-    { id: 'pv3', product_id: '9', name: 'Giling Kasar', additional_price: 1000, stock: 15, sku: 'COFFEE-COARSE' }
+    { id: 'pv1', product_id: '9', name: 'Biji Utuh', additional_price: 0, stock: 20, sku: 'COFFEE-BEAN', track_stock: true, low_stock_alert: 5 },
+    { id: 'pv2', product_id: '9', name: 'Giling Halus', additional_price: 1000, stock: 15, sku: 'COFFEE-FINE', track_stock: true, low_stock_alert: 5 },
+    { id: 'pv3', product_id: '9', name: 'Giling Kasar', additional_price: 1000, stock: 15, sku: 'COFFEE-COARSE', track_stock: true, low_stock_alert: 5 }
 ];
 
 export const initialModifierGroups: ModifierGroup[] = [

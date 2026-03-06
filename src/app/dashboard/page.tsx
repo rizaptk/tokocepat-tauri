@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import Link from "next/link";
@@ -17,20 +18,38 @@ import {
   type ChartConfig,
 } from "@/components/ui/chart"
 import { ThemeToggle } from "@/components/ThemeButtons";
+import { useMemo } from "react";
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { products, shifts, transactions, activeShift } = useStore((state) => ({
+  const { products, shifts, transactions, activeShift, productVariants } = useStore((state) => ({
     products: state.products,
+    productVariants: state.productVariants,
     shifts: state.shifts,
     transactions: state.transactions,
     activeShift: state.activeShift,
   }));
   const closedShifts = shifts.filter(s => s.status === 'closed');
   
-  const lowStockItems = products.filter(
-    p => p.track_stock && p.low_stock_alert != null && p.stock <= p.low_stock_alert
-  );
+  const lowStockItems = useMemo(() => {
+    const lowStockProducts = products.filter(
+        p => !p.has_variant && p.track_stock && p.low_stock_alert != null && p.stock <= p.low_stock_alert
+    );
+    const lowStockVariants = productVariants
+        .filter(v => v.track_stock && v.low_stock_alert != null && v.stock <= v.low_stock_alert)
+        .map(v => {
+            const parent = products.find(p => p.id === v.product_id);
+            return {
+                id: v.id,
+                name: `${parent?.name || 'Product'} (${v.name})`,
+                stock: v.stock
+            };
+        });
+    return [
+        ...lowStockProducts.map(p => ({ id: p.id, name: p.name, stock: p.stock })),
+        ...lowStockVariants
+    ];
+  }, [products, productVariants]);
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);

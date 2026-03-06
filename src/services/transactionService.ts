@@ -1,5 +1,6 @@
 
-import { CartItem, Transaction, Shift, StoreConfig, StockMovement, Recipe, RawIngredient } from '@/lib/types';
+
+import { CartItem, Transaction, Shift, StoreConfig, StockMovement, Recipe, RawIngredient, ProductVariant } from '@/lib/types';
 import { useDbStore } from '@/lib/db-store';
 import { useStore } from '@/lib/store';
 import { toast } from '@/hooks/use-toast';
@@ -147,24 +148,26 @@ export const createTransaction = async (cart: CartItem[], activeShift: Shift, st
                 }
             }
         } else if (cartItem.selectedVariant) {
-            // Deduct stock from the specific variant
-            const variantRef = doc(db, 'product_variants', cartItem.selectedVariant.id);
-            const variantSnap = await getDoc(variantRef);
-            if (variantSnap.exists()) {
-                const currentStock = variantSnap.data().stock;
-                await updateDoc(variantRef, { stock: currentStock - cartItem.quantity });
+            // Deduct stock from the specific variant if it tracks stock
+            if (cartItem.selectedVariant.track_stock) {
+                const variantRef = doc(db, 'product_variants', cartItem.selectedVariant.id);
+                const variantSnap = await getDoc(variantRef);
+                if (variantSnap.exists()) {
+                    const currentStock = variantSnap.data().stock;
+                    await updateDoc(variantRef, { stock: currentStock - cartItem.quantity });
 
-                const movementId = `sm-var-${transactionId}-${cartItem.selectedVariant.id}`;
-                const stockMovement: StockMovement = {
-                    id: movementId,
-                    product_id: cartItem.selectedVariant.id, // Reference variant ID
-                    product_name_snapshot: `${cartItem.name} (${cartItem.selectedVariant.name})`,
-                    type: 'sale',
-                    qty_change: -cartItem.quantity,
-                    reference_id: transactionId,
-                    created_at: createdAt,
-                };
-                await setDoc(doc(db, 'stock_movements', movementId), stockMovement);
+                    const movementId = `sm-var-${transactionId}-${cartItem.selectedVariant.id}`;
+                    const stockMovement: StockMovement = {
+                        id: movementId,
+                        product_id: cartItem.selectedVariant.id, // Reference variant ID
+                        product_name_snapshot: `${cartItem.name} (${cartItem.selectedVariant.name})`,
+                        type: 'sale',
+                        qty_change: -cartItem.quantity,
+                        reference_id: transactionId,
+                        created_at: createdAt,
+                    };
+                    await setDoc(doc(db, 'stock_movements', movementId), stockMovement);
+                }
             }
         } else if (cartItem.track_stock) {
             const productRef = doc(db, 'products', cartItem.id);
@@ -194,7 +197,7 @@ export const createTransaction = async (cart: CartItem[], activeShift: Shift, st
 
 export const voidTransaction = async (transactionId: string, reason: string): Promise<void> => {
     const { db, firesqlite } = useDbStore.getState();
-    const { recipes, products } = useStore.getState();
+    const { recipes, products, productVariants } = useStore.getState();
     if (!db || !firesqlite) throw new Error("Database not initialized");
 
     const { doc, getDoc, updateDoc, setDoc } = firesqlite;
@@ -222,8 +225,7 @@ export const voidTransaction = async (transactionId: string, reason: string): Pr
     // 2. Reverse stock movements
     for (const item of transaction.items) {
         const originalProduct = products.find(p => p.id === item.product_snapshot.id);
-        const hasVariant = originalProduct?.has_variant || false;
-
+        
         if (item.product_snapshot.is_composite) {
              const recipe = recipes.find(r => r.product_id === item.product_snapshot.id);
              if (recipe) {
@@ -251,17 +253,14 @@ export const voidTransaction = async (transactionId: string, reason: string): Pr
                     }
                 }
              }
-        } else if (hasVariant) {
-            // Find the variant based on the snapshot name. This is brittle but necessary.
-            // A better way would be to store variantId in the transaction item snapshot.
-            // Assuming format "Parent Name (Variant Name)"
+        } else if (originalProduct?.has_variant) {
+            // Find the variant based on the snapshot name.
             const match = item.product_snapshot.name.match(/(.*) \((.*)\)/);
             if (match) {
                 const variantName = match[2];
-                const { productVariants } = useStore.getState();
                 const variant = productVariants.find(v => v.product_id === item.product_snapshot.id && v.name === variantName);
 
-                if(variant) {
+                if(variant && variant.track_stock) { // Check if variant tracks stock
                     const variantRef = doc(db, 'product_variants', variant.id);
                     const variantSnap = await getDoc(variantRef);
                     if (variantSnap.exists()) {
@@ -284,7 +283,7 @@ export const voidTransaction = async (transactionId: string, reason: string): Pr
                 }
             }
         } else {
-            // Find the original product to check if it tracks stock
+            // Regular product stock return
             const productRef = doc(db, 'products', item.product_snapshot.id);
             const productSnap = await getDoc(productRef);
             if (productSnap.exists() && productSnap.data().track_stock) {
@@ -292,10 +291,8 @@ export const voidTransaction = async (transactionId: string, reason: string): Pr
                 const currentStock = productData.stock;
                 const quantityToReturn = item.qty;
 
-                // Update the product's stock level
                 await updateDoc(productRef, { stock: currentStock + quantityToReturn });
 
-                // Create a reversing stock movement record for auditing
                 const movementId = `sm-void-${transaction.id}-${item.product_snapshot.id}`;
                 const stockMovement: StockMovement = {
                     id: movementId,

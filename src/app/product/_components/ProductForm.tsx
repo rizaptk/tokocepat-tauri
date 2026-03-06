@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React, { useState, useMemo, useEffect, useRef } from "react";
@@ -41,7 +42,9 @@ const variantSchema = z.object({
     name: z.string().min(1, "Variant name is required."),
     additional_price: z.coerce.number().min(0),
     sku: z.string().optional(),
+    track_stock: z.boolean().default(true),
     stock: z.coerce.number().min(0, "Stock cannot be negative."),
+    low_stock_alert: z.coerce.number().min(0).optional(),
 });
 
 const recipeItemSchema = z.object({
@@ -254,7 +257,7 @@ export const ProductForm = ({ productId, onSave, onCancel }: ProductFormProps) =
                                     </div>
                                     <Separator />
                                     <FormField control={form.control} name="has_variant" render={({ field }) => (<FormItem className="flex flex-row items-center justify-between"><FormLabel>Enable Variants</FormLabel><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem>)} />
-                                    {hasVariant && (<div className="space-y-4">{variantFields.map((field, index) => (<VariantItem key={field.id} index={index} field={field} form={form} removeVariant={removeVariant} />))}<Button type="button" variant="outline" size="sm" onClick={() => appendVariant({ name: '', additional_price: 0, stock: 0, sku: '' })}><PlusCircle className="mr-2 h-4 w-4" /> Add Variant</Button></div>)}
+                                    {hasVariant && (<div className="space-y-4">{variantFields.map((field, index) => (<VariantItem key={field.id} index={index} field={field} form={form} removeVariant={removeVariant} />))}<Button type="button" variant="outline" size="sm" onClick={() => appendVariant({ name: '', additional_price: 0, stock: 0, sku: '', track_stock: true, low_stock_alert: 0 })}><PlusCircle className="mr-2 h-4 w-4" /> Add Variant</Button></div>)}
                                     {productType === 'food_and_beverage' && (<>
                                         <Separator />
                                         <FormField control={form.control} name="has_modifier" render={({ field }) => (<FormItem className="flex flex-row items-center justify-between"><FormLabel>Enable Modifiers Group</FormLabel><FormControl><Switch checked={field.value} onCheckedChange={field.onChange}  /></FormControl></FormItem>)} />

@@ -1,3 +1,4 @@
+
 import { ProductVariant } from '@/lib/types';
 import { useDbStore } from '@/lib/db-store';
 
@@ -8,6 +9,8 @@ export type VariantFormData = {
     additional_price: number;
     sku?: string;
     stock: number;
+    track_stock: boolean;
+    low_stock_alert?: number;
 };
 
 /**
@@ -49,6 +52,8 @@ export const setProductVariants = async (productId: string, variants: VariantFor
                 additional_price: variantData.additional_price,
                 sku: variantData.sku,
                 stock: variantData.stock,
+                track_stock: variantData.track_stock,
+                low_stock_alert: variantData.low_stock_alert,
             };
             updatePromises.push(setDoc(doc(db, 'product_variants', newId), newVariant));
         }

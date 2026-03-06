@@ -51,6 +51,8 @@ export interface ProductVariant {
     additional_price: number;
     sku?: string;
     stock: number;
+    track_stock: boolean;
+    low_stock_alert?: number;
 }
 
 export type ProductType = 'retail' | 'food_and_beverage';
