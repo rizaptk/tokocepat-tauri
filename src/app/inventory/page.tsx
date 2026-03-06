@@ -16,7 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { ProductSearchBar } from "@/components/ProductSearchBar";
-import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { PlusCircle, Plus, Minus, Calculator, Package, Beaker, Layers2 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useGlobalBarcodeScanner } from "@/hooks/use-global-barcode-scanner";
@@ -613,6 +613,9 @@ export default function InventoryPage() {
 
             <Sheet open={isSheetOpen} onOpenChange={handleSheetOpenChange}>
                 <SheetContent side="right" className="w-full sm:w-[500px] p-0 flex flex-col h-full min-h-0">
+                    <SheetHeader className="sr-only">
+                        <SheetTitle>Stock Adjustment</SheetTitle>
+                    </SheetHeader>
                     <StockAdjustmentPanel onSave={handleSave} onCancel={handleCancel} selectedItem={selectedItem} />
                 </SheetContent>
             </Sheet>

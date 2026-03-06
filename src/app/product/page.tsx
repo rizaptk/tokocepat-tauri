@@ -9,7 +9,12 @@ import { useProductSearch } from "@/lib/useProductSearch";
 
 // UI Components
 import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent } from "@/components/ui/sheet";
+import {
+    Sheet,
+    SheetContent,
+    SheetHeader,
+    SheetTitle,
+} from "@/components/ui/sheet";
 import { ProductSearchBar } from "@/components/ProductSearchBar";
 import { ProductList } from "@/components/ProductList";
 import { exportBarcodeStickersToPdf } from "@/lib/export";
@@ -305,7 +310,10 @@ export default function ProductManagementPage() {
 
             {/* Editor Drawer (Mobile) */}
             <Sheet open={isDrawerOpen} onOpenChange={setIsDrawerOpen}>
-                <SheetContent side="right" className="w-full sm:w-[500px] p-0">
+                <SheetContent side="right" className="w-full sm:w-[500px] p-0 flex flex-col">
+                    <SheetHeader className="p-4 border-b shrink-0">
+                        <SheetTitle>{selectedProductId ? 'Edit Product' : 'Add New Product'}</SheetTitle>
+                    </SheetHeader>
                     <ProductEditor
                         selectedProductId={selectedProductId}
                         onProductUpdate={handleSaveChanges}
