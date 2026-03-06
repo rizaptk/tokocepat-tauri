@@ -19,6 +19,20 @@ import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import { exportShiftDetailsToPdf } from '@/lib/export';
 
+// Helper to safely parse dates that might be in different formats
+const getSafeDate = (dateInput: any): Date | null => {
+    if (!dateInput) return null;
+    if (dateInput instanceof Date) return dateInput;
+    if (typeof dateInput === 'string') {
+        const parsed = parseISO(dateInput);
+        if (isValid(parsed)) return parsed;
+    }
+    const directDate = new Date(dateInput);
+    if (isValid(directDate)) return directDate;
+    
+    return null;
+};
+
 export default function ShiftDetailsPage() {
     const params = useParams();
     const shiftId = params.id as string;
@@ -89,15 +103,9 @@ export default function ShiftDetailsPage() {
         )
     }
 
-    const getSafeDate = (dateInput: any) => {
-        if (dateInput instanceof Date) return dateInput;
-        if (typeof dateInput === 'string') return parseISO(dateInput);
-        return new Date(dateInput);
-    };
-
     const openedAt = getSafeDate(shift.opened_at);
-    const closedAt = shift.closed_at ? getSafeDate(shift.closed_at) : null;
-    const duration = (closedAt && isValid(closedAt) && isValid(openedAt)) ? formatDistance(closedAt, openedAt) : 'Still open';
+    const closedAt = getSafeDate(shift.closed_at);
+    const duration = (closedAt && openedAt) ? formatDistance(closedAt, openedAt) : 'Still open';
     const activeTransactions = shiftTransactions.filter(t => t.status === 'paid');
     const totalSales = activeTransactions.reduce((sum, t) => sum + t.total, 0);
     const transactionCount = activeTransactions.length;
@@ -128,11 +136,11 @@ export default function ShiftDetailsPage() {
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                             <div>
                                 <p className="text-muted-foreground">Start Time</p>
-                                <p className="font-medium">{new Date(shift.opened_at).toLocaleString()}</p>
+                                <p className="font-medium">{openedAt ? openedAt.toLocaleString() : '-'}</p>
                             </div>
                              <div>
                                 <p className="text-muted-foreground">End Time</p>
-                                <p className="font-medium">{shift.closed_at ? new Date(shift.closed_at).toLocaleString() : '-'}</p>
+                                <p className="font-medium">{closedAt ? closedAt.toLocaleString() : '-'}</p>
                             </div>
                             <div>
                                 <p className="text-muted-foreground">Duration</p>
@@ -196,44 +204,47 @@ export default function ShiftDetailsPage() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {shiftTransactions.map(tx => (
-                                    <TableRow key={tx.id} className={cn(tx.status === 'voided' && 'bg-destructive/5 text-muted-foreground line-through hover:bg-destructive/10')}>
-                                        <TableCell>{new Date(tx.created_at).toLocaleTimeString()}</TableCell>
-                                        <TableCell className="font-mono text-xs">{tx.invoice_number}</TableCell>
-                                        <TableCell>{tx.items.reduce((acc, item) => acc + item.qty, 0)}</TableCell>
-                                        <TableCell className="text-right font-medium">{formatCurrency(tx.total)}</TableCell>
-                                        <TableCell className="text-right">
-                                            {tx.status !== 'voided' && (
-                                                <AlertDialog>
-                                                    <AlertDialogTrigger asChild>
-                                                        <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive no-underline hover:bg-destructive/10">Void</Button>
-                                                    </AlertDialogTrigger>
-                                                    <AlertDialogContent>
-                                                        <AlertDialogHeader>
-                                                            <AlertDialogTitle>Void Transaction {tx.invoice_number}?</AlertDialogTitle>
-                                                            <AlertDialogDescription>
-                                                                This action cannot be undone. It will reverse the sale and return items to stock.
-                                                            </AlertDialogDescription>
-                                                        </AlertDialogHeader>
-                                                        <div className="py-4">
-                                                            <Label htmlFor="void-reason" className="mb-2 block">Reason for Voiding</Label>
-                                                            <Input id="void-reason" value={voidReason} onChange={(e) => setVoidReason(e.target.value)} placeholder="e.g., Customer canceled order" />
-                                                        </div>
-                                                        <AlertDialogFooter>
-                                                            <AlertDialogCancel onClick={() => setVoidReason('')}>Cancel</AlertDialogCancel>
-                                                            <AlertDialogAction onClick={async (e) => {
-                                                                const success = await handleVoid(tx.id, tx.invoice_number);
-                                                                if (!success) {
-                                                                    e.preventDefault(); // Prevent dialog from closing on failure
-                                                                }
-                                                            }}>Confirm Void</AlertDialogAction>
-                                                        </AlertDialogFooter>
-                                                    </AlertDialogContent>
-                                                </AlertDialog>
-                                            )}
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
+                                {shiftTransactions.map(tx => {
+                                    const createdAtDate = getSafeDate(tx.created_at);
+                                    return (
+                                        <TableRow key={tx.id} className={cn(tx.status === 'voided' && 'bg-destructive/5 text-muted-foreground line-through hover:bg-destructive/10')}>
+                                            <TableCell>{createdAtDate ? createdAtDate.toLocaleTimeString() : 'N/A'}</TableCell>
+                                            <TableCell className="font-mono text-xs">{tx.invoice_number}</TableCell>
+                                            <TableCell>{tx.items.reduce((acc, item) => acc + item.qty, 0)}</TableCell>
+                                            <TableCell className="text-right font-medium">{formatCurrency(tx.total)}</TableCell>
+                                            <TableCell className="text-right">
+                                                {tx.status !== 'voided' && (
+                                                    <AlertDialog>
+                                                        <AlertDialogTrigger asChild>
+                                                            <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive no-underline hover:bg-destructive/10">Void</Button>
+                                                        </AlertDialogTrigger>
+                                                        <AlertDialogContent>
+                                                            <AlertDialogHeader>
+                                                                <AlertDialogTitle>Void Transaction {tx.invoice_number}?</AlertDialogTitle>
+                                                                <AlertDialogDescription>
+                                                                    This action cannot be undone. It will reverse the sale and return items to stock.
+                                                                </AlertDialogDescription>
+                                                            </AlertDialogHeader>
+                                                            <div className="py-4">
+                                                                <Label htmlFor="void-reason" className="mb-2 block">Reason for Voiding</Label>
+                                                                <Input id="void-reason" value={voidReason} onChange={(e) => setVoidReason(e.target.value)} placeholder="e.g., Customer canceled order" />
+                                                            </div>
+                                                            <AlertDialogFooter>
+                                                                <AlertDialogCancel onClick={() => setVoidReason('')}>Cancel</AlertDialogCancel>
+                                                                <AlertDialogAction onClick={async (e) => {
+                                                                    const success = await handleVoid(tx.id, tx.invoice_number);
+                                                                    if (!success) {
+                                                                        e.preventDefault(); // Prevent dialog from closing on failure
+                                                                    }
+                                                                }}>Confirm Void</AlertDialogAction>
+                                                            </AlertDialogFooter>
+                                                        </AlertDialogContent>
+                                                    </AlertDialog>
+                                                )}
+                                            </TableCell>
+                                        </TableRow>
+                                    )
+                                })}
                             </TableBody>
                         </Table>
                     </CardContent>

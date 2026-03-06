@@ -1,6 +1,7 @@
 
 
 import { useDbStore } from '@/lib/db-store';
+import { seedDatabase } from '@/lib/database';
 
 export type LicenseDbData = {
     jwt: string;
@@ -8,11 +9,23 @@ export type LicenseDbData = {
     deviceId: string;
 }
 
-export const clearTransactionData = async (): Promise<{ success: boolean, message?: string }> => {
+export const resetApplicationData = async (): Promise<{ success: boolean, message?: string }> => {
     const { db, firesqlite } = useDbStore.getState();
     if (!db || !firesqlite) throw new Error("Database not initialized");
 
-    const collectionsToClear = ['transactions', 'stock_movements', 'shifts', 'pending_carts'];
+    const collectionsToClear = [
+        'products',
+        'product_variants',
+        'categories',
+        'modifier_groups',
+        'raw_ingredients',
+        'recipes',
+        'transactions',
+        'stock_movements',
+        'shifts',
+        'pending_carts',
+        'store_config'
+    ];
     const { collection, getDocs, writeBatch, doc } = firesqlite;
 
     try {
@@ -24,15 +37,18 @@ export const clearTransactionData = async (): Promise<{ success: boolean, messag
 
             const batch = writeBatch(db);
             snapshot.docs.forEach((d: any) => {
-                // Construct a DocumentReference for the batch delete
-                batch.delete(doc(db, collectionName, d.id)); 
+                batch.delete(doc(db, collectionName, d.id));
             });
             await batch.commit();
         }
+        
+        // After clearing, re-seed the database to get a fresh start
+        await seedDatabase(firesqlite, db, true); // force re-seed
+        
         return { success: true };
     } catch (error: any) {
-        console.error("Failed to clear transaction data:", error);
-        return { success: false, message: error.message || "An unknown error occurred during data clearing." };
+        console.error("Failed to reset application data:", error);
+        return { success: false, message: error.message || "An unknown error occurred during data reset." };
     }
 };
 

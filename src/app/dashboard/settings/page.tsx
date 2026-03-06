@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useRef, useState, useEffect } from 'react';
@@ -6,7 +7,7 @@ import { useToast } from '@/hooks/use-toast';
 import { formatDistanceToNow } from 'date-fns';
 import { getBackupMetadata, promptAndSetBackupFile, performBackup } from '@/lib/backupService';
 import { printerManager, type PrinterInfo } from '@/lib/webUSBprinter';
-import { clearTransactionData } from '@/services/dataService';
+import { resetApplicationData } from '@/services/dataService';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -29,7 +30,7 @@ export default function SettingsPage() {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isRestoreAlertOpen, setIsRestoreAlertOpen] = useState(false);
-  const [isClearDataAlertOpen, setIsClearDataAlertOpen] = useState(false);
+  const [isResetAlertOpen, setIsResetAlertOpen] = useState(false);
   const [lastBackup, setLastBackup] = useState<string | null>(null);
   const [isBackupLoading, setIsBackupLoading] = useState(false);
   
@@ -110,13 +111,14 @@ export default function SettingsPage() {
       }
   };
 
-  const handleClearData = async () => {
+  const handleResetData = async () => {
       try {
-          const result = await clearTransactionData();
+          const result = await resetApplicationData();
           if (result.success) {
+              localStorage.removeItem('tokoc_db_version');
               toast({
-                  title: 'Data Cleared',
-                  description: 'All transaction data has been successfully removed. The app will now reload.',
+                  title: 'Application Reset',
+                  description: 'All business data has been reset. The app will now reload.',
               });
               setTimeout(() => window.location.reload(), 1500);
           } else {
@@ -125,11 +127,11 @@ export default function SettingsPage() {
       } catch (error: any) {
           toast({
               variant: 'destructive',
-              title: 'Error Clearing Data',
+              title: 'Error Resetting Data',
               description: error.message || 'An unexpected error occurred.',
           });
       } finally {
-          setIsClearDataAlertOpen(false);
+          setIsResetAlertOpen(false);
       }
   }
   
@@ -309,7 +311,7 @@ export default function SettingsPage() {
                                 <CardDescription>These actions are irreversible. Be absolutely sure before proceeding.</CardDescription>
                             </CardHeader>
                             <CardContent>
-                                <Button variant="destructive" onClick={() => setIsClearDataAlertOpen(true)}><Trash2 className="mr-2 h-4 w-4" /> Clear All Transaction Data</Button>
+                                <Button variant="destructive" onClick={() => setIsResetAlertOpen(true)}><Trash2 className="mr-2 h-4 w-4" /> Reset Application Data</Button>
                             </CardContent>
                         </Card>
                     </TabsContent>
@@ -329,15 +331,15 @@ export default function SettingsPage() {
                 </AlertDialogFooter>
             </AlertDialogContent>
         </AlertDialog>
-        <AlertDialog open={isClearDataAlertOpen} onOpenChange={setIsClearDataAlertOpen}>
+        <AlertDialog open={isResetAlertOpen} onOpenChange={setIsResetAlertOpen}>
             <AlertDialogContent>
                 <AlertDialogHeader>
-                    <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                    <AlertDialogDescription>This action is permanent and cannot be undone. This will delete all shifts, transactions, and stock movement history. Product and category data will not be affected.</AlertDialogDescription>
+                    <AlertDialogTitle>Reset All Application Data?</AlertDialogTitle>
+                    <AlertDialogDescription>This action is permanent and cannot be undone. It will delete all products, categories, sales, shifts, and inventory history. Your license will NOT be affected. The app will restart with fresh demo data.</AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                     <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleClearData}>Yes, Clear All Data</AlertDialogAction>
+                    <AlertDialogAction onClick={handleResetData}>Yes, Reset Everything</AlertDialogAction>
                 </AlertDialogFooter>
             </AlertDialogContent>
         </AlertDialog>
