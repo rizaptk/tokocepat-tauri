@@ -341,6 +341,7 @@ export default function InventoryPage() {
     const { toast } = useToast();
     const [selectedItem, setSelectedItem] = useState<{ id: string; type: 'product' | 'ingredient' } | null>(null);
     const [isSheetOpen, setIsSheetOpen] = useState(false);
+    const [filter, setFilter] = useState('all');
 
     const outerRef = useRef<HTMLDivElement>(null);
     const thumbRef = useRef<HTMLDivElement>(null);
@@ -354,11 +355,34 @@ export default function InventoryPage() {
         const stockTrackedProducts = products.filter(p => p.track_stock).map(p => ({ ...p, itemType: 'product' as const, stock: p.stock }));
         const ingredients = rawIngredients.map(i => ({ ...i, itemType: 'ingredient' as const, stock: i.stock_qty }));
 
-        const combined = [...stockTrackedProducts, ...ingredients];
+        let combined: InventoryItemType[] = [...stockTrackedProducts, ...ingredients];
+        
+        switch(filter) {
+            case 'product':
+                combined = combined.filter(item => item.itemType === 'product');
+                break;
+            case 'ingredient':
+                combined = combined.filter(item => item.itemType === 'ingredient');
+                break;
+            case 'low_stock':
+                combined = combined.filter(item => {
+                    if (item.itemType === 'product') {
+                        const p = item as Product;
+                        return p.track_stock && p.low_stock_alert != null && p.stock > 0 && p.stock <= p.low_stock_alert;
+                    }
+                    return false;
+                });
+                break;
+            case 'out_of_stock':
+                 combined = combined.filter(item => item.stock <= 0);
+                break;
+            default: // 'all'
+                break;
+        }
 
         if (!query.trim()) return combined;
         return combined.filter(p => p.name.toLowerCase().includes(query.toLowerCase()));
-    }, [products, rawIngredients, query]);
+    }, [products, rawIngredients, query, filter]);
 
     const handleBarcodeScan = (barcode: string) => {
         const product = products.find(p => p.barcode === barcode);
@@ -467,32 +491,16 @@ export default function InventoryPage() {
                         </div>
                     </div>
                     <div className="flex items-center gap-4 overflow-x-auto no-scrollbar">
-                        {/* active secondary non aktive outline */}
-                        <Button variant="secondary" className="rounded-full px-4 shrink-0">
-                            All
-                        </Button>
-                        <Button variant="outline" className="rounded-full px-4 shrink-0">
-                            Product
-                        </Button>
-                        <Button variant="outline" className="rounded-full px-4 shrink-0">
-                            Ingredient
-                        </Button>
+                        <Button variant={filter === 'all' ? 'secondary' : 'outline'} onClick={() => setFilter('all')} className="rounded-full px-4 shrink-0">All</Button>
+                        <Button variant={filter === 'product' ? 'secondary' : 'outline'} onClick={() => setFilter('product')} className="rounded-full px-4 shrink-0">Product</Button>
+                        <Button variant={filter === 'ingredient' ? 'secondary' : 'outline'} onClick={() => setFilter('ingredient')} className="rounded-full px-4 shrink-0">Ingredient</Button>
                         
                         <Separator orientation="vertical" />
 
-                        {/* check filter - inactive outline */}
-                        <Button variant="destructive" className="rounded-full px-4 shrink-0">
-                            Low Stock
-                        </Button>
-                        <Button variant="warning" className="rounded-full px-4 shrink-0">
-                            Out of Stock
-                        </Button>
-                        <Button variant="default" className="rounded-full px-4 shrink-0">
-                            New
-                        </Button>
-                        <Button variant="secondary" className="rounded-full px-4 shrink-0">
-                            No Sales
-                        </Button>
+                        <Button variant={filter === 'low_stock' ? 'secondary' : 'outline'} onClick={() => setFilter('low_stock')} className="rounded-full px-4 shrink-0">Low Stock</Button>
+                        <Button variant={filter === 'out_of_stock' ? 'secondary' : 'outline'} onClick={() => setFilter('out_of_stock')} className="rounded-full px-4 shrink-0">Out of Stock</Button>
+                        <Button variant="outline" className="rounded-full px-4 shrink-0" disabled>New</Button>
+                        <Button variant="outline" className="rounded-full px-4 shrink-0" disabled>No Sales</Button>
                     </div>
                 </div>
                 <div className="flex-1 bg-background h-full min-h-0 flex flex-col">

@@ -1,10 +1,11 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useStore } from "@/lib/store";
 import { Product } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
+import { useProductSearch } from "@/lib/useProductSearch";
 
 // UI Components
 import { Button } from "@/components/ui/button";
@@ -54,11 +55,39 @@ export default function ProductManagementPage() {
         labelHeightMm: 13,
         pageSizeName: 'A4',
     });
+    const [filter, setFilter] = useState('all');
+    const { query } = useProductSearch();
 
     const paperSizeMap: Record<string, [number, number] | undefined> = {
         'A4': [595.28, 841.89],
         'Letter': [612, 792],
     };
+    
+    const displayedProducts = useMemo(() => {
+        let items = [...products];
+
+        // Apply primary filter
+        if (filter === 'all') {
+            return items.filter(p => p.is_active);
+        }
+        if (filter === 'retail') {
+            return items.filter(p => p.product_type === 'retail' && p.is_active);
+        }
+        if (filter === 'f&b') {
+            return items.filter(p => p.product_type === 'food_and_beverage' && p.is_active);
+        }
+        if (filter === 'variants') {
+            return items.filter(p => p.has_variant && p.is_active);
+        }
+        if (filter === 'modifiers') {
+            return items.filter(p => p.has_modifier && p.is_active);
+        }
+        if (filter === 'inactive') {
+            return items.filter(p => !p.is_active);
+        }
+        return items;
+
+    }, [products, filter]);
 
     useEffect(() => {
         setViewMode(window.innerWidth < 768 ? 'thumbnail' : 'card');
@@ -228,35 +257,19 @@ export default function ProductManagementPage() {
                     </div>
 
                     <div className="flex items-center gap-4 overflow-x-auto no-scrollbar">
-                        {/* active secondary non aktive outline */}
-                        <Button variant="secondary" className="rounded-full px-4 shrink-0">
-                            All
-                        </Button>
-                        <Button variant="outline" className="rounded-full px-4 shrink-0">
-                            Product
-                        </Button>
-                        <Button variant="outline" className="rounded-full px-4 shrink-0">
-                            Ingredient
-                        </Button>
-                        
+                        <Button variant={filter === 'all' ? 'secondary' : 'outline'} className="rounded-full px-4 shrink-0" onClick={() => setFilter('all')}>All Active</Button>
+                        <Button variant={filter === 'retail' ? 'secondary' : 'outline'} className="rounded-full px-4 shrink-0" onClick={() => setFilter('retail')}>Retail</Button>
+                        <Button variant={filter === 'f&b' ? 'secondary' : 'outline'} className="rounded-full px-4 shrink-0" onClick={() => setFilter('f&b')}>F&B</Button>
                         <Separator orientation="vertical" />
-
-                        {/* check filter - inactive outline */}
-                        <Button variant="destructive" className="rounded-full px-4 shrink-0">
-                            Variants
-                        </Button>
-                        <Button variant="default" className="rounded-full px-4 shrink-0">
-                            Modifiers
-                        </Button>
-                        <Button variant="warning" className="rounded-full px-4 shrink-0">
-                            Inactive
-                        </Button>
+                        <Button variant={filter === 'variants' ? 'secondary' : 'outline'} className="rounded-full px-4 shrink-0" onClick={() => setFilter('variants')}>Variants</Button>
+                        <Button variant={filter === 'modifiers' ? 'secondary' : 'outline'} className="rounded-full px-4 shrink-0" onClick={() => setFilter('modifiers')}>Modifiers</Button>
+                        <Button variant={filter === 'inactive' ? 'secondary' : 'outline'} className="rounded-full px-4 shrink-0" onClick={() => setFilter('inactive')}>Inactive</Button>
                     </div>
 
                 </div>
                 <div className="flex-grow">
                     <ProductList
-                        products={products}
+                        products={displayedProducts}
                         viewMode={viewMode}
                         onItemClick={handleSelectProduct}
                         selectedProductId={selectedProductId}

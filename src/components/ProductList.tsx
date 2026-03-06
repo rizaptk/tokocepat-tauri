@@ -175,10 +175,9 @@ export function ProductList({ products, viewMode, isLoading, onItemClick, select
 
   const filteredProducts = useMemo(() => {
     if (query.length === 0) {
-      return products.filter(p => p.is_active);
+      return products;
     }
     return products.filter(p =>
-      p.is_active &&
       (p.name.toLowerCase().includes(query) || p.barcode?.includes(query))
     );
   }, [products, query]);
