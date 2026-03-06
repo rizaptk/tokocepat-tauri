@@ -36,6 +36,14 @@ export const seedDatabase = async (firesqlite: any, db: any, force = false) => {
     if (!firesqlite || !db) return;
 
     try {
+        // Check if a reset just happened. If so, skip seeding.
+        if (localStorage.getItem('tokoc_reset_flag') === 'true') {
+            console.log("Reset flag detected. Skipping database seeding for a fresh start.");
+            localStorage.removeItem('tokoc_reset_flag'); // Clear the flag
+            localStorage.setItem(DB_VERSION_KEY, CURRENT_DB_VERSION); // Mark DB as "up-to-date" to prevent future seeding
+            return; // Stop the function here
+        }
+        
         const { collection, doc, getDocs, setDoc, writeBatch } = firesqlite;
         
         const storedVersion = localStorage.getItem(DB_VERSION_KEY);

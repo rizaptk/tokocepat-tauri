@@ -26,7 +26,7 @@ export const resetApplicationData = async (): Promise<{ success: boolean, messag
         'shifts',
         'pending_carts',
         'store_config',
-        'app_state' // Also clear license data from the main DB, it's stored in a secure enclave anyway
+        // 'app_state' is intentionally omitted to preserve license data
     ];
     const { collection, getDocs, writeBatch, doc } = firesqlite;
 
@@ -49,6 +49,9 @@ export const resetApplicationData = async (): Promise<{ success: boolean, messag
 
         // Remove the database version key to trigger re-seeding on next load
         localStorage.removeItem('tokoc_db_version');
+        
+        // Set a flag to prevent seeding on next app load
+        localStorage.setItem('tokoc_reset_flag', 'true');
 
         return { success: true };
     } catch (error: any) {
