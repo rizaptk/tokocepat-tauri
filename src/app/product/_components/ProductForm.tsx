@@ -1,5 +1,6 @@
 
 
+
 'use client';
 
 import React, { useState, useMemo, useEffect, useRef } from "react";
@@ -252,12 +253,12 @@ export const ProductForm = ({ productId, onSave, onCancel }: ProductFormProps) =
                                     <Separator />
                                     <FormField control={form.control} name="track_stock" render={({ field }) => (<FormItem className={cn("flex flex-row items-center justify-between", (hasVariant || isComposite) && "opacity-50")}><FormLabel>Track Stock (Parent)</FormLabel><FormControl><Switch checked={(hasVariant || isComposite) ? false : field.value} onCheckedChange={field.onChange} disabled={hasVariant || isComposite} /></FormControl></FormItem>)} />
                                     <div className={cn("grid grid-cols-1 md:grid-cols-2 gap-6", (hasVariant || isComposite) && "opacity-50")}>
-                                        <FormField control={form.control} name="stock" render={({ field }) => (<FormItem><FormLabel>Initial Stock</FormLabel><FormControl><Input type="number" placeholder="50" {...field} disabled={hasVariant || isComposite || !form.watch('track_stock')} /></FormControl><FormMessage /></FormItem>)} />
+                                        <FormField control={form.control} name="stock" render={({ field }) => (<FormItem><FormLabel>Initial Stock</FormLabel><FormControl><Input type="number" placeholder="50" {...field} disabled={isEditing || hasVariant || isComposite || !form.watch('track_stock')} /></FormControl><FormDescription>Editable only on creation.</FormDescription><FormMessage /></FormItem>)} />
                                         <FormField control={form.control} name="low_stock_alert" render={({ field }) => (<FormItem><FormLabel>Low Stock Alert</FormLabel><FormControl><Input type="number" placeholder="10" {...field} disabled={hasVariant || isComposite || !form.watch('track_stock')} /></FormControl><FormMessage /></FormItem>)} />
                                     </div>
                                     <Separator />
                                     <FormField control={form.control} name="has_variant" render={({ field }) => (<FormItem className="flex flex-row items-center justify-between"><FormLabel>Enable Variants</FormLabel><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem>)} />
-                                    {hasVariant && (<div className="space-y-4">{variantFields.map((field, index) => (<VariantItem key={field.id} index={index} field={field} form={form} removeVariant={removeVariant} />))}<Button type="button" variant="outline" size="sm" onClick={() => appendVariant({ name: '', additional_price: 0, stock: 0, sku: '', track_stock: true, low_stock_alert: 0 })}><PlusCircle className="mr-2 h-4 w-4" /> Add Variant</Button></div>)}
+                                    {hasVariant && (<div className="space-y-4">{variantFields.map((field, index) => (<VariantItem key={field.id} index={index} field={field} form={form} removeVariant={removeVariant} isEditing={isEditing} />))}<Button type="button" variant="outline" size="sm" onClick={() => appendVariant({ name: '', additional_price: 0, stock: 0, sku: '', track_stock: true, low_stock_alert: 0 })}><PlusCircle className="mr-2 h-4 w-4" /> Add Variant</Button></div>)}
                                     {productType === 'food_and_beverage' && (<>
                                         <Separator />
                                         <FormField control={form.control} name="has_modifier" render={({ field }) => (<FormItem className="flex flex-row items-center justify-between"><FormLabel>Enable Modifiers Group</FormLabel><FormControl><Switch checked={field.value} onCheckedChange={field.onChange}  /></FormControl></FormItem>)} />

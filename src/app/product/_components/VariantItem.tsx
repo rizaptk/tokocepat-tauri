@@ -1,10 +1,11 @@
 
+
 'use client';
 
 import React from 'react';
 import { UseFormReturn } from 'react-hook-form';
 import { Button } from '@/components/ui/button';
-import { FormField, FormItem, FormLabel, FormControl } from '@/components/ui/form';
+import { FormField, FormItem, FormLabel, FormControl, FormDescription } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Trash, Minus, Plus } from 'lucide-react';
 import { ProductFormData } from './ProductForm';
@@ -23,9 +24,10 @@ interface VariantItemProps {
     field: any; // from useFieldArray
     form: UseFormReturn<ProductFormData>;
     removeVariant: (index: number) => void;
+    isEditing: boolean;
 }
 
-const VariantItemComponent: React.FC<VariantItemProps> = ({ index, field, form, removeVariant }) => {
+const VariantItemComponent: React.FC<VariantItemProps> = ({ index, field, form, removeVariant, isEditing }) => {
     
     return (
       <Accordion type="single" collapsible defaultValue='item-0'>
@@ -95,8 +97,9 @@ const VariantItemComponent: React.FC<VariantItemProps> = ({ index, field, form, 
                         name={`variants.${index}.stock`}
                         render={({ field }) => (
                             <FormItem>
-                                <FormLabel className="text-xs">Stock</FormLabel>
-                                <FormControl><Input type="number" placeholder="50" {...field} disabled={!form.watch(`variants.${index}.track_stock`)} /></FormControl>
+                                <FormLabel className="text-xs">Initial Stock</FormLabel>
+                                <FormControl><Input type="number" placeholder="50" {...field} disabled={isEditing || !form.watch(`variants.${index}.track_stock`)} /></FormControl>
+                                {isEditing && <FormDescription className="text-xs">Use inventory page to adjust stock for existing items.</FormDescription>}
                             </FormItem>
                         )}
                     />

@@ -1,10 +1,12 @@
 
+
 import { Product, ProductType, ProductVariant, RecipeItem } from '@/lib/types';
 import { useDbStore } from '@/lib/db-store';
 import { useStore } from '@/lib/store';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { setProductVariants, type VariantFormData } from './variantService';
 import { setRecipeForProduct } from './recipeService';
+import { adjustStock } from './stockService';
 
 // This type should match the Zod schema in the form dialog
 export type ProductFormData = {
@@ -85,15 +87,14 @@ export const addProduct = async (productData: ProductFormData): Promise<Product 
     const { db, firesqlite } = useDbStore.getState();
     if (!db || !firesqlite) throw new Error("Database not initialized");
 
-    // --- UNIQUENESS VALIDATION ---
     const duplicateError = checkForDuplicates(productData, null);
     if (duplicateError) {
         throw new Error(duplicateError);
     }
-    // -----------------------------
-
+    
     const { doc, setDoc } = firesqlite;
     const { variants, recipe_items, ...restOfProductData } = productData;
+    const initialStock = restOfProductData.stock; // Capture initial stock
     const hasVariant = !!(variants && variants.length > 0);
     const isComposite = restOfProductData.product_type === 'food_and_beverage' && (restOfProductData.is_composite || false);
 
@@ -103,6 +104,7 @@ export const addProduct = async (productData: ProductFormData): Promise<Product 
     const newProduct: Product = {
         id: newId,
         ...restOfProductData,
+        stock: 0, // Always create with 0 stock initially for audit trail
         imageUrl: productData.imageUrl || placeholder.imageUrl,
         imageHint: productData.imageHint || placeholder.imageHint,
         is_composite: isComposite,
@@ -111,7 +113,18 @@ export const addProduct = async (productData: ProductFormData): Promise<Product 
         modifier_group_ids: restOfProductData.has_modifier ? restOfProductData.modifier_group_ids : [],
     };
 
+    // 1. Create the product with 0 stock
     await setDoc(doc(db, 'products', newProduct.id), newProduct);
+
+    // 2. If initial stock was provided, create an auditable movement record
+    if (newProduct.track_stock && initialStock > 0) {
+        await adjustStock({
+            product_id: newId,
+            type: 'initial_balance',
+            qty_change: initialStock,
+            reason: 'Initial stock on product creation',
+        });
+    }
 
     if (hasVariant && variants) {
         await setProductVariants(newProduct.id, variants);
@@ -130,16 +143,15 @@ export const updateProduct = async (id: string, productData: ProductFormData): P
     const { db, firesqlite } = useDbStore.getState();
     if (!db || !firesqlite) throw new Error("Database not initialized");
 
-    // --- UNIQUENESS VALIDATION ---
     const duplicateError = checkForDuplicates(productData, id);
     if (duplicateError) {
         throw new Error(duplicateError);
     }
-    // -----------------------------
     
     const { doc, updateDoc } = firesqlite;
     
-    const { variants, recipe_items, ...restOfProductData } = productData;
+    // Exclude stock and variants from direct update to enforce auditable changes
+    const { variants, recipe_items, stock, low_stock_alert, ...restOfProductData } = productData;
     const hasVariant = !!(variants && variants.length > 0);
     const isComposite = restOfProductData.product_type === 'food_and_beverage' && (restOfProductData.is_composite || false);
 
@@ -151,10 +163,13 @@ export const updateProduct = async (id: string, productData: ProductFormData): P
         modifier_group_ids: restOfProductData.has_modifier ? restOfProductData.modifier_group_ids : [],
         imageUrl: productData.imageUrl,
         imageHint: productData.imageHint,
+        // We no longer update stock directly from this form for existing products
+        low_stock_alert: productData.low_stock_alert,
     };
     
     await updateDoc(doc(db, 'products', id), dataToUpdate);
 
+    // Variant and recipe handling remains the same, as they have their own auditable logic
     if (hasVariant && variants) {
         await setProductVariants(id, variants);
     } else {
