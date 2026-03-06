@@ -22,7 +22,11 @@ export const setProductVariants = async (productId: string, variants: VariantFor
     const querySnapshot = await getDocs(q);
 
     // 2. Delete all existing variants for this product
-    const deletePromises = querySnapshot.docs.map((d: any) => deleteDoc(d.ref));
+    const deletePromises = querySnapshot.docs.map((d: any) => {
+        // FIX: Construct the DocumentReference manually using the doc helper.
+        // The 'd.ref' from the query result was not a valid reference for deleteDoc.
+        return deleteDoc(doc(db, 'product_variants', d.id));
+    });
     await Promise.all(deletePromises);
 
     // 3. Add the new set of variants
