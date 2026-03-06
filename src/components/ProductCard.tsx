@@ -26,7 +26,13 @@ export function ProductCard({ product, onItemClick, isSelected, context = 'cashi
   const { categories, productVariants } = useStore();
   
   const category = useMemo(() => categories.find(c => c.id === product.category_id), [categories, product.category_id]);
-  const variants = useMemo(() => productVariants.filter(v => v.product_id === product.id), [productVariants, product.id]);
+  const variants = useMemo(() => product.has_variant ? productVariants.filter(v => v.product_id === product.id) : [], [productVariants, product.id, product.has_variant]);
+  
+  const totalVariantStock = useMemo(() => {
+    if (!product.has_variant) return 0;
+    return variants.reduce((sum, v) => sum + v.stock, 0);
+  }, [variants, product.has_variant]);
+
 
   const { activeId, navigationSource, clearNavigationSource } = useActiveProduct();
   const isActive = activeId === product.id;
@@ -55,7 +61,7 @@ export function ProductCard({ product, onItemClick, isSelected, context = 'cashi
     }
   }
 
-  const isOutOfStock = product.track_stock && product.stock <= 0;
+  const isOutOfStock = product.has_variant ? totalVariantStock <= 0 : (product.track_stock && product.stock <= 0);
   const isLowStock = product.track_stock && product.low_stock_alert != null && product.stock > 0 && product.stock <= product.low_stock_alert;
   const is_active = product.is_active;
 
@@ -125,7 +131,7 @@ export function ProductCard({ product, onItemClick, isSelected, context = 'cashi
 
           {context !== 'cashier' && (
             <Badge variant={isLowStock ? "destructive" : "secondary"} className='absolute bottom-2 left-2'>
-              {product.track_stock ? `${product.stock}` : 'Untracked'}
+              {product.has_variant ? `${totalVariantStock}` : (product.track_stock ? `${product.stock}` : 'Untracked')}
             </Badge>
           )}
           {category && <Badge variant="secondary" className='truncate text-xs absolute bottom-2 right-2 max-w-[70%]'>{category.name}</Badge>}

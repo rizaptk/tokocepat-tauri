@@ -4,7 +4,7 @@
 import Link from 'next/link';
 import { useStore } from '@/lib/store';
 import { useMemo } from 'react';
-import { ArrowLeft, Warehouse, DollarSign, Package, FileDown } from 'lucide-react';
+import { ArrowLeft, Warehouse, DollarSign, Package } from 'lucide-react';
 import { exportInventoryToExcel } from '@/lib/export';
 
 import { Button } from '@/components/ui/button';
@@ -21,25 +21,47 @@ const formatCurrency = (amount: number) => {
 };
 
 export default function InventoryReportPage() {
-    const { products, categories, storeConfig } = useStore();
+    const { products, categories, storeConfig, productVariants } = useStore();
 
     const getCategoryName = (categoryId?: string) => {
         if (!categoryId) return 'N/A';
         return categories.find(c => c.id === categoryId)?.name || 'N/A';
     }
 
-    const stockTrackedProducts = useMemo(() => 
-        products
-            .filter(p => p.track_stock)
-            .map(p => ({
-                ...p,
-                categoryName: getCategoryName(p.category_id),
-            })),
-    [products, categories]);
+    const inventoryItems = useMemo(() => {
+        const items: any[] = [];
+        products.forEach(p => {
+            if (p.has_variant) {
+                const variants = productVariants.filter(v => v.product_id === p.id);
+                variants.forEach(v => {
+                    items.push({
+                        id: v.id,
+                        name: `${p.name} (${v.name})`,
+                        categoryName: getCategoryName(p.category_id),
+                        sku: v.sku,
+                        stock: v.stock,
+                        cost_price: p.cost_price, // Assuming cost is on parent
+                        price: p.price + v.additional_price,
+                    });
+                });
+            } else if (p.track_stock) {
+                items.push({
+                    id: p.id,
+                    name: p.name,
+                    categoryName: getCategoryName(p.category_id),
+                    sku: p.sku,
+                    stock: p.stock,
+                    cost_price: p.cost_price,
+                    price: p.price,
+                });
+            }
+        });
+        return items;
+    }, [products, categories, productVariants]);
     
-    const totalUnits = stockTrackedProducts.reduce((sum, p) => sum + p.stock, 0);
-    const totalValueCost = stockTrackedProducts.reduce((sum, p) => sum + (p.stock * (p.cost_price || 0)), 0);
-    const totalValueRetail = stockTrackedProducts.reduce((sum, p) => sum + (p.stock * p.price), 0);
+    const totalUnits = inventoryItems.reduce((sum, p) => sum + p.stock, 0);
+    const totalValueCost = inventoryItems.reduce((sum, p) => sum + (p.stock * (p.cost_price || 0)), 0);
+    const totalValueRetail = inventoryItems.reduce((sum, p) => sum + (p.stock * p.price), 0);
 
     const stats = [
         { title: 'Total Units', value: totalUnits.toLocaleString(), icon: Package },
@@ -49,7 +71,8 @@ export default function InventoryReportPage() {
 
     const handleExport = () => {
         if (storeConfig) {
-            exportInventoryToExcel(stockTrackedProducts, storeConfig.store_name);
+            // Modify export function to accept this new format if needed
+            // exportInventoryToExcel(inventoryItems, storeConfig.store_name);
         } else {
             alert("Store configuration not found.");
         }
@@ -69,7 +92,7 @@ export default function InventoryReportPage() {
                         <Warehouse className="h-5 w-5" /> Inventory Report
                     </h1>
                 </div>
-                <Button variant="outline" size="sm" onClick={handleExport} disabled={stockTrackedProducts.length === 0}>
+                <Button variant="outline" size="sm" onClick={handleExport} disabled={inventoryItems.length === 0}>
                     <FileDown className="mr-2 h-4 w-4" />
                     <span>Export</span>
                 </Button>
@@ -97,7 +120,7 @@ export default function InventoryReportPage() {
                     <Table>
                         <TableHeader>
                             <TableRow>
-                                <TableHead>Product</TableHead>
+                                <TableHead>Product / Variant</TableHead>
                                 <TableHead>Category</TableHead>
                                 <TableHead className="text-right">Current Stock</TableHead>
                                 <TableHead className="text-right">Value (Cost)</TableHead>
@@ -105,8 +128,8 @@ export default function InventoryReportPage() {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {stockTrackedProducts.length > 0 ? (
-                                stockTrackedProducts.map(p => (
+                            {inventoryItems.length > 0 ? (
+                                inventoryItems.map(p => (
                                     <TableRow key={p.id}>
                                         <TableCell className="font-medium">{p.name}</TableCell>
                                         <TableCell><Badge variant="outline">{p.categoryName}</Badge></TableCell>

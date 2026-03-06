@@ -37,7 +37,7 @@ export function ProductListItem({
   style,
   isEvent = false
 }: ProductListItemProps) {
-  const { categories } = useStore();
+  const { categories, productVariants } = useStore();
   const [checked, toggleChecked] = useSelectedChecked(product.id);
   const itemRef = useRef<HTMLDivElement>(null);
   
@@ -55,6 +55,14 @@ export function ProductListItem({
     () => categories.find((c) => c.id === product.category_id),
     [categories, product.category_id]
   );
+  
+  const totalVariantStock = useMemo(() => {
+    if (!product.has_variant) return 0;
+    return productVariants
+      .filter(v => v.product_id === product.id)
+      .reduce((sum, v) => sum + v.stock, 0);
+  }, [productVariants, product.id, product.has_variant]);
+
 
   const formatCurrency = (amount: number) =>
     new Intl.NumberFormat("id-ID", {
@@ -63,19 +71,21 @@ export function ProductListItem({
       minimumFractionDigits: 0,
     }).format(amount);
 
-  const isOutOfStock = product.track_stock && product.stock <= 0;
-  const isLowStock =
-    product.track_stock &&
-    product.low_stock_alert != null &&
-    product.stock > 0 &&
-    product.stock <= product.low_stock_alert;
-  const is_active = product.is_active;
-
   const handleSelect = () => {
     if (!isOutOfStock && onItemClick) {
       onItemClick(product);
     }
   };
+
+  const isOutOfStock = product.has_variant ? totalVariantStock <= 0 : (product.track_stock && product.stock <= 0);
+  const isLowStock = product.track_stock && product.low_stock_alert != null && product.stock > 0 && product.stock <= product.low_stock_alert;
+  const is_active = product.is_active;
+
+  const stockDisplay = useMemo(() => {
+    if (product.has_variant) return totalVariantStock;
+    if (product.track_stock) return product.stock;
+    return null;
+  }, [product, totalVariantStock]);
 
 
   return (
@@ -121,7 +131,7 @@ export function ProductListItem({
 
           {
             !is_active && (
-              <div className="absolute inset-0">
+              <div className="absolute inset-x-2 inset-y-0">
                 <Badge variant="destructive" className="text-xs">
                   Inactive
                 </Badge>
@@ -137,24 +147,17 @@ export function ProductListItem({
           )}
 
           {/* STOCK */}
-          {context !== "cashier" && product.track_stock && (
+          {context !== "cashier" && (
             <div
               className={cn(
                 columnClass.stock,
-                isLowStock || isOutOfStock
+                (isLowStock && !product.has_variant) || (stockDisplay !== null && stockDisplay <= 0)
                   ? "text-destructive font-medium"
                   : "text-muted-foreground"
               )}
             >
-              {isLowStock && <TriangleAlert className="h-3.5 w-3.5" />}
-              {isOutOfStock ? 0 : product.stock}
-            </div>
-          )}
-
-          {/* do not remove, filler to make table like list */}
-          {context !== "cashier" && !product.track_stock && (
-            <div className={columnClass.stock}>
-
+              {isLowStock && !product.has_variant && <TriangleAlert className="h-3.5 w-3.5" />}
+              {stockDisplay !== null ? stockDisplay : '-'}
             </div>
           )}
 

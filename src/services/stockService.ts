@@ -1,5 +1,5 @@
 
-import { Product, StockMovement, StockMovementType, RawIngredient } from '@/lib/types';
+import { Product, StockMovement, StockMovementType, RawIngredient, ProductVariant } from '@/lib/types';
 import { useDbStore } from '@/lib/db-store';
 import { useStore } from '@/lib/store';
 
@@ -64,6 +64,37 @@ export const adjustStock = async (data: AdjustmentData): Promise<void> => {
     await updateDoc(productRef, { stock: newStock });
 };
 
+export const adjustVariantStock = async (variantId: string, type: StockMovementType, qty_change: number, reason: string): Promise<void> => {
+    const { db, firesqlite } = useDbStore.getState();
+    const { productVariants, products } = useStore.getState();
+    if (!db || !firesqlite) throw new Error("Database not initialized");
+
+    const { doc, updateDoc, setDoc } = firesqlite;
+    const variant = productVariants.find(v => v.id === variantId);
+    if (!variant) throw new Error("Variant not found");
+
+    const parentProduct = products.find(p => p.id === variant.product_id);
+    const productNameSnapshot = parentProduct ? `${parentProduct.name} (${variant.name})` : variant.name;
+
+    const newStock = variant.stock + qty_change;
+    const now = new Date().toISOString();
+    const movementId = `sm-var-${crypto.randomUUID().slice(0, 8)}`;
+
+    const stockMovement: StockMovement = {
+        id: movementId,
+        product_id: variant.id,
+        product_name_snapshot: productNameSnapshot,
+        type: type,
+        qty_change: qty_change,
+        reason: reason,
+        reference_id: `manual-var-${movementId}`,
+        created_at: now,
+    };
+
+    await setDoc(doc(db, 'stock_movements', movementId), stockMovement);
+    await updateDoc(doc(db, 'product_variants', variantId), { stock: newStock });
+};
+
 
 export const adjustIngredientStock = async (ingredientId: string, type: StockMovementType, qty_change: number, reason: string): Promise<void> => {
     const { db, firesqlite } = useDbStore.getState();
@@ -99,4 +130,3 @@ export const adjustIngredientStock = async (ingredientId: string, type: StockMov
     const ingredientRef = doc(db, 'raw_ingredients', ingredient.id);
     await updateDoc(ingredientRef, { stock_qty: newStock });
 }
-

@@ -3,8 +3,8 @@
 
 import { useState, useMemo, useEffect, memo, useRef } from "react";
 import { useStore } from "@/lib/store";
-import { Product, StockMovementType, RawIngredient, Category } from "@/lib/types";
-import { adjustStock, adjustIngredientStock } from "@/services/stockService";
+import { Product, StockMovementType, RawIngredient, Category, ProductVariant } from "@/lib/types";
+import { adjustStock, adjustIngredientStock, adjustVariantStock } from "@/services/stockService";
 import { useToast } from "@/hooks/use-toast";
 import { FixedSizeList as List } from 'react-window';
 import AutoSizer from 'react-virtualized-auto-sizer';
@@ -16,7 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { ProductSearchBar } from "@/components/ProductSearchBar";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
-import { PlusCircle, Plus, Minus, Calculator, Package, Beaker } from "lucide-react";
+import { PlusCircle, Plus, Minus, Calculator, Package, Beaker, Layers2 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useGlobalBarcodeScanner } from "@/hooks/use-global-barcode-scanner";
 import { cn } from "@/lib/utils";
@@ -49,16 +49,18 @@ const reasonOptions: Record<'add' | 'remove' | 'count', { id: string, value: Sto
     ]
 };
 
-type InventoryItemType = (Product & { itemType: 'product', stock: number }) | (RawIngredient & { itemType: 'ingredient', stock: number });
+type InventoryItemType = (Product & { itemType: 'product', stock: number }) 
+    | (RawIngredient & { itemType: 'ingredient', stock: number })
+    | (ProductVariant & { itemType: 'variant', stock: number, parentName: string });
 
-const StockAdjustmentPanel = ({ selectedItem, onSave, onCancel }: { selectedItem: { id: string, type: 'product' | 'ingredient' } | null; onSave: () => void; onCancel: () => void; }) => {
+const StockAdjustmentPanel = ({ selectedItem, onSave, onCancel }: { selectedItem: { id: string, type: 'product' | 'ingredient' | 'variant' } | null; onSave: () => void; onCancel: () => void; }) => {
     const [mode, setMode] = useState<'add' | 'remove' | 'count' | null>(null);
     const [quantity, setQuantity] = useState('');
     const [actualCount, setActualCount] = useState('');
     const [reason, setReason] = useState('');
     const [note, setNote] = useState('');
 
-    const { products, rawIngredients } = useStore();
+    const { products, rawIngredients, productVariants } = useStore();
     const { toast } = useToast();
 
     const scrollRef = useRef<ScrollAreaHandle>(null);
@@ -69,11 +71,16 @@ const StockAdjustmentPanel = ({ selectedItem, onSave, onCancel }: { selectedItem
         if (selectedItem.type === 'product') {
             const product = products.find(p => p.id === selectedItem.id);
             return product ? { ...product, itemType: 'product', stock: product.stock } : null;
-        } else {
+        } else if (selectedItem.type === 'ingredient') {
             const ingredient = rawIngredients.find(i => i.id === selectedItem.id);
             return ingredient ? { ...ingredient, itemType: 'ingredient', stock: ingredient.stock_qty } : null;
+        } else { // variant
+            const variant = productVariants.find(v => v.id === selectedItem.id);
+            if (!variant) return null;
+            const parent = products.find(p => p.id === variant.product_id);
+            return { ...variant, itemType: 'variant', stock: variant.stock, parentName: parent?.name || 'Unknown' };
         }
-    }, [selectedItem, products, rawIngredients]);
+    }, [selectedItem, products, rawIngredients, productVariants]);
 
     // Reset form state when product changes
     useEffect(() => {
@@ -144,8 +151,10 @@ const StockAdjustmentPanel = ({ selectedItem, onSave, onCancel }: { selectedItem
                     qty_change: change,
                     reason: adjustmentReason,
                 });
-            } else {
+            } else if (item.itemType === 'ingredient') {
                 await adjustIngredientStock(item.id, selectedOption.value, change, adjustmentReason);
+            } else if (item.itemType === 'variant') {
+                await adjustVariantStock(item.id, selectedOption.value, change, adjustmentReason);
             }
 
             toast({ title: 'Stock Adjusted', description: `${item.name} stock has been updated to ${newStock}.` });
@@ -176,11 +185,11 @@ const StockAdjustmentPanel = ({ selectedItem, onSave, onCancel }: { selectedItem
                             <>
                                 <Card>
                                     <CardHeader>
-                                        <CardTitle>{item.name}</CardTitle>
+                                        <CardTitle>{item.itemType === 'variant' ? `${item.parentName} (${item.name})` : item.name}</CardTitle>
                                         <div className="flex justify-between items-center">
                                             <CardDescription>Current Stock: <span className="font-bold text-foreground">{item.stock}</span></CardDescription>
                                             <Badge variant="outline">
-                                                {item.itemType === 'product' ? <Package className="h-3 w-3 mr-1.5" /> : <Beaker className="h-3 w-3 mr-1.5" />}
+                                                {item.itemType === 'product' ? <Package className="h-3 w-3 mr-1.5" /> : item.itemType === 'ingredient' ? <Beaker className="h-3 w-3 mr-1.5" /> : <Layers2 className="h-3 w-3 mr-1.5" />}
                                                 {item.itemType}
                                             </Badge>
                                         </div>
@@ -304,7 +313,27 @@ const ColumnClass = {
 }
 
 const InventoryListItem = ({ item, isSelected, onItemClick, categories, isEven }: { item: InventoryItemType; isSelected: boolean; onItemClick: (item: InventoryItemType) => void; categories: Category[], isEven: boolean}) => {
-    const categoryName = item.itemType === 'product' ? categories.find(c => c.id === item.category_id)?.name || 'N/A' : 'N/A';
+    
+    let categoryName = 'N/A';
+    if (item.itemType === 'product') {
+        categoryName = categories.find(c => c.id === item.category_id)?.name || 'N/A';
+    } else if (item.itemType === 'variant') {
+        const parent = useStore.getState().products.find(p => p.id === item.product_id);
+        categoryName = parent ? categories.find(c => c.id === parent.category_id)?.name || 'N/A' : 'N/A';
+    }
+
+    let displayName = item.name;
+    if (item.itemType === 'variant') {
+        displayName = `${item.parentName} (${item.name})`;
+    }
+
+    const typeConfig = {
+        product: { icon: Package, badge: 'success' },
+        ingredient: { icon: Beaker, badge: 'warning' },
+        variant: { icon: Layers2, badge: 'info' }
+    }
+    const { icon: ItemIcon, badge: badgeVariant } = typeConfig[item.itemType];
+
 
     return (
         <div className="bg-card border-x border-b border-b-border/50 p-0 h-[56px]">
@@ -317,10 +346,11 @@ const InventoryListItem = ({ item, isSelected, onItemClick, categories, isEven }
                 )}
             >
                 <div className={ColumnClass.name}>
-                    <p className="font-medium truncate">{item.name}</p>
+                    <p className="font-medium truncate">{displayName}</p>
                 </div>
                 <div className={ColumnClass.type}>
-                    <Badge variant={item.itemType === 'product' ? 'success' : 'warning'} className="text-[10px] uppercase px-1.5 py-0">
+                    <Badge variant={badgeVariant as any} className="text-[10px] uppercase px-1.5 py-0">
+                        <ItemIcon className="h-3 w-3 mr-1" />
                         {item.itemType}
                     </Badge>
                 </div>
@@ -337,9 +367,9 @@ const InventoryListItem = ({ item, isSelected, onItemClick, categories, isEven }
 
 
 export default function InventoryPage() {
-    const { products, rawIngredients, categories } = useStore();
+    const { products, rawIngredients, categories, productVariants } = useStore();
     const { toast } = useToast();
-    const [selectedItem, setSelectedItem] = useState<{ id: string; type: 'product' | 'ingredient' } | null>(null);
+    const [selectedItem, setSelectedItem] = useState<{ id: string; type: 'product' | 'ingredient' | 'variant' } | null>(null);
     const [isSheetOpen, setIsSheetOpen] = useState(false);
     const [filter, setFilter] = useState('all');
 
@@ -354,8 +384,12 @@ export default function InventoryPage() {
     const inventoryItems: InventoryItemType[] = useMemo(() => {
         const stockTrackedProducts = products.filter(p => p.track_stock).map(p => ({ ...p, itemType: 'product' as const, stock: p.stock }));
         const ingredients = rawIngredients.map(i => ({ ...i, itemType: 'ingredient' as const, stock: i.stock_qty }));
+        const variants = productVariants.map(v => {
+            const parent = products.find(p => p.id === v.product_id);
+            return { ...v, itemType: 'variant' as const, stock: v.stock, parentName: parent?.name || 'Unknown' };
+        });
 
-        let combined: InventoryItemType[] = [...stockTrackedProducts, ...ingredients];
+        let combined: InventoryItemType[] = [...stockTrackedProducts, ...ingredients, ...variants];
         
         switch(filter) {
             case 'product':
@@ -363,6 +397,9 @@ export default function InventoryPage() {
                 break;
             case 'ingredient':
                 combined = combined.filter(item => item.itemType === 'ingredient');
+                break;
+            case 'variant':
+                 combined = combined.filter(item => item.itemType === 'variant');
                 break;
             case 'low_stock':
                 combined = combined.filter(item => {
@@ -382,7 +419,7 @@ export default function InventoryPage() {
 
         if (!query.trim()) return combined;
         return combined.filter(p => p.name.toLowerCase().includes(query.toLowerCase()));
-    }, [products, rawIngredients, query, filter]);
+    }, [products, rawIngredients, productVariants, query, filter]);
 
     const handleBarcodeScan = (barcode: string) => {
         const product = products.find(p => p.barcode === barcode);
@@ -494,13 +531,12 @@ export default function InventoryPage() {
                         <Button variant={filter === 'all' ? 'secondary' : 'outline'} onClick={() => setFilter('all')} className="rounded-full px-4 shrink-0">All</Button>
                         <Button variant={filter === 'product' ? 'secondary' : 'outline'} onClick={() => setFilter('product')} className="rounded-full px-4 shrink-0">Product</Button>
                         <Button variant={filter === 'ingredient' ? 'secondary' : 'outline'} onClick={() => setFilter('ingredient')} className="rounded-full px-4 shrink-0">Ingredient</Button>
+                        <Button variant={filter === 'variant' ? 'secondary' : 'outline'} onClick={() => setFilter('variant')} className="rounded-full px-4 shrink-0">Variant</Button>
                         
                         <Separator orientation="vertical" />
 
                         <Button variant={filter === 'low_stock' ? 'secondary' : 'outline'} onClick={() => setFilter('low_stock')} className="rounded-full px-4 shrink-0">Low Stock</Button>
                         <Button variant={filter === 'out_of_stock' ? 'secondary' : 'outline'} onClick={() => setFilter('out_of_stock')} className="rounded-full px-4 shrink-0">Out of Stock</Button>
-                        <Button variant="outline" className="rounded-full px-4 shrink-0" disabled>New</Button>
-                        <Button variant="outline" className="rounded-full px-4 shrink-0" disabled>No Sales</Button>
                     </div>
                 </div>
                 <div className="flex-1 bg-background h-full min-h-0 flex flex-col">

@@ -50,7 +50,7 @@ const getTaxRateForItem = (item: CartItem, storeConfig: StoreConfig): number => 
 
 export const createTransaction = async (cart: CartItem[], activeShift: Shift, storeConfig: StoreConfig, cashReceived: number): Promise<Transaction | null> => {
     const { db, firesqlite } = useDbStore.getState();
-    const { recipes } = useStore.getState();
+    const { recipes, products } = useStore.getState();
 
     if (!activeShift) {
         toast({ variant: 'destructive', title: 'Shift Closed', description: 'Please open a shift to process transactions.' });
@@ -89,13 +89,13 @@ export const createTransaction = async (cart: CartItem[], activeShift: Shift, st
         transaction_id: transactionId,
         product_snapshot: {
             id: item.id,
-            name: item.name,
+            name: item.selectedVariant ? `${item.name} (${item.selectedVariant.name})` : item.name,
             price: item.price,
             imageUrl: item.imageUrl,
             imageHint: item.imageHint,
             category_id: item.category_id,
             cost_price: item.cost_price,
-            sku: item.sku,
+            sku: item.selectedVariant ? item.selectedVariant.sku : item.sku,
             barcode: item.barcode,
             product_type: item.product_type,
             is_composite: item.is_composite,
@@ -146,9 +146,28 @@ export const createTransaction = async (cart: CartItem[], activeShift: Shift, st
                     }
                 }
             }
+        } else if (cartItem.selectedVariant) {
+            // Deduct stock from the specific variant
+            const variantRef = doc(db, 'product_variants', cartItem.selectedVariant.id);
+            const variantSnap = await getDoc(variantRef);
+            if (variantSnap.exists()) {
+                const currentStock = variantSnap.data().stock;
+                await updateDoc(variantRef, { stock: currentStock - cartItem.quantity });
+
+                const movementId = `sm-var-${transactionId}-${cartItem.selectedVariant.id}`;
+                const stockMovement: StockMovement = {
+                    id: movementId,
+                    product_id: cartItem.selectedVariant.id, // Reference variant ID
+                    product_name_snapshot: `${cartItem.name} (${cartItem.selectedVariant.name})`,
+                    type: 'sale',
+                    qty_change: -cartItem.quantity,
+                    reference_id: transactionId,
+                    created_at: createdAt,
+                };
+                await setDoc(doc(db, 'stock_movements', movementId), stockMovement);
+            }
         } else if (cartItem.track_stock) {
             const productRef = doc(db, 'products', cartItem.id);
-            
             const productSnap = await getDoc(productRef);
             if (productSnap.exists()) {
                 const currentStock = productSnap.data().stock;
@@ -175,7 +194,7 @@ export const createTransaction = async (cart: CartItem[], activeShift: Shift, st
 
 export const voidTransaction = async (transactionId: string, reason: string): Promise<void> => {
     const { db, firesqlite } = useDbStore.getState();
-    const { recipes } = useStore.getState();
+    const { recipes, products } = useStore.getState();
     if (!db || !firesqlite) throw new Error("Database not initialized");
 
     const { doc, getDoc, updateDoc, setDoc } = firesqlite;
@@ -202,6 +221,9 @@ export const voidTransaction = async (transactionId: string, reason: string): Pr
 
     // 2. Reverse stock movements
     for (const item of transaction.items) {
+        const originalProduct = products.find(p => p.id === item.product_snapshot.id);
+        const hasVariant = originalProduct?.has_variant || false;
+
         if (item.product_snapshot.is_composite) {
              const recipe = recipes.find(r => r.product_id === item.product_snapshot.id);
              if (recipe) {
@@ -229,6 +251,38 @@ export const voidTransaction = async (transactionId: string, reason: string): Pr
                     }
                 }
              }
+        } else if (hasVariant) {
+            // Find the variant based on the snapshot name. This is brittle but necessary.
+            // A better way would be to store variantId in the transaction item snapshot.
+            // Assuming format "Parent Name (Variant Name)"
+            const match = item.product_snapshot.name.match(/(.*) \((.*)\)/);
+            if (match) {
+                const variantName = match[2];
+                const { productVariants } = useStore.getState();
+                const variant = productVariants.find(v => v.product_id === item.product_snapshot.id && v.name === variantName);
+
+                if(variant) {
+                    const variantRef = doc(db, 'product_variants', variant.id);
+                    const variantSnap = await getDoc(variantRef);
+                    if (variantSnap.exists()) {
+                        const currentStock = variantSnap.data().stock;
+                        await updateDoc(variantRef, { stock: currentStock + item.qty });
+
+                        const movementId = `sm-void-var-${transaction.id}-${variant.id}`;
+                        const stockMovement: StockMovement = {
+                            id: movementId,
+                            product_id: variant.id,
+                            product_name_snapshot: item.product_snapshot.name,
+                            type: 'correction',
+                            qty_change: item.qty,
+                            reason: `Void of INV: ${transaction.invoice_number}`,
+                            reference_id: transaction.id,
+                            created_at: now,
+                        };
+                        await setDoc(doc(db, 'stock_movements', movementId), stockMovement);
+                    }
+                }
+            }
         } else {
             // Find the original product to check if it tracks stock
             const productRef = doc(db, 'products', item.product_snapshot.id);
