@@ -5,7 +5,7 @@ import { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, FileUp, AlertTriangle } from 'lucide-react';
-import { Product, Transaction, Shift, StoreConfig, Category, RawIngredient, StockMovement } from '@/lib/types';
+import { Product, Transaction, Shift, StoreConfig, Category, RawIngredient, StockMovement, ProductVariant } from '@/lib/types';
 import ReportView from './_components/ReportView';
 
 type ReportData = {
@@ -16,6 +16,7 @@ type ReportData = {
     categories: Category[];
     rawIngredients: RawIngredient[];
     stockMovements: StockMovement[];
+    productVariants: ProductVariant[];
 }
 
 export default function ReportPage() {
@@ -43,7 +44,7 @@ export default function ReportPage() {
             await firesqlite.importFullBinary(file);
 
             // Fetch all data from the temporary database
-            const collections = ['products', 'transactions', 'shifts', 'store_config', 'categories', 'raw_ingredients', 'stock_movements'];
+            const collections = ['products', 'transactions', 'shifts', 'store_config', 'categories', 'raw_ingredients', 'stock_movements', 'product_variants'];
             const dataPromises = collections.map(col => firesqlite.getDocs(firesqlite.collection(db, col)));
             const snapshots = await Promise.all(dataPromises);
 
@@ -55,6 +56,7 @@ export default function ReportPage() {
                 categories: snapshots[4].docs.map((d: any) => d.data()),
                 rawIngredients: snapshots[5].docs.map((d: any) => d.data()),
                 stockMovements: snapshots[6].docs.map((d: any) => d.data()),
+                productVariants: snapshots[7].docs.map((d: any) => d.data()),
             };
 
             setReportData(fetchedData);
