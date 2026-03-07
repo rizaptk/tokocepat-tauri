@@ -19,6 +19,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { DateRangeFilter } from '@/components/DateRangeFilter';
 import { getStockMovementsByDateRange } from '@/services/stockService';
+import { NotificationBell } from '@/components/NotificationBell';
 
 
 type ReportRow = StockMovement & {
@@ -155,22 +156,25 @@ export default function StockMovementReportPage() {
                         <History className="h-5 w-5" /> Stock Movement Report
                     </h1>
                 </div>
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="outline" size="sm" disabled={reportData.length === 0}>
-                        <FileDown className="mr-2 h-4 w-4" />
-                        <span>Export</span>
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                        <DropdownMenuItem onSelect={handleExcelExport}>
-                            <FileDown className="mr-2 h-4 w-4"/> Excel (.xlsx)
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onSelect={handlePdfExport}>
-                            <FileText className="mr-2 h-4 w-4"/> PDF (.pdf)
-                        </DropdownMenuItem>
-                    </DropdownMenuContent>
-                </DropdownMenu>
+                <div className="flex items-center gap-2">
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="outline" size="sm" disabled={reportData.length === 0}>
+                            <FileDown className="mr-2 h-4 w-4" />
+                            <span>Export</span>
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            <DropdownMenuItem onSelect={handleExcelExport}>
+                                <FileDown className="mr-2 h-4 w-4"/> Excel (.xlsx)
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onSelect={handlePdfExport}>
+                                <FileText className="mr-2 h-4 w-4"/> PDF (.pdf)
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                    <NotificationBell />
+                </div>
            </header>
           <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
             <Card>

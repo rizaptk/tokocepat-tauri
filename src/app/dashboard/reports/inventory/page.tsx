@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { NotificationBell } from '@/components/NotificationBell';
 
 const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('id-ID', {
@@ -92,10 +93,13 @@ export default function InventoryReportPage() {
                         <Warehouse className="h-5 w-5" /> Inventory Report
                     </h1>
                 </div>
-                <Button variant="outline" size="sm" onClick={handleExport} disabled={inventoryItems.length === 0}>
-                    <FileDown className="mr-2 h-4 w-4" />
-                    <span>Export</span>
-                </Button>
+                <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm" onClick={handleExport} disabled={inventoryItems.length === 0}>
+                        <FileDown className="mr-2 h-4 w-4" />
+                        <span>Export</span>
+                    </Button>
+                    <NotificationBell />
+                </div>
            </header>
           <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
             <div className="grid gap-4 md:grid-cols-3">

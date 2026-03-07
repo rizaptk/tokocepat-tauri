@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { TokoCepatLogo } from '@/components/TokoCepatLogo';
 import { ThemeToggle } from '@/components/ThemeButtons';
+import { NotificationBell } from '@/components/NotificationBell';
 
 export default function ProductLayout({
   children,
@@ -13,7 +14,10 @@ export default function ProductLayout({
         <Link href="/">
           <TokoCepatLogo />
         </Link>
-        <ThemeToggle />
+        <div className="flex items-center gap-2">
+            <NotificationBell />
+            <ThemeToggle />
+        </div>
       </header>
       <main className="flex flex-1">
         {children}

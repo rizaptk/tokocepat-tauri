@@ -23,7 +23,7 @@ import { useState, useMemo, useCallback } from "react";
 import { Label } from "./ui/label";
 import { PendingCartsDialog } from "./PendingCartsDialog";
 import { ThemeToggle } from "./ThemeButtons";
-
+import { NotificationBell } from "./NotificationBell";
 
 export function Header() {
   const router = useRouter();
@@ -62,6 +62,7 @@ export function Header() {
       </Link>
       
       <div className="flex items-center gap-2">
+        <NotificationBell />
          {pendingCarts.length > 0 && (
             <Button variant="outline" size="sm" onClick={() => setIsPendingCartDialogOpen(true)}>
                 <ParkingSquare className="mr-2 h-4 w-4"/> Parked ({pendingCarts.length})

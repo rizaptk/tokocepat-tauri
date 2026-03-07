@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/chart"
 import { ThemeToggle } from "@/components/ThemeButtons";
 import { useMemo } from "react";
+import { NotificationBell } from "@/components/NotificationBell";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -33,10 +34,10 @@ export default function DashboardPage() {
   
   const lowStockItems = useMemo(() => {
     const lowStockProducts = products.filter(
-        p => !p.has_variant && p.track_stock && p.low_stock_alert != null && p.stock <= p.low_stock_alert
+        p => !p.has_variant && p.track_stock && p.low_stock_alert != null && p.stock > 0 && p.stock <= p.low_stock_alert
     );
     const lowStockVariants = productVariants
-        .filter(v => v.track_stock && v.low_stock_alert != null && v.stock <= v.low_stock_alert)
+        .filter(v => v.track_stock && v.low_stock_alert != null && v.stock > 0 && v.stock <= v.low_stock_alert)
         .map(v => {
             const parent = products.find(p => p.id === v.product_id);
             return {
@@ -111,7 +112,10 @@ export default function DashboardPage() {
           <Link href="/">
             <TokoCepatLogo />
           </Link>
-          <ThemeToggle />
+          <div className="flex items-center gap-2">
+            <NotificationBell />
+            <ThemeToggle />
+          </div>
        </header>
       <main className="flex flex-1 flex-col lg:flex-row">
 

@@ -18,6 +18,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { DateRangeFilter } from '@/components/DateRangeFilter';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { NotificationBell } from '@/components/NotificationBell';
 
 export default function StockSummaryReportPage() {
     const { rawIngredients, products, productVariants, storeConfig } = useStore();
@@ -133,7 +134,7 @@ export default function StockSummaryReportPage() {
                     </h1>
                 </div>
                 <div className="flex items-center gap-2">
-                     <DropdownMenu>
+                    <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="outline" size="sm" disabled={reportData.length === 0}>
                             <FileDown className="mr-2 h-4 w-4" />
@@ -149,6 +150,7 @@ export default function StockSummaryReportPage() {
                             </DropdownMenuItem>
                         </DropdownMenuContent>
                     </DropdownMenu>
+                    <NotificationBell />
                 </div>
            </header>
           <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
