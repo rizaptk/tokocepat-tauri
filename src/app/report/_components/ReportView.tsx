@@ -1,7 +1,6 @@
-
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { DateRange } from 'react-day-picker';
 import { format, isSameDay, differenceInDays, addDays, startOfDay, endOfDay } from 'date-fns';
 import { Product, Transaction, Shift, StoreConfig, Category, RawIngredient, StockMovement, ProductVariant } from '@/lib/types';
@@ -67,6 +66,17 @@ export default function ReportView({ data, onReset }: ReportViewProps) {
         };
     });
     
+    // When new data comes in from a refresh, re-evaluate the default date range.
+    useEffect(() => {
+        const validTransactions = (transactions || []).filter(tx => tx && tx.created_at && !isNaN(new Date(tx.created_at).getTime()));
+        if (validTransactions.length > 0) {
+            const sorted = [...validTransactions].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+            const fromDate = new Date(sorted[0].created_at);
+            const toDate = new Date(sorted[sorted.length - 1].created_at);
+            setDate({ from: startOfDay(fromDate), to: endOfDay(toDate) });
+        }
+    }, [transactions]);
+    
     const [salesSearchTerm, setSalesSearchTerm] = useState('');
     const [stockFilterType, setStockFilterType] = useState<'all' | 'product' | 'ingredient' | 'variant'>('all');
 
@@ -83,7 +93,7 @@ export default function ReportView({ data, onReset }: ReportViewProps) {
     const { totalRevenue, totalProfit, totalTransactions } = useMemo(() => {
         const revenue = filteredTransactions.reduce((sum, tx) => sum + tx.total, 0);
         const profit = filteredTransactions.reduce((sum, tx) => {
-            const cost = tx.items.reduce((itemSum, item) => itemSum + ((item.cost_snapshot || 0) * item.qty), 0);
+            const cost = (tx.items || []).reduce((itemSum, item) => itemSum + ((item.cost_snapshot || 0) * item.qty), 0);
             return sum + (tx.subtotal - cost);
         }, 0);
         
@@ -111,7 +121,7 @@ export default function ReportView({ data, onReset }: ReportViewProps) {
                 const txDate = new Date(tx.created_at);
                 if (isNaN(txDate.getTime())) return;
                 const hour = txDate.getHours();
-                const profit = tx.subtotal - tx.items.reduce((sum, item) => sum + (item.cost_snapshot || 0) * item.qty, 0);
+                const profit = tx.subtotal - (tx.items || []).reduce((sum, item) => sum + (item.cost_snapshot || 0) * item.qty, 0);
                 data[hour].sales += tx.total;
                 data[hour].profit += profit;
             });
@@ -135,7 +145,7 @@ export default function ReportView({ data, onReset }: ReportViewProps) {
                 const txDate = new Date(tx.created_at);
                 if (isNaN(txDate.getTime())) return;
                 const dayKey = format(txDate, 'yyyy-MM-dd');
-                const profit = tx.subtotal - tx.items.reduce((sum, item) => sum + (item.cost_snapshot || 0) * item.qty, 0);
+                const profit = tx.subtotal - (tx.items || []).reduce((sum, item) => sum + (item.cost_snapshot || 0) * item.qty, 0);
                 if (data[dayKey]) {
                     data[dayKey].sales += tx.total;
                     data[dayKey].profit += profit;
@@ -154,7 +164,7 @@ export default function ReportView({ data, onReset }: ReportViewProps) {
     const topSellingProducts = useMemo(() => {
         const productSales = new Map<string, { name: string; quantity: number }>();
         filteredTransactions.forEach(tx => {
-            tx.items.forEach(item => {
+            (tx.items || []).forEach(item => {
                 const productId = item.product_snapshot.id;
                 const currentSale = productSales.get(productId) || { name: item.product_snapshot.name, quantity: 0 };
                 currentSale.quantity += item.qty;
