@@ -72,7 +72,7 @@ export default function ReportView({ data, onReset }: ReportViewProps) {
 
     const filteredTransactions = useMemo(() => {
         if (!date?.from) return [];
-        return transactions.filter(tx => {
+        return (transactions || []).filter(tx => {
             const txDate = new Date(tx.created_at);
             if (isNaN(txDate.getTime())) return false;
             return tx.status === 'paid' && txDate >= date.from! && txDate <= (date.to || date.from!);
@@ -176,14 +176,14 @@ export default function ReportView({ data, onReset }: ReportViewProps) {
 
     // --- Stock Summary Logic ---
     const allStockableItems = useMemo(() => {
-        const stockableProducts = products
+        const stockableProducts = (products || [])
             .filter(p => p.track_stock && !p.has_variant)
             .map(p => ({ ...p, name: p.name, stock: p.stock, itemType: 'product' as const }));
 
-        const stockableVariants = productVariants
+        const stockableVariants = (productVariants || [])
             .filter(v => v.track_stock)
             .map(v => {
-                const parent = products.find(p => p.id === v.product_id);
+                const parent = (products || []).find(p => p.id === v.product_id);
                 return {
                     ...v,
                     id: v.id,
@@ -193,13 +193,13 @@ export default function ReportView({ data, onReset }: ReportViewProps) {
                 };
             });
         
-        const stockableIngredients = rawIngredients.map(i => ({ ...i, name: i.name, stock: i.stock_qty, itemType: 'ingredient' as const }));
+        const stockableIngredients = (rawIngredients || []).map(i => ({ ...i, name: i.name, stock: i.stock_qty, itemType: 'ingredient' as const }));
 
         return [...stockableProducts, ...stockableVariants, ...stockableIngredients];
     }, [products, productVariants, rawIngredients]);
 
     const stockSummaryData = useMemo(() => {
-        const movementsInPeriod = stockMovements.filter(m => {
+        const movementsInPeriod = (stockMovements || []).filter(m => {
             const moveDate = new Date(m.created_at);
             return date?.from && date?.to && moveDate >= date.from && moveDate <= date.to;
         });
@@ -378,4 +378,3 @@ export default function ReportView({ data, onReset }: ReportViewProps) {
         </ScrollArea>
     );
 }
-
