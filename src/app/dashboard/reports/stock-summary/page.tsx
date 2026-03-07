@@ -2,60 +2,49 @@
 
 import Link from 'next/link';
 import { useStore } from '@/lib/store';
-import { useState, useMemo, useEffect } from 'react';
-import { ArrowLeft, Warehouse, Loader2, Package, Beaker, Layers2 } from 'lucide-react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { DateRange } from 'react-day-picker';
+import { ArrowLeft, Warehouse, Loader2, Package, Beaker, Layers2, FileDown, FileText } from 'lucide-react';
 import { format, startOfDay, endOfDay, subDays, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import { exportStockSummaryToExcel, exportStockSummaryToPdf } from '@/lib/export';
 import { useToast } from '@/hooks/use-toast';
 import { getStockMovementsByDateRange } from '@/services/stockService';
 import { StockMovement } from '@/lib/types';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { DateRangeFilter, DateRangePreset } from '@/components/DateRangeFilter';
+import { DateRangeFilter } from '@/components/DateRangeFilter';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { NotificationBell } from '@/components/NotificationBell';
 
 export default function StockSummaryReportPage() {
     const { rawIngredients, products, productVariants, storeConfig } = useStore();
     const { toast } = useToast();
-    const [range, setRange] = useState<DateRangePreset>('today');
+    const [date, setDate] = React.useState<DateRange | undefined>({
+      from: startOfDay(new Date()),
+      to: endOfDay(new Date()),
+    });
     const [stockMovements, setStockMovements] = useState<StockMovement[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [filterType, setFilterType] = useState<'all' | 'product' | 'ingredient' | 'variant'>('all');
 
-    const dateRange = useMemo(() => {
-        const now = new Date();
-        switch (range) {
-            case 'today':
-                return { from: startOfDay(now), to: endOfDay(now) };
-            case 'last7':
-                return { from: startOfDay(subDays(now, 6)), to: endOfDay(now) };
-            case 'last30':
-                return { from: startOfDay(subDays(now, 29)), to: endOfDay(now) };
-            case 'lastMonth':
-                const lastMonthDate = subMonths(now, 1);
-                return { from: startOfMonth(lastMonthDate), to: endOfMonth(lastMonthDate) };
-            default:
-                return { from: startOfDay(now), to: endOfDay(now) };
-        }
-    }, [range]);
-
     useEffect(() => {
+        if (!date?.from || !date?.to) return;
         const fetchMovements = async () => {
             setIsLoading(true);
-            const data = await getStockMovementsByDateRange(dateRange.from, dateRange.to);
+            const data = await getStockMovementsByDateRange(date.from!, date.to!);
             setStockMovements(data);
             setIsLoading(false);
         };
         fetchMovements();
-    }, [dateRange]);
+    }, [date]);
 
     const allStockableItems = useMemo(() => {
-        // Corrected logic to align with inventory page
         const stockableProducts = products
-            .filter(p => p.track_stock) // Only filter by track_stock
+            .filter(p => p.track_stock && !p.has_variant)
             .map(p => ({ ...p, name: p.name, stock: p.stock, itemType: 'product' as const }));
 
         const stockableVariants = productVariants
@@ -115,18 +104,18 @@ export default function StockSummaryReportPage() {
     }, [allStockableItems, stockMovements, filterType]);
     
     const handleExcelExport = () => {
-        if (storeConfig) {
-            exportStockSummaryToExcel(reportData, dateRange, storeConfig.store_name);
+        if (storeConfig && date?.from && date?.to) {
+            exportStockSummaryToExcel(reportData, { from: date.from, to: date.to }, storeConfig.store_name);
         } else {
-            toast({ variant: 'destructive', title: 'Error', description: 'Store configuration not found.' });
+            toast({ variant: 'destructive', title: 'Error', description: 'Store configuration or date range not found.' });
         }
     };
 
     const handlePdfExport = () => {
-        if (storeConfig) {
-            exportStockSummaryToPdf(reportData, dateRange, storeConfig.store_name);
+        if (storeConfig && date?.from && date?.to) {
+            exportStockSummaryToPdf(reportData, { from: date.from, to: date.to }, storeConfig.store_name);
         } else {
-            toast({ variant: 'destructive', title: 'Error', description: 'Store configuration not found.' });
+            toast({ variant: 'destructive', title: 'Error', description: 'Store configuration or date range not found.' });
         }
     };
 
@@ -145,33 +134,52 @@ export default function StockSummaryReportPage() {
                     </h1>
                 </div>
                 <div className="flex items-center gap-2">
-                    <Select value={filterType} onValueChange={(v) => setFilterType(v as any)}>
-                        <SelectTrigger className="w-full md:w-[150px]">
-                            <SelectValue placeholder="Filter type" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">All Items</SelectItem>
-                            <SelectItem value="product">Products</SelectItem>
-                            <SelectItem value="variant">Variants</SelectItem>
-                            <SelectItem value="ingredient">Ingredients</SelectItem>
-                        </SelectContent>
-                    </Select>
-                    <DateRangeFilter
-                        range={range}
-                        onRangeChange={setRange}
-                        onExportExcel={handleExcelExport}
-                        onExportPdf={handlePdfExport}
-                        hasData={reportData.length > 0}
-                    />
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="outline" size="sm" disabled={reportData.length === 0}>
+                            <FileDown className="mr-2 h-4 w-4" />
+                            <span>Export</span>
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            <DropdownMenuItem onSelect={handleExcelExport}>
+                                <FileDown className="mr-2 h-4 w-4"/> Excel (.xlsx)
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onSelect={handlePdfExport}>
+                                <FileText className="mr-2 h-4 w-4"/> PDF (.pdf)
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                    <NotificationBell />
                 </div>
            </header>
           <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
             <Card>
                 <CardHeader>
-                    <CardTitle>Stock Summary</CardTitle>
-                    <CardDescription>
-                        Showing a summary of stock movements from {format(dateRange.from, 'PPP')} to {format(dateRange.to, 'PPP')}.
-                    </CardDescription>
+                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                        <div>
+                            <CardTitle>Stock Summary</CardTitle>
+                             {date?.from && date?.to && (
+                                <CardDescription>
+                                    Showing a summary of stock movements from {format(date.from, 'PPP')} to {format(date.to, 'PPP')}.
+                                </CardDescription>
+                            )}
+                        </div>
+                        <div className="flex flex-col sm:flex-row items-center gap-2">
+                            <DateRangeFilter date={date} setDate={setDate} />
+                            <Select value={filterType} onValueChange={(v) => setFilterType(v as any)}>
+                                <SelectTrigger className="w-full sm:w-[150px]">
+                                    <SelectValue placeholder="Filter type" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">All Items</SelectItem>
+                                    <SelectItem value="product">Products</SelectItem>
+                                    <SelectItem value="variant">Variants</SelectItem>
+                                    <SelectItem value="ingredient">Ingredients</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
                 </CardHeader>
                 <CardContent>
                     <Table>

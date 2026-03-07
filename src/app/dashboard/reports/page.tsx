@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowLeft, ArrowRight, BarChart2, BookOpen, Warehouse, ArchiveX, Beaker, History } from 'lucide-react';
+import { NotificationBell } from '@/components/NotificationBell';
 
 const reportLinks = [
     {
@@ -62,9 +63,10 @@ export default function ReportsPage() {
                         <span className="sr-only">Back</span>
                     </Link>
                 </Button>
-                <h1 className="text-lg font-semibold tracking-tight">
+                <h1 className="text-lg font-semibold tracking-tight flex-1">
                     Reports & Analytics
                 </h1>
+                <NotificationBell />
             </header>
 
             {/* Split Layout */}
@@ -157,5 +159,3 @@ export default function ReportsPage() {
         </div>
     );
 }
-
-    

@@ -3,16 +3,19 @@
 import Link from 'next/link';
 import { useStore } from '@/lib/store';
 import { format, startOfDay, endOfDay, subDays, startOfMonth, endOfMonth, subMonths } from 'date-fns';
-import { ArrowLeft, ArchiveX } from 'lucide-react';
-import { useState, useMemo } from 'react';
+import { ArrowLeft, ArchiveX, FileDown, FileText } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { DateRange } from 'react-day-picker';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Transaction } from '@/lib/types';
-import { DateRangeFilter, DateRangePreset } from '@/components/DateRangeFilter';
+import { DateRangeFilter } from '@/components/DateRangeFilter';
 import { useToast } from '@/hooks/use-toast';
 import { TransactionDetailDialog } from '@/components/TransactionDetailDialog';
+import { NotificationBell } from '@/components/NotificationBell';
 
 const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('id-ID', {
@@ -25,33 +28,20 @@ const formatCurrency = (amount: number) => {
 export default function VoidReportPage() {
     const { transactions, storeConfig } = useStore();
     const { toast } = useToast();
-    const [range, setRange] = useState<DateRangePreset>('today');
+    const [date, setDate] = React.useState<DateRange | undefined>({
+      from: startOfDay(new Date()),
+      to: endOfDay(new Date()),
+    });
     const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
 
-    const dateRange = useMemo(() => {
-        const now = new Date();
-        switch (range) {
-            case 'today':
-                return { from: startOfDay(now), to: endOfDay(now) };
-            case 'last7':
-                return { from: startOfDay(subDays(now, 6)), to: endOfDay(now) };
-            case 'last30':
-                return { from: startOfDay(subDays(now, 29)), to: endOfDay(now) };
-            case 'lastMonth':
-                const lastMonthDate = subMonths(now, 1);
-                return { from: startOfMonth(lastMonthDate), to: endOfMonth(lastMonthDate) };
-            default:
-                return { from: startOfDay(now), to: endOfDay(now) };
-        }
-    }, [range]);
-
     const voidedTransactions = useMemo(() => {
+        if (!date?.from || !date?.to) return [];
         return transactions.filter(tx => {
             if (tx.status !== 'voided' || !tx.voided_at) return false;
             const txDate = new Date(tx.voided_at);
-            return txDate >= dateRange.from && txDate <= dateRange.to;
+            return txDate >= date.from! && txDate <= date.to!;
         });
-    }, [transactions, dateRange]);
+    }, [transactions, date]);
     
     const handleExcelExport = () => {
         toast({ title: 'Coming Soon', description: 'Excel export for voided transactions is not yet available.' });
@@ -76,21 +66,40 @@ export default function VoidReportPage() {
                             <ArchiveX className="h-5 w-5" /> Void Report
                         </h1>
                     </div>
-                     <DateRangeFilter
-                        range={range}
-                        onRangeChange={setRange}
-                        onExportExcel={handleExcelExport}
-                        onExportPdf={handlePdfExport}
-                        hasData={voidedTransactions.length > 0}
-                    />
+                    <div className="flex items-center gap-2">
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="outline" size="sm" disabled={voidedTransactions.length === 0}>
+                                <FileDown className="mr-2 h-4 w-4" />
+                                <span>Export</span>
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                                <DropdownMenuItem onSelect={handleExcelExport}>
+                                    <FileDown className="mr-2 h-4 w-4"/> Excel (.xlsx)
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onSelect={handlePdfExport}>
+                                    <FileText className="mr-2 h-4 w-4"/> PDF (.pdf)
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                        <NotificationBell />
+                    </div>
                </header>
               <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
                 <Card>
                     <CardHeader>
-                        <CardTitle>Voided Transactions</CardTitle>
-                        <CardDescription>
-                            A log of all transactions that have been voided from {format(dateRange.from, 'PPP')} to {format(dateRange.to, 'PPP')}.
-                        </CardDescription>
+                        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                            <div>
+                                <CardTitle>Voided Transactions</CardTitle>
+                                {date?.from && date?.to && (
+                                    <CardDescription>
+                                        A log of all transactions that have been voided from {format(date.from, 'PPP')} to {format(date.to, 'PPP')}.
+                                    </CardDescription>
+                                )}
+                            </div>
+                            <DateRangeFilter date={date} setDate={setDate} />
+                        </div>
                     </CardHeader>
                     <CardContent>
                         <Table>

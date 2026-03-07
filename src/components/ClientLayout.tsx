@@ -22,8 +22,8 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
         return licenseStatus === 'VALID' || licenseStatus === 'EXPIRES_SOON';
     }, [licenseStatus]);
 
-    if (pathname.startsWith('/admin') || pathname === '/login') {
-        // For admin routes, we don't want any of the client-side providers or nav.
+    if (pathname.startsWith('/admin') || pathname === '/login' || pathname.startsWith('/report')) {
+        // For admin routes and the report page, we don't want any of the client-side providers or nav.
         return <>{children}</>;
     }
 

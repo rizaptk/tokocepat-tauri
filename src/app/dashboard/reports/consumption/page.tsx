@@ -2,53 +2,43 @@
 
 import Link from 'next/link';
 import { useStore } from '@/lib/store';
-import { useState, useMemo, useEffect } from 'react';
-import { ArrowLeft, Beaker, Loader2 } from 'lucide-react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { DateRange } from 'react-day-picker';
 import { format, startOfDay, endOfDay, subDays, startOfMonth, endOfMonth, subMonths } from 'date-fns';
+import { ArrowLeft, Beaker, Loader2, FileDown, FileText } from 'lucide-react';
 import { exportConsumptionToExcel, exportConsumptionToPdf } from '@/lib/export';
 import { useToast } from '@/hooks/use-toast';
 import { getStockMovementsByDateRange } from '@/services/stockService';
 import { StockMovement } from '@/lib/types';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { DateRangeFilter, DateRangePreset } from '@/components/DateRangeFilter';
+import { DateRangeFilter } from '@/components/DateRangeFilter';
+import { NotificationBell } from '@/components/NotificationBell';
 
 
 export default function ConsumptionReportPage() {
     const { rawIngredients, storeConfig } = useStore();
     const { toast } = useToast();
-    const [range, setRange] = useState<DateRangePreset>('today');
+    const [date, setDate] = React.useState<DateRange | undefined>({
+      from: startOfDay(new Date()),
+      to: endOfDay(new Date()),
+    });
     const [stockMovements, setStockMovements] = useState<StockMovement[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
-    const dateRange = useMemo(() => {
-        const now = new Date();
-        switch (range) {
-            case 'today':
-                return { from: startOfDay(now), to: endOfDay(now) };
-            case 'last7':
-                return { from: startOfDay(subDays(now, 6)), to: endOfDay(now) };
-            case 'last30':
-                return { from: startOfDay(subDays(now, 29)), to: endOfDay(now) };
-            case 'lastMonth':
-                const lastMonthDate = subMonths(now, 1);
-                return { from: startOfMonth(lastMonthDate), to: endOfMonth(lastMonthDate) };
-            default:
-                return { from: startOfDay(now), to: endOfDay(now) };
-        }
-    }, [range]);
-
     useEffect(() => {
+        if (!date?.from || !date?.to) return;
         const fetchMovements = async () => {
             setIsLoading(true);
-            const data = await getStockMovementsByDateRange(dateRange.from, dateRange.to);
+            const data = await getStockMovementsByDateRange(date.from!, date.to!);
             setStockMovements(data);
             setIsLoading(false);
         };
         fetchMovements();
-    }, [dateRange]);
+    }, [date]);
 
     const reportData = useMemo(() => {
         return rawIngredients.map(ing => {
@@ -62,9 +52,8 @@ export default function ConsumptionReportPage() {
                 .filter(m => m.type !== 'sale')
                 .reduce((sum, m) => sum + m.qty_change, 0);
 
-            // This calculation is an approximation for past dates, but is accurate for "Today".
             const totalChangeInPeriod = adjusted - consumed;
-            const closingStock = ing.stock_qty; // Use current stock as a baseline for "closing"
+            const closingStock = ing.stock_qty;
             const openingStock = closingStock - totalChangeInPeriod;
             const costOfConsumed = consumed * ing.cost_per_unit;
             
@@ -88,18 +77,18 @@ export default function ConsumptionReportPage() {
     };
 
     const handleExcelExport = () => {
-        if (storeConfig) {
-            exportConsumptionToExcel(reportData, dateRange, storeConfig.store_name);
+        if (storeConfig && date?.from && date?.to) {
+            exportConsumptionToExcel(reportData, { from: date.from, to: date.to }, storeConfig.store_name);
         } else {
-            toast({ variant: 'destructive', title: 'Error', description: 'Store configuration not found.' });
+            toast({ variant: 'destructive', title: 'Error', description: 'Store configuration or date range not found.' });
         }
     };
 
     const handlePdfExport = () => {
-        if (storeConfig) {
-            exportConsumptionToPdf(reportData, dateRange, storeConfig.store_name);
+        if (storeConfig && date?.from && date?.to) {
+            exportConsumptionToPdf(reportData, { from: date.from, to: date.to }, storeConfig.store_name);
         } else {
-            toast({ variant: 'destructive', title: 'Error', description: 'Store configuration not found.' });
+            toast({ variant: 'destructive', title: 'Error', description: 'Store configuration or date range not found.' });
         }
     };
 
@@ -117,21 +106,40 @@ export default function ConsumptionReportPage() {
                         <Beaker className="h-5 w-5" /> F&B Consumption Report
                     </h1>
                 </div>
-                <DateRangeFilter
-                    range={range}
-                    onRangeChange={setRange}
-                    onExportExcel={handleExcelExport}
-                    onExportPdf={handlePdfExport}
-                    hasData={reportData.length > 0}
-                />
+                <div className="flex items-center gap-2">
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="outline" size="sm" disabled={reportData.length === 0}>
+                            <FileDown className="mr-2 h-4 w-4" />
+                            <span>Export</span>
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            <DropdownMenuItem onSelect={handleExcelExport}>
+                                <FileDown className="mr-2 h-4 w-4"/> Excel (.xlsx)
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onSelect={handlePdfExport}>
+                                <FileText className="mr-2 h-4 w-4"/> PDF (.pdf)
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                    <NotificationBell />
+                </div>
            </header>
           <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
             <Card>
                 <CardHeader>
-                    <CardTitle>Ingredient Consumption</CardTitle>
-                    <CardDescription>
-                        Showing consumption data from {format(dateRange.from, 'PPP')} to {format(dateRange.to, 'PPP')}.
-                    </CardDescription>
+                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                        <div>
+                            <CardTitle>Ingredient Consumption</CardTitle>
+                            {date?.from && date?.to && (
+                                <CardDescription>
+                                    Showing consumption data from {format(date.from, 'PPP')} to {format(date.to, 'PPP')}.
+                                </CardDescription>
+                            )}
+                        </div>
+                        <DateRangeFilter date={date} setDate={setDate} />
+                    </div>
                 </CardHeader>
                 <CardContent>
                     <Table>

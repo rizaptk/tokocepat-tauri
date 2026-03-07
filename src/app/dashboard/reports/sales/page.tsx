@@ -1,11 +1,13 @@
-
 'use client';
 
 import Link from 'next/link';
+import * as React from 'react';
 import { useState, useMemo, useEffect } from 'react';
+import { DateRange } from 'react-day-picker';
 import { endOfDay, startOfDay, subDays, format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
-import { ArrowLeft, BarChart2, DollarSign, ReceiptText, Landmark, Search, Loader2 } from 'lucide-react';
+import { ArrowLeft, BarChart2, DollarSign, ReceiptText, Landmark, Search, Loader2, FileDown, FileText } from 'lucide-react';
 import { exportSalesToExcel, exportSalesToPdf } from '@/lib/export';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,9 +15,10 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Transaction } from '@/lib/types';
 import { TransactionDetailDialog } from '@/components/TransactionDetailDialog';
-import { DateRangeFilter, DateRangePreset } from '@/components/DateRangeFilter';
+import { DateRangeFilter } from '@/components/DateRangeFilter';
 import { getTransactionsByDateRange } from '@/services/transactionService';
 import { useStore } from '@/lib/store';
+import { NotificationBell } from '@/components/NotificationBell';
 
 
 const formatCurrency = (amount: number) => {
@@ -27,42 +30,28 @@ const formatCurrency = (amount: number) => {
 };
 
 export default function SalesReportPage() {
-    const [range, setRange] = useState<DateRangePreset>('today');
+    const [date, setDate] = React.useState<DateRange | undefined>({
+      from: startOfDay(subDays(new Date(), 29)),
+      to: endOfDay(new Date()),
+    });
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const { storeConfig } = useStore();
 
-    const dateRange = useMemo(() => {
-        const now = new Date();
-        switch (range) {
-            case 'today':
-                return { from: startOfDay(now), to: endOfDay(now) };
-            case 'last7':
-                return { from: startOfDay(subDays(now, 6)), to: endOfDay(now) };
-            case 'last30':
-                return { from: startOfDay(subDays(now, 29)), to: endOfDay(now) };
-            case 'lastMonth':
-                const lastMonthDate = subMonths(now, 1);
-                return { from: startOfMonth(lastMonthDate), to: endOfMonth(lastMonthDate) };
-            default:
-                return { from: startOfDay(now), to: endOfDay(now) };
-        }
-    }, [range]);
-
     useEffect(() => {
+        if (!date?.from || !date?.to) return;
         const fetchTransactions = async () => {
             setIsLoading(true);
-            const data = await getTransactionsByDateRange(dateRange.from, dateRange.to);
+            const data = await getTransactionsByDateRange(date.from!, date.to!);
             setTransactions(data);
             setIsLoading(false);
         };
         fetchTransactions();
-    }, [dateRange]);
+    }, [date]);
 
     const filteredTransactions = useMemo(() => {
-        // We filter the already date-filtered data, but only for 'paid' status here
         const paidTransactions = transactions.filter(tx => tx.status === 'paid');
         if (!searchTerm.trim()) return paidTransactions;
         return paidTransactions.filter(tx => 
@@ -92,19 +81,19 @@ export default function SalesReportPage() {
     
     const handleExcelExport = () => {
         const paidTransactions = transactions.filter(tx => tx.status === 'paid');
-        if (storeConfig) {
-            exportSalesToExcel(paidTransactions, dateRange, storeConfig.store_name);
+        if (storeConfig && date?.from && date?.to) {
+            exportSalesToExcel(paidTransactions, {from: date.from, to: date.to }, storeConfig.store_name);
         } else {
-            alert("Store configuration not found.");
+            alert("Store configuration or date range not found.");
         }
     };
     
     const handlePdfExport = () => {
         const paidTransactions = transactions.filter(tx => tx.status === 'paid');
-        if (storeConfig) {
-            exportSalesToPdf(paidTransactions, dateRange, storeConfig.store_name);
+        if (storeConfig && date?.from && date?.to) {
+            exportSalesToPdf(paidTransactions, {from: date.from, to: date.to }, storeConfig.store_name);
         } else {
-            alert("Store configuration not found.");
+            alert("Store configuration or date range not found.");
         }
     }
 
@@ -123,13 +112,25 @@ export default function SalesReportPage() {
                         <BarChart2 className="h-5 w-5" /> Sales Report
                     </h1>
                 </div>
-                <DateRangeFilter
-                    range={range}
-                    onRangeChange={setRange}
-                    onExportExcel={handleExcelExport}
-                    onExportPdf={handlePdfExport}
-                    hasData={transactions.length > 0}
-                />
+                <div className="flex items-center gap-2">
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="outline" size="sm" disabled={transactions.length === 0}>
+                            <FileDown className="mr-2 h-4 w-4" />
+                            <span>Export</span>
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            <DropdownMenuItem onSelect={handleExcelExport}>
+                                <FileDown className="mr-2 h-4 w-4"/> Excel (.xlsx)
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onSelect={handlePdfExport}>
+                                <FileText className="mr-2 h-4 w-4"/> PDF (.pdf)
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                    <NotificationBell />
+                </div>
            </header>
           <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -151,19 +152,24 @@ export default function SalesReportPage() {
                     <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                         <div>
                             <CardTitle>Transaction Details</CardTitle>
-                            <CardDescription>
-                                Showing {transactions.filter(t => t.status === 'paid').length} transactions from {format(dateRange.from, 'PPP')} to {format(dateRange.to, 'PPP')}.
-                            </CardDescription>
+                            {date?.from && date?.to && (
+                                <CardDescription>
+                                    Showing {transactions.filter(t => t.status === 'paid').length} transactions from {format(date.from, 'PPP')} to {format(date.to, 'PPP')}.
+                                </CardDescription>
+                            )}
                         </div>
-                         <div className="relative w-full md:w-64">
-                            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                            <Input
-                                type="search"
-                                placeholder="Search by invoice number..."
-                                className="w-full pl-8"
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                            />
+                         <div className="flex flex-col sm:flex-row items-center gap-2">
+                            <DateRangeFilter date={date} setDate={setDate} />
+                             <div className="relative w-full sm:w-auto">
+                                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                                <Input
+                                    type="search"
+                                    placeholder="Search by invoice..."
+                                    className="w-full pl-8 sm:w-64"
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                />
+                            </div>
                         </div>
                     </div>
                 </CardHeader>

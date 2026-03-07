@@ -1,21 +1,22 @@
-
 'use client';
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useStore } from '@/lib/store';
 import { format, startOfDay, endOfDay, subDays, startOfMonth, endOfMonth, subMonths } from 'date-fns';
-import { ArrowLeft, BookOpen, Clock, AlertTriangle } from 'lucide-react';
-import { useState, useMemo } from 'react';
+import { ArrowLeft, BookOpen, AlertTriangle, FileDown, FileText } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { DateRange } from 'react-day-picker';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Shift } from '@/lib/types';
-import { DateRangeFilter, DateRangePreset } from '@/components/DateRangeFilter';
+import { DateRangeFilter } from '@/components/DateRangeFilter';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
-// import { exportShiftsToPdf } from '@/lib/export';
+import { NotificationBell } from '@/components/NotificationBell';
 
 const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('id-ID', {
@@ -27,41 +28,24 @@ const formatCurrency = (amount: number) => {
 
 export default function ShiftsReportPage() {
     const router = useRouter();
-    const { shifts, storeConfig } = useStore();
+    const { shifts } = useStore();
     const { toast } = useToast();
-    const [range, setRange] = useState<DateRangePreset>('last30');
-
-    const dateRange = useMemo(() => {
-        const now = new Date();
-        switch (range) {
-            case 'today':
-                return { from: startOfDay(now), to: endOfDay(now) };
-            case 'last7':
-                return { from: startOfDay(subDays(now, 6)), to: endOfDay(now) };
-            case 'last30':
-                return { from: startOfDay(subDays(now, 29)), to: endOfDay(now) };
-            case 'lastMonth':
-                const lastMonthDate = subMonths(now, 1);
-                return { from: startOfMonth(lastMonthDate), to: endOfMonth(lastMonthDate) };
-            default:
-                return { from: startOfDay(now), to: endOfDay(now) };
-        }
-    }, [range]);
+    const [date, setDate] = React.useState<DateRange | undefined>({
+      from: startOfDay(subDays(new Date(), 29)),
+      to: endOfDay(new Date()),
+    });
 
     const filteredShifts = useMemo(() => {
+        if (!date?.from || !date?.to) return [];
         return shifts.filter(s => {
             if (s.status !== 'closed' || !s.closed_at) return false;
             const closedDate = new Date(s.closed_at);
-            return closedDate >= dateRange.from && closedDate <= dateRange.to;
+            return closedDate >= date.from! && closedDate <= date.to!;
         });
-    }, [shifts, dateRange]);
+    }, [shifts, date]);
 
     const handlePdfExport = () => {
-        // if (storeConfig) {
-        //     exportShiftsToPdf(filteredShifts, dateRange, storeConfig.store_name);
-        // } else {
-            toast({ title: 'Coming Soon', description: 'PDF export for shifts is not yet available.' });
-        // }
+        toast({ title: 'Coming Soon', description: 'PDF export for shifts is not yet available.' });
     };
     
     const handleExcelExport = () => {
@@ -82,21 +66,40 @@ export default function ShiftsReportPage() {
                         <BookOpen className="h-5 w-5" /> Shift History
                     </h1>
                 </div>
-                 <DateRangeFilter
-                    range={range}
-                    onRangeChange={setRange}
-                    onExportExcel={handleExcelExport}
-                    onExportPdf={handlePdfExport}
-                    hasData={filteredShifts.length > 0}
-                />
+                <div className="flex items-center gap-2">
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="outline" size="sm" disabled={filteredShifts.length === 0}>
+                            <FileDown className="mr-2 h-4 w-4" />
+                            <span>Export</span>
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            <DropdownMenuItem onSelect={handleExcelExport}>
+                                <FileDown className="mr-2 h-4 w-4"/> Excel (.xlsx)
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onSelect={handlePdfExport}>
+                                <FileText className="mr-2 h-4 w-4"/> PDF (.pdf)
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                    <NotificationBell />
+                </div>
            </header>
           <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
             <Card>
                 <CardHeader>
-                    <CardTitle>Closed Shifts</CardTitle>
-                    <CardDescription>
-                        A history of all closed shifts from {format(dateRange.from, 'PPP')} to {format(dateRange.to, 'PPP')}.
-                    </CardDescription>
+                     <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                        <div>
+                            <CardTitle>Closed Shifts</CardTitle>
+                            {date?.from && date?.to && (
+                                <CardDescription>
+                                    A history of all closed shifts from {format(date.from, 'PPP')} to {format(date.to, 'PPP')}.
+                                </CardDescription>
+                            )}
+                        </div>
+                        <DateRangeFilter date={date} setDate={setDate} />
+                    </div>
                 </CardHeader>
                 <CardContent>
                     <Table>
@@ -146,5 +149,3 @@ export default function ShiftsReportPage() {
         </div>
     );
 }
-
-    

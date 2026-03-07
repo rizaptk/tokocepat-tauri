@@ -23,6 +23,7 @@ import { Shield, CreditCard, Database, Trash2, Loader2, Printer, Usb, AlertTrian
 import { TokoCepatLogo } from '@/components/TokoCepatLogo';
 import { ThemeToggle } from '@/components/ThemeButtons';
 import { useDbStore } from '@/lib/db-store';
+import { NotificationBell } from '@/components/NotificationBell';
 
 
 export default function SettingsPage() {
@@ -164,7 +165,10 @@ export default function SettingsPage() {
             <Link href="/">
             <TokoCepatLogo />
             </Link>
-            <ThemeToggle />
+            <div className="flex items-center gap-2">
+                <NotificationBell />
+                <ThemeToggle />
+            </div>
         </header>
         <main className="flex flex-1 flex-col lg:flex-row">
 

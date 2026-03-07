@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useLicense } from "@/hooks/useLicense";
+import { useLicense } from '@/hooks/useLicense';
 import { TokoCepatLogo } from "./TokoCepatLogo";
 import { ShieldOff } from "lucide-react";
 import { Button } from "./ui/button";
@@ -34,7 +34,7 @@ export function LicenseProvider({ children }: { children: React.ReactNode }) {
     const isLicensed = status === 'VALID' || status === 'EXPIRES_SOON';
     
     const isAllowedUnlicensedPage = typeof window !== 'undefined' && 
-        (window.location.pathname.startsWith('/dashboard/settings') || window.location.pathname.startsWith('/aktivasi'));
+        (window.location.pathname.startsWith('/dashboard/settings') || window.location.pathname.startsWith('/aktivasi') || window.location.pathname.startsWith('/report'));
 
     if (!isLicensed && !isAllowedUnlicensedPage) {
         const message = statusMessages[status] || "An unknown license error occurred.";
