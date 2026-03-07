@@ -8,7 +8,7 @@ import { DateRangeFilter } from '@/components/DateRangeFilter';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Table, TableBody, TableCell, TableRow, TableHead } from '@/components/ui/table';
+import { Table, TableBody, TableCell, TableRow, TableHead, TableHeader } from '@/components/ui/table';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartConfig } from "@/components/ui/chart";
 import { Bar, ComposedChart, CartesianGrid, XAxis, YAxis, Area } from "recharts";
 import { RefreshCw, LineChart, ShoppingBag, Search, Package, Beaker, Layers2, Warehouse, ReceiptText } from 'lucide-react';
