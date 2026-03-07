@@ -42,15 +42,31 @@ const formatCurrency = (amount: number) => {
 export default function ReportView({ data, onReset }: ReportViewProps) {
     const { products, transactions, storeConfig } = data;
 
-    const [date, setDate] = React.useState<DateRange | undefined>({
-      from: startOfDay(new Date()),
-      to: endOfDay(new Date()),
+    const [date, setDate] = React.useState<DateRange | undefined>(() => {
+        if (!transactions || transactions.length === 0) {
+            return { from: startOfDay(new Date()), to: endOfDay(new Date()) };
+        }
+        // Ensure dates are valid before sorting
+        const validTransactions = transactions.filter(tx => !isNaN(new Date(tx.created_at).getTime()));
+        if (validTransactions.length === 0) {
+            return { from: startOfDay(new Date()), to: endOfDay(new Date()) };
+        }
+        
+        const sorted = [...validTransactions].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+        const fromDate = new Date(sorted[0].created_at);
+        const toDate = new Date(sorted[sorted.length - 1].created_at);
+
+        return {
+            from: startOfDay(fromDate),
+            to: endOfDay(toDate),
+        };
     });
 
     const filteredTransactions = useMemo(() => {
         if (!date?.from) return [];
         return transactions.filter(tx => {
             const txDate = new Date(tx.created_at);
+            if (isNaN(txDate.getTime())) return false;
             return tx.status === 'paid' && txDate >= date.from! && txDate <= (date.to || date.from!);
         });
     }, [date, transactions]);
@@ -84,7 +100,9 @@ export default function ReportView({ data, onReset }: ReportViewProps) {
                 profit: 0,
             }));
             filteredTransactions.forEach(tx => {
-                const hour = new Date(tx.created_at).getHours();
+                const txDate = new Date(tx.created_at);
+                if (isNaN(txDate.getTime())) return;
+                const hour = txDate.getHours();
                 const profit = tx.subtotal - tx.items.reduce((sum, item) => sum + (item.cost_snapshot || 0) * item.qty, 0);
                 data[hour].sales += tx.total;
                 data[hour].profit += profit;
@@ -106,7 +124,9 @@ export default function ReportView({ data, onReset }: ReportViewProps) {
             }
 
             filteredTransactions.forEach(tx => {
-                const dayKey = format(new Date(tx.created_at), 'yyyy-MM-dd');
+                const txDate = new Date(tx.created_at);
+                if (isNaN(txDate.getTime())) return;
+                const dayKey = format(txDate, 'yyyy-MM-dd');
                 const profit = tx.subtotal - tx.items.reduce((sum, item) => sum + (item.cost_snapshot || 0) * item.qty, 0);
                 if (data[dayKey]) {
                     data[dayKey].sales += tx.total;
