@@ -84,7 +84,7 @@ export function ProductCard({ product, onItemClick, isSelected, context = 'cashi
       aria-disabled={isOutOfStock}
     >
       {context === 'product' &&  product.barcode && (
-        <div className="absolute top-2 left-2 z-20 p-1 bg-background/50 backdrop-blur-sm rounded-sm size-8 grid place-items-center" onClick={(e) => e.stopPropagation()}>
+        <div className="absolute top-2 right-2 z-20 p-1 bg-background/50 backdrop-blur-sm rounded-sm size-8 grid place-items-center" onClick={(e) => e.stopPropagation()}>
             <Checkbox className='rounded-none bg-card' checked={checked} onCheckedChange={toggleChecked} />
         </div>
       )}

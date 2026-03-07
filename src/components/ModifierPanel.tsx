@@ -153,8 +153,8 @@ export function ModifierPanel({ item, onOpenChange, onConfirm }: ModifierPanelPr
                             <SheetTitle>{isEditing ? `Edit ${productData.name}` : productData.name}</SheetTitle>
                             <SheetDescription>Customize your item. Base price: {formatCurrency(productData.price)}</SheetDescription>
                         </SheetHeader>
-                        <ScrollArea className="flex-1 -mx-6 px-6">
-                            <div className="space-y-6 py-4">
+                        <ScrollArea className="flex-1 -mx-6 px-4">
+                            <div className="space-y-6 py-4 px-2">
                                 {productModifierGroups.map(group => (
                                     <div key={group.id} className="space-y-4">
                                         <div>
@@ -181,6 +181,7 @@ export function ModifierPanel({ item, onOpenChange, onConfirm }: ModifierPanelPr
                                                 {group.items.map(item => (
                                                     <div key={item.id} className="flex items-center space-x-2">
                                                         <Checkbox 
+                                                            className='rounded-none'
                                                             id={`${group.id}-${item.id}`}
                                                             onCheckedChange={(checked) => handleMultiSelect(group, item, !!checked)}
                                                             checked={(selectedModifiers[group.id] || []).some(i => i.id === item.id)}

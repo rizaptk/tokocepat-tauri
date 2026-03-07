@@ -30,7 +30,7 @@ import {
 
 
 // Icons
-import { PlusCircle, Printer } from "lucide-react";
+import { PlusCircle, Printer, X } from "lucide-react";
 
 // Services
 import { useGlobalBarcodeScanner } from "@/hooks/use-global-barcode-scanner";
@@ -48,7 +48,7 @@ export default function ProductManagementPage() {
     const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
     const [isDrawerOpen, setIsDrawerOpen] = useState(false);
     const [activeTab, setActiveTab] = useState("product");
-    const { selectedIds: selectedProductIds } = useSelectedProduct();
+    const { selectedIds: selectedProductIds, clearSelected } = useSelectedProduct();
     const [printOptions, setPrintOptions] = useState({
         repeat: 1,
         labelWidthMm: 38,
@@ -154,7 +154,7 @@ export default function ProductManagementPage() {
     }
     
     const handleCloseEditor = () => {
-        setSelectedProductId(null);
+        clearSelected();
          if (window.innerWidth < 768) {
             setIsDrawerOpen(false);
         }
@@ -218,9 +218,15 @@ export default function ProductManagementPage() {
                         </Select>
                     </div>
                 </div>
-                <Button onClick={handlePrintLabels} className="w-full">
-                    <Printer className="mr-2 h-4 w-4" /> Print ({selectedProductIds.size})
-                </Button>
+                <div className="flex w-full items-center gap-3">
+                    <Button variant="outline" onClick={handleCloseEditor} className="flex-2">
+                        <X className="h-4 w-4" />
+                        Close
+                    </Button>
+                    <Button onClick={handlePrintLabels} className="flex-1">
+                        <Printer className="mr-2 h-4 w-4" /> Print ({selectedProductIds.size})
+                    </Button>
+                </div>
             </div>
         </PopoverContent>
     );

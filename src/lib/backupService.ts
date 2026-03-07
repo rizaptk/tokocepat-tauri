@@ -129,7 +129,7 @@ export async function promptAndSetBackupFile(): Promise<FileSystemFileHandle | n
         
         
         const handle = await window.showSaveFilePicker({
-            suggestedName: 'tokoc_backup.db',
+            suggestedName: `tokoc_backup_${crypto.randomUUID().slice(0, 4)}.db`,
             types: [{
                 description: 'Database Files',
                 accept: { 'application/octet-stream': ['.db'] },
@@ -221,7 +221,7 @@ export async function performRestore(): Promise<boolean> {
 }
 
 // This function provides metadata about the backup for UI purposes
-export async function getBackupMetadata(): Promise<{ lastBackup: string | null, signature: string | null }> {
+export async function getBackupMetadata(): Promise<{ lastBackup: string | undefined, signature: string | undefined }> {
     const [lastBackup, signature] = await Promise.all([
         idbKeyval.get<string>(LAST_BACKUP_KEY),
         idbKeyval.get<string>(LAST_BACKUP_SIGNATURE_KEY),

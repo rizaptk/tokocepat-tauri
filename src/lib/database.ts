@@ -34,8 +34,12 @@ async function ensureIndexes(firesqlite: any, db: any) {
 
 export const seedDatabase = async (firesqlite: any, db: any, force = false) => {
     if (!firesqlite || !db) return;
-
+    
+    
     try {
+        const { collection, doc, getDocs, setDoc, writeBatch } = firesqlite;
+        await ensureIndexes(firesqlite, db);
+        
         // Check if a reset just happened. If so, skip seeding.
         if (localStorage.getItem('tokoc_reset_flag') === 'true') {
             console.log("Reset flag detected. Skipping database seeding for a fresh start.");
@@ -44,11 +48,8 @@ export const seedDatabase = async (firesqlite: any, db: any, force = false) => {
             return; // Stop the function here
         }
         
-        const { collection, doc, getDocs, setDoc, writeBatch } = firesqlite;
         
         const storedVersion = localStorage.getItem(DB_VERSION_KEY);
-        
-        await ensureIndexes(firesqlite, db);
 
         if (storedVersion === CURRENT_DB_VERSION && !force) {
             return; // Already up-to-date and not forcing a re-seed.
