@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -240,7 +241,13 @@ const ChartTooltipContent = React.forwardRef<
                       </div>
                       {item.value && (
                         <span className="font-mono font-medium tabular-nums text-foreground">
-                          {item.value.toLocaleString()}
+                          {
+                             new Intl.NumberFormat('id-ID', {
+                                style: 'currency',
+                                currency: 'IDR',
+                                minimumFractionDigits: 0,
+                            }).format(item.value as number)
+                          }
                         </span>
                       )}
                     </div>

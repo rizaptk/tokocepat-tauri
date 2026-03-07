@@ -3,14 +3,14 @@
 "use client";
 
 import Link from "next/link";
-import { History, CheckCircle, ShoppingBag, ArrowRight } from "lucide-react";
+import { History, CheckCircle, ShoppingBag, ArrowRight, DollarSign, LineChart } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
 import { TokoCepatLogo } from "@/components/TokoCepatLogo";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts"
+import { Bar, ComposedChart, CartesianGrid, XAxis, YAxis, Area } from "recharts"
 import {
   ChartContainer,
   ChartTooltip,
@@ -18,20 +18,26 @@ import {
   type ChartConfig,
 } from "@/components/ui/chart"
 import { ThemeToggle } from "@/components/ThemeButtons";
-import { useMemo } from "react";
+import React, { useMemo } from "react";
 import { NotificationBell } from "@/components/NotificationBell";
+import { DateRangeFilter } from "@/components/DateRangeFilter";
+import { DateRange } from "react-day-picker";
+import { isSameDay, differenceInDays, addDays, startOfDay, endOfDay, format } from 'date-fns';
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { products, shifts, transactions, activeShift, productVariants } = useStore((state) => ({
+  const { products, transactions, activeShift, productVariants } = useStore((state) => ({
     products: state.products,
     productVariants: state.productVariants,
-    shifts: state.shifts,
     transactions: state.transactions,
     activeShift: state.activeShift,
   }));
-  const closedShifts = shifts.filter(s => s.status === 'closed');
   
+  const [date, setDate] = React.useState<DateRange | undefined>({
+      from: startOfDay(new Date()),
+      to: endOfDay(new Date()),
+  });
+
   const lowStockItems = useMemo(() => {
     const lowStockProducts = products.filter(
         p => !p.has_variant && p.track_stock && p.low_stock_alert != null && p.stock > 0 && p.stock <= p.low_stock_alert
@@ -51,44 +57,98 @@ export default function DashboardPage() {
         ...lowStockVariants
     ];
   }, [products, productVariants]);
-
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  const todaysTransactions = transactions.filter(t => new Date(t.created_at) >= today && t.status === 'paid');
+  
+  const filteredTransactions = useMemo(() => {
+    if (!date?.from) return [];
+    return transactions.filter(tx => {
+        const txDate = new Date(tx.created_at);
+        return tx.status === 'paid' && txDate >= date.from! && txDate <= (date.to || date.from!);
+    });
+  }, [date, transactions]);
 
   // --- Top Selling Products ---
-  const productSales = new Map<string, { name: string; quantity: number }>();
-  todaysTransactions.forEach(tx => {
-    tx.items.forEach(item => {
-        const productId = item.product_snapshot.id;
-        const currentSale = productSales.get(productId) || { name: item.product_snapshot.name, quantity: 0 };
-        currentSale.quantity += item.qty;
-        productSales.set(productId, currentSale);
+  const topSellingProducts = useMemo(() => {
+    const productSales = new Map<string, { name: string; quantity: number }>();
+    filteredTransactions.forEach(tx => {
+        tx.items.forEach(item => {
+            const productId = item.product_snapshot.id;
+            const currentSale = productSales.get(productId) || { name: item.product_snapshot.name, quantity: 0 };
+            currentSale.quantity += item.qty;
+            productSales.set(productId, currentSale);
+        });
     });
-  });
-  const topSellingProducts = Array.from(productSales.values())
-    .sort((a, b) => b.quantity - a.quantity)
-    .slice(0, 5);
+    return Array.from(productSales.values())
+        .sort((a, b) => b.quantity - a.quantity)
+        .slice(0, 5);
+  }, [filteredTransactions]);
 
-  // --- Hourly Sales Chart ---
-  const hourlySalesData = Array.from({ length: 17 }, (_, i) => ({
-    hour: `${String(i + 7).padStart(2, '0')}:00`,
-    total: 0,
-  })); // From 07:00 to 23:00
 
-  todaysTransactions.forEach(tx => {
-    const hour = new Date(tx.created_at).getHours();
-    if (hour >= 7 && hour <= 23) {
-      hourlySalesData[hour - 7].total += tx.total;
+  // --- KPIs ---
+  const { totalRevenue, totalProfit, totalTransactions } = useMemo(() => {
+    const revenue = filteredTransactions.reduce((sum, tx) => sum + tx.total, 0);
+    const profit = filteredTransactions.reduce((sum, tx) => {
+        const cost = tx.items.reduce((itemSum, item) => itemSum + ((item.cost_snapshot || 0) * item.qty), 0);
+        return sum + (tx.subtotal - cost);
+    }, 0);
+    
+    return {
+        totalRevenue: revenue,
+        totalProfit: profit,
+        totalTransactions: filteredTransactions.length,
     }
-  });
+  }, [filteredTransactions]);
+  
+
+  // --- Chart Data ---
+  const chartData = useMemo(() => {
+    if (!date?.from) return [];
+
+    const isSingleDay = date.from && date.to ? isSameDay(date.from, date.to) : true;
+
+    if (isSingleDay) {
+        // HOURLY
+        const data = Array.from({ length: 24 }, (_, i) => ({
+            name: `${String(i).padStart(2, '0')}`,
+            sales: 0,
+            profit: 0,
+        }));
+        filteredTransactions.forEach(tx => {
+            const hour = new Date(tx.created_at).getHours();
+            const profit = tx.subtotal - tx.items.reduce((sum, item) => sum + (item.cost_snapshot || 0) * item.qty, 0);
+            data[hour].sales += tx.total;
+            data[hour].profit += profit;
+        });
+        return data;
+    } else {
+        // DAILY
+        const data: { [key: string]: { name: string, sales: number, profit: number } } = {};
+        const dayCount = differenceInDays(date.to!, date.from!) + 1;
+
+        for (let i = 0; i < dayCount; i++) {
+            const currentDay = addDays(date.from!, i);
+            const dayKey = format(currentDay, 'yyyy-MM-dd');
+            data[dayKey] = {
+                name: format(currentDay, 'MMM d'),
+                sales: 0,
+                profit: 0,
+            };
+        }
+
+        filteredTransactions.forEach(tx => {
+            const dayKey = format(new Date(tx.created_at), 'yyyy-MM-dd');
+            const profit = tx.subtotal - tx.items.reduce((sum, item) => sum + (item.cost_snapshot || 0) * item.qty, 0);
+            if (data[dayKey]) {
+                data[dayKey].sales += tx.total;
+                data[dayKey].profit += profit;
+            }
+        });
+        return Object.values(data);
+    }
+  }, [date, filteredTransactions]);
 
   const chartConfig = {
-    total: {
-      label: "Sales",
-      color: "hsl(var(--primary))",
-    },
+    sales: { label: "Sales", color: "hsl(var(--primary))" },
+    profit: { label: "Profit", color: "hsl(var(--success))" }
   } satisfies ChartConfig;
 
   // --- Currency Formatter ---
@@ -142,18 +202,27 @@ export default function DashboardPage() {
             <div className="grid grid-cols-2 gap-4">
               <Card>
                 <div className="p-4">
-                  <p className="text-xs text-muted-foreground">Today's Revenue</p>
+                  <p className="text-xs text-muted-foreground">Total Revenue</p>
                   <p className="text-2xl font-bold">
-                    {formatCurrency(todaysTransactions.reduce((sum, t) => sum + t.total, 0))}
+                    {formatCurrency(totalRevenue)}
                   </p>
                 </div>
               </Card>
 
               <Card>
                 <div className="p-4">
+                  <p className="text-xs text-muted-foreground">Total Profit</p>
+                  <p className="text-2xl font-bold text-success-foreground">
+                    {formatCurrency(totalProfit)}
+                  </p>
+                </div>
+              </Card>
+              
+              <Card>
+                <div className="p-4">
                   <p className="text-xs text-muted-foreground">Transactions</p>
                   <p className="text-2xl font-bold">
-                    {todaysTransactions.length}
+                    {totalTransactions}
                   </p>
                 </div>
               </Card>
@@ -163,15 +232,6 @@ export default function DashboardPage() {
                   <p className="text-xs text-muted-foreground">Low Stock Items</p>
                   <p className="text-2xl font-bold text-destructive">
                     {lowStockItems.length}
-                  </p>
-                </div>
-              </Card>
-
-              <Card>
-                <div className="p-4">
-                  <p className="text-xs text-muted-foreground">Closed Shifts</p>
-                  <p className="text-2xl font-bold">
-                    {closedShifts.length}
                   </p>
                 </div>
               </Card>
@@ -219,43 +279,36 @@ export default function DashboardPage() {
           {/* Sales Chart */}
           <Card>
             <CardHeader>
-              <CardTitle>Today's Sales by Hour</CardTitle>
-              <CardDescription>
-                Sales distribution across operating hours.
-              </CardDescription>
+                <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+                    <div>
+                        <CardTitle className="flex items-center gap-2"><LineChart className="h-5 w-5" /> Sales Overview</CardTitle>
+                        <CardDescription>Sales and profit over the selected period.</CardDescription>
+                    </div>
+                    <DateRangeFilter date={date} setDate={setDate} />
+                </div>
             </CardHeader>
             <CardContent>
-              {todaysTransactions.length > 0 ? (
+              {filteredTransactions.length > 0 ? (
                 <ChartContainer config={chartConfig} className="h-[280px] w-full">
-                  <BarChart accessibilityLayer data={hourlySalesData}>
-                    <CartesianGrid vertical={false} />
-                    <XAxis
-                      dataKey="hour"
-                      tickLine={false}
-                      axisLine={false}
-                      tickFormatter={(value) => value.slice(0, 2)}
-                    />
-                    <YAxis
-                      tickLine={false}
-                      axisLine={false}
-                      tickFormatter={(value) => `Rp${Number(value) / 1000}k`}
-                    />
-                    <ChartTooltip
-                      cursor={false}
-                      content={
-                        <ChartTooltipContent
-                          formatter={(value) => formatCurrency(value as number)}
-                          indicator="dot"
-                        />
-                      }
-                    />
-                    <Bar dataKey="total" fill="var(--color-total)" radius={6} />
-                  </BarChart>
+                    <ComposedChart data={chartData}>
+                        <defs>
+                            <linearGradient id="fillProfit" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="var(--color-profit)" stopOpacity={0.4}/>
+                                <stop offset="95%" stopColor="var(--color-profit)" stopOpacity={0.05}/>
+                            </linearGradient>
+                        </defs>
+                        <CartesianGrid vertical={false} />
+                        <XAxis dataKey="name" tickLine={false} axisLine={false} tickMargin={8} />
+                        <YAxis tickLine={false} axisLine={false} tickMargin={8} tickFormatter={(value) => `Rp${Number(value) / 1000}k`} />
+                        <ChartTooltip content={<ChartTooltipContent indicator="dot" />} />
+                        <Bar dataKey="sales" fill="var(--color-sales)" radius={4} barSize={20} />
+                        <Area type="monotone" dataKey="profit" stroke="var(--color-profit)" fill="url(#fillProfit)" strokeWidth={2} />
+                    </ComposedChart>
                 </ChartContainer>
               ) : (
                 <div className="text-center text-muted-foreground h-[250px] flex flex-col justify-center items-center">
                   <ShoppingBag className="h-10 w-10 mb-2" />
-                  <p>No sales recorded today.</p>
+                  <p>No sales recorded for this period.</p>
                 </div>
               )}
             </CardContent>
@@ -301,7 +354,7 @@ export default function DashboardPage() {
                 {topSellingProducts.length === 0 ? (
                   <div className="text-center text-muted-foreground py-8">
                     <ShoppingBag className="mx-auto h-8 w-8 mb-2"/>
-                    <p>No sales recorded today.</p>
+                    <p>No sales recorded for this period.</p>
                   </div>
                 ) : (
                   <Table>
@@ -321,54 +374,9 @@ export default function DashboardPage() {
             </Card>
 
           </div>
-
-          {/* Shift History */}
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-                <div>
-                    <CardTitle>Shift History</CardTitle>
-                    <CardDescription>Recent closed sessions.</CardDescription>
-                </div>
-                <Button asChild variant="link" className="text-sm -mr-4">
-                    <Link href="/dashboard/reports/shifts">View All</Link>
-                </Button>
-            </CardHeader>
-            <CardContent>
-              {closedShifts.length === 0 ? (
-                <div className="text-center text-muted-foreground py-8">
-                  <History className="mx-auto h-8 w-8 mb-2"/>
-                  <p>No closed shifts yet.</p>
-                </div>
-              ) : (
-                <Table>
-                  <TableBody>
-                    {closedShifts.slice(0, 5).map(shift => (
-                      <TableRow
-                        key={shift.id}
-                        onClick={() => router.push(`/dashboard/shifts/${shift.id}`)}
-                        className="cursor-pointer"
-                      >
-                        <TableCell>
-                          {new Date(shift.opened_at).toLocaleDateString()}
-                        </TableCell>
-                        <TableCell className="text-right font-medium">
-                          {formatCurrency(shift.variance || 0)}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
-            </CardContent>
-          </Card>
-
         </section>
 
       </main>
     </div>
   );
 }
-
-    
-
-    
