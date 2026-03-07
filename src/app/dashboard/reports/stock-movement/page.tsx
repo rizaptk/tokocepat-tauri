@@ -1,13 +1,14 @@
-
 'use client';
 
 import Link from 'next/link';
 import { useStore } from '@/lib/store';
-import { useState, useMemo, useCallback, useEffect } from 'react';
-import { ArrowLeft, History, PackageSearch, Filter, X, Package, Beaker, Loader2, Layers2 } from 'lucide-react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import { DateRange } from 'react-day-picker';
+import { ArrowLeft, History, PackageSearch, Filter, X, Package, Beaker, Loader2, Layers2, FileDown, FileText } from 'lucide-react';
 import { format, startOfDay, endOfDay, subDays, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import { exportStockMovementToExcel, exportStockMovementToPdf } from '@/lib/export';
 import { useToast } from '@/hooks/use-toast';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -16,7 +17,7 @@ import { StockMovement } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
-import { DateRangeFilter, DateRangePreset } from '@/components/DateRangeFilter';
+import { DateRangeFilter } from '@/components/DateRangeFilter';
 import { getStockMovementsByDateRange } from '@/services/stockService';
 
 
@@ -39,37 +40,24 @@ const movementTypeLabels: Record<string, { label: string, color: string }> = {
 export default function StockMovementReportPage() {
     const { products, rawIngredients, transactions, storeConfig, productVariants } = useStore();
     const { toast } = useToast();
-    const [range, setRange] = useState<DateRangePreset>('today');
+     const [date, setDate] = React.useState<DateRange | undefined>({
+      from: startOfDay(new Date()),
+      to: endOfDay(new Date()),
+    });
     const [filterProductId, setFilterProductId] = useState<string | null>(null);
     const [stockMovements, setStockMovements] = useState<StockMovement[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
-    const dateRange = useMemo(() => {
-        const now = new Date();
-        switch (range) {
-            case 'today':
-                return { from: startOfDay(now), to: endOfDay(now) };
-            case 'last7':
-                return { from: startOfDay(subDays(now, 6)), to: endOfDay(now) };
-            case 'last30':
-                return { from: startOfDay(subDays(now, 29)), to: endOfDay(now) };
-            case 'lastMonth':
-                const lastMonthDate = subMonths(now, 1);
-                return { from: startOfMonth(lastMonthDate), to: endOfMonth(lastMonthDate) };
-            default:
-                return { from: startOfDay(now), to: endOfDay(now) };
-        }
-    }, [range]);
-
     useEffect(() => {
+        if (!date?.from || !date?.to) return;
         const fetchMovements = async () => {
             setIsLoading(true);
-            const data = await getStockMovementsByDateRange(dateRange.from, dateRange.to);
+            const data = await getStockMovementsByDateRange(date.from!, date.to!);
             setStockMovements(data);
             setIsLoading(false);
         };
         fetchMovements();
-    }, [dateRange]);
+    }, [date]);
     
     const allStockableItems = useMemo(() => {
         const simpleProducts = products
@@ -137,18 +125,18 @@ export default function StockMovementReportPage() {
     }, [filterProductId, allStockableItems]);
     
     const handleExcelExport = () => {
-        if (storeConfig) {
-            exportStockMovementToExcel(reportData, dateRange, storeConfig.store_name);
+        if (storeConfig && date?.from && date?.to) {
+            exportStockMovementToExcel(reportData, { from: date.from, to: date.to }, storeConfig.store_name);
         } else {
-            toast({ variant: 'destructive', title: 'Error', description: 'Store configuration not found.' });
+            toast({ variant: 'destructive', title: 'Error', description: 'Store configuration or date range not found.' });
         }
     };
 
     const handlePdfExport = () => {
-        if (storeConfig) {
-            exportStockMovementToPdf(reportData, dateRange, storeConfig.store_name);
+        if (storeConfig && date?.from && date?.to) {
+            exportStockMovementToPdf(reportData, { from: date.from, to: date.to }, storeConfig.store_name);
         } else {
-            toast({ variant: 'destructive', title: 'Error', description: 'Store configuration not found.' });
+            toast({ variant: 'destructive', title: 'Error', description: 'Store configuration or date range not found.' });
         }
     };
 
@@ -167,54 +155,70 @@ export default function StockMovementReportPage() {
                         <History className="h-5 w-5" /> Stock Movement Report
                     </h1>
                 </div>
-                <DateRangeFilter
-                    range={range}
-                    onRangeChange={setRange}
-                    onExportExcel={handleExcelExport}
-                    onExportPdf={handlePdfExport}
-                    hasData={reportData.length > 0}
-                />
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" size="sm" disabled={reportData.length === 0}>
+                        <FileDown className="mr-2 h-4 w-4" />
+                        <span>Export</span>
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                        <DropdownMenuItem onSelect={handleExcelExport}>
+                            <FileDown className="mr-2 h-4 w-4"/> Excel (.xlsx)
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onSelect={handlePdfExport}>
+                            <FileText className="mr-2 h-4 w-4"/> PDF (.pdf)
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
            </header>
           <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
             <Card>
                 <CardHeader>
-                    <CardTitle>Movement Ledger</CardTitle>
-                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
-                        <CardDescription>
-                            Showing movements from {format(dateRange.from, 'PPP')} to {format(dateRange.to, 'PPP')}.
-                        </CardDescription>
-                        <div className="flex items-center gap-2">
-                            <Popover>
-                                <PopoverTrigger asChild>
-                                    <Button variant="outline" className="w-full md:w-[250px] justify-start text-left font-normal">
-                                        <Filter className="mr-2 h-4 w-4"/>
-                                        <span className="truncate">{selectedProductName}</span>
-                                    </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-[300px] p-0" align="end">
-                                    <Command>
-                                        <CommandInput placeholder="Filter item..." />
-                                        <CommandList>
-                                            <CommandEmpty>No items found.</CommandEmpty>
-                                            <CommandGroup>
-                                                <CommandItem onSelect={() => setFilterProductId(null)}>
-                                                    All Products & Ingredients
-                                                </CommandItem>
-                                                {allStockableItems.map(p => (
-                                                    <CommandItem key={p.id} onSelect={() => setFilterProductId(p.id)}>
-                                                        {p.name}
-                                                    </CommandItem>
-                                                ))}
-                                            </CommandGroup>
-                                        </CommandList>
-                                    </Command>
-                                </PopoverContent>
-                            </Popover>
-                            {filterProductId && (
-                                <Button variant="ghost" size="icon" onClick={() => setFilterProductId(null)}>
-                                    <X className="h-4 w-4"/>
-                                </Button>
+                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                        <div>
+                            <CardTitle>Movement Ledger</CardTitle>
+                            {date?.from && date?.to && (
+                                <CardDescription>
+                                    Showing movements from {format(date.from, 'PPP')} to {format(date.to, 'PPP')}.
+                                </CardDescription>
                             )}
+                        </div>
+                        <div className="flex flex-col sm:flex-row items-center gap-2">
+                            <DateRangeFilter date={date} setDate={setDate} />
+                            <div className="flex w-full sm:w-auto items-center gap-2">
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                        <Button variant="outline" className="w-full sm:w-[250px] justify-start text-left font-normal">
+                                            <Filter className="mr-2 h-4 w-4"/>
+                                            <span className="truncate">{selectedProductName}</span>
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-[300px] p-0" align="end">
+                                        <Command>
+                                            <CommandInput placeholder="Filter item..." />
+                                            <CommandList>
+                                                <CommandEmpty>No items found.</CommandEmpty>
+                                                <CommandGroup>
+                                                    <CommandItem onSelect={() => setFilterProductId(null)}>
+                                                        All Products & Ingredients
+                                                    </CommandItem>
+                                                    {allStockableItems.map(p => (
+                                                        <CommandItem key={p.id} onSelect={() => setFilterProductId(p.id)}>
+                                                            {p.name}
+                                                        </CommandItem>
+                                                    ))}
+                                                </CommandGroup>
+                                            </CommandList>
+                                        </Command>
+                                    </PopoverContent>
+                                </Popover>
+                                {filterProductId && (
+                                    <Button variant="ghost" size="icon" onClick={() => setFilterProductId(null)}>
+                                        <X className="h-4 w-4"/>
+                                    </Button>
+                                )}
+                            </div>
                         </div>
                     </div>
                 </CardHeader>
