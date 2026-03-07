@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useRef } from 'react';
@@ -69,6 +70,13 @@ export default function ReportPage() {
         }
     };
 
+    const handleReset = () => {
+        setReportData(null);
+        setError(null);
+        // We can directly trigger the file picker again.
+        fileInputRef.current?.click();
+    };
+
     if (isLoading) {
         return (
             <div className="flex h-full w-full items-center justify-center p-8">
@@ -82,7 +90,7 @@ export default function ReportPage() {
     }
 
     if (reportData) {
-        return <ReportView data={reportData} onReset={() => setReportData(null)} />;
+        return <ReportView data={reportData} onReset={handleReset} />;
     }
 
     return (

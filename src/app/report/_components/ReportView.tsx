@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useMemo, useState } from 'react';
@@ -11,7 +12,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Table, TableBody, TableCell, TableRow } from '@/components/ui/table';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartConfig } from "@/components/ui/chart";
 import { Bar, ComposedChart, CartesianGrid, XAxis, YAxis, Area } from "recharts";
-import { DollarSign, LineChart, ShoppingBag, CheckCircle, Package } from 'lucide-react';
+import { RefreshCw, LineChart, ShoppingBag } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 
 type ReportData = {
@@ -39,7 +40,7 @@ const formatCurrency = (amount: number) => {
 
 
 export default function ReportView({ data, onReset }: ReportViewProps) {
-    const { products, transactions, shifts, storeConfig, categories, rawIngredients, stockMovements } = data;
+    const { products, transactions, storeConfig } = data;
 
     const [date, setDate] = React.useState<DateRange | undefined>({
       from: startOfDay(new Date()),
@@ -145,7 +146,10 @@ export default function ReportView({ data, onReset }: ReportViewProps) {
                         <h1 className="text-2xl font-bold tracking-tight">{storeConfig?.store_name || 'Store Report'}</h1>
                         <p className="text-muted-foreground">Read-only report generated from backup file.</p>
                     </div>
-                    <Button variant="outline" onClick={onReset}>Load Another File</Button>
+                    <Button variant="outline" onClick={onReset}>
+                        <RefreshCw className="mr-2 h-4 w-4" />
+                        Load Another File
+                    </Button>
                 </div>
 
                 <Separator />
