@@ -1,5 +1,4 @@
 
-"use client";
 
 import { usePrinter } from "@/hooks/usePrinter";
 

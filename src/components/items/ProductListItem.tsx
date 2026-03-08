@@ -1,5 +1,4 @@
 
-"use client";
 
 import { Product } from "@/lib/types";
 import { useStore } from "@/lib/store";

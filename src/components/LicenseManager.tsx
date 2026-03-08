@@ -1,5 +1,4 @@
 
-"use client";
 
 import { useLicense } from '@/hooks/useLicense';
 import { Button } from './ui/button';

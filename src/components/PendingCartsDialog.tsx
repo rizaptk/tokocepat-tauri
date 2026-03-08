@@ -1,5 +1,4 @@
 
-"use client";
 
 import { useStore } from '@/lib/store';
 import { Button } from '@/components/ui/button';

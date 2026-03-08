@@ -1,5 +1,4 @@
 
-"use client";
 
 import { useStore } from '@/lib/store';
 import { Transaction } from '@/lib/types';

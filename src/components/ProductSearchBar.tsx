@@ -1,5 +1,4 @@
 
-"use client";
 
 import React, { useDeferredValue, useEffect, useState } from 'react';
 import { Search, Barcode, SlidersHorizontal, Image, StretchHorizontal, Equal } from "lucide-react";

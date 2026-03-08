@@ -1,7 +1,5 @@
 
-"use client";
-
-import { usePathname } from 'next/navigation';
+import { useLocation } from 'react-router-dom';
 import { DbProvider } from '@/components/DbProvider';
 import { LicenseProvider } from '@/components/LicenseProvider';
 import { BottomNav } from '@/components/BottomNav';
@@ -14,7 +12,7 @@ import { PrintManager } from './PrintManager';
 import { ThemeSwitcher } from './ThemeSwitcher';
 
 export default function ClientLayout({ children }: { children: React.ReactNode }) {
-    const pathname = usePathname();
+    const location = useLocation();
     const {isMobile} = useIsMobile();
     const { status: licenseStatus } = useLicense();
 
@@ -22,8 +20,8 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
         return licenseStatus === 'VALID' || licenseStatus === 'EXPIRES_SOON';
     }, [licenseStatus]);
 
-    if (pathname.startsWith('/admin') || pathname === '/login' || pathname.startsWith('/report')) {
-        // For admin routes and the report page, we don't want any of the client-side providers or nav.
+    if (location.pathname === '/login') {
+        // For login page, we don't want any of the client-side providers or nav.
         return <>{children}</>;
     }
 

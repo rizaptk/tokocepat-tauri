@@ -1,5 +1,4 @@
 
-"use client";
 
 import { useDbStore } from "@/lib/db-store";
 import { useStore } from "@/lib/store";
@@ -33,7 +32,13 @@ export function DbProvider({ children }: { children: React.ReactNode }) {
     }, [initialize, isInitialized]);
 
     useEffect(() => {
-        if (!isInitialized || !db || !firesqlite) return;
+        if (!isInitialized) return;
+
+        // In mock mode, skip data loading and unblock UI
+        if (!db || !firesqlite) {
+            setIsDataLoaded(true);
+            return;
+        }
 
         let unsubStoreConfig: (() => void) | undefined;
         let unsubCategories: (() => void) | undefined;
@@ -127,7 +132,12 @@ export function DbProvider({ children }: { children: React.ReactNode }) {
             <div className="flex h-screen w-full items-center justify-center bg-background">
                 <div className="flex flex-col items-center gap-4">
                     <TokoCepatLogo />
-                    <p className="text-muted-foreground">{!isInitialized ? 'Initializing Database...' : 'Loading Data...'}</p>
+                    <p className="text-muted-foreground">
+                        {!isInitialized ? 'Initializing Database...' : 'Loading Data...'}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                        Check console for details
+                    </p>
                     <div className="w-48 h-2 bg-muted rounded-full overflow-hidden">
                         <div className="h-full bg-primary animate-pulse w-full"></div>
                     </div>

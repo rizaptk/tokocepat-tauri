@@ -1,5 +1,4 @@
 
-"use client";
 
 import { useState } from "react";
 import { Transaction } from "@/lib/types";

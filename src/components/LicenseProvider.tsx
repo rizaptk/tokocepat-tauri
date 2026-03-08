@@ -1,5 +1,4 @@
 
-"use client";
 
 import { useLicense } from '@/hooks/useLicense';
 import { TokoCepatLogo } from "./TokoCepatLogo";

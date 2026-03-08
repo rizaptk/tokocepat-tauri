@@ -1,7 +1,4 @@
-"use client";
-
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { Link, useLocation } from 'react-router-dom';
 import {
     LayoutGrid,
     ShoppingCart,
@@ -27,7 +24,7 @@ const navItems = [
 ];
 
 export function SideNav() {
-    const pathname = usePathname();
+    const location = useLocation();
     const { isMobile } = useIsMobile();
     const { status: licenseStatus } = useLicense();
     const [isClient, setIsClient] = useState(false);
@@ -39,13 +36,13 @@ export function SideNav() {
     const isActive = (href: string) => {
         // Exact match for dashboard, otherwise prefix match
         if (href === '/dashboard') {
-            return pathname === href;
+            return location.pathname === href;
         }
-        return pathname.startsWith(href);
+        return location.pathname.startsWith(href);
     };
 
     // Render only on desktop, when licensed, and not on admin pages.
-    if (!isClient || isMobile || !isLicensed || pathname.startsWith('/admin')) {
+    if (!isClient || isMobile || !isLicensed) {
         return null;
     }
 

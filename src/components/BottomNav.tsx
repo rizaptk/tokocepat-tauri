@@ -1,7 +1,4 @@
-"use client";
-
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { Link, useLocation } from 'react-router-dom';
 import { LayoutGrid, MoreHorizontal, Package, ShoppingCart, Warehouse, BarChart as BarChartIcon, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useEffect, useState } from 'react';
@@ -23,7 +20,7 @@ const moreNavItems = [
 
 export function BottomNav() {
   const { status: licenseStatus } = useLicense();
-  const pathname = usePathname();
+  const location = useLocation();
   const [isClient, setIsClient] = useState(false);
   const { isMobile } = useIsMobile();
 
@@ -34,12 +31,12 @@ export function BottomNav() {
   const isActive = (href: string) => {
     if (!isClient) return false;
     // تخصيص المنطق النشط هنا إذا لزم الأمر
-    return href === '/dashboard' || href === '/cashier' || href === '/dashboard/settings' ? pathname === href : pathname.startsWith(href);
+    return href === '/dashboard' || href === '/cashier' || href === '/dashboard/settings' ? location.pathname === href : location.pathname.startsWith(href);
   };
   
   // Render only on mobile, when licensed, and not on admin pages.
   // We check isClient to ensure isMobile is resolved correctly and avoid hydration errors.
-  if (!isClient || !isMobile || !isLicensed || pathname.startsWith('/admin')) {
+  if (!isClient || !isMobile || !isLicensed) {
       return null;
   }
 

@@ -1,8 +1,5 @@
 
-"use client";
-
-import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { Link, useNavigate } from "react-router-dom";
 import { LogOut, ParkingSquare, ReceiptText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,7 +23,7 @@ import { ThemeToggle } from "./ThemeButtons";
 import { NotificationBell } from "./NotificationBell";
 
 export function Header() {
-  const router = useRouter();
+  const navigate = useNavigate();
   const [declaredCash, setDeclaredCash] = useState(0);
   const [isPendingCartDialogOpen, setIsPendingCartDialogOpen] = useState(false);
   const activeShift = useStore((state) => state.activeShift);
@@ -51,7 +48,7 @@ export function Header() {
   const handleCloseShift = useCallback(() => {
     closeShift(declaredCash);
     setDeclaredCash(0);
-    router.push('/dashboard');
+    navigate('/dashboard');
   }, [closeShift, declaredCash, router]);
 
   return (

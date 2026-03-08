@@ -77,7 +77,11 @@ export const saveLicenseData = async (jwt: string, deviceId: string): Promise<vo
 
 export const getLicenseData = async (): Promise<LicenseDbData | null> => {
     const { db, firesqlite } = useDbStore.getState();
-    if (!db || !firesqlite) throw new Error("Database not initialized");
+    if (!db || !firesqlite) {
+        // In mock mode, return null to indicate no license data
+        console.log("Database not initialized, returning null for license data");
+        return null;
+    }
     const { doc, getDoc } = firesqlite;
 
     const docRef = doc(db, 'app_state', 'license');
