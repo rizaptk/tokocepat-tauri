@@ -141,14 +141,16 @@ export function useLicense() {
         checkLicense();
     }, [isInitialized, sendHeartbeat, toast]);
 
-    useEffect(() => {
-        if (!isInitialized) return;
-        const intervalId = setInterval(() => {
-            sendHeartbeat();
-        }, HEARTBEAT_INTERVAL_MS);
+    // wait for fix
 
-        return () => clearInterval(intervalId);
-    }, [isInitialized, sendHeartbeat]);
+    // useEffect(() => {
+    //     if (!isInitialized) return;
+    //     const intervalId = setInterval(() => {
+    //         sendHeartbeat();
+    //     }, HEARTBEAT_INTERVAL_MS);
+
+    //     return () => clearInterval(intervalId);
+    // }, [isInitialized, sendHeartbeat]);
 
     const deactivate = async (): Promise<void> => {
         const licenseData = await getLicenseData();
