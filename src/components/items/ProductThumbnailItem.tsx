@@ -1,7 +1,6 @@
 
 "use client";
 
-import Image from "next/image";
 import { Product } from "@/lib/types";
 import { useStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
@@ -95,16 +94,13 @@ export function ProductThumbnailItem({
 
       {/* Thumbnail */}
       <div className="relative w-14 h-14 shrink-0 rounded-lg overflow-hidden border bg-muted">
-        <Image
+        <img
           src={product.imageUrl}
           alt={product.name}
-          fill
-          sizes="56px"
-          className={cn("object-cover", isOutOfStock && "grayscale", !is_active && "grayscale")}
+          className={cn("w-full h-full object-cover", isOutOfStock && "grayscale", !is_active && "grayscale")}
+          loading="lazy"
         />
       
-        
-
         {isOutOfStock && (
           <div className="absolute inset-0 bg-black/60 flex items-center justify-center text-sm font-semibold text-white">
             Sold Out

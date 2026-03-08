@@ -16,6 +16,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { generateDeviceFingerprint } from '@/lib/security';
 import { saveLicenseData } from '@/services/dataService';
 import { formatDistanceToNow } from 'date-fns';
+import { apiFetch } from '@/lib/api-client';
 
 type TicketStatusInfo = { ticketId: string; status: PaymentTicket['status']; plan: string; createdAt: string; };
 
@@ -164,12 +165,12 @@ export function SubscriptionManager() {
         setIsTrialUsed(trialHasBeenUsed);
         
         try {
-            await fetch('/api/heartbeat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) });
+            await apiFetch('/api/heartbeat', { method: 'POST', body: JSON.stringify({}) });
             
             setIsOnline(true);
             const [settingsRes, statusRes] = await Promise.all([
-                fetch('/api/settings'),
-                fetch(`/api/settings?deviceId=${generatedDeviceId}`)
+                apiFetch('/api/settings'),
+                apiFetch(`/api/settings?deviceId=${generatedDeviceId}`)
             ]);
 
             const settingsData = await settingsRes.json();
@@ -195,9 +196,8 @@ export function SubscriptionManager() {
             return;
         }
         try {
-            const response = await fetch('/api/license/activate-trial', {
+            const response = await apiFetch('/api/license/activate-trial', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ planId, deviceId }),
             });
             const result = await response.json();
@@ -220,9 +220,8 @@ export function SubscriptionManager() {
             const data = Object.fromEntries(formData.entries());
             setFormErrors({});
 
-            const response = await fetch('/api/tickets', {
+            const response = await apiFetch('/api/tickets', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(data),
             });
 
@@ -393,5 +392,3 @@ export function SubscriptionManager() {
         </Card>
     )
 }
-
-    

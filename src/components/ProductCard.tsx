@@ -1,7 +1,6 @@
 
 "use client";
 
-import Image from 'next/image';
 import { Product } from '@/lib/types';
 import { useStore } from '@/lib/store';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -42,7 +41,6 @@ export function ProductCard({ product, onItemClick, isSelected, context = 'cashi
   useEffect(() => {
     if (isActive && navigationSource === 'keyboard') {
       cardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-      // Reset the source so subsequent re-renders don't trigger a scroll.
       clearNavigationSource();
     }
   }, [isActive, navigationSource, clearNavigationSource]);
@@ -90,14 +88,12 @@ export function ProductCard({ product, onItemClick, isSelected, context = 'cashi
       )}
 
       <CardHeader className="p-0 relative">
-        <div className="relative sm:aspect-[5/3] aspec-[4/3] w-full">
-          <Image
+        <div className="relative sm:aspect-[5/3] aspect-[4/3] w-full bg-muted">
+          <img
             src={product.imageUrl}
             alt={product.name}
-            fill
-            sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"
-            className={cn("object-cover", isOutOfStock && "grayscale", !is_active && "grayscale")}
-            data-ai-hint={product.imageHint}
+            className={cn("w-full h-full object-cover", isOutOfStock && "grayscale", !is_active && "grayscale")}
+            loading="lazy"
           />
           {
             !is_active && (

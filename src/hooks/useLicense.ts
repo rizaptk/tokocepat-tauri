@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
@@ -8,6 +7,7 @@ import { getLicenseData, saveLicenseData, deleteLicenseData } from '@/services/d
 import { decodeJwt } from 'jose';
 import { useToast } from './use-toast';
 import { useDbStore } from '@/lib/db-store';
+import { apiFetch } from '@/lib/api-client';
 
 export type LicenseStatus = 
     | 'VALID'       // Everything is OK
@@ -42,15 +42,13 @@ export function useLicense() {
                 deviceId: currentDeviceId
             };
 
-            const response = await fetch('/api/heartbeat', {
+            const response = await apiFetch('/api/heartbeat', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(body),
             });
             const data = await response.json();
             
             if (data.status === 'activation_required' && data.ticketId) {
-                // FIX: Prevent redirect loop if already on the activation page
                 const currentPath = window.location.pathname;
                 if (!currentPath.startsWith('/aktivasi')) {
                     window.location.href = `/aktivasi?ticket=${data.ticketId}`;
@@ -68,8 +66,6 @@ export function useLicense() {
         const checkLicense = async () => {
             const licenseData = await getLicenseData();
             
-            // If there's no local license, send a heartbeat immediately to check for pending activations.
-            // This is the primary trigger for a new user.
             if (!licenseData || !licenseData.jwt) {
                  await sendHeartbeat();
             }
@@ -139,7 +135,6 @@ export function useLicense() {
                 localStorage.setItem('tokoc_trial_activated_on_device', 'true');
             }
 
-            // Save updated lastKnownTime to DB
             await saveLicenseData(licenseData.jwt, currentDeviceId);
         };
 
@@ -161,9 +156,8 @@ export function useLicense() {
             throw new Error("No active license found on this device to deactivate.");
         }
 
-        const response = await fetch('/api/license/deactivate', {
+        const response = await apiFetch('/api/license/deactivate', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ token: licenseData.jwt }),
         });
         

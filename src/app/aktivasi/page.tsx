@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Loader2, ShieldCheck, AlertTriangle } from 'lucide-react';
 import { TokoCepatLogo } from '@/components/TokoCepatLogo';
+import { apiFetch } from '@/lib/api-client';
 
 
 function ActivationComponent() {
@@ -38,9 +39,8 @@ function ActivationComponent() {
         
         startActivation(async () => {
              try {
-                const response = await fetch('/api/license/claim', {
+                const response = await apiFetch('/api/license/claim', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ ticketId, deviceId }),
                 });
 
