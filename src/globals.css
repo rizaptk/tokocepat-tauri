@@ -1,6 +1,9 @@
+@import "./fonts.css";
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+
 
 /* @layer base {
   :root {
@@ -344,6 +347,7 @@
 
   body {
     @apply bg-background text-foreground;
+    font-family: 'Plus Jakarta Sans', sans-serif;
   }
 
   /* input[type="text"],

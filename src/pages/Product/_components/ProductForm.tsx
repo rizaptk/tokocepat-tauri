@@ -208,7 +208,13 @@ export const ProductForm = ({ productId, onSave, onCancel }: ProductFormProps) =
                                 <CardContent className="space-y-6">
                                     <div className="flex items-stretch w-full gap-6">
                                         <div onClick={() => imageInputRef.current?.click()} role="button" tabIndex={0} onKeyDown={(e) => e.key === "Enter" && imageInputRef.current?.click()} className="group relative w-48 h-48 rounded-xl overflow-hidden border bg-muted cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary">
-                                            <img src={imageUrl || "/images/placeholder.svg"} alt={form.getValues("name") || "Product image"} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
+                                            <img 
+                                                src={imageUrl || "/images/placeholder.svg"} 
+                                                alt={form.getValues("name") || "Product image"} 
+                                                style={{ position: 'absolute', height: '100%', width: '100%', inset: 0, color: 'transparent' }}
+                                                sizes="192px"
+                                                className="object-cover transition-transform duration-300 group-hover:scale-105" 
+                                            />
                                             <div className="absolute inset-0 bg-black/0 group-hover:bg-black/50 transition-colors duration-300 flex items-center justify-center">
                                                 <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 text-white text-sm font-medium flex flex-col items-center gap-2">
                                                     <Upload className="h-6 w-6" />

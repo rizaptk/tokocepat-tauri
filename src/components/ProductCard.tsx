@@ -91,8 +91,10 @@ export function ProductCard({ product, onItemClick, isSelected, context = 'cashi
           <img
             src={product.imageUrl}
             alt={product.name}
-            className={cn("w-full h-full object-cover", isOutOfStock && "grayscale", !is_active && "grayscale")}
-            loading="lazy"
+            style={{ position: 'absolute', height: '100%', width: '100%', inset: 0, color: 'transparent' }}
+            sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"
+            className={cn("object-cover", isOutOfStock && "grayscale", !is_active && "grayscale")}
+            data-ai-hint={product.imageHint}
           />
           {
             !is_active && (

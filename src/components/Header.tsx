@@ -49,17 +49,17 @@ export function Header() {
     closeShift(declaredCash);
     setDeclaredCash(0);
     navigate('/dashboard');
-  }, [closeShift, declaredCash, router]);
+  }, [closeShift, declaredCash, navigate]);
 
   return (
     <>
     <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center justify-between gap-4 bg-transparent px-4 md:px-6">
-      <Link href="/">
+      <Link to="/">
         <TokoCepatLogo />
       </Link>
       
       <div className="flex items-center gap-2">
-        <NotificationBell />
+        
          {pendingCarts.length > 0 && (
             <Button variant="outline" size="sm" onClick={() => setIsPendingCartDialogOpen(true)}>
                 <ParkingSquare className="mr-2 h-4 w-4"/> Parked ({pendingCarts.length})
@@ -119,6 +119,7 @@ export function Header() {
                 </AlertDialogFooter>
             </AlertDialogContent>
             </AlertDialog>
+            <NotificationBell />
             <ThemeToggle />
         </div>
 

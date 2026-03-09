@@ -126,7 +126,7 @@ const TicketStatusCard = ({ statusInfo, onRefresh }: { statusInfo: TicketStatusI
             <CardFooter>
                 {statusInfo.status === 'resolved' ? (
                      <Button asChild className="w-full" size="lg">
-                        <Link href={`/aktivasi?ticket=${statusInfo.ticketId}`}>
+                        <Link to={`/aktivasi?ticket=${statusInfo.ticketId}`}>
                             <CheckCircle className="mr-2 h-4 w-4" />
                             Review and Activate
                         </Link>

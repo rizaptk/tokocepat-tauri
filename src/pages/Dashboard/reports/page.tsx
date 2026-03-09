@@ -58,7 +58,7 @@ export default function ReportsPage() {
             {/* Header */}
             <header className="sticky top-0 flex h-16 items-center gap-4 border-b bg-background px-6 z-10">
                 <Button variant="outline" size="icon" asChild>
-                    <Link href="/dashboard">
+                    <Link to="/dashboard">
                         <ArrowLeft className="h-4 w-4" />
                         <span className="sr-only">Back</span>
                     </Link>
@@ -109,7 +109,7 @@ export default function ReportsPage() {
 
                         <div className="pt-6">
                             <Button size="lg" asChild>
-                                <Link href="/dashboard/reports/sales">
+                                <Link to="/dashboard/reports/sales">
                                     View Sales Overview
                                     <ArrowRight className="ml-2 h-4 w-4" />
                                 </Link>
@@ -122,7 +122,7 @@ export default function ReportsPage() {
                 <section className="flex-1 p-8">
                     <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
                         {reportLinks.map((report) => (
-                            <Link key={report.href} href={report.href} className="group">
+                            <Link key={report.href} to={report.href} className="group">
                                 <Card
                                     className="
                                         h-full cursor-pointer

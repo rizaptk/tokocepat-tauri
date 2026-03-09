@@ -16,7 +16,7 @@ export default function DeprecatedProductPage() {
             </CardHeader>
             <CardContent>
                 <Button asChild>
-                    <Link href="/product">
+                    <Link to="/product">
                         <ArrowLeft className="mr-2 h-4 w-4" /> Go to Products
                     </Link>
                 </Button>

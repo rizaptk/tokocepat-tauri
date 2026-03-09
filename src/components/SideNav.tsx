@@ -55,7 +55,7 @@ export function SideNav() {
                             <Tooltip key={item.href}>
                                 <TooltipTrigger asChild>
                                     <Link
-                                        href={item.href}
+                                        to={item.href}
                                         className={cn(
                                             "group relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl",
                                             "transition-colors duration-200",

@@ -15,8 +15,6 @@ import DashboardReportsStockMovement from './pages/Dashboard/reports/stock-movem
 import DashboardReportsConsumption from './pages/Dashboard/reports/consumption/page'
 import DashboardReportsStockSummary from './pages/Dashboard/reports/stock-summary/page'
 import DashboardReportsVoid from './pages/Dashboard/reports/void/page'
-import DashboardProducts from './pages/Dashboard/products/page'
-import DashboardProductsNew from './pages/Dashboard/products/new/page'
 import DashboardSettings from './pages/Dashboard/settings/page'
 import DashboardShiftDetail from './pages/Dashboard/shifts/[id]/page'
 
@@ -44,15 +42,11 @@ function App() {
           <Route path="dashboard/reports/consumption" element={<DashboardReportsConsumption />} />
           <Route path="dashboard/reports/stock-summary" element={<DashboardReportsStockSummary />} />
           <Route path="dashboard/reports/void" element={<DashboardReportsVoid />} />
-          <Route path="dashboard/products" element={<DashboardProducts />} />
-          <Route path="dashboard/products/new" element={<DashboardProductsNew />} />
           <Route path="dashboard/settings" element={<DashboardSettings />} />
           <Route path="dashboard/shifts/:id" element={<DashboardShiftDetail />} />
 
           {/* Product routes */}
-          <Route path="product" element={<ProductLayout />}>
-            <Route index element={<ProductHome />} />
-          </Route>
+          <Route path="product" element={<ProductLayout children={<ProductHome />} />} />
         </Route>
       </Routes>
     </Router>
