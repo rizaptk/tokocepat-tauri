@@ -1,7 +1,7 @@
 
 
 import { Link, useNavigate } from "react-router-dom";
-import { History, CheckCircle, ShoppingBag, ArrowRight, DollarSign, LineChart } from "lucide-react";
+import { CheckCircle, ShoppingBag, ArrowRight, LineChart } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
@@ -23,12 +23,16 @@ import { isSameDay, differenceInDays, addDays, startOfDay, endOfDay, format } fr
 
 export default function DashboardPage() {
   const navigate = useNavigate();
-  const { products, transactions, activeShift, productVariants } = useStore((state) => ({
-    products: state.products,
-    productVariants: state.productVariants,
-    transactions: state.transactions,
-    activeShift: state.activeShift,
-  }));
+  // const { products, transactions, activeShift, productVariants } = useStore((state) => ({
+  //   products: state.products,
+  //   productVariants: state.productVariants,
+  //   transactions: state.transactions,
+  //   activeShift: state.activeShift,
+  // }));
+  const products = useStore((state) => state.products);
+  const productVariants = useStore((state) => state.productVariants);
+  const transactions = useStore((state) => state.transactions);
+  const activeShift = useStore((state) => state.activeShift);
   
   const [date, setDate] = React.useState<DateRange | undefined>({
       from: startOfDay(new Date()),
