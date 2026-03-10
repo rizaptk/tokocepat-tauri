@@ -172,7 +172,7 @@ const StockAdjustmentPanel = ({ selectedItem, onSave, onCancel }: { selectedItem
             </div>
             <div className="flex-1 min-h-0 flex flex-col relative">
                 <ScrollShadow scrollRef={scrollRef} side="both" />
-                <ScrollArea ref={scrollRef} className="flex-1 min-h-0 [&>[data-radix-scroll-area-viewport]>div]:!block [&>[data-radix-scroll-area-viewport]>div]:!h-full">
+                <ScrollArea ref={scrollRef} className="flex-1 min-h-0 [&>[data-radix-scroll-area-viewport]>div]:block! [&>[data-radix-scroll-area-viewport]>div]:h-full!">
                     <div className="p-4 space-y-6 h-full">
                         {!item ? (
                             <Card className="h-full">
@@ -526,7 +526,7 @@ export default function InventoryPage() {
             <div className="col-span-10 md:col-span-6 lg:col-span-6 h-full flex flex-col min-h-0">
                 <div className="flex flex-col gap-4 p-4">
                     <div className="flex items-center gap-2 ">
-                        <div className="flex-grow">
+                        <div className="grow">
                             <ProductSearchBar
                                 onBarcodeScan={handleBarcodeScan}
                             />

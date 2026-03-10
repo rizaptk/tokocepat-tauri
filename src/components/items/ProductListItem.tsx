@@ -110,7 +110,7 @@ export function ProductListItem({
           <div className={cn(columnClass.name, 'px-0')}>
             {/* CHECKBOX */}
             {context === 'product' && (
-              <div className={cn(columnClass.checkbox,`${!!product.barcode ? '' : '!opacity-40 grayscale'}`)} onClick={(e) => e.stopPropagation()}>
+              <div className={cn(columnClass.checkbox,`${!!product.barcode ? '' : 'opacity-40! grayscale'}`)} onClick={(e) => e.stopPropagation()}>
                 <Checkbox
                   disabled={!product.barcode}
                   className={`rounded-none bg-card`}

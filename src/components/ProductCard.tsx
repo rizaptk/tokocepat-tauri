@@ -87,7 +87,7 @@ export function ProductCard({ product, onItemClick, isSelected, context = 'cashi
       )}
 
       <CardHeader className="p-0 relative">
-        <div className="relative sm:aspect-[5/3] aspect-[4/3] w-full bg-muted">
+        <div className="relative sm:aspect-5/3 aspect-4/3 w-full bg-muted">
           <img
             src={product.imageUrl}
             alt={product.name}

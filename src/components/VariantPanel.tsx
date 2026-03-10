@@ -93,7 +93,7 @@ export function VariantPanel({ item, onOpenChange, onConfirm }: VariantPanelProp
                                     <Label 
                                         key={variant.id} 
                                         htmlFor={variant.id} 
-                                        className="flex items-center justify-between p-4 border rounded-lg has-[:checked]:bg-accent has-[:checked]:border-primary cursor-pointer"
+                                        className="flex items-center justify-between p-4 border rounded-lg has-checked:bg-accent has-checked:border-primary cursor-pointer"
                                     >
                                         <div className="flex items-center gap-4">
                                             <RadioGroupItem value={variant.id} id={variant.id} />

@@ -21,7 +21,7 @@ interface RecipeItemProps {
 const RecipeItemComponent: React.FC<RecipeItemProps> = ({ index, field, form, rawIngredients, removeRecipeItem }) => {
     return (
         <div key={field.id} className="flex gap-2 items-end p-3 border rounded-lg bg-muted/50">
-            <div className="flex-grow grid grid-cols-2 gap-4">
+            <div className="grow grid grid-cols-2 gap-4">
                 <FormField
                     control={form.control}
                     name={`recipe_items.${index}.ingredient_id`}

@@ -86,7 +86,7 @@ export function ProductThumbnailItem({
     >
       {/* CHECKBOX */}
       {context === 'product' && (
-        <div className={cn('flex items-center justify-center',`${!!product.barcode ? '' : '!opacity-20 grayscale pointer-events-none'}`)} onClick={(e) => e.stopPropagation()}>
+        <div className={cn('flex items-center justify-center',`${!!product.barcode ? '' : 'opacity-20! grayscale pointer-events-none'}`)} onClick={(e) => e.stopPropagation()}>
             <Checkbox className="rounded-none bg-card" checked={checked} onCheckedChange={toggleChecked} />
         </div>
       )}

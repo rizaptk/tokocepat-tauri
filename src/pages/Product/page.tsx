@@ -277,7 +277,7 @@ export default function ProductManagementPage() {
                     </div>
 
                 </div>
-                <div className="flex-grow">
+                <div className="grow">
                     <ProductList
                         products={displayedProducts}
                         viewMode={viewMode}

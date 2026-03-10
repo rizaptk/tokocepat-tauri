@@ -265,7 +265,7 @@ export function ProductList({ products, viewMode, isLoading, onItemClick, select
         <div className='px-4'>
           <div className='flex w-full items-center h-[54px] border bg-card rounded-t-lg px-4'>
             <div className={columnClass.name}>
-              <span className="font-medium shrink-1 text-base">Name</span>
+              <span className="font-medium shrink text-base">Name</span>
             </div>
             <div className={columnClass.category}>
               <span className="text-base font-medium">Category</span>
