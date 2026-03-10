@@ -242,6 +242,10 @@
     font-family: 'Plus Jakarta Sans', sans-serif;
   }
 
+  button:not([disabled]), [role="button"]:not([disabled]) {
+    cursor: pointer;
+  }
+
   /* input[type="text"],
   input[type="email"],
   input[type="password"],
