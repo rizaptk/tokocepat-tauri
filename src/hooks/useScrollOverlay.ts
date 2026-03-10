@@ -1,4 +1,4 @@
-import { use, useEffect, useLayoutEffect, useRef } from "react";
+import { useLayoutEffect, useRef } from "react";
 
 type OverlayScrollbarOptions = {
     autoHideDelay?: number;

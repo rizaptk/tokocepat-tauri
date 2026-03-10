@@ -8,6 +8,7 @@ import { decodeJwt } from 'jose';
 import { useToast } from './use-toast';
 import { useDbStore } from '@/lib/db-store';
 import { apiFetch } from '@/lib/api-client';
+import { appStorage } from '@/lib/tauristorage';
 
 export type LicenseStatus = 
     | 'VALID'       // Everything is OK
@@ -132,7 +133,7 @@ export function useLicense() {
             setLicenseDetails(details);
             
             if (payload.isTrial) {
-                localStorage.setItem('tokoc_trial_activated_on_device', 'true');
+                appStorage.setItem('tokoc_trial_activated_on_device', 'true');
             }
 
             await saveLicenseData(licenseData.jwt, currentDeviceId);

@@ -3,6 +3,7 @@ import '../globals.css'
 import { Toaster } from "@/components/ui/toaster"
 import { MobileChecker } from '@/components/MobileChecker'
 import ClientLayout from '@/components/ClientLayout'
+import PrinterDetector from '@/components/PrintChecker'
 
 export default function RootLayout() {
   return (
@@ -12,6 +13,7 @@ export default function RootLayout() {
         <Outlet />
       </ClientLayout>
       <Toaster />
+      { "__TAURI__" in window &&  <PrinterDetector />}
     </div>
   )
 }

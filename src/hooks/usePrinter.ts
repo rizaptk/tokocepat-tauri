@@ -7,16 +7,18 @@ import { printerManager } from '@/lib/webUSBprinter';
 import { generateReceiptBinary } from '@/lib/receipt';
 import { useToast } from './use-toast';
 import { useStore } from '@/lib/store';
+import { usePrinterStore } from '@/lib/print-detect-store';
 
 export const usePrinter = () => {
   const { printQueue, getAndRemoveFirstFromQueue } = usePrintStore();
+  const { savedPrinter } = usePrinterStore();
   const { storeConfig } = useStore();
   const { toast } = useToast();
   const [isPrinting, setIsPrinting] = useState(false);
 
   useEffect(() => {
     const processQueue = async () => {
-      if (isPrinting || printQueue.length === 0) {
+      if (isPrinting || printQueue.length === 0 || !savedPrinter) {
         return;
       }
 
@@ -42,6 +44,7 @@ export const usePrinter = () => {
 
         await printerManager.connect();
         const binaryData = generateReceiptBinary(transactionToPrint, storeConfig);
+
         await printerManager.print(binaryData);
         
       } catch (err: any) {
@@ -63,5 +66,5 @@ export const usePrinter = () => {
     const timer = setTimeout(processQueue, 0);
     return () => clearTimeout(timer);
     
-  }, [printQueue, isPrinting, getAndRemoveFirstFromQueue, storeConfig, toast]);
+  }, [printQueue, isPrinting, getAndRemoveFirstFromQueue, storeConfig, toast, savedPrinter]);
 };

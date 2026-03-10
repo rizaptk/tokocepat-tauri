@@ -1,8 +1,9 @@
 
 
 import { useDbStore } from '@/lib/db-store';
-import { seedDatabase } from '@/lib/database';
+// import { seedDatabase } from '@/lib/database';
 import { clearBackupConfig } from '@/lib/backupService';
+import { appStorage } from '@/lib/tauristorage';
 
 export type LicenseDbData = {
     jwt: string;
@@ -48,10 +49,10 @@ export const resetApplicationData = async (): Promise<{ success: boolean, messag
         await clearBackupConfig();
 
         // Remove the database version key to trigger re-seeding on next load
-        localStorage.removeItem('tokoc_db_version');
+        appStorage.removeItem('tokoc_db_version');
         
         // Set a flag to prevent seeding on next app load
-        localStorage.setItem('tokoc_reset_flag', 'true');
+        appStorage.setItem('tokoc_reset_flag', 'true');
 
         return { success: true };
     } catch (error: any) {

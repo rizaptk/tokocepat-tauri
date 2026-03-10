@@ -4,7 +4,7 @@
 import { useEffect, useState, useTransition } from 'react';
 import { useDbStore } from '@/lib/db-store';
 import { hasBackupConfig, performRestore, promptAndSetBackupFile, getBackupMetadata } from '@/lib/backupService';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { useAutoBackup } from '@/hooks/useBackup';
 import { Loader2 } from 'lucide-react';

@@ -1,7 +1,8 @@
 "use client";
 
 import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
+import { persist } from 'zustand/middleware';
+import { zustandStorage } from './tauristorage';
 
 type ListMode = 'list' | 'card' | 'thumbnail';
 
@@ -40,7 +41,7 @@ export const useSettingsStore = create<SettingsState>()(
         }),
         {
             name: 'tokoc-settings',
-            storage: createJSONStorage(() => localStorage),
+            storage: zustandStorage,
         }
     )
 )

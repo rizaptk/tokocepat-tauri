@@ -1,19 +1,21 @@
 
 "use client";
 
+import { appStorage } from "./tauristorage";
+
 const FINGERPRINT_KEY = 'tokoc_device_fingerprint';
 
 /**
  * Generates a stable device fingerprint.
- * It first checks localStorage for a saved fingerprint. If not found, it calculates
+ * It first checks Storage for a saved fingerprint. If not found, it calculates
  * a new one based on stable hardware/browser properties (including canvas fingerprinting),
- * saves it to localStorage, and then returns it.
+ * saves it to Storage, and then returns it.
  */
 export async function generateDeviceFingerprint(): Promise<string> {
     if (typeof window === 'undefined') return 'server-side-fingerprint';
 
     // 1. Check for a stored fingerprint first.
-    const storedFingerprint = localStorage.getItem(FINGERPRINT_KEY);
+    const storedFingerprint = appStorage.getItem(FINGERPRINT_KEY);
     if (storedFingerprint) {
         return storedFingerprint;
     }
@@ -56,7 +58,7 @@ export async function generateDeviceFingerprint(): Promise<string> {
     const newFingerprint = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 
     // 3. Store the newly calculated fingerprint for future use.
-    localStorage.setItem(FINGERPRINT_KEY, newFingerprint);
+    appStorage.setItem(FINGERPRINT_KEY, newFingerprint);
     
     return newFingerprint;
 }

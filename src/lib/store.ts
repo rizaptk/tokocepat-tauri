@@ -2,13 +2,14 @@
 "use client";
 
 import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
+import { persist } from 'zustand/middleware';
 import { Product, CartItem, Transaction, Category, ModifierGroup, ProductVariant, Shift, StoreConfig, SelectedModifier, PendingCart, RawIngredient, Recipe, StockMovement } from '@/lib/types';
 import { toast } from '@/hooks/use-toast';
 import { openShift as openShiftService, closeShift as closeShiftService } from '@/services/shiftService';
 import { createTransaction } from '@/services/transactionService';
 import { parkCartInDb, deletePendingCartFromDb } from '@/services/pendingCartService';
 import { useSettingsStore } from './settings';
+import { zustandStorage } from './tauristorage';
 
 
 // This represents an item that has had a variant selected but is not yet in the cart
@@ -320,7 +321,7 @@ export const useStore = create<StoreState>()(
     }),
     {
       name: 'tokoc-storage',
-      storage: createJSONStorage(() => localStorage),
+      storage: zustandStorage,
        partialize: (state) =>
         Object.fromEntries(
           Object.entries(state).filter(([key]) => !['products', 'transactions', 'modifierGroups', 'productVariants', 'categories', 'shifts', 'activeShift', 'storeConfig', 'pendingCarts', 'rawIngredients', 'recipes', 'stockMovements'].includes(key))

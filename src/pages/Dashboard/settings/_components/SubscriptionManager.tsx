@@ -17,6 +17,7 @@ import { generateDeviceFingerprint } from '@/lib/security';
 import { saveLicenseData } from '@/services/dataService';
 import { formatDistanceToNow } from 'date-fns';
 import { apiFetch } from '@/lib/api-client';
+import { appStorage } from '@/lib/tauristorage';
 
 type TicketStatusInfo = { ticketId: string; status: PaymentTicket['status']; plan: string; createdAt: string; };
 
@@ -161,7 +162,7 @@ export function SubscriptionManager() {
         const generatedDeviceId = await generateDeviceFingerprint();
         setDeviceId(generatedDeviceId);
 
-        const trialHasBeenUsed = localStorage.getItem('tokoc_trial_activated_on_device') === 'true';
+        const trialHasBeenUsed = appStorage.getItem('tokoc_trial_activated_on_device') === 'true';
         setIsTrialUsed(trialHasBeenUsed);
         
         try {
@@ -204,7 +205,7 @@ export function SubscriptionManager() {
             if (!response.ok) throw new Error(result.error);
             
             await saveLicenseData(result.token, deviceId);
-            localStorage.setItem('tokoc_trial_activated_on_device', 'true');
+            appStorage.setItem('tokoc_trial_activated_on_device', 'true');
             toast({ title: 'Trial Activated!', description: 'Your free trial has started. The app will now reload.' });
             setTimeout(() => window.location.reload(), 1500);
 

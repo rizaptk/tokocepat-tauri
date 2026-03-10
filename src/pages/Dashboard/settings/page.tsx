@@ -24,6 +24,7 @@ import { TokoCepatLogo } from '@/components/TokoCepatLogo';
 import { ThemeToggle } from '@/components/ThemeButtons';
 import { useDbStore } from '@/lib/db-store';
 import { NotificationBell } from '@/components/NotificationBell';
+import { appStorage } from '@/lib/tauristorage';
 
 
 export default function SettingsPage() {
@@ -42,7 +43,7 @@ export default function SettingsPage() {
 
   const fetchBackupStatus = async () => {
     const meta = await getBackupMetadata();
-    setLastBackup(meta.lastBackup);
+    setLastBackup(meta.lastBackup??null);
   };
 
   const loadPrinters = async () => {
@@ -116,7 +117,7 @@ export default function SettingsPage() {
       try {
           const result = await resetApplicationData();
           if (result.success) {
-              localStorage.removeItem('tokoc_db_version');
+              appStorage.removeItem('tokoc_db_version');
               toast({
                   title: 'Application Reset',
                   description: 'All business data has been reset. The app will now reload.',
@@ -162,7 +163,7 @@ export default function SettingsPage() {
   return (
     <div className="flex min-h-screen w-full flex-col bg-muted/40">
         <header className="sticky top-0 z-20 flex h-16 items-center gap-4 border-b bg-background px-4 md:px-6 justify-between">
-            <Link href="/">
+            <Link to="/">
             <TokoCepatLogo />
             </Link>
             <div className="flex items-center gap-2">

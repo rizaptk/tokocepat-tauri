@@ -1,5 +1,6 @@
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
+import { zustandStorage } from "./tauristorage"
 
 type Theme = "light" | "dark"
 
@@ -20,7 +21,8 @@ export const useThemeStore = create<ThemeState>()(
         set({ theme: get().theme === "light" ? "dark" : "light" }),
     }),
     {
-      name: "theme-storage", // localStorage key
+      name: "theme-storage", 
+      storage: zustandStorage
     }
   )
 )

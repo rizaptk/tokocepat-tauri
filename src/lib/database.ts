@@ -1,5 +1,6 @@
 import { Product, ProductVariant, ModifierGroup, StoreConfig, Category, RawIngredient, Recipe, Shift, Transaction, StockMovement } from '@/lib/types';
 import { initialProducts, initialVariants, initialModifierGroups, initialCategories, initialRawIngredients } from '@/lib/products';
+import { appStorage } from './tauristorage';
 
 const DB_VERSION_KEY = 'tokoc_db_version';
 const CURRENT_DB_VERSION = '1.0.18'; // New version for simulation
@@ -41,15 +42,15 @@ export const seedDatabase = async (firesqlite: any, db: any, force = false) => {
         await ensureIndexes(firesqlite, db);
         
         // Check if a reset just happened. If so, skip seeding.
-        if (localStorage.getItem('tokoc_reset_flag') === 'true') {
+        if (appStorage.getItem('tokoc_reset_flag') === 'true') {
             console.log("Reset flag detected. Skipping database seeding for a fresh start.");
-            localStorage.removeItem('tokoc_reset_flag'); // Clear the flag
-            localStorage.setItem(DB_VERSION_KEY, CURRENT_DB_VERSION); // Mark DB as "up-to-date" to prevent future seeding
+            appStorage.removeItem('tokoc_reset_flag'); // Clear the flag
+            appStorage.setItem(DB_VERSION_KEY, CURRENT_DB_VERSION); // Mark DB as "up-to-date" to prevent future seeding
             return; // Stop the function here
         }
         
         
-        const storedVersion = localStorage.getItem(DB_VERSION_KEY);
+        const storedVersion = appStorage.getItem(DB_VERSION_KEY);
 
         if (storedVersion === CURRENT_DB_VERSION && !force) {
             return; // Already up-to-date and not forcing a re-seed.
@@ -193,7 +194,7 @@ export const seedDatabase = async (firesqlite: any, db: any, force = false) => {
         await setDoc(storeConfigRef, initialConfig);
         console.log("Default store config set.");
 
-        localStorage.setItem(DB_VERSION_KEY, CURRENT_DB_VERSION);
+        appStorage.setItem(DB_VERSION_KEY, CURRENT_DB_VERSION);
         console.log('Database seeding process complete.');
 
     } catch (error) {

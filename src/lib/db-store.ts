@@ -18,16 +18,43 @@ export const useDbStore = create<DbState>((set, get) => ({
   initialize: async () => {
     // Prevent re-initialization
     if (get().isInitialized) return;
+    
 
     try {
-      const wasmUrl = new URL('/wa-sqlite-async.wasm', window.location.origin).href;
+      const isTauri = typeof window !== 'undefined' && "__TAURI__" in window;
+      if (isTauri) {
 
-      await firesqlite.initializeFirestoreSQLite(wasmUrl, 'tokoc-db');
+        const { invoke } = await import('@tauri-apps/api/core');
+        const Database = (await import('@tauri-apps/plugin-sql')).default;
+
+        await firesqlite.initializeFirestoreSQLite({
+          engine: 'tauri',
+          dbName: 'tokoc-db',
+          tauriDrivers: {
+            invoke,
+            Database,
+          }
+        });
+        console.log("Initialized using Tauri Native Engine");
+      } else {
+        const wasmUrl = new URL('/wa-sqlite-async.wasm', window.location.origin).href;
+  
+        await firesqlite.initializeFirestoreSQLite({
+          engine: 'wa-sqlite', 
+          dbName: 'tokoc-db', 
+          wasmUrl
+        });
+        console.log("Initialized using wa-sqlite (Browser) Engine");
+      }
 
       const db = firesqlite.getFirestore();
 
-      set({ isInitialized: true, db, firesqlite });
-      console.log("Database initialized successfully.");
+      set({ 
+        isInitialized: true, 
+        db, 
+        firesqlite 
+      });
+
     } catch (error) {
       console.error("Failed to initialize database:", error);
     }
