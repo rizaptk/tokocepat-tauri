@@ -14,6 +14,7 @@ import { DateRangeFilter } from '@/components/DateRangeFilter';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { NotificationBell } from '@/components/NotificationBell';
+import { ThemeToggle } from '@/components/ThemeButtons';
 
 const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('id-ID', {
@@ -53,7 +54,7 @@ export default function ShiftsReportPage() {
         <div className="flex min-h-screen w-full flex-col bg-muted/40">
            <header className="sticky top-0 flex h-16 items-center gap-4 border-b bg-background px-4 md:px-6 z-10">
                 <Button variant="outline" size="icon" className="shrink-0" asChild>
-                    <Link href="/dashboard/reports">
+                    <Link to="/dashboard/reports">
                         <ArrowLeft className="h-4 w-4" />
                         <span className="sr-only">Back to Reports</span>
                     </Link>
@@ -81,6 +82,7 @@ export default function ShiftsReportPage() {
                         </DropdownMenuContent>
                     </DropdownMenu>
                     <NotificationBell />
+                    <ThemeToggle />
                 </div>
            </header>
           <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">

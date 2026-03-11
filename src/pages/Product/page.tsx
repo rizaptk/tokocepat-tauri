@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useStore } from "@/lib/store";
 import { Product } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
-import { useProductSearch } from "@/lib/useProductSearch";
+// import { useProductSearch } from "@/lib/useProductSearch";
 
 // UI Components
 import { Button } from "@/components/ui/button";
@@ -60,7 +60,7 @@ export default function ProductManagementPage() {
         pageSizeName: 'A4',
     });
     const [filter, setFilter] = useState('all');
-    const { query } = useProductSearch();
+    // const { query } = useProductSearch();
 
     const paperSizeMap: Record<string, [number, number] | undefined> = {
         'A4': [595.28, 841.89],
@@ -315,7 +315,7 @@ export default function ProductManagementPage() {
 
             {/* Editor Drawer (Mobile) */}
             <Sheet open={isDrawerOpen} onOpenChange={setIsDrawerOpen}>
-                <SheetContent side="right" className="w-full sm:w-[500px] p-0 flex flex-col">
+                <SheetContent side="right" className="w-full sm:w-125 p-0 flex flex-col">
                     <SheetHeader className="p-4 border-b shrink-0">
                         <SheetTitle>{selectedProductId ? 'Edit Product' : 'Add New Product'}</SheetTitle>
                     </SheetHeader>

@@ -6,17 +6,17 @@ import { useStore } from "@/lib/store";
 import { useToast } from "@/hooks/use-toast";
 import { voidTransaction } from "@/services/transactionService";
 import { format } from "date-fns";
-import { cn } from "@/lib/utils";
 
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-import { ReceiptText, Trash2, Printer, Clock } from "lucide-react";
+import { Trash2, Printer, Clock } from "lucide-react";
 import { usePrintStore } from "@/lib/print-store";
+import { ScrollArea } from "./ui/scroll-area";
 
 interface TransactionDetailDialogProps {
     transaction: Transaction | null;
@@ -90,53 +90,58 @@ export function TransactionDetailDialog({ transaction, onOpenChange }: Transacti
                         </div>
                     </div>
                 </DialogHeader>
-                <div className="py-4 space-y-6 max-h-[60vh] overflow-y-auto pr-2">
-                    {/* Items List */}
-                    <div className="space-y-2">
-                        <h4 className="font-semibold">Items</h4>
-                        <div className="border rounded-md">
-                           {transaction.items.map((item, index) => (
-                               <div key={`${item.id}-${index}`} className="flex justify-between items-start p-3 border-b last:border-none">
-                                   <div className="flex-1">
-                                       <p className="font-medium">{item.product_snapshot.name}</p>
-                                       {item.selected_modifiers_snapshot && item.selected_modifiers_snapshot.length > 0 && (
-                                            <ul className="text-xs text-muted-foreground pl-4">
-                                                {item.selected_modifiers_snapshot.map(mod => (
-                                                    <li key={`${mod.groupId}-${mod.item.id}`}>- {mod.item.name}</li>
-                                                ))}
-                                            </ul>
-                                        )}
-                                       <p className="text-sm text-muted-foreground">{item.qty} x {formatCurrency(item.price_snapshot)}</p>
-                                   </div>
-                                   <p className="font-medium">{formatCurrency(item.subtotal)}</p>
-                               </div>
-                           ))}
-                        </div>
-                    </div>
+                <div className="py-4 max-h-[60vh] pr-2">
+                    <ScrollArea className="h-full">
+                        <div className="space-y-6">
 
-                    {/* Financial Summary */}
-                     <div className="space-y-2">
-                        <h4 className="font-semibold">Summary</h4>
-                         <div className="border rounded-lg p-4 space-y-2 text-sm">
-                            <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span className="font-medium">{formatCurrency(transaction.subtotal)}</span></div>
-                            <div className="flex justify-between"><span className="text-muted-foreground">Tax</span><span className="font-medium">{formatCurrency(transaction.tax_amount)}</span></div>
-                            <Separator/>
-                            <div className="flex justify-between text-base font-bold"><span >Total</span><span>{formatCurrency(transaction.total)}</span></div>
-                             <Separator/>
-                            <div className="flex justify-between pt-2"><span className="text-muted-foreground">Cash Paid</span><span className="font-medium">{formatCurrency(transaction.cash_paid)}</span></div>
-                            <div className="flex justify-between"><span className="text-muted-foreground">Change</span><span className="font-medium">{formatCurrency(transaction.change)}</span></div>
-                         </div>
-                     </div>
-
-                    {transaction.status === 'voided' && (
-                        <div className="space-y-2">
-                            <h4 className="font-semibold">Void Details</h4>
-                            <div className="border rounded-lg p-4 space-y-2 text-sm bg-destructive/5">
-                                <div className="flex justify-between"><span className="text-muted-foreground">Voided At</span><span className="font-medium">{transaction.voided_at ? format(new Date(transaction.voided_at), 'Pp') : 'N/A'}</span></div>
-                                <div className="flex justify-between"><span className="text-muted-foreground">Reason</span><span className="font-medium italic">{transaction.void_reason || 'N/A'}</span></div>
+                            {/* Items List */}
+                            <div className="space-y-2">
+                                <h4 className="font-semibold">Items</h4>
+                                <div className="border rounded-md">
+                                {transaction.items.map((item, index) => (
+                                    <div key={`${item.id}-${index}`} className="flex justify-between items-start p-3 border-b last:border-none">
+                                        <div className="flex-1">
+                                            <p className="font-medium">{item.product_snapshot.name}</p>
+                                            {item.selected_modifiers_snapshot && item.selected_modifiers_snapshot.length > 0 && (
+                                                    <ul className="text-xs text-muted-foreground pl-4">
+                                                        {item.selected_modifiers_snapshot.map(mod => (
+                                                            <li key={`${mod.groupId}-${mod.item.id}`}>- {mod.item.name}</li>
+                                                        ))}
+                                                    </ul>
+                                                )}
+                                            <p className="text-sm text-muted-foreground">{item.qty} x {formatCurrency(item.price_snapshot)}</p>
+                                        </div>
+                                        <p className="font-medium">{formatCurrency(item.subtotal)}</p>
+                                    </div>
+                                ))}
+                                </div>
                             </div>
+
+                            {/* Financial Summary */}
+                            <div className="space-y-2">
+                                <h4 className="font-semibold">Summary</h4>
+                                <div className="border rounded-lg p-4 space-y-2 text-sm">
+                                    <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span className="font-medium">{formatCurrency(transaction.subtotal)}</span></div>
+                                    <div className="flex justify-between"><span className="text-muted-foreground">Tax</span><span className="font-medium">{formatCurrency(transaction.tax_amount)}</span></div>
+                                    <Separator/>
+                                    <div className="flex justify-between text-base font-bold"><span >Total</span><span>{formatCurrency(transaction.total)}</span></div>
+                                    <Separator/>
+                                    <div className="flex justify-between pt-2"><span className="text-muted-foreground">Cash Paid</span><span className="font-medium">{formatCurrency(transaction.cash_paid)}</span></div>
+                                    <div className="flex justify-between"><span className="text-muted-foreground">Change</span><span className="font-medium">{formatCurrency(transaction.change)}</span></div>
+                                </div>
+                            </div>
+
+                            {transaction.status === 'voided' && (
+                                <div className="space-y-2">
+                                    <h4 className="font-semibold">Void Details</h4>
+                                    <div className="border rounded-lg p-4 space-y-2 text-sm bg-destructive/5">
+                                        <div className="flex justify-between"><span className="text-muted-foreground">Voided At</span><span className="font-medium">{transaction.voided_at ? format(new Date(transaction.voided_at), 'Pp') : 'N/A'}</span></div>
+                                        <div className="flex justify-between"><span className="text-muted-foreground">Reason</span><span className="font-medium italic">{transaction.void_reason || 'N/A'}</span></div>
+                                    </div>
+                                </div>
+                            )}
                         </div>
-                    )}
+                    </ScrollArea>
                 </div>
                 <DialogFooter className="sm:justify-between gap-2">
                      {transaction.status !== 'voided' && (

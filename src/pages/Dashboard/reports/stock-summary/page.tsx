@@ -5,7 +5,7 @@ import { useStore } from '@/lib/store';
 import React, { useState, useMemo, useEffect } from 'react';
 import { DateRange } from 'react-day-picker';
 import { ArrowLeft, Warehouse, Loader2, Package, Beaker, Layers2, FileDown, FileText } from 'lucide-react';
-import { format, startOfDay, endOfDay, subDays, startOfMonth, endOfMonth, subMonths } from 'date-fns';
+import { format, startOfDay, endOfDay } from 'date-fns';
 import { exportStockSummaryToExcel, exportStockSummaryToPdf } from '@/lib/export';
 import { useToast } from '@/hooks/use-toast';
 import { getStockMovementsByDateRange } from '@/services/stockService';
@@ -19,6 +19,7 @@ import { DateRangeFilter } from '@/components/DateRangeFilter';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { NotificationBell } from '@/components/NotificationBell';
+import { ThemeToggle } from '@/components/ThemeButtons';
 
 export default function StockSummaryReportPage() {
     const { rawIngredients, products, productVariants, storeConfig } = useStore();
@@ -123,7 +124,7 @@ export default function StockSummaryReportPage() {
         <div className="flex min-h-screen w-full flex-col bg-muted/40">
            <header className="sticky top-0 flex h-16 items-center gap-2 border-b bg-background px-4 md:px-6 z-10">
                 <Button variant="outline" size="icon" className="shrink-0" asChild>
-                    <Link href="/dashboard/reports">
+                    <Link to="/dashboard/reports">
                         <ArrowLeft className="h-4 w-4" />
                         <span className="sr-only">Back to Reports</span>
                     </Link>
@@ -151,6 +152,7 @@ export default function StockSummaryReportPage() {
                         </DropdownMenuContent>
                     </DropdownMenu>
                     <NotificationBell />
+                    <ThemeToggle />
                 </div>
            </header>
           <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">

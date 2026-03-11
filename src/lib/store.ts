@@ -10,6 +10,7 @@ import { createTransaction } from '@/services/transactionService';
 import { parkCartInDb, deletePendingCartFromDb } from '@/services/pendingCartService';
 import { useSettingsStore } from './settings';
 import { zustandStorage } from './tauristorage';
+import { usePrintStore } from './print-store';
 
 
 // This represents an item that has had a variant selected but is not yet in the cart
@@ -185,7 +186,7 @@ export const useStore = create<StoreState>()(
       },
     
       updateQuantity: (cartItemId: string, quantity: number) => {
-        const { cart, productVariants } = get();
+        const { cart } = get();
         const itemToUpdate = cart.find(item => item.cartItemId === cartItemId);
         if (!itemToUpdate) return;
     
@@ -255,6 +256,9 @@ export const useStore = create<StoreState>()(
                     cart: [],
                     transactions: [newTransaction, ...transactions]
                  }); // Clear cart and prepend new transaction
+            }
+            if (newTransaction) {
+                usePrintStore.getState().addToQueue(newTransaction);
             }
             return newTransaction;
         } catch(error) {

@@ -3,6 +3,7 @@ mod printer_commands;
 mod data_sqlite;
 
 use tauri::Manager;
+use tauri_plugin_store::Builder;
 
 // use data_sqlite::init_db;
 
@@ -10,6 +11,9 @@ use tauri::Manager;
 pub fn run() {
 
     tauri::Builder::default()
+
+        // .plugin(tauri_plugin_store::init())
+        .plugin(Builder::default().build())
 
         .setup(|app| {
 
@@ -27,8 +31,6 @@ pub fn run() {
 
                 let db_path = app_dir.join("tokoc.db");
 
-                println!("DB PATH: {:?}", db_path);
-                
                 let db = data_sqlite::init_db(db_path)
                     .await
                     .expect("Failed to initialize DB");
@@ -53,7 +55,7 @@ pub fn run() {
             data_sqlite::get_file,
             data_sqlite::delete_file,
             data_sqlite::export_db_binary,
-            data_sqlite::import_db_binary
+            data_sqlite::import_db_binary,
 
         ])
 

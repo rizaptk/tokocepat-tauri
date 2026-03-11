@@ -3,7 +3,7 @@
 import { useDbStore } from "@/lib/db-store";
 import { useStore } from "@/lib/store";
 import { seedDatabase } from "@/lib/database";
-import { useEffect, useState } from "react";
+import { use, useCallback, useEffect, useMemo, useState } from "react";
 import { Product, ProductVariant, ModifierGroup, Transaction, Shift, StoreConfig, Category, PendingCart, RawIngredient, Recipe } from '@/lib/types';
 import { TokoCepatLogo } from "./TokoCepatLogo";
 
@@ -51,6 +51,8 @@ export function DbProvider({ children }: { children: React.ReactNode }) {
         let unsubTransactions: (() => void) | undefined;
         let unsubShifts: (() => void) | undefined;
 
+
+
         const setupData = async () => {
             try {
                 await seedDatabase(firesqlite, db);
@@ -84,6 +86,7 @@ export function DbProvider({ children }: { children: React.ReactNode }) {
                     setProducts(productList);
                     if (!isDataLoaded) {
                         setIsDataLoaded(true); // <<--- UNBLOCK UI
+
                         console.log("UI Unblocked: Critical data loaded.");
                     }
                 });

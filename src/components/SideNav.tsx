@@ -47,7 +47,7 @@ export function SideNav() {
     }
 
     return (
-        <aside className="fixed left-0 top-0 z-40 flex h-full w-16 flex-col bg-sidebar">
+        <aside className="fixed left-0 top-0 z-40 flex h-full w-16 flex-col bg-sidebar border-r">
             <nav className="flex h-full flex-col items-center justify-center">
                 <TooltipProvider>
                     <div className="flex flex-col items-center gap-4 px-2 py-5">

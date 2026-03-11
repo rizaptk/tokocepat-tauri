@@ -28,3 +28,4 @@ hidapi = "2.6.5"
 tauri-plugin-sql = "2.0"
 json-patch = "0.3"
 sqlx = { version = "0.8", features = ["sqlite", "runtime-tokio", "macros"] }
+tauri-plugin-store = "2.4.2"

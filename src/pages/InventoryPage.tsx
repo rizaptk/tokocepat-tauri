@@ -1,10 +1,7 @@
-
-
-
-import { useState, useMemo, useEffect, memo, useRef } from "react";
+import { useState, useMemo, useEffect, memo, useRef, useTransition } from "react";
 import { useStore } from "@/lib/store";
-import { Product, StockMovementType, RawIngredient, Category, ProductVariant } from "@/lib/types";
-import { adjustStock, adjustIngredientStock, adjustVariantStock } from "@/services/stockService";
+import { Product, StockMovementType, RawIngredient, Category, ProductVariant, StockMovement } from "@/lib/types";
+import { adjustStock, adjustIngredientStock, adjustVariantStock, getStockMovementsByProducts } from "@/services/stockService";
 import { useToast } from "@/hooks/use-toast";
 import { FixedSizeList as List } from 'react-window';
 import AutoSizer from 'react-virtualized-auto-sizer';
@@ -16,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { ProductSearchBar } from "@/components/ProductSearchBar";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { PlusCircle, Plus, Minus, Calculator, Package, Beaker, Layers2 } from "lucide-react";
+import { PlusCircle, Plus, Minus, Calculator, Package, Beaker, Layers2, WarehouseIcon, History, ArrowUp, ArrowDown } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useGlobalBarcodeScanner } from "@/hooks/use-global-barcode-scanner";
 import { cn } from "@/lib/utils";
@@ -27,6 +24,10 @@ import { useProductSearch } from "@/lib/useProductSearch";
 import { ButtonGroup } from "@/components/ui/button-group";
 import { ScrollShadow } from "@/components/ui/scrollshadow";
 import { useOverlayScrollbar } from "@/hooks/useScrollOverlay";
+import { Link } from "react-router-dom";
+import { TokoCepatLogo } from "@/components/TokoCepatLogo";
+import { NotificationBell } from "@/components/NotificationBell";
+import { ThemeToggle } from "@/components/ThemeButtons";
 
 
 const reasonOptions: Record<'add' | 'remove' | 'count', { id: string, value: StockMovementType, label: string }[]> = {
@@ -49,9 +50,118 @@ const reasonOptions: Record<'add' | 'remove' | 'count', { id: string, value: Sto
     ]
 };
 
+const typeConfig = {
+    product: { icon: Package, badge: 'success' },
+    ingredient: { icon: Beaker, badge: 'warning' },
+    variant: { icon: Layers2, badge: 'info' }
+}
+
 type InventoryItemType = (Product & { itemType: 'product', stock: number }) 
     | (RawIngredient & { itemType: 'ingredient', stock: number })
     | (ProductVariant & { itemType: 'variant', stock: number, parentName: string });
+
+
+const StockHistoryCards = ({selectedItem}: {selectedItem: { id: string, type: 'product' | 'ingredient' | 'variant' }[]}) => {
+    const { products, rawIngredients, productVariants } = useStore();
+    const [histories, setHistory] = useState<StockMovement[]>([]);
+    const [loading, setTransition] = useTransition();
+
+    const ids = useMemo(() => selectedItem.map(item => item.id), [selectedItem]);
+
+    // const histories = use(getStockMovementsByProducts(ids));
+    useEffect(() => {
+        if (ids.length === 0) {
+        setHistory([]);
+        return;
+        }
+
+        setTransition(() => {
+            getStockMovementsByProducts(ids).then((result) => {
+                setHistory(result);
+            });
+        });
+
+        return () => {
+            setHistory([]);
+        };
+    }, [ids]);
+
+    const mapedByIds = useMemo(() => {
+        const map: Record<string, StockMovement[]> = {};
+        histories.forEach(h => {
+            if (!map[h.product_id]) {
+                map[h.product_id] = [];
+            }
+            map[h.product_id].push(h);
+        });
+        return Object.values(map);
+    }, [histories]);
+    
+    if (histories.length === 0 || loading) return null;
+
+    return (
+        <div className="space-y-4">
+            <h4 className="font-medium px-1 flex items-center gap-2">
+                <History className="size-4" />
+                Stock History
+            </h4>
+            {mapedByIds.map((group) => {
+                const firstHistory = group[0];
+                const item = [...products, ...rawIngredients, ...productVariants].find(i => i.id === firstHistory.product_id);
+
+                return (
+                    <Card key={firstHistory.product_id} className="overflow-hidden">
+                        <CardHeader className="px-6 pb-4 pt-6 border-b flex flex-row justify-between items-center">
+                            <CardTitle className="text-sm font-bold">{item?.name || 'Unknown Item'} <span className="ms-2 font-normal">{group.length > 1 && ` (${group.length} times)`}</span></CardTitle>
+                            <Button variant="ghost" size="sm">
+                                <Link to="/dashboard/reports/stock-movement">
+                                    Show full report
+                                </Link>
+                            </Button>
+                        </CardHeader>
+                        <CardContent className="p-0">
+                            <div className="divide-y divide-border/50">
+                                {group.map((history, index) => {
+                                    const date = new Date(history.created_at).toLocaleString();
+                                    const hisType = history.type.replace('_', ' ').toUpperCase();
+                                    const isPositive = history.qty_change > 0;
+                                    return (
+                                        <div key={history.id} className={cn("px-6 py-4 text-sm hover:bg-muted/30 transition-colors flex gap-3 items-start", index % 2 === 0 ? "bg-muted/40" : "bg-transparent")}>
+                                            <div className={cn(
+                                                "mt-1 p-1.5 rounded-full shrink-0",
+                                                isPositive ? "bg-success/30 text-success-foreground" : "bg-destructive/15 text-destructive"
+                                            )}>
+                                                {isPositive ? <ArrowUp className="size-3" /> : <ArrowDown className="size-3" />}
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex justify-between items-start mb-0.5">
+                                                    <span className="text-[11px] text-muted-foreground uppercase tracking-wider font-bold">
+                                                        {hisType === 'SALE' ? `Customer Purchase` : hisType}
+                                                    </span>
+                                                    <div className={cn("font-bold text-sm tabular-nums", isPositive ? "text-green-600" : "text-destructive")}>
+                                                        {isPositive ? `+${history.qty_change}` : history.qty_change}
+                                                    </div>
+                                                </div>
+                                                <div className="flex justify-between items-end gap-2 truncate">
+                                                    <span className="text-xs text-foreground/80 italic truncate flex-1">
+                                                        {hisType === 'SALE' ? `Ref: ${history.reference_id}` : (history.reason || 'No reason provided')}
+                                                    </span>
+                                                    <span className="text-[11px] text-muted-foreground shrink-0">
+                                                        {date}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </CardContent>
+                    </Card>
+                );
+            })}
+        </div>
+    )
+}
 
 const StockAdjustmentPanel = ({ selectedItem, onSave, onCancel }: { selectedItem: { id: string, type: 'product' | 'ingredient' | 'variant' } | null; onSave: () => void; onCancel: () => void; }) => {
     const [mode, setMode] = useState<'add' | 'remove' | 'count' | null>(null);
@@ -164,11 +274,13 @@ const StockAdjustmentPanel = ({ selectedItem, onSave, onCancel }: { selectedItem
         }
     };
 
+    const { icon: ItemIcon, badge: badgeVariant } = typeConfig[selectedItem?.type|| 'product'];
+
     return (
         <div className="flex flex-col h-full min-h-0">
-            <div className="p-4">
+            <div className="pt-6 pb-2 px-4 flex items-center justify-between">
                 <h3 className="font-semibold text-lg">Manual Stock Adjustment</h3>
-                {/* <p className="text-sm text-muted-foreground">Select an item from the list to begin.</p> */}
+                <WarehouseIcon className="size-5" />
             </div>
             <div className="flex-1 min-h-0 flex flex-col relative">
                 <ScrollShadow scrollRef={scrollRef} side="both" />
@@ -188,9 +300,9 @@ const StockAdjustmentPanel = ({ selectedItem, onSave, onCancel }: { selectedItem
                                         <CardTitle>{item.itemType === 'variant' ? `${item.parentName} (${item.name})` : item.name}</CardTitle>
                                         <div className="flex justify-between items-center">
                                             <CardDescription>Current Stock: <span className="font-bold text-foreground">{item.stock}</span></CardDescription>
-                                            <Badge variant="outline">
-                                                {item.itemType === 'product' ? <Package className="h-3 w-3 mr-1.5" /> : item.itemType === 'ingredient' ? <Beaker className="h-3 w-3 mr-1.5" /> : <Layers2 className="h-3 w-3 mr-1.5" />}
-                                                {item.itemType}
+                                            <Badge variant={badgeVariant as any} className="border border-border">
+                                                <ItemIcon className="h-3 w-3 mr-1.5" />
+                                                {item.itemType === 'product' ? 'Product' : item.itemType === 'ingredient' ? 'Ingredient' : 'Variant'}
                                             </Badge>
                                         </div>
                                     </CardHeader>
@@ -285,6 +397,10 @@ const StockAdjustmentPanel = ({ selectedItem, onSave, onCancel }: { selectedItem
                                         </CardContent>
                                     </Card>
                                 )}
+
+                                {selectedItem && (
+                                    <StockHistoryCards selectedItem={[selectedItem]} />
+                                )}
                             </>
                         )}
                     </div>
@@ -305,9 +421,11 @@ const StockAdjustmentPanel = ({ selectedItem, onSave, onCancel }: { selectedItem
 }
 
 
+
+
 const ColumnClass = {
     name: "flex items-center gap-2 flex-1 min-w-0 h-full",
-    type: "hidden sm:flex items-center w-24 px-2 border-l border-l-border/50 h-full",
+    type: "hidden sm:flex items-center w-28 px-2 border-l border-l-border/50 h-full",
     category: "hidden md:flex items-center text-sm text-muted-foreground truncate max-w-[160px] w-[160px] px-2 border-l border-l-border/50 h-full",
     stock: "flex flex-col items-end justify-center shrink-0 text-right tabular-nums whitespace-nowrap w-24 border-l border-l-border/50 h-full px-2"
 }
@@ -327,13 +445,7 @@ const InventoryListItem = ({ item, isSelected, onItemClick, categories, isEven }
         displayName = `${item.parentName} (${item.name})`;
     }
 
-    const typeConfig = {
-        product: { icon: Package, badge: 'success' },
-        ingredient: { icon: Beaker, badge: 'warning' },
-        variant: { icon: Layers2, badge: 'info' }
-    }
     const { icon: ItemIcon, badge: badgeVariant } = typeConfig[item.itemType];
-
 
     return (
         <div className="bg-card border-x border-b border-b-border/50 p-0 h-[56px]">
@@ -342,14 +454,14 @@ const InventoryListItem = ({ item, isSelected, onItemClick, categories, isEven }
                 onClick={() => onItemClick(item)}
                 className={cn(
                     "flex items-center px-4 transition-colors cursor-pointer  hover:bg-accent h-[56px]",
-                    isSelected ? "bg-background" : isEven ? 'bg-border/20' : ''
+                    isSelected ? "bg-success/20 text-success-foreground" : isEven ? 'bg-border/10' : ''
                 )}
             >
                 <div className={ColumnClass.name}>
                     <p className="font-medium truncate">{displayName}</p>
                 </div>
                 <div className={ColumnClass.type}>
-                    <Badge variant={badgeVariant as any} className="text-[10px] uppercase px-1.5 py-0">
+                    <Badge variant={badgeVariant as any} className="text-[10px] uppercase px-2 py-0.5 border border-border">
                         <ItemIcon className="h-3 w-3 mr-1" />
                         {item.itemType}
                     </Badge>
@@ -522,102 +634,107 @@ export default function InventoryPage() {
     });
 
     return (
-        <div className="w-full h-[calc(100vh-4rem)] md:grid md:grid-cols-10 min-h-0">
-            <div className="col-span-10 md:col-span-6 lg:col-span-6 h-full flex flex-col min-h-0">
-                <div className="flex flex-col gap-4 p-4">
-                    <div className="flex items-center gap-2 ">
-                        <div className="grow">
-                            <ProductSearchBar
-                                onBarcodeScan={handleBarcodeScan}
-                            />
+        <div className="flex flex-col h-full min-h-0">
+            <header className="sticky top-0 z-20 flex h-16 items-center gap-4 px-4 md:px-6 justify-between">
+                <Link to="/">
+                    <TokoCepatLogo />
+                </Link>
+                <div className="flex items-center gap-2">
+                    <NotificationBell />
+                    <ThemeToggle />
+                </div>
+            </header>
+            <div className="w-full h-[calc(100vh-4rem)] md:grid md:grid-cols-10 min-h-0">
+                <div className="col-span-10 md:col-span-6 lg:col-span-6 h-full flex flex-col min-h-0">
+                    <div className="flex flex-col gap-4 p-4">
+                        <div className="flex items-center gap-2 ">
+                            <div className="grow">
+                                <ProductSearchBar
+                                    onBarcodeScan={handleBarcodeScan}
+                                />
+                            </div>
+                            <div className="md:hidden">
+                                <Button onClick={handleOpenAdjustmentSheet}>
+                                    <PlusCircle className="mr-2 h-4 w-4" /> Adjustment
+                                </Button>
+                            </div>
                         </div>
-                        <div className="md:hidden">
-                            <Button onClick={handleOpenAdjustmentSheet}>
-                                <PlusCircle className="mr-2 h-4 w-4" /> Adjustment
-                            </Button>
+                        <div className="flex items-center gap-4 overflow-x-auto no-scrollbar">
+                            <Button variant={filter === 'all' ? 'secondary' : 'outline'} onClick={() => setFilter('all')} className="rounded-full px-4 shrink-0">All</Button>
+                            <Button variant={filter === 'product' ? 'secondary' : 'outline'} onClick={() => setFilter('product')} className="rounded-full px-4 shrink-0">Product</Button>
+                            <Button variant={filter === 'ingredient' ? 'secondary' : 'outline'} onClick={() => setFilter('ingredient')} className="rounded-full px-4 shrink-0">Ingredient</Button>
+                            <Button variant={filter === 'variant' ? 'secondary' : 'outline'} onClick={() => setFilter('variant')} className="rounded-full px-4 shrink-0">Variant</Button>
+                            
+                            <Separator orientation="vertical" />
+
+                            <Button variant={filter === 'low_stock' ? 'secondary' : 'outline'} onClick={() => setFilter('low_stock')} className="rounded-full px-4 shrink-0">Low Stock</Button>
+                            <Button variant={filter === 'out_of_stock' ? 'secondary' : 'outline'} onClick={() => setFilter('out_of_stock')} className="rounded-full px-4 shrink-0">Out of Stock</Button>
                         </div>
                     </div>
-                    <div className="flex items-center gap-4 overflow-x-auto no-scrollbar">
-                        <Button variant={filter === 'all' ? 'secondary' : 'outline'} onClick={() => setFilter('all')} className="rounded-full px-4 shrink-0">All</Button>
-                        <Button variant={filter === 'product' ? 'secondary' : 'outline'} onClick={() => setFilter('product')} className="rounded-full px-4 shrink-0">Product</Button>
-                        <Button variant={filter === 'ingredient' ? 'secondary' : 'outline'} onClick={() => setFilter('ingredient')} className="rounded-full px-4 shrink-0">Ingredient</Button>
-                        <Button variant={filter === 'variant' ? 'secondary' : 'outline'} onClick={() => setFilter('variant')} className="rounded-full px-4 shrink-0">Variant</Button>
-                        
-                        <Separator orientation="vertical" />
-
-                        <Button variant={filter === 'low_stock' ? 'secondary' : 'outline'} onClick={() => setFilter('low_stock')} className="rounded-full px-4 shrink-0">Low Stock</Button>
-                        <Button variant={filter === 'out_of_stock' ? 'secondary' : 'outline'} onClick={() => setFilter('out_of_stock')} className="rounded-full px-4 shrink-0">Out of Stock</Button>
+                    <div className="flex-1 bg-background h-full min-h-0 flex flex-col">
+                        {inventoryItems.length > 0 ? (
+                            <>
+                                <div className="px-4 w-full">
+                                    <div className="rounded-t-lg h-12 w-full border bg-card flex items-center px-4">
+                                        <div className={ColumnClass.name}>
+                                            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Item Name</span>
+                                        </div>
+                                        <div className={ColumnClass.type}>
+                                            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Type</span>
+                                        </div>
+                                        <div className={ColumnClass.category}>
+                                            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Category</span>
+                                        </div>
+                                        <div className={ColumnClass.stock}>
+                                            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Stock</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="flex-1 min-h-0 relative overflow-hidden" ref={containerRef}>
+                                    <div className={`absolute -top-px h-0 transition-opacity duration-150 pointer-events-none shadow border-b left-3 right-3 z-10 ${isScrolling ? 'opacity-100' : 'opacity-0'}`}></div>
+                                    <AutoSizer>
+                                        {({ height, width }) => (
+                                            <List
+                                                itemKey={(index) => inventoryItems[index].id}
+                                                className='no-scrollbar'
+                                                outerRef={outerRef}
+                                                height={height}
+                                                width={width}
+                                                itemCount={inventoryItems.length}
+                                                itemSize={56}
+                                            >
+                                                {Row}
+                                            </List>
+                                        )}
+                                    </AutoSizer>
+                                    {/* Overlay Scrollbar */}
+                                    <div ref={trackRef} className="absolute right-2 top-0 bottom-0 w-2 opacity-0 transition-opacity duration-200 z-20" >
+                                        <div ref={thumbRef} className="absolute w-full rounded-full bg-border/40 hover:bg-border/70 cursor-pointer" />
+                                    </div>
+                                </div>
+                            </>
+                        ) : (
+                            <div className="flex flex-col items-center justify-center text-center text-muted-foreground h-full p-8">
+                                <Package className="w-12 h-12 mb-4" />
+                                <p>No inventory items found.</p>
+                            </div>
+                        )}
                     </div>
                 </div>
-                <div className="flex-1 bg-background h-full min-h-0 flex flex-col">
-                    {inventoryItems.length > 0 ? (
-                        <>
-                            <div className="px-4 w-full">
-                                <div className="rounded-t-lg h-12 w-full border bg-card flex items-center px-4">
-                                    <div className={ColumnClass.name}>
-                                        <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Item Name</span>
-                                    </div>
-                                    <div className={ColumnClass.type}>
-                                        <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Type</span>
-                                    </div>
-                                    <div className={ColumnClass.category}>
-                                        <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Category</span>
-                                    </div>
-                                    <div className={ColumnClass.stock}>
-                                        <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Stock</span>
-                                    </div>
-                                </div>
-                            </div>
-                            <div className="flex-1 min-h-0 relative overflow-hidden" ref={containerRef}>
-                                <div className={`absolute -top-px h-0 transition-opacity duration-150 pointer-events-none shadow border-b left-3 right-3 z-10 ${isScrolling ? 'opacity-100' : 'opacity-0'}`}></div>
-                                <AutoSizer>
-                                    {({ height, width }) => (
-                                        <List
-                                            itemKey={(index) => inventoryItems[index].id}
-                                            className='no-scrollbar'
-                                            outerRef={outerRef}
-                                            height={height}
-                                            width={width}
-                                            itemCount={inventoryItems.length}
-                                            itemSize={56}
-                                        >
-                                            {Row}
-                                        </List>
-                                    )}
-                                </AutoSizer>
-                                {/* Overlay Scrollbar */}
-                                <div
-                                    ref={trackRef}
-                                    className="absolute right-2 top-0 bottom-0 w-2 opacity-0 transition-opacity duration-200 z-20"
-                                >
-                                    <div
-                                        ref={thumbRef}
-                                        className="absolute w-full rounded-full bg-border/40 hover:bg-border/70 cursor-pointer"
-                                    />
-                                </div>
-                            </div>
-                        </>
-                    ) : (
-                        <div className="flex flex-col items-center justify-center text-center text-muted-foreground h-full p-8">
-                            <Package className="w-12 h-12 mb-4" />
-                            <p>No inventory items found.</p>
-                        </div>
-                    )}
-                </div>
-            </div>
 
-            <aside className="hidden md:block col-span-4 lg:col-span-4 h-full min-h-0">
-                <StockAdjustmentPanel onSave={handleSave} onCancel={handleCancel} selectedItem={selectedItem} />
-            </aside>
-
-            <Sheet open={isSheetOpen} onOpenChange={handleSheetOpenChange}>
-                <SheetContent side="right" className="w-full sm:w-[500px] p-0 flex flex-col h-full min-h-0">
-                    <SheetHeader className="sr-only">
-                        <SheetTitle>Stock Adjustment</SheetTitle>
-                    </SheetHeader>
+                <aside className="hidden md:block col-span-4 lg:col-span-4 h-full min-h-0">
                     <StockAdjustmentPanel onSave={handleSave} onCancel={handleCancel} selectedItem={selectedItem} />
-                </SheetContent>
-            </Sheet>
+                </aside>
+
+                <Sheet open={isSheetOpen} onOpenChange={handleSheetOpenChange}>
+                    <SheetContent side="right" className="w-full sm:w-[500px] p-0 flex flex-col h-full min-h-0">
+                        <SheetHeader className="sr-only">
+                            <SheetTitle>Stock Adjustment</SheetTitle>
+                        </SheetHeader>
+                        <StockAdjustmentPanel onSave={handleSave} onCancel={handleCancel} selectedItem={selectedItem} />
+                    </SheetContent>
+                </Sheet>
+            </div>
         </div>
     );
 }

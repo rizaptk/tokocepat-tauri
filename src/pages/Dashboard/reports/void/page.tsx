@@ -2,7 +2,7 @@
 
 import { Link } from 'react-router-dom';
 import { useStore } from '@/lib/store';
-import { format, startOfDay, endOfDay, subDays, startOfMonth, endOfMonth, subMonths } from 'date-fns';
+import { format, startOfDay, endOfDay } from 'date-fns';
 import { ArrowLeft, ArchiveX, FileDown, FileText } from 'lucide-react';
 import React, { useState, useMemo } from 'react';
 import { DateRange } from 'react-day-picker';
@@ -16,6 +16,7 @@ import { DateRangeFilter } from '@/components/DateRangeFilter';
 import { useToast } from '@/hooks/use-toast';
 import { TransactionDetailDialog } from '@/components/TransactionDetailDialog';
 import { NotificationBell } from '@/components/NotificationBell';
+import { ThemeToggle } from '@/components/ThemeButtons';
 
 const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('id-ID', {
@@ -26,7 +27,7 @@ const formatCurrency = (amount: number) => {
 };
 
 export default function VoidReportPage() {
-    const { transactions, storeConfig } = useStore();
+    const { transactions } = useStore();
     const { toast } = useToast();
     const [date, setDate] = React.useState<DateRange | undefined>({
       from: startOfDay(new Date()),
@@ -56,7 +57,7 @@ export default function VoidReportPage() {
             <div className="flex min-h-screen w-full flex-col bg-muted/40">
                <header className="sticky top-0 flex h-16 items-center gap-4 border-b bg-background px-4 md:px-6 z-10">
                     <Button variant="outline" size="icon" className="shrink-0" asChild>
-                        <Link href="/dashboard/reports">
+                        <Link to="/dashboard/reports">
                             <ArrowLeft className="h-4 w-4" />
                             <span className="sr-only">Back to Reports</span>
                         </Link>
@@ -84,6 +85,7 @@ export default function VoidReportPage() {
                             </DropdownMenuContent>
                         </DropdownMenu>
                         <NotificationBell />
+                        <ThemeToggle />
                     </div>
                </header>
               <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">

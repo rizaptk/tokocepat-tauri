@@ -6,6 +6,7 @@ import ClientLayout from '@/components/ClientLayout'
 import PrinterDetector from '@/components/PrintChecker'
 
 export default function RootLayout() {
+  const isTauri = typeof window !== 'undefined' && "__TAURI_INTERNALS__" in window;
   return (
     <div className="font-body antialiased">
       <MobileChecker />
@@ -13,7 +14,7 @@ export default function RootLayout() {
         <Outlet />
       </ClientLayout>
       <Toaster />
-      { "__TAURI__" in window &&  <PrinterDetector />}
+      { isTauri &&  <PrinterDetector />}
     </div>
   )
 }

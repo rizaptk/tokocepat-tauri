@@ -22,6 +22,7 @@ import { useIsMobile } from '@/lib/ismobile-store';
 import { useGlobalBarcodeScanner } from '@/hooks/use-global-barcode-scanner';
 import { useSettingsStore } from '@/lib/settings';
 import { useProductSearch } from '@/lib/useProductSearch';
+import { useGlobalKeydown } from '@/hooks/use-global-keydown';
 
 export type ViewMode = 'card' | 'thumbnail' | 'list';
 
@@ -177,6 +178,7 @@ export default function CashierPage() {
                                     onChange={(e) => setOpeningCash(Number(e.target.value))}
                                     className="pl-10 text-lg"
                                     autoFocus
+                                    onKeyDown={(e) => e.code === 'Enter' && handleOpenShift()}
                                 />
                             </div>
                         </div>

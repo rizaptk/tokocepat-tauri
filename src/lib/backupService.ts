@@ -107,7 +107,6 @@ export async function getBackupFileHandle(requestWrite: boolean = false): Promis
         }
     }
     const handleFromDb = await idbKeyval.get<FileSystemFileHandle>(FILE_HANDLE_KEY);
-    console.log(handleFromDb);
     if (handleFromDb) {
         if (await verifyPermission(handleFromDb, requestWrite)) {
             fileHandle = handleFromDb;

@@ -1,7 +1,6 @@
 
 
 import { useDbStore } from '@/lib/db-store';
-// import { seedDatabase } from '@/lib/database';
 import { clearBackupConfig } from '@/lib/backupService';
 import { appStorage } from '@/lib/tauristorage';
 

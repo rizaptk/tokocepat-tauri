@@ -13,7 +13,7 @@ export default function HomePage() {
                 <CardDescription>Your fast and reliable point-of-sale solution.</CardDescription>
             </CardHeader>
             <CardContent>
-                <p className="text-muted-foreground">Use the navigation below to get started.</p>
+                <p className="text-muted-foreground">Use the navigation sidebar to get started.</p>
             </CardContent>
         </Card>
       </div>

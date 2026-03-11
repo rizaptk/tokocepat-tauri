@@ -36,6 +36,5 @@ export const closeShift = async (activeShift: Shift, transactions: Transaction[]
         status: 'closed'
     };
 
-    const updated = await updateDoc(doc(db, 'shifts', activeShift.id), updatedShift);
-    console.log(updated, updatedShift, activeShift);
+    await updateDoc(doc(db, 'shifts', activeShift.id), updatedShift);
 };

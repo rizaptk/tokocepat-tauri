@@ -18,6 +18,8 @@ import DashboardReportsVoid from './pages/Dashboard/reports/void/page'
 import DashboardSettings from './pages/Dashboard/settings/page'
 import DashboardShiftDetail from './pages/Dashboard/shifts/[id]/page'
 
+import LicensePage from './pages/Dashboard/settings/License'
+
 // Product pages
 import ProductLayout from './pages/Product/layout'
 import ProductHome from './pages/Product/page'
@@ -26,11 +28,13 @@ function App() {
   return (
     <Router>
       <Routes>
+        {/* Main POS */}
         <Route path="/" element={<RootLayout />}>
           <Route index element={<HomePage />} />
           <Route path="aktivasi" element={<ActivationPage />} />
           <Route path="cashier" element={<CashierPage />} />
           <Route path="inventory" element={<InventoryPage />} />
+          <Route path="license" element={<LicensePage />} />
 
           {/* Dashboard routes */}
           <Route path="dashboard" element={<DashboardHome />} />

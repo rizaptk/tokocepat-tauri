@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowLeft, ArrowRight, BarChart2, BookOpen, Warehouse, ArchiveX, Beaker, History } from 'lucide-react';
 import { NotificationBell } from '@/components/NotificationBell';
+import { ThemeToggle } from '@/components/ThemeButtons';
 
 const reportLinks = [
     {
@@ -67,6 +68,7 @@ export default function ReportsPage() {
                     Reports & Analytics
                 </h1>
                 <NotificationBell />
+                <ThemeToggle />
             </header>
 
             {/* Split Layout */}

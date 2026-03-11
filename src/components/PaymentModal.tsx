@@ -12,12 +12,10 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Separator } from '@/components/ui/separator';
 import { useStore } from '@/lib/store';
 import { useToast } from '@/hooks/use-toast';
-import { CheckCircle2, AlertCircle, Banknote, Delete, ReceiptText } from 'lucide-react';
+import { CheckCircle2, AlertCircle, Banknote, Delete} from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { Transaction } from '@/lib/types';
 import { usePrintStore } from '@/lib/print-store';
 import { useGlobalKeydown } from '@/hooks/use-global-keydown';
 
@@ -32,7 +30,6 @@ type PaymentStatus = 'pending' | 'success';
 export function PaymentModal({ isOpen, setIsOpen, total }: PaymentModalProps) {
   const [cashReceived, setCashReceived] = useState<string>('');
   const [status, setStatus] = useState<PaymentStatus>('pending');
-  const [transactionDetails, setTransactionDetails] = useState<Transaction | null>(null);
   const dialogContentRef = useRef<HTMLDivElement>(null);
 
   const { checkout } = useStore();
@@ -93,13 +90,10 @@ export function PaymentModal({ isOpen, setIsOpen, total }: PaymentModalProps) {
       return;
     }
 
-    const transaction = await checkout(numericCash);
-    if (transaction) {
-      setTransactionDetails(transaction);
-      setStatus('success');
-      // Add to print queue and forget
-      addToQueue(transaction);
-    }
+    // fire and forget process
+    checkout(numericCash);
+    setStatus('success');
+    resetAndClose();
   }, [checkout, numericCash, total, toast, addToQueue]);
 
   const resetAndClose = useCallback(() => {
@@ -107,16 +101,8 @@ export function PaymentModal({ isOpen, setIsOpen, total }: PaymentModalProps) {
     setTimeout(() => {
       setCashReceived('');
       setStatus('pending');
-      setTransactionDetails(null);
     }, 200);
   }, [setIsOpen]);
-
-  const handleReprint = () => {
-    if (transactionDetails) {
-      addToQueue(transactionDetails);
-      toast({ title: 'Reprinting...', description: 'Receipt has been sent to the print queue.' });
-    }
-  };
 
   const handleEnter = useCallback(() => {
     if (status === 'pending') {
@@ -138,7 +124,7 @@ export function PaymentModal({ isOpen, setIsOpen, total }: PaymentModalProps) {
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && resetAndClose()}>
       <DialogContent ref={dialogContentRef} className="sm:max-w-[480px] p-0 overflow-hidden gap-0 bg-card">
-        {status === 'pending' ? (
+        {status === 'pending' && (
           <>
             <div className="p-6 pb-4">
               <DialogHeader>
@@ -233,43 +219,6 @@ export function PaymentModal({ isOpen, setIsOpen, total }: PaymentModalProps) {
               </Button>
             </DialogFooter>
           </>
-        ) : (
-          <div className="p-8 text-center">
-            <div className="mb-6 flex flex-col items-center">
-              <div className="h-20 w-20 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mb-4">
-                <CheckCircle2 className="h-12 w-12 text-green-600" />
-              </div>
-              <h2 className="text-2xl font-bold">Payment Successful</h2>
-              <p className="text-muted-foreground">Transaction has been recorded</p>
-            </div>
-
-            <div className="bg-muted/50 rounded-xl p-6 space-y-4 border border-dashed border-muted-foreground/50">
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Total Amount</span>
-                <span className="font-semibold">{formatCurrency(transactionDetails?.total || 0)}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Cash Received</span>
-                <span className="font-semibold">{formatCurrency(numericCash)}</span>
-              </div>
-              <Separator />
-              <div className="flex justify-between items-center">
-                <span className="font-bold text-lg">Change</span>
-                <span className="text-2xl font-black text-primary">
-                  {formatCurrency(transactionDetails?.change || 0)}
-                </span>
-              </div>
-            </div>
-
-            <div className="mt-8 grid grid-cols-2 gap-3">
-              <Button variant="outline" className="gap-2" onClick={handleReprint}>
-                <ReceiptText className="h-4 w-4" /> Re-Print Receipt
-              </Button>
-              <Button onClick={resetAndClose} className="font-bold">
-                New Order
-              </Button>
-            </div>
-          </div>
         )}
       </DialogContent>
     </Dialog>

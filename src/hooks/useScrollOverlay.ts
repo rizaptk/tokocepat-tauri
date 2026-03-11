@@ -187,7 +187,6 @@ export function useOverlayScrollbar({ outerRef, thumbRef, trackRef, containerRef
             };
 
             const onPointerDown = (e: PointerEvent) => {
-                console.log("dragging");
                 isDragging = true;
                 activePointerId = e.pointerId;
 

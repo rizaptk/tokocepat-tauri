@@ -5,13 +5,14 @@ import { Link } from 'react-router-dom';
 import { useStore } from '@/lib/store';
 import { useMemo } from 'react';
 import { ArrowLeft, Warehouse, DollarSign, Package, FileDown } from 'lucide-react';
-import { exportInventoryToExcel } from '@/lib/export';
+// import { exportInventoryToExcel } from '@/lib/export';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { NotificationBell } from '@/components/NotificationBell';
+import { ThemeToggle } from '@/components/ThemeButtons';
 
 const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('id-ID', {
@@ -83,7 +84,7 @@ export default function InventoryReportPage() {
         <div className="flex min-h-screen w-full flex-col bg-muted/40">
            <header className="sticky top-0 flex h-16 items-center gap-4 border-b bg-background px-4 md:px-6 z-10">
                 <Button variant="outline" size="icon" className="shrink-0" asChild>
-                    <Link href="/dashboard/reports">
+                    <Link to="/dashboard/reports">
                         <ArrowLeft className="h-4 w-4" />
                         <span className="sr-only">Back to Reports</span>
                     </Link>
@@ -99,6 +100,7 @@ export default function InventoryReportPage() {
                         <span>Export</span>
                     </Button>
                     <NotificationBell />
+                    <ThemeToggle />
                 </div>
            </header>
           <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">

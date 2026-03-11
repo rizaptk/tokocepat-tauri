@@ -60,10 +60,12 @@ TabsList.displayName = TabsPrimitive.List.displayName;
 const TabsTrigger = React.forwardRef<
   React.ElementRef<typeof TabsPrimitive.Trigger>,
   // Ensure 'value' is part of the props type
-  React.ComponentPropsWithoutRef<typeof TabsPrimitive.Trigger> & { value: string }
+  React.ComponentPropsWithoutRef<typeof TabsPrimitive.Trigger> & { value: string; "data-danger"?: boolean }
 >(({ className, value, children, ...props }, ref) => {
   const { activeTab } = React.useContext(TabsContext);
   const isActive = activeTab === value;
+
+  const isDanger = props["data-danger"] ?? false;
 
   return (
     <TabsPrimitive.Trigger
@@ -71,7 +73,7 @@ const TabsTrigger = React.forwardRef<
       value={value}
       className={cn(
         "relative inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
-        isActive ? "text-primary-foreground [&_svg]:text-primary-foreground opacity-100" : "opacity-60 hover:opacity-100",
+        isActive ? "!text-primary-foreground [&_svg]:text-primary-foreground opacity-100" : "opacity-60 hover:opacity-100",
         className
       )}
       {...props}
@@ -80,7 +82,7 @@ const TabsTrigger = React.forwardRef<
       {isActive && (
         <motion.div
           layoutId="active_tab_indicator"
-          className="absolute inset-0 z-0 rounded-sm bg-primary shadow-sm"
+          className={`absolute inset-0 z-0 rounded-sm ${isDanger ? 'bg-destructive' : 'bg-primary'} shadow-sm`}
           transition={{ type: "spring", stiffness: 400, damping: 30 }}
         />
       )}

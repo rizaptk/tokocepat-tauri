@@ -16,7 +16,10 @@ async function ensureIndexes(firesqlite: any, db: any) {
             
             // For stock movement report filtering
             createIndex(db, collection(db, 'stock_movements'), 'created_at'),
-            
+
+            // For stock movement report by product ids filtering (getStockMovementsByProducts)
+            createIndex(db, collection(db, 'stock_movements'), 'product_id', 'desc', 'created_at', 'desc'),
+
             // For product category filtering
             createIndex(db, collection(db, 'products'), 'category_id'),
             
@@ -25,6 +28,7 @@ async function ensureIndexes(firesqlite: any, db: any) {
 
             // For variants lookup by product
             createIndex(db, collection(db, 'product_variants'), 'product_id'),
+
         ]);
         console.log("Database indexes are up to date.");
     } catch (error) {
@@ -112,7 +116,7 @@ export const seedDatabase = async (firesqlite: any, db: any, force = false) => {
                 { ingredient_id: 'ing-3', quantity: 10 },
             ]
         };
-        recipeBatch.set(doc(db, 'recipes', coffeeRecipe.product_id), recipeBatch);
+        recipeBatch.set(doc(db, 'recipes', coffeeRecipe.product_id), coffeeRecipe);
         await recipeBatch.commit();
         
         // --- Data Simulation ---

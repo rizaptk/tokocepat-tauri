@@ -18,13 +18,15 @@ interface ProductEditorProps {
 export const ProductEditor = ({ selectedProductId, onProductUpdate, onClose, activeTab, onTabChange }: ProductEditorProps) => {
     return (
         <Tabs value={activeTab} onValueChange={onTabChange} className="h-full flex flex-col min-h-0">
-            <div className="px-4 py-4 grid grid-cols-1 w-full overflow-x-auto shrink-0">
-                <TabsList className="grid w-full grid-cols-4">
-                    <TabsTrigger value="product"><Package className="w-4 h-4 mr-2 text-primary" />Product</TabsTrigger>
-                    <TabsTrigger value="categories"><Library className="w-4 h-4 mr-2 text-destructive" />Categories</TabsTrigger>
-                    <TabsTrigger value="modifiers"><SlidersHorizontal className="w-4 h-4 mr-2 text-purple-500" />Modifiers</TabsTrigger>
-                    <TabsTrigger value="ingredients"><Beaker className="w-4 h-4 mr-2 text-green-600" />Ingredients</TabsTrigger>
-                </TabsList>
+            <div className="px-4 py-4 grid grid-cols-1">
+                <div className="grid grid-cols-1 w-full overflow-x-auto no-scrollbar shrink-0">
+                    <TabsList className="grid w-full grid-cols-4 min-w-122">
+                        <TabsTrigger value="product"><Package className="w-4 h-4 mr-2 text-primary" />Product</TabsTrigger>
+                        <TabsTrigger value="categories"><Library className="w-4 h-4 mr-2 text-destructive" />Categories</TabsTrigger>
+                        <TabsTrigger value="modifiers"><SlidersHorizontal className="w-4 h-4 mr-2 text-purple-500" />Modifiers</TabsTrigger>
+                        <TabsTrigger value="ingredients"><Beaker className="w-4 h-4 mr-2 text-green-600" />Ingredients</TabsTrigger>
+                    </TabsList>
+                </div>
             </div>
             <TabsContent value="product" className="grid grid-cols-1 w-full mt-0 overflow-x-auto min-h-0">
                 <ProductForm productId={selectedProductId} onSave={onProductUpdate} onCancel={onClose} />

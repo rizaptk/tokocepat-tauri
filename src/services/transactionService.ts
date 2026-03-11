@@ -1,9 +1,10 @@
 
 
-import { CartItem, Transaction, Shift, StoreConfig, StockMovement, Recipe, RawIngredient, ProductVariant } from '@/lib/types';
+import { CartItem, Transaction, Shift, StoreConfig, StockMovement, RawIngredient } from '@/lib/types';
 import { useDbStore } from '@/lib/db-store';
 import { useStore } from '@/lib/store';
 import { toast } from '@/hooks/use-toast';
+// import { error } from 'node:console';
 
 export const getTransactionsByDateRange = async (from: Date, to: Date): Promise<Transaction[]> => {
     const { db, firesqlite } = useDbStore.getState();
@@ -51,7 +52,7 @@ const getTaxRateForItem = (item: CartItem, storeConfig: StoreConfig): number => 
 
 export const createTransaction = async (cart: CartItem[], activeShift: Shift, storeConfig: StoreConfig, cashReceived: number): Promise<Transaction | null> => {
     const { db, firesqlite } = useDbStore.getState();
-    const { recipes, products } = useStore.getState();
+    const { recipes } = useStore.getState();
 
     if (!activeShift) {
         toast({ variant: 'destructive', title: 'Shift Closed', description: 'Please open a shift to process transactions.' });
@@ -115,6 +116,7 @@ export const createTransaction = async (cart: CartItem[], activeShift: Shift, st
       created_at: createdAt,
     };
 
+
     // --- Database Operations ---
     // 1. Save transaction
     await setDoc(doc(db, 'transactions', transactionId), newTransaction);
@@ -122,6 +124,7 @@ export const createTransaction = async (cart: CartItem[], activeShift: Shift, st
     // 2. Update stock and create stock movements
     for (const cartItem of cart) {
         if (cartItem.is_composite) {
+            console.log('processing composite item', recipes, cartItem);
             const recipe = recipes.find(r => r.product_id === cartItem.id);
             if (recipe) {
                 for (const recipeItem of recipe.items) {
@@ -162,6 +165,7 @@ export const createTransaction = async (cart: CartItem[], activeShift: Shift, st
                         product_id: cartItem.selectedVariant.id, // Reference variant ID
                         product_name_snapshot: `${cartItem.name} (${cartItem.selectedVariant.name})`,
                         type: 'sale',
+                        reason: `Sale of Variant: ${cartItem.name}`,
                         qty_change: -cartItem.quantity,
                         reference_id: transactionId,
                         created_at: createdAt,
@@ -182,6 +186,7 @@ export const createTransaction = async (cart: CartItem[], activeShift: Shift, st
                     product_id: cartItem.id,
                     product_name_snapshot: cartItem.name,
                     type: 'sale',
+                    reason: `Sale of Product: ${cartItem.name}`,
                     qty_change: -cartItem.quantity,
                     reference_id: transactionId,
                     created_at: createdAt,
@@ -190,7 +195,6 @@ export const createTransaction = async (cart: CartItem[], activeShift: Shift, st
             }
         }
     }
-    
     return newTransaction;
 };
 

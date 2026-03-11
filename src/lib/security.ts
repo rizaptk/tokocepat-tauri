@@ -12,6 +12,7 @@ const FINGERPRINT_KEY = 'tokoc_device_fingerprint';
  * saves it to Storage, and then returns it.
  */
 export async function generateDeviceFingerprint(): Promise<string> {
+
     if (typeof window === 'undefined') return 'server-side-fingerprint';
 
     // 1. Check for a stored fingerprint first.

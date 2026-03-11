@@ -5,7 +5,7 @@ import { useStore } from '@/lib/store';
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { DateRange } from 'react-day-picker';
 import { ArrowLeft, History, PackageSearch, Filter, X, Package, Beaker, Loader2, Layers2, FileDown, FileText } from 'lucide-react';
-import { format, startOfDay, endOfDay, subDays, startOfMonth, endOfMonth, subMonths } from 'date-fns';
+import { format, startOfDay, endOfDay } from 'date-fns';
 import { exportStockMovementToExcel, exportStockMovementToPdf } from '@/lib/export';
 import { useToast } from '@/hooks/use-toast';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -20,6 +20,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { DateRangeFilter } from '@/components/DateRangeFilter';
 import { getStockMovementsByDateRange } from '@/services/stockService';
 import { NotificationBell } from '@/components/NotificationBell';
+import { ThemeToggle } from '@/components/ThemeButtons';
 
 
 type ReportRow = StockMovement & {
@@ -146,7 +147,7 @@ export default function StockMovementReportPage() {
         <div className="flex min-h-screen w-full flex-col bg-muted/40">
            <header className="sticky top-0 flex h-16 items-center gap-2 border-b bg-background px-4 md:px-6 z-10">
                 <Button variant="outline" size="icon" className="shrink-0" asChild>
-                    <Link href="/dashboard/reports">
+                    <Link to="/dashboard/reports">
                         <ArrowLeft className="h-4 w-4" />
                         <span className="sr-only">Back to Reports</span>
                     </Link>
@@ -174,6 +175,7 @@ export default function StockMovementReportPage() {
                         </DropdownMenuContent>
                     </DropdownMenu>
                     <NotificationBell />
+                    <ThemeToggle />
                 </div>
            </header>
           <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">

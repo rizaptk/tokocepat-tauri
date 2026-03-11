@@ -21,9 +21,9 @@ export const useDbStore = create<DbState>((set, get) => ({
     
 
     try {
-      const isTauri = typeof window !== 'undefined' && "__TAURI__" in window;
+      const isTauri = typeof window !== 'undefined' && "__TAURI_INTERNALS__" in window;
       if (isTauri) {
-
+        
         const { invoke } = await import('@tauri-apps/api/core');
         const Database = (await import('@tauri-apps/plugin-sql')).default;
 

@@ -12,6 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 import { generateDeviceFingerprint } from '@/lib/security';
 import { saveLicenseData } from '@/services/dataService';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
+import { apiFetch } from '@/lib/api-client';
 
 export function LicenseManager() {
     const { status, licenseDetails, deactivate } = useLicense();
@@ -28,9 +29,9 @@ export function LicenseManager() {
 
         try {
             const deviceId = await generateDeviceFingerprint();
-            const response = await fetch('/api/license/activate', {
+
+            const response = await apiFetch('/api/license/activate', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ licenseKey, deviceId }),
             });
 

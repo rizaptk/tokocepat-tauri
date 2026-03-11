@@ -64,6 +64,15 @@ export default function PrinterDetector() {
 
         if (savedPrinter) {
             processQueue();
+        } else {
+            if (printQueue.length > 0) {
+                const transactionToPrint = getAndRemoveFirstFromQueue();
+                toast({
+                    variant: 'default',
+                    title: 'No active printer',
+                    description: `${transactionToPrint?.invoice_number} in queue. Please connect and select a printer in settings`
+                });
+            }
         }
     }, [savedPrinter, printQueue])
 

@@ -59,6 +59,9 @@ pub async fn init_db(path: PathBuf) -> Result<DbState, sqlx::Error> {
             size INTEGER,
             updatedAt TEXT
         );
+
+        CREATE INDEX IF NOT EXISTS idx_documents_collection
+            ON documents(collection_id);
         "#
     )
     .execute(&pool)

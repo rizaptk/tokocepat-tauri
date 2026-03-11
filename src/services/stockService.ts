@@ -1,5 +1,5 @@
 
-import { Product, StockMovement, StockMovementType, RawIngredient, ProductVariant } from '@/lib/types';
+import { StockMovement, StockMovementType } from '@/lib/types';
 import { useDbStore } from '@/lib/db-store';
 import { useStore } from '@/lib/store';
 
@@ -21,6 +21,25 @@ export const getStockMovementsByDateRange = async (from: Date, to: Date): Promis
     return snapshot.docs.map((doc: any) => doc.data() as StockMovement);
 };
 
+export const getStockMovementsByProducts = async (productIds: string[]): Promise<StockMovement[]> => {
+    const { db, firesqlite } = useDbStore.getState();
+    if (!db || !firesqlite || productIds.length === 0) return [];
+
+    const { collection, query, where, getDocs, orderBy } = firesqlite;
+    
+    const movementsRef = collection(db, 'stock_movements');
+    // Note: 'in' operator is supported in firesqlite for array filtering
+    const q = query(
+        movementsRef,
+        where('product_id', 'in', productIds),
+        orderBy('product_id', 'desc'),
+        orderBy('created_at', 'desc')
+    );
+
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map((doc: any) => doc.data() as StockMovement);
+};
+
 type AdjustmentData = {
     product_id: string;
     type: StockMovementType;
@@ -34,7 +53,7 @@ export const adjustStock = async (data: AdjustmentData): Promise<void> => {
 
     if (!db || !firesqlite) throw new Error("Database not initialized");
 
-    const { doc, getDoc, setDoc, updateDoc } = firesqlite;
+    const { doc, setDoc, updateDoc } = firesqlite;
     
     const product = products.find(p => p.id === data.product_id);
     if (!product) throw new Error("Product not found");
@@ -102,7 +121,7 @@ export const adjustIngredientStock = async (ingredientId: string, type: StockMov
 
     if (!db || !firesqlite) throw new Error("Database not initialized");
 
-    const { doc, getDoc, setDoc, updateDoc } = firesqlite;
+    const { doc, setDoc, updateDoc } = firesqlite;
 
     const ingredient = rawIngredients.find(i => i.id === ingredientId);
     if (!ingredient) throw new Error("Ingredient not found");
