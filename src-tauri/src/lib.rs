@@ -1,64 +1,86 @@
-mod printer_detect;
 mod printer_commands;
-mod data_sqlite;
+mod printer_detect;
 
 use tauri::Manager;
 use tauri_plugin_store::Builder;
 
-// use data_sqlite::init_db;
+// 1. Import the tauri_gateway module itself, not just the function
+use firelite::config::FireLiteConfig;
+use firelite::engine::FireLite;
+pub use firelite::tauri_gateway::{self, FireLiteGateway}; // Note the 'self'
+
+mod printmon;
+mod license;
+mod maintenance;
+mod hwid;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-
+    license::init_env(); 
     tauri::Builder::default()
-
-        // .plugin(tauri_plugin_store::init())
         .plugin(Builder::default().build())
-
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_fs::init())
         .setup(|app| {
+            let app_dir = app
+                .path()
+                .app_data_dir()
+                .expect("Failed to resolve app data dir");
+            std::fs::create_dir_all(&app_dir).ok();
+            let db_path = app_dir.join("tokocepat.db");
 
-            let handle = app.handle();
+            // restore pending flag
+            let flag_path = app_dir.join("restore_pending.flag");
 
-            tauri::async_runtime::block_on(async move {
+            // --- NATIVE RESTORE LOGIC ---
+            if flag_path.exists() {
+                if let Ok(staging_path_str) = std::fs::read_to_string(&flag_path) {
+                    let staging_path = std::path::PathBuf::from(staging_path_str);
+                    if staging_path.exists() {
+                        // Replace live DB with staging DB
+                        let _ = std::fs::remove_file(&db_path);
+                        let _ = std::fs::rename(&staging_path, &db_path);
+                    }
+                }
+                let _ = std::fs::remove_file(&flag_path);
+            }
 
-                let app_dir = handle
-                    .path()
-                    .app_data_dir()
-                    .expect("Failed to resolve app data dir");
+            let db = FireLite::open(db_path, FireLiteConfig::default())
+                .expect("Failed to init FireLite");
 
-                // ensure directory exists
-                std::fs::create_dir_all(&app_dir).expect("Failed to create app dir");
-
-                let db_path = app_dir.join("tokoc.db");
-
-                let db = data_sqlite::init_db(db_path)
-                    .await
-                    .expect("Failed to initialize DB");
-                
-
-                handle.manage(db);
-
+            let gateway = FireLiteGateway::new(db);
+            app.manage(gateway);
+            
+            printmon::start_monitor(app.handle().clone());
+            
+            let handle = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                license::run_heartbeat(handle).await;
             });
 
             Ok(())
         })
-
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::CloseRequested { .. } = event {
+                if let Some(gateway) = window.try_state::<FireLiteGateway>() {
+                    let _ = gateway.db.flush();
+                    gateway.cleanup_window_subscriptions(window.label());
+                }
+            }
+        })
         .invoke_handler(tauri::generate_handler![
-
             printer_detect::auto_detect_printer,
             printer_commands::print_receipt,
-
-            data_sqlite::update_doc_patch,
-            data_sqlite::execute_sql,
-            data_sqlite::execute_batch,
-            data_sqlite::upload_file,
-            data_sqlite::get_file,
-            data_sqlite::delete_file,
-            data_sqlite::export_db_binary,
-            data_sqlite::import_db_binary,
-
+            tauri_gateway::firelite_exec,
+            hwid::get_license_hwid,
+            license::check_license,
+            license::activate_trial,
+            license::claim_license,
+            license::activate_manual_license,
+            license::deactivate_license, 
+            maintenance::native_backup,
+            maintenance::native_restore,
         ])
-
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

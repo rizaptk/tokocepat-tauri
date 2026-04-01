@@ -1,5 +1,3 @@
-
-
 import { usePrinter } from "@/hooks/usePrinter";
 
 /**

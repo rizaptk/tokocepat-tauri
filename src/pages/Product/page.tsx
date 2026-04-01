@@ -117,8 +117,8 @@ export default function ProductManagementPage() {
         } else {
             toast({
                 variant: "destructive",
-                title: "No Products Selected",
-                description: "Please select products with barcodes to print labels for.",
+                title: "Tidak Ada Produk Terpilih",
+                description: "Silakan pilih produk yang memiliki barcode untuk mencetak label.",
             });
         }
     };
@@ -129,14 +129,14 @@ export default function ProductManagementPage() {
         if (product) {
             handleSelectProduct(product);
             toast({
-                title: "Product Found",
-                description: `Now editing "${product.name}".`,
+                title: "Produk Ditemukan",
+                description: `Melakukan perubahan pada produk "${product.name}".`,
             });
         } else {
             toast({
                 variant: "destructive",
-                title: "Product Not Found",
-                description: `No product found with barcode/SKU: ${barcode}`,
+                title: "Produk Tidak Ditemukan",
+                description: `Tidak ada produk dengan barcode/SKU: ${barcode}`,
             });
         }
     };
@@ -159,6 +159,7 @@ export default function ProductManagementPage() {
     
     const handleCloseEditor = () => {
         clearSelected();
+        setSelectedProductId(null);
          if (window.innerWidth < 768) {
             setIsDrawerOpen(false);
         }
@@ -168,14 +169,14 @@ export default function ProductManagementPage() {
         <PopoverContent className="w-80">
             <div className="grid gap-4">
                 <div className="space-y-2">
-                    <h4 className="font-medium leading-none">Print Labels</h4>
+                    <h4 className="font-medium leading-none">Cetak Label</h4>
                     <p className="text-sm text-muted-foreground">
-                        Set the options for printing labels.
+                        Atur opsi pencetakan label barcode.
                     </p>
                 </div>
                 <div className="grid gap-2">
                     <div className="grid grid-cols-3 items-center gap-4">
-                        <Label htmlFor="repeat">Repeat</Label>
+                        <Label htmlFor="repeat">Jumlah</Label>
                         <Input
                             id="repeat"
                             type="number"
@@ -185,7 +186,7 @@ export default function ProductManagementPage() {
                         />
                     </div>
                     <div className="grid grid-cols-3 items-center gap-4">
-                        <Label>Label Size</Label>
+                        <Label>Ukuran</Label>
                         <div className="col-span-2 flex gap-1">
                             <Input
                                 id="labelWidth"
@@ -206,13 +207,13 @@ export default function ProductManagementPage() {
                         </div>
                     </div>
                      <div className="grid grid-cols-3 items-center gap-4">
-                        <Label htmlFor="pageSize">Paper Size</Label>
+                        <Label htmlFor="pageSize">Kertas</Label>
                         <Select
                             defaultValue={printOptions.pageSizeName}
                             onValueChange={(value) => setPrintOptions(o => ({...o, pageSizeName: value}))}
                         >
                             <SelectTrigger className="col-span-2 h-8">
-                                <SelectValue placeholder="Select paper size" />
+                                <SelectValue placeholder="Pilih ukuran" />
                             </SelectTrigger>
                             <SelectContent>
                                 {Object.keys(paperSizeMap).map(name => (
@@ -225,10 +226,10 @@ export default function ProductManagementPage() {
                 <div className="flex w-full items-center gap-3">
                     <Button variant="outline" onClick={handleCloseEditor} className="flex-2">
                         <X className="h-4 w-4" />
-                        Close
+                        Tutup
                     </Button>
                     <Button onClick={handlePrintLabels} className="flex-1">
-                        <Printer className="mr-2 h-4 w-4" /> Print ({selectedProductIds.size})
+                        <Printer className="mr-2 h-4 w-4" /> Cetak ({selectedProductIds.size})
                     </Button>
                 </div>
             </div>
@@ -267,13 +268,13 @@ export default function ProductManagementPage() {
                     </div>
 
                     <div className="flex items-center gap-4 overflow-x-auto no-scrollbar">
-                        <Button variant={filter === 'all' ? 'secondary' : 'outline'} className="rounded-full px-4 shrink-0" onClick={() => setFilter('all')}>All Active</Button>
+                        <Button variant={filter === 'all' ? 'secondary' : 'outline'} className="rounded-full px-4 shrink-0" onClick={() => setFilter('all')}>Semua (Aktif)</Button>
                         <Button variant={filter === 'retail' ? 'secondary' : 'outline'} className="rounded-full px-4 shrink-0" onClick={() => setFilter('retail')}>Retail</Button>
                         <Button variant={filter === 'f&b' ? 'secondary' : 'outline'} className="rounded-full px-4 shrink-0" onClick={() => setFilter('f&b')}>F&B</Button>
                         <Separator orientation="vertical" />
-                        <Button variant={filter === 'variants' ? 'secondary' : 'outline'} className="rounded-full px-4 shrink-0" onClick={() => setFilter('variants')}>Variants</Button>
-                        <Button variant={filter === 'modifiers' ? 'secondary' : 'outline'} className="rounded-full px-4 shrink-0" onClick={() => setFilter('modifiers')}>Modifiers</Button>
-                        <Button variant={filter === 'inactive' ? 'secondary' : 'outline'} className="rounded-full px-4 shrink-0" onClick={() => setFilter('inactive')}>Inactive</Button>
+                        <Button variant={filter === 'variants' ? 'secondary' : 'outline'} className="rounded-full px-4 shrink-0" onClick={() => setFilter('variants')}>Varian</Button>
+                        <Button variant={filter === 'modifiers' ? 'secondary' : 'outline'} className="rounded-full px-4 shrink-0" onClick={() => setFilter('modifiers')}>Modifier</Button>
+                        <Button variant={filter === 'inactive' ? 'secondary' : 'outline'} className="rounded-full px-4 shrink-0" onClick={() => setFilter('inactive')}>Nonaktif</Button>
                     </div>
 
                 </div>
@@ -291,13 +292,13 @@ export default function ProductManagementPage() {
                         <PopoverTrigger asChild>
                             <Button variant="outline" className="w-full" disabled={selectedProductIds.size === 0}>
                                 <Printer className="mr-2 h-4 w-4" />
-                                Print ({selectedProductIds.size})
+                                Cetak ({selectedProductIds.size})
                             </Button>
                         </PopoverTrigger>
                         {popoverContent}
                      </Popover>
                     <Button onClick={handleAddNew} className="w-full">
-                        <PlusCircle className="mr-2 h-4 w-4" /> Add Product
+                        <PlusCircle className="mr-2 h-4 w-4" /> Tambah
                     </Button>
                 </div>
             </div>
@@ -317,7 +318,7 @@ export default function ProductManagementPage() {
             <Sheet open={isDrawerOpen} onOpenChange={setIsDrawerOpen}>
                 <SheetContent side="right" className="w-full sm:w-125 p-0 flex flex-col">
                     <SheetHeader className="p-4 border-b shrink-0">
-                        <SheetTitle>{selectedProductId ? 'Edit Product' : 'Add New Product'}</SheetTitle>
+                        <SheetTitle>{selectedProductId ? 'Ubah Produk' : 'Tambah Produk'}</SheetTitle>
                     </SheetHeader>
                     <ProductEditor
                         selectedProductId={selectedProductId}

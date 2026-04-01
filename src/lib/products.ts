@@ -30,7 +30,7 @@ const baseProducts: Product[] = [
   { id: '10', name: 'Teh Celup Kotak', price: 10000, cost_price: 7000, stock: 65, ...getImageData('product-10'), track_stock: true, has_variant: false, has_modifier: false, is_active: true, product_type: 'retail', category_id: 'cat-4', sku: 'TEH-CELUP-25' },
   { id: '11', name: 'Biskuit', price: 9000, cost_price: 6500, stock: 90, ...getImageData('product-11'), track_stock: true, has_variant: false, has_modifier: false, is_active: true, product_type: 'retail', category_id: 'cat-2', sku: 'BISK-CRM-SNDWCH' },
   { id: '12', name: 'Minyak Goreng', price: 32000, cost_price: 28000, stock: 25, ...getImageData('product-12'), track_stock: true, has_variant: false, has_modifier: false, is_active: true, product_type: 'retail', category_id: 'cat-3', low_stock_alert: 5, sku: 'MINYAK-GRG-2L' },
-];
+]; 
 
 export const initialProducts: Product[] = [...baseProducts];
 

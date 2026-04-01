@@ -1,6 +1,3 @@
-
-'use client';
-
 import { useEffect, useRef, useCallback } from 'react';
 
 const SCAN_TIMEOUT_MS = 100; // Time between keystrokes to be considered part of the same scan

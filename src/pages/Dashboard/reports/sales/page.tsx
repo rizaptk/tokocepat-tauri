@@ -20,6 +20,7 @@ import { getTransactionsByDateRange } from '@/services/transactionService';
 import { useStore } from '@/lib/store';
 import { NotificationBell } from '@/components/NotificationBell';
 import { ThemeToggle } from '@/components/ThemeButtons';
+import { useLoadTransactions } from '@/hooks/useLoadTransaction';
 
 
 const formatCurrency = (amount: number) => {
@@ -40,6 +41,8 @@ export default function SalesReportPage() {
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const { storeConfig } = useStore();
+
+    useLoadTransactions(date);
 
     useEffect(() => {
         if (!date?.from || !date?.to) return;
@@ -73,28 +76,28 @@ export default function SalesReportPage() {
         const totalProfit = totalSubtotal - totalCost;
 
         return [
-            { title: 'Total Revenue', value: formatCurrency(totalRevenue), icon: DollarSign },
-            { title: 'Total Profit', value: formatCurrency(totalProfit), icon: DollarSign },
-            { title: 'Total Tax', value: formatCurrency(totalTax), icon: Landmark },
-            { title: 'Transactions', value: paidTransactions.length, icon: ReceiptText },
+            { title: 'Total Omzet', value: formatCurrency(totalRevenue), icon: DollarSign },
+            { title: 'Laba Kotor', value: formatCurrency(totalProfit), icon: DollarSign },
+            { title: 'Total Pajak', value: formatCurrency(totalTax), icon: Landmark },
+            { title: 'Transaksi', value: paidTransactions.length, icon: ReceiptText },
         ];
     }, [transactions]);
     
-    const handleExcelExport = () => {
+    const handleExcelExport = async () => {
         const paidTransactions = transactions.filter(tx => tx.status === 'paid');
         if (storeConfig && date?.from && date?.to) {
-            exportSalesToExcel(paidTransactions, {from: date.from, to: date.to }, storeConfig.store_name);
+            await exportSalesToExcel(paidTransactions, {from: date.from, to: date.to }, storeConfig.store_name);
         } else {
-            alert("Store configuration or date range not found.");
+            alert("Konfigurasi toko atau periode tidak ditemukan.");
         }
     };
     
-    const handlePdfExport = () => {
+    const handlePdfExport = async () => {
         const paidTransactions = transactions.filter(tx => tx.status === 'paid');
         if (storeConfig && date?.from && date?.to) {
-            exportSalesToPdf(paidTransactions, {from: date.from, to: date.to }, storeConfig.store_name);
+            await exportSalesToPdf(paidTransactions, {from: date.from, to: date.to }, storeConfig.store_name);
         } else {
-            alert("Store configuration or date range not found.");
+            alert("Konfigurasi toko atau periode tidak ditemukan.");
         }
     }
 
@@ -105,12 +108,12 @@ export default function SalesReportPage() {
                 <Button variant="outline" size="icon" className="shrink-0" asChild>
                     <Link to="/dashboard/reports">
                         <ArrowLeft className="h-4 w-4" />
-                        <span className="sr-only">Back to Reports</span>
+                        <span className="sr-only">Kembali ke Laporan</span>
                     </Link>
                 </Button>
                 <div className="flex-1">
                     <h1 className="text-lg font-semibold flex items-center gap-2">
-                        <BarChart2 className="h-5 w-5" /> Sales Report
+                        <BarChart2 className="h-5 w-5" /> Laporan Penjualan
                     </h1>
                 </div>
                 <div className="flex items-center gap-2">
@@ -118,7 +121,7 @@ export default function SalesReportPage() {
                         <DropdownMenuTrigger asChild>
                           <Button variant="outline" size="sm" disabled={transactions.length === 0}>
                             <FileDown className="mr-2 h-4 w-4" />
-                            <span>Export</span>
+                            <span>Ekspor</span>
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
@@ -153,20 +156,20 @@ export default function SalesReportPage() {
                 <CardHeader>
                     <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                         <div>
-                            <CardTitle>Transaction Details</CardTitle>
+                            <CardTitle>Detail Transaksi</CardTitle>
                             {date?.from && date?.to && (
                                 <CardDescription>
-                                    Showing {transactions.filter(t => t.status === 'paid').length} transactions from {format(date.from, 'PPP')} to {format(date.to, 'PPP')}.
+                                    Menampilkan {transactions.filter(t => t.status === 'paid').length} transaksi dari {format(date.from, 'dd MMM yyyy')} s/d {format(date.to, 'dd MMM yyyy')}.
                                 </CardDescription>
                             )}
                         </div>
                          <div className="flex flex-col sm:flex-row items-center gap-2">
-                            <DateRangeFilter date={date} setDate={setDate} />
+                            <DateRangeFilter date={date} setDate={setDate} preset='last30' />
                              <div className="relative w-full sm:w-auto">
                                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                                 <Input
                                     type="search"
-                                    placeholder="Search by invoice..."
+                                    placeholder="Cari invoice..."
                                     className="w-full pl-8 sm:w-64"
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
@@ -179,12 +182,12 @@ export default function SalesReportPage() {
                     <Table>
                         <TableHeader>
                             <TableRow>
-                                <TableHead>Date</TableHead>
+                                <TableHead>Waktu</TableHead>
                                 <TableHead>Invoice</TableHead>
                                 <TableHead className="text-right">Subtotal</TableHead>
-                                <TableHead className="text-right">Cost</TableHead>
-                                <TableHead className="text-right">Profit</TableHead>
-                                <TableHead className="text-right">Tax</TableHead>
+                                <TableHead className="text-right">HPP</TableHead>
+                                <TableHead className="text-right">Laba</TableHead>
+                                <TableHead className="text-right">Pajak</TableHead>
                                 <TableHead className="text-right">Total</TableHead>
                             </TableRow>
                         </TableHeader>
@@ -213,7 +216,7 @@ export default function SalesReportPage() {
                             ) : (
                                 <TableRow>
                                     <TableCell colSpan={7} className="h-24 text-center">
-                                        No transactions in this period.
+                                        Tidak ada transaksi pada periode ini.
                                     </TableCell>
                                 </TableRow>
                             )}

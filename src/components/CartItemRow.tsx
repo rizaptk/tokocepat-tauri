@@ -53,7 +53,7 @@ export const CartItemRow = ({ item, onEditItem, isReadOnly = false }: CartItemRo
                 drag={isMobile && !isReadOnly ? "x" : false}
                 dragConstraints={{ left: 0, right: 0 }}
                 dragElastic={{ left: 0.5, right: 0 }}
-                onDragEnd={(event, info) => {
+                onDragEnd={(_, info) => {
                     if (isMobile && !isReadOnly && info.offset.x < -100) {
                         removeFromCart(item.cartItemId);
                     }

@@ -17,6 +17,8 @@ import DashboardReportsStockSummary from './pages/Dashboard/reports/stock-summar
 import DashboardReportsVoid from './pages/Dashboard/reports/void/page'
 import DashboardSettings from './pages/Dashboard/settings/page'
 import DashboardShiftDetail from './pages/Dashboard/shifts/[id]/page'
+import AuditReportPage from './pages/Dashboard/reports/profits/page'
+import TaxReportPage from './pages/Dashboard/reports/tax/page'
 
 import LicensePage from './pages/Dashboard/settings/License'
 
@@ -46,6 +48,8 @@ function App() {
           <Route path="dashboard/reports/consumption" element={<DashboardReportsConsumption />} />
           <Route path="dashboard/reports/stock-summary" element={<DashboardReportsStockSummary />} />
           <Route path="dashboard/reports/void" element={<DashboardReportsVoid />} />
+          <Route path="dashboard/reports/profit" element={<AuditReportPage />} />
+          <Route path="dashboard/reports/tax" element={<TaxReportPage />} />
           <Route path="dashboard/settings" element={<DashboardSettings />} />
           <Route path="dashboard/shifts/:id" element={<DashboardShiftDetail />} />
 

@@ -73,7 +73,7 @@ export const setProductVariants = async (productId: string, variants: VariantFor
         }
     }
 
-    const variantsToDelete = [...existingVariantIds].filter(id => !updatedVariantIds.has(id));
+    const variantsToDelete = [...existingVariantIds].filter(id => !updatedVariantIds.has(id as string));
     for (const idToDelete of variantsToDelete) {
         await deleteDoc(doc(db, 'product_variants', idToDelete));
     }

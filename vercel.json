@@ -1,0 +1,14 @@
+{
+    "git": {
+      "deploymentEnabled": {
+        "pwa": false,
+        "tauri": false,
+        "indonesia": false,
+        "server": false,
+        "react": false,
+        "redesign": false,
+        "tauri-tailwindcss4": false,
+        "with-firelite": false
+      }
+    }
+  }

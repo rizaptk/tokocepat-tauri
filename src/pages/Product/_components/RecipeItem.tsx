@@ -27,9 +27,9 @@ const RecipeItemComponent: React.FC<RecipeItemProps> = ({ index, field, form, ra
                     name={`recipe_items.${index}.ingredient_id`}
                     render={({ field }) => (
                         <FormItem>
-                            <FormLabel className="text-xs">Ingredient</FormLabel>
+                            <FormLabel className="text-xs">Bahan</FormLabel>
                             <Select onValueChange={field.onChange} value={field.value}>
-                                <FormControl><SelectTrigger><SelectValue placeholder="Select ingredient" /></SelectTrigger></FormControl>
+                                <FormControl><SelectTrigger><SelectValue placeholder="Pilih Bahan" /></SelectTrigger></FormControl>
                                 <SelectContent>{rawIngredients.map(ing => (<SelectItem key={ing.id} value={ing.id}>{ing.name}</SelectItem>))}</SelectContent>
                             </Select>
                             <FormMessage />
@@ -41,7 +41,7 @@ const RecipeItemComponent: React.FC<RecipeItemProps> = ({ index, field, form, ra
                     name={`recipe_items.${index}.quantity`}
                     render={({ field }) => (
                         <FormItem>
-                            <FormLabel className="text-xs">Quantity</FormLabel>
+                            <FormLabel className="text-xs">Kuantitas</FormLabel>
                             <FormControl>
                                 <Input type="number" placeholder="e.g. 18" {...field} />
                             </FormControl>

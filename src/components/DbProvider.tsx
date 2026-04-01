@@ -1,148 +1,159 @@
 
-
 import { useDbStore } from "@/lib/db-store";
 import { useStore } from "@/lib/store";
 import { seedDatabase } from "@/lib/database";
-import { use, useCallback, useEffect, useMemo, useState } from "react";
-import { Product, ProductVariant, ModifierGroup, Transaction, Shift, StoreConfig, Category, PendingCart, RawIngredient, Recipe } from '@/lib/types';
+import { useEffect, useState } from "react";
+import { 
+    Product, ProductVariant, ModifierGroup, 
+    // Transaction, 
+    Shift, StoreConfig, Category, PendingCart, 
+    RawIngredient, Recipe 
+} from '@/lib/types';
 import { TokoCepatLogo } from "./TokoCepatLogo";
+// import { where } from "firesqlite";
 
 export function DbProvider({ children }: { children: React.ReactNode }) {
-    const { isInitialized, db, firesqlite, initialize } = useDbStore();
+    const { isInitialized, db, firesqlite } = useDbStore();
     const { 
-        setProducts, 
-        setProductVariants, 
-        setModifierGroups, 
-        setTransactions, 
-        setShifts, 
-        setStoreConfig, 
-        setCategories,
-        setPendingCarts,
-        setRawIngredients,
-        setRecipes,
-        // stockMovements are now loaded on demand
+        setProducts, setProductVariants, setModifierGroups, 
+        // setTransactions, 
+        setShifts, setStoreConfig, 
+        setCategories, setPendingCarts, setRawIngredients, setRecipes 
     } = useStore();
     
     const [isDataLoaded, setIsDataLoaded] = useState(false);
 
-    useEffect(() => {
-        if (!isInitialized) {
-            initialize();
-        }
-    }, [initialize, isInitialized]);
+    // 1. Initialize the Database connection
+    // useEffect(() => {
+    //     if (!isInitialized) {
+    //         initialize();
+    //     }
+    // }, [initialize, isInitialized]);
 
+    // 2. Manage Data Subscriptions
     useEffect(() => {
+        // Only proceed if DB is ready
         if (!isInitialized) return;
 
-        // In mock mode, skip data loading and unblock UI
+        // In case of mock mode or missing engine
         if (!db || !firesqlite) {
             setIsDataLoaded(true);
             return;
         }
 
-        let unsubStoreConfig: (() => void) | undefined;
-        let unsubCategories: (() => void) | undefined;
-        let unsubProducts: (() => void) | undefined;
-        let unsubVariants: (() => void) | undefined;
-        let unsubModifiers: (() => void) | undefined;
-        let unsubPendingCarts: (() => void) | undefined;
-        let unsubIngredients: (() => void) | undefined;
-        let unsubRecipes: (() => void) | undefined;
-        let unsubTransactions: (() => void) | undefined;
-        let unsubShifts: (() => void) | undefined;
-
-
+        // Memory Management: Track all active listeners
+        let isMounted = true;
+        const unsubs: (() => void)[] = [];
 
         const setupData = async () => {
             try {
+                // A. Ensure tables exist and default data is present
                 await seedDatabase(firesqlite, db);
                 
-                const { collection, doc, onSnapshot, query, orderBy, limit } = firesqlite;
-                
-                // --- TIER 1: CRITICAL METADATA (Blocks UI) ---
-                // These are small and required for the UI to function correctly.
-                unsubStoreConfig = onSnapshot(doc(db, 'store_config', 'main'), (docSnap: any) => {
-                    if (docSnap.exists()) setStoreConfig(docSnap.data() as StoreConfig);
-                });
-                unsubCategories = onSnapshot(collection(db, 'categories'), (snapshot: any) => {
-                    setCategories(snapshot.docs.map((doc: any) => doc.data() as Category));
-                });
-                 unsubVariants = onSnapshot(collection(db, 'product_variants'), (snapshot: any) => {
-                    setProductVariants(snapshot.docs.map((doc: any) => doc.data() as ProductVariant));
-                });
-                unsubModifiers = onSnapshot(collection(db, 'modifier_groups'), (snapshot: any) => {
-                    setModifierGroups(snapshot.docs.map((doc: any) => doc.data() as ModifierGroup));
-                });
-                 unsubIngredients = onSnapshot(collection(db, 'raw_ingredients'), (snapshot: any) => {
-                    setRawIngredients(snapshot.docs.map((doc: any) => doc.data() as RawIngredient));
-                });
-                unsubRecipes = onSnapshot(collection(db, 'recipes'), (snapshot: any) => {
-                    setRecipes(snapshot.docs.map((doc: any) => doc.data() as Recipe));
-                });
+                // B. Guard: If user navigated away during seeding, don't start listeners
+                if (!isMounted) return;
 
-                // Products are the last piece of critical data. Once loaded, unblock the UI.
-                unsubProducts = onSnapshot(collection(db, 'products'), (snapshot: any) => {
-                    const productList = snapshot.docs.map((doc: any) => doc.data() as Product);
+                const { collection, doc, onSnapshot } = firesqlite;
+
+                /**
+                 * Helper to register unsubs automatically
+                 */
+                const subscribe = (unsubFunc: () => void) => unsubs.push(unsubFunc);
+
+                // --- TIER 1: CRITICAL DATA (UI Essential) ---
+
+                // Store Configuration
+                subscribe(onSnapshot(doc(db, 'store_config', 'main'), (snap: any) => {
+                    if (snap.exists()) setStoreConfig(snap.data() as StoreConfig);
+                }));
+
+                // Categories
+                subscribe(onSnapshot(collection(db, 'categories'), (snap: any) => {
+                    setCategories(snap.docs.map((d: any) => d.data() as Category));
+                }));
+
+                // Variants
+                subscribe(onSnapshot(collection(db, 'product_variants'), (snap: any) => {
+                    setProductVariants(snap.docs.map((d: any) => d.data() as ProductVariant));
+                }));
+
+                // Modifiers
+                subscribe(onSnapshot(collection(db, 'modifier_groups'), (snap: any) => {
+                    setModifierGroups(snap.docs.map((d: any) => d.data() as ModifierGroup));
+                }));
+
+                // Ingredients & Recipes
+                subscribe(onSnapshot(collection(db, 'raw_ingredients'), (snap: any) => {
+                    setRawIngredients(snap.docs.map((d: any) => d.data() as RawIngredient));
+                }));
+
+                subscribe(onSnapshot(collection(db, 'recipes'), (snap: any) => {
+                    setRecipes(snap.docs.map((d: any) => d.data() as Recipe));
+                }));
+
+                // PRODUCTS: The "Anchor" for Tier 1
+                subscribe(onSnapshot(collection(db, 'products'), (snap: any) => {
+                    const productList = snap.docs.map((d: any) => d.data() as Product);
+                    console.log('snapshoot : ', productList);
                     setProducts(productList);
-                    if (!isDataLoaded) {
-                        setIsDataLoaded(true); // <<--- UNBLOCK UI
-
-                        console.log("UI Unblocked: Critical data loaded.");
+                    
+                    // Once we have products, we consider the primary UI "Loaded"
+                    if (isMounted && !isDataLoaded) {
+                        console.log("Firesqlite: Critical UI Data Sync Complete.");
+                        setIsDataLoaded(true); 
                     }
-                });
+                }));
 
-                // --- TIER 2: ACTIVE SESSION & RECENT HISTORY DATA (Background) ---
-                // These load after the UI is visible and use limits to avoid fetching everything.
-                unsubPendingCarts = onSnapshot(collection(db, 'pending_carts'), (snapshot: any) => {
-                    setPendingCarts(snapshot.docs.map((doc: any) => doc.data() as PendingCart));
-                });
-                unsubShifts = onSnapshot(collection(db, 'shifts'), (snapshot: any) => {
-                    setShifts(snapshot.docs.map((doc: any) => doc.data() as Shift));
-                });
+                // --- TIER 2: SESSION & HISTORY (Background Sync) ---
 
-                // Only listen to the last 100 transactions for the "Recent" list.
-                const recentTxQuery = query(collection(db, 'transactions'), orderBy('created_at', 'desc'), limit(100));
-                unsubTransactions = onSnapshot(recentTxQuery, (snapshot: any) => {
-                    setTransactions(snapshot.docs.map((doc: any) => doc.data() as Transaction));
-                });
+                // Active Carts
+                subscribe(onSnapshot(collection(db, 'pending_carts'), (snap: any) => {
+                    setPendingCarts(snap.docs.map((d: any) => d.data() as PendingCart));
+                }));
+
+                // Current Shifts
+                subscribe(onSnapshot(collection(db, 'shifts'), (snap: any) => {
+                    const shiftList = snap.docs.map((d: any) => d.data() as Shift); 
+                    setShifts(shiftList);
+                }));
+
 
             } catch (error: any) {
-                console.error("Failed to subscribe to data:", error);
-                setIsDataLoaded(true); // Unblock UI on error too
+                console.error("Firesqlite Subscription Manager Error:", error);
+                // Recovery: Unblock UI anyway so user can see something
+                if (isMounted) setIsDataLoaded(true);
             }
         };
 
         setupData();
 
+        // 3. CLEANUP: This is the most important part
         return () => {
-            if (unsubProducts) unsubProducts();
-            if (unsubVariants) unsubVariants();
-            if (unsubModifiers) unsubModifiers();
-            if (unsubTransactions) unsubTransactions();
-            if (unsubShifts) unsubShifts();
-            if (unsubStoreConfig) unsubStoreConfig();
-            if (unsubCategories) unsubCategories();
-            if (unsubPendingCarts) unsubPendingCarts();
-            if (unsubIngredients) unsubIngredients();
-            if (unsubRecipes) unsubRecipes();
+            isMounted = false;
+            console.log(`Firesqlite: Cleaning up ${unsubs.length} active listeners...`);
+            unsubs.forEach(unsub => {
+                if (typeof unsub === 'function') unsub();
+            });
         };
-    // isDataLoaded is not a dependency, we only want to run this once.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isInitialized, db, firesqlite]);
+        
+    }, [isInitialized, db, firesqlite]); // dependencies strictly limited
 
+    // 4. Loading State Screen
     if (!isInitialized || !isDataLoaded) {
         return (
             <div className="flex h-screen w-full items-center justify-center bg-background">
                 <div className="flex flex-col items-center gap-4">
                     <TokoCepatLogo />
-                    <p className="text-muted-foreground">
-                        {!isInitialized ? 'Initializing Database...' : 'Loading Data...'}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                        Check console for details
-                    </p>
-                    <div className="w-48 h-2 bg-muted rounded-full overflow-hidden">
-                        <div className="h-full bg-primary animate-pulse w-full"></div>
+                    <div className="flex flex-col items-center gap-1">
+                        <p className="font-medium animate-pulse">
+                            {!isInitialized ? 'Memulai Sistem...' : 'Sinkronisasi Data...'}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                            Menyiapkan database lokal
+                        </p>
+                    </div>
+                    <div className="w-48 h-1.5 bg-muted rounded-full overflow-hidden mt-2">
+                        <div className="h-full bg-primary animate-progress-stripes w-full"></div>
                     </div>
                 </div>
             </div>

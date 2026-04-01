@@ -1,7 +1,5 @@
-
-
-import { Link, useNavigate } from "react-router-dom";
-import { CheckCircle, ShoppingBag, ArrowRight, LineChart } from "lucide-react";
+import { Link } from "react-router-dom";
+import { CheckCircle, ShoppingBag, ArrowRight, LineChart, CalendarDays } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
@@ -21,15 +19,9 @@ import { DateRangeFilter } from "@/components/DateRangeFilter";
 import { DateRange } from "react-day-picker";
 import { isSameDay, differenceInDays, addDays, startOfDay, endOfDay, format } from 'date-fns';
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useLoadTransactions } from "@/hooks/useLoadTransaction";
 
 export default function DashboardPage() {
-  const navigate = useNavigate();
-  // const { products, transactions, activeShift, productVariants } = useStore((state) => ({
-  //   products: state.products,
-  //   productVariants: state.productVariants,
-  //   transactions: state.transactions,
-  //   activeShift: state.activeShift,
-  // }));
   const products = useStore((state) => state.products);
   const productVariants = useStore((state) => state.productVariants);
   const transactions = useStore((state) => state.transactions);
@@ -39,6 +31,8 @@ export default function DashboardPage() {
     from: startOfDay(new Date()),
     to: endOfDay(new Date()),
   });
+
+  useLoadTransactions(date);
 
   const lowStockItems = useMemo(() => {
     const lowStockProducts = products.filter(
@@ -189,14 +183,12 @@ export default function DashboardPage() {
 
           <div className="space-y-8">
 
-            {/* Executive Heading */}
             <div className="space-y-3">
               <h2 className="text-3xl font-bold tracking-tight">
-                Business Overview
+                Ringkasan Bisnis
               </h2>
               <p className="text-muted-foreground">
-                Real-time operational visibility across sales,
-                inventory, and shift performance.
+                Pantau performa penjualan, stok, dan shift secara real-time.
               </p>
             </div>
 
@@ -204,7 +196,7 @@ export default function DashboardPage() {
             <div className="grid grid-cols-2 gap-4">
               <Card>
                 <div className="p-4">
-                  <p className="text-xs text-muted-foreground">Total Revenue</p>
+                  <p className="text-xs text-muted-foreground">Total Omzet</p>
                   <p className="text-2xl font-bold">
                     {formatCurrency(totalRevenue)}
                   </p>
@@ -213,7 +205,7 @@ export default function DashboardPage() {
 
               <Card>
                 <div className="p-4">
-                  <p className="text-xs text-muted-foreground">Total Profit</p>
+                  <p className="text-xs text-muted-foreground">Laba Kotor</p>
                   <p className="text-2xl font-bold text-success-foreground">
                     {formatCurrency(totalProfit)}
                   </p>
@@ -222,7 +214,7 @@ export default function DashboardPage() {
 
               <Card>
                 <div className="p-4">
-                  <p className="text-xs text-muted-foreground">Transactions</p>
+                  <p className="text-xs text-muted-foreground">Transaksi</p>
                   <p className="text-2xl font-bold">
                     {totalTransactions}
                   </p>
@@ -231,7 +223,7 @@ export default function DashboardPage() {
 
               <Card>
                 <div className="p-4">
-                  <p className="text-xs text-muted-foreground">Low Stock Items</p>
+                  <p className="text-xs text-muted-foreground">Stok Tipis</p>
                   <p className="text-2xl font-bold text-destructive">
                     {lowStockItems.length}
                   </p>
@@ -243,26 +235,26 @@ export default function DashboardPage() {
             {activeShift && (
               <div className="rounded-xl border p-6 space-y-3 bg-muted/40">
                 <div>
-                  <p className="text-sm text-muted-foreground">Active Shift</p>
+                  <p className="text-sm text-muted-foreground">Sif Aktif</p>
                   <p className="font-semibold">
-                    Started {new Date(activeShift.opened_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    Mulai {new Date(activeShift.opened_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </p>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4 pt-3">
                   <div>
-                    <p className="text-xs text-muted-foreground">Opening Cash</p>
+                    <p className="text-xs text-muted-foreground">Modal Awal</p>
                     <p className="font-semibold">{formatCurrency(activeShift.opening_cash)}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Current Sales</p>
+                    <p className="text-xs text-muted-foreground">Penjualan</p>
                     <p className="font-semibold">{formatCurrency(activeShiftRevenue)}</p>
                   </div>
                 </div>
 
                 <Button className="w-full mt-4" asChild>
                   <Link to="/cashier">
-                    Go to Cashier <ArrowRight className="ml-2 h-4 w-4" />
+                    Buka Kasir <ArrowRight className="ml-2 h-4 w-4" />
                   </Link>
                 </Button>
               </div>
@@ -279,21 +271,27 @@ export default function DashboardPage() {
         <section className="flex-1 min-h-0">
           <ScrollArea className="h-full">
             <div className="p-8 space-y-8">
-
               {/* Sales Chart */}
               <Card>
                 <CardHeader>
                   <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
                     <div>
-                      <CardTitle className="flex items-center gap-2"><LineChart className="h-5 w-5" /> Sales Overview</CardTitle>
-                      <CardDescription>Sales and profit over the selected period.</CardDescription>
+                      <CardTitle className="flex items-center gap-2"><LineChart className="h-5 w-5" /> Grafik Penjualan</CardTitle>
+                      <CardDescription>Data omzet dan laba pada periode terpilih.</CardDescription>
                     </div>
-                    <DateRangeFilter date={date} setDate={setDate} />
+                    {/* <DateRangeFilter date={date} setDate={setDate} /> */}
                   </div>
                 </CardHeader>
                 <CardContent>
+                  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
+                    <div className="font-medium flex items-center gap-2">
+                      <CalendarDays className="h-4 w-4 text-muted-foreground" />
+                      Periode
+                    </div>
+                    <DateRangeFilter date={date} setDate={setDate} />
+                  </div>
                   {filteredTransactions.length > 0 ? (
-                    <ChartContainer config={chartConfig} className="h-[280px] w-full">
+                    <ChartContainer config={chartConfig} className="h-70 w-full">
                       <ComposedChart data={chartData}>
                         <defs>
                           <linearGradient id="fillProfit" x1="0" y1="0" x2="0" y2="1">
@@ -310,9 +308,9 @@ export default function DashboardPage() {
                       </ComposedChart>
                     </ChartContainer>
                   ) : (
-                    <div className="text-center text-muted-foreground h-[250px] flex flex-col justify-center items-center">
+                    <div className="text-center text-muted-foreground h-62.5 flex flex-col justify-center items-center">
                       <ShoppingBag className="h-10 w-10 mb-2" />
-                      <p>No sales recorded for this period.</p>
+                      <p>Tidak ada transaksi di periode ini.</p>
                     </div>
                   )}
                 </CardContent>
@@ -324,13 +322,13 @@ export default function DashboardPage() {
                 {/* Low Stock */}
                 <Card>
                   <CardHeader>
-                    <CardTitle>Low Stock Items</CardTitle>
+                    <CardTitle>Stok Menipis</CardTitle>
                   </CardHeader>
                   <CardContent>
                     {lowStockItems.length === 0 ? (
                       <div className="text-center text-muted-foreground py-8">
                         <CheckCircle className="mx-auto h-8 w-8 mb-2 text-green-500" />
-                        <p>All inventory levels healthy.</p>
+                        <p>Semua stok aman.</p>
                       </div>
                     ) : (
                       <Table>
@@ -352,13 +350,13 @@ export default function DashboardPage() {
                 {/* Top Sellers */}
                 <Card>
                   <CardHeader>
-                    <CardTitle>Top Sellers</CardTitle>
+                    <CardTitle>Produk Terlaris</CardTitle>
                   </CardHeader>
                   <CardContent>
                     {topSellingProducts.length === 0 ? (
                       <div className="text-center text-muted-foreground py-8">
                         <ShoppingBag className="mx-auto h-8 w-8 mb-2" />
-                        <p>No sales recorded for this period.</p>
+                        <p>Belum ada data penjualan.</p>
                       </div>
                     ) : (
                       <Table>

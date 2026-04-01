@@ -1,5 +1,3 @@
-
-
 import { CartItem, Transaction, Shift, StoreConfig, StockMovement, RawIngredient } from '@/lib/types';
 import { useDbStore } from '@/lib/db-store';
 import { useStore } from '@/lib/store';
@@ -8,7 +6,7 @@ import { toast } from '@/hooks/use-toast';
 
 export const getTransactionsByDateRange = async (from: Date, to: Date): Promise<Transaction[]> => {
     const { db, firesqlite } = useDbStore.getState();
-    if (!db || !firesqlite) throw new Error("Database not initialized");
+    if (!db || !firesqlite) throw new Error("Database belum diinisialisasi");
 
     const { collection, query, where, getDocs, orderBy } = firesqlite;
     
@@ -55,7 +53,7 @@ export const createTransaction = async (cart: CartItem[], activeShift: Shift, st
     const { recipes } = useStore.getState();
 
     if (!activeShift) {
-        toast({ variant: 'destructive', title: 'Shift Closed', description: 'Please open a shift to process transactions.' });
+        toast({ variant: 'destructive', title: 'Shift Tertutup', description: 'Buka shift untuk memproses transaksi.' });
         return null;
     }
     if (cart.length === 0 || !db || !firesqlite) return null;
@@ -124,7 +122,7 @@ export const createTransaction = async (cart: CartItem[], activeShift: Shift, st
     // 2. Update stock and create stock movements
     for (const cartItem of cart) {
         if (cartItem.is_composite) {
-            console.log('processing composite item', recipes, cartItem);
+            console.log('memproses item komposit', recipes, cartItem);
             const recipe = recipes.find(r => r.product_id === cartItem.id);
             if (recipe) {
                 for (const recipeItem of recipe.items) {
@@ -142,7 +140,7 @@ export const createTransaction = async (cart: CartItem[], activeShift: Shift, st
                             product_name_snapshot: ingredient.name,
                             type: 'sale',
                             qty_change: -quantityToDeduct,
-                            reason: `Sale of composite: ${cartItem.name}`,
+                            reason: `Penjualan komposit: ${cartItem.name}`,
                             reference_id: transactionId,
                             created_at: createdAt,
                         };
@@ -165,7 +163,7 @@ export const createTransaction = async (cart: CartItem[], activeShift: Shift, st
                         product_id: cartItem.selectedVariant.id, // Reference variant ID
                         product_name_snapshot: `${cartItem.name} (${cartItem.selectedVariant.name})`,
                         type: 'sale',
-                        reason: `Sale of Variant: ${cartItem.name}`,
+                        reason: `Penjualan Varian: ${cartItem.name}`,
                         qty_change: -cartItem.quantity,
                         reference_id: transactionId,
                         created_at: createdAt,
@@ -186,7 +184,7 @@ export const createTransaction = async (cart: CartItem[], activeShift: Shift, st
                     product_id: cartItem.id,
                     product_name_snapshot: cartItem.name,
                     type: 'sale',
-                    reason: `Sale of Product: ${cartItem.name}`,
+                    reason: `Penjualan Produk: ${cartItem.name}`,
                     qty_change: -cartItem.quantity,
                     reference_id: transactionId,
                     created_at: createdAt,
@@ -202,7 +200,7 @@ export const createTransaction = async (cart: CartItem[], activeShift: Shift, st
 export const voidTransaction = async (transactionId: string, reason: string): Promise<void> => {
     const { db, firesqlite } = useDbStore.getState();
     const { recipes, products, productVariants } = useStore.getState();
-    if (!db || !firesqlite) throw new Error("Database not initialized");
+    if (!db || !firesqlite) throw new Error("Database belum diinisialisasi");
 
     const { doc, getDoc, updateDoc, setDoc } = firesqlite;
     
@@ -210,12 +208,12 @@ export const voidTransaction = async (transactionId: string, reason: string): Pr
     const txSnap = await getDoc(txRef);
 
     if (!txSnap.exists()) {
-        throw new Error("Transaction not found.");
+        throw new Error("Transaksi tidak ditemukan.");
     }
 
     const transaction = txSnap.data() as Transaction;
     if (transaction.status === 'voided') {
-        throw new Error("Transaction is already voided.");
+        throw new Error("Transaksi sudah dibatalkan (void).");
     }
     
     const now = new Date().toISOString();
@@ -249,7 +247,7 @@ export const voidTransaction = async (transactionId: string, reason: string): Pr
                             product_name_snapshot: ingredient.name,
                             type: 'correction',
                             qty_change: quantityToReturn,
-                            reason: `Void of INV: ${transaction.invoice_number}`,
+                            reason: `Void INV: ${transaction.invoice_number}`,
                             reference_id: transaction.id,
                             created_at: now,
                         };
@@ -278,7 +276,7 @@ export const voidTransaction = async (transactionId: string, reason: string): Pr
                             product_name_snapshot: item.product_snapshot.name,
                             type: 'correction',
                             qty_change: item.qty,
-                            reason: `Void of INV: ${transaction.invoice_number}`,
+                            reason: `Void INV: ${transaction.invoice_number}`,
                             reference_id: transaction.id,
                             created_at: now,
                         };
@@ -304,7 +302,7 @@ export const voidTransaction = async (transactionId: string, reason: string): Pr
                     product_name_snapshot: item.product_snapshot.name,
                     type: 'correction',
                     qty_change: quantityToReturn,
-                    reason: `Void of INV: ${transaction.invoice_number}`,
+                    reason: `Void INV: ${transaction.invoice_number}`,
                     reference_id: transaction.id,
                     created_at: now,
                 };

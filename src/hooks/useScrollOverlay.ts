@@ -162,7 +162,7 @@ export function useOverlayScrollbar({ outerRef, thumbRef, trackRef, containerRef
             let isDragging = false;
             let startY = 0;
             let startScrollTop = 0;
-            let activePointerId: number | null = null;
+            // let activePointerId: number | null = null;
 
             const onPointerMove = (e: PointerEvent) => {
                 if (!isDragging) return;
@@ -182,13 +182,13 @@ export function useOverlayScrollbar({ outerRef, thumbRef, trackRef, containerRef
 
             const onPointerUp = () => {
                 isDragging = false;
-                activePointerId = null;
+                // activePointerId = null;
                 document.body.style.userSelect = "";
             };
 
             const onPointerDown = (e: PointerEvent) => {
                 isDragging = true;
-                activePointerId = e.pointerId;
+                // activePointerId = e.pointerId;
 
                 startY = e.clientY;
                 startScrollTop = scrollEl.scrollTop;

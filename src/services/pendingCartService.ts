@@ -13,7 +13,7 @@ export const parkCartInDb = async (cart: CartItem[], total: number, itemCount: n
     
     const newPendingCart: PendingCart = {
         id: newId,
-        name: `Order @ ${now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`,
+        name: `Pesanan @ ${now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}`,
         createdAt: now.toISOString(),
         items: cart,
         itemCount: itemCount,
@@ -21,7 +21,7 @@ export const parkCartInDb = async (cart: CartItem[], total: number, itemCount: n
     };
 
     await setDoc(doc(db, 'pending_carts', newId), newPendingCart);
-    toast({ title: "Cart Parked", description: `The current cart has been saved as "${newPendingCart.name}".` });
+    toast({ title: "Pesanan Ditunda", description: `Keranjang disimpan sebagai "${newPendingCart.name}".` });
 };
 
 export const deletePendingCartFromDb = async (id: string): Promise<void> => {

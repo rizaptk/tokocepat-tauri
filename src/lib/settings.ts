@@ -2,7 +2,6 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { zustandStorage } from './tauristorage';
 
 type ListMode = 'list' | 'card' | 'thumbnail';
 
@@ -41,7 +40,6 @@ export const useSettingsStore = create<SettingsState>()(
         }),
         {
             name: 'tokoc-settings',
-            storage: zustandStorage,
         }
     )
 )

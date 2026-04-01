@@ -1,5 +1,3 @@
-
-
 import { useState, useMemo, useCallback, useRef } from 'react';
 import {
   Dialog,
@@ -18,6 +16,7 @@ import { CheckCircle2, AlertCircle, Banknote, Delete} from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { usePrintStore } from '@/lib/print-store';
 import { useGlobalKeydown } from '@/hooks/use-global-keydown';
+import { useGlobalNumberInputFix } from '@/hooks/useGlobalNumberInputFix';
 
 type PaymentModalProps = {
   isOpen: boolean;
@@ -39,6 +38,8 @@ export function PaymentModal({ isOpen, setIsOpen, total }: PaymentModalProps) {
   const numericCash = parseFloat(cashReceived) || 0;
   const change = numericCash - total;
   const isInsufficient = numericCash < total && numericCash > 0;
+
+  useGlobalNumberInputFix();
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('id-ID', {
@@ -130,21 +131,21 @@ export function PaymentModal({ isOpen, setIsOpen, total }: PaymentModalProps) {
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2 text-xl">
                   <Banknote className="h-5 w-5 text-primary" />
-                  Process Payment
+                  Proses Pembayaran
                 </DialogTitle>
                 <DialogDescription>
-                  Complete the transaction by entering the cash amount.
+                  Selesaikan transaksi dengan memasukkan jumlah uang tunai.
                 </DialogDescription>
               </DialogHeader>
 
               <div className="mt-6 space-y-6">
                 <div className="bg-muted/50 rounded-xl p-4 flex justify-between items-center border">
-                  <span className="text-sm font-medium text-muted-foreground">Total Amount Due</span>
+                  <span className="text-sm font-medium text-muted-foreground">Total Tagihan</span>
                   <span className="text-2xl font-bold tracking-tight">{formatCurrency(total)}</span>
                 </div>
 
                 <div className="space-y-3">
-                  <Label htmlFor="cash" className="text-sm font-semibold">Cash Received</Label>
+                  <Label htmlFor="cash" className="text-sm font-semibold">Uang Diterima (Bayar)</Label>
                   <div className="relative">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-medium">Rp</span>
                     <Input
@@ -181,7 +182,7 @@ export function PaymentModal({ isOpen, setIsOpen, total }: PaymentModalProps) {
                       className="h-12 font-semibold hover:border-primary hover:bg-primary/5"
                       onClick={() => setCashReceived(amt.toString())}
                     >
-                      {amt === total ? "Exact Amount" : formatCurrency(amt)}
+                      {amt === total ? "Uang Pas" : formatCurrency(amt)}
                     </Button>
                   ))}
                 </div>
@@ -197,7 +198,7 @@ export function PaymentModal({ isOpen, setIsOpen, total }: PaymentModalProps) {
                       <AlertCircle className="h-5 w-5 text-orange-600" />
                     )}
                     <span className={cn("text-sm font-medium", change >= 0 ? "text-green-700" : "text-orange-700")}>
-                      {change >= 0 ? "Change to return" : "Remaining balance"}
+                      {change >= 0 ? "Kembalian" : "Kurang"}
                     </span>
                   </div>
                   <span className={cn("text-lg font-bold", change >= 0 ? "text-green-700" : "text-orange-700")}>
@@ -208,14 +209,14 @@ export function PaymentModal({ isOpen, setIsOpen, total }: PaymentModalProps) {
             </div>
 
             <DialogFooter className="p-6 bg-muted/30 border-t">
-              <Button variant="ghost" onClick={resetAndClose} className="flex-1 hover:bg-destructive/10 h-12 hover:text-destructive">Cancel</Button>
+              <Button variant="ghost" onClick={resetAndClose} className="flex-1 hover:bg-destructive/10 h-12 hover:text-destructive">Batal</Button>
               <Button
                 variant="default"
                 onClick={handlePayment}
                 className="flex-1 h-12 text-base font-bold"
                 disabled={numericCash < total}
               >
-                Confirm Payment
+                Konfirmasi Bayar
               </Button>
             </DialogFooter>
           </>

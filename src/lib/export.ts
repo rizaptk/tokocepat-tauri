@@ -1,10 +1,14 @@
 
 import * as XLSX from 'xlsx';
-import { Transaction, Product, StoreConfig, StockMovement } from '@/lib/types';
+import { Transaction, Product, StockMovement, Shift } from '@/lib/types';
 import { format, parseISO } from 'date-fns';
 import { PDFDocument, rgb, StandardFonts, PageSizes } from 'pdf-lib';
+
 /** @ts-ignore - bwip-js does not provide types for browser-side buffer generation */
 import bwipjs from 'bwip-js';
+
+import { save } from '@tauri-apps/plugin-dialog';
+import { writeFile } from '@tauri-apps/plugin-fs';
 
 const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('id-ID', {
@@ -14,7 +18,27 @@ const formatCurrency = (amount: number) => {
     }).format(amount);
 };
 
-export const exportSalesToExcel = (transactions: Transaction[], dateRange: { from: Date, to: Date }, storeName: string) => {
+// --- NEW HELPER: Native Save Function ---
+async function saveFileNative(data: Uint8Array, defaultFilename: string, extensions: { name: string, extensions: string[] }[]) {
+    try {
+        const path = await save({
+            defaultPath: defaultFilename,
+            filters: extensions
+        });
+
+        if (path) {
+            await writeFile(path, data);
+            return true;
+        }
+    } catch (err) {
+        console.error("Failed to save file natively:", err);
+    }
+    return false;
+}
+
+
+// sales export
+export const exportSalesToExcel = async (transactions: Transaction[], dateRange: { from: Date, to: Date }, storeName: string) => {
 
     const dataForExport = transactions.map(tx => {
         const txCost = tx.items.reduce((itemSum, item) => itemSum + ((item.cost_snapshot || 0) * item.qty), 0);
@@ -54,13 +78,109 @@ export const exportSalesToExcel = (transactions: Transaction[], dateRange: { fro
     XLSX.utils.sheet_add_json(worksheet, [summary], { origin: -1, skipHeader: true });
 
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Sales Report');
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Laporan Penjualan');
 
     const range = format(dateRange.from, 'yyyy-MM-dd') + '_to_' + format(dateRange.to, 'yyyy-MM-dd');
-    XLSX.writeFile(workbook, `sales_report_${storeName.replace(/\s+/g, '_')}_${range}.xlsx`);
+    // XLSX.writeFile(workbook, `sales_report_${storeName.replace(/\s+/g, '_')}_${range}.xlsx`);
+    const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+    const uint8Array = new Uint8Array(excelBuffer);
+
+    const filename = `sales_report_${storeName.replace(/\s+/g, '_')}_${range}.xlsx`;
+    await saveFileNative(uint8Array, filename, [{ name: 'Excel', extensions: ['xlsx'] }]);
 };
 
-export const exportInventoryToExcel = (products: (Product & { categoryName: string })[], storeName: string) => {
+export const exportSalesToPdf = async (transactions: Transaction[], dateRange: { from: Date, to: Date }, storeName: string) => {
+    const pdfDoc = await PDFDocument.create();
+    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+    
+    const fontSize = 10;
+    const bodyFontSize = 8;
+    const margin = 40;
+    const tableHeaders = ['Tanggal', 'Invoice', 'Qty', 'Subtotal', 'Modal', 'Laba', 'Pajak', 'Total'];
+    const colWidths = [85, 80, 25, 65, 65, 65, 55, 70];
+
+    // --- HELPER: Fungsi khusus menggambar header tabel ---
+    const drawTableHeader = (page: any, yPos: number) => {
+        const { width } = page.getSize();
+        let currentX = margin;
+        tableHeaders.forEach((header, i) => {
+            page.drawText(header, { x: currentX, y: yPos, font: boldFont, size: fontSize });
+            currentX += colWidths[i];
+        });
+        const lineY = yPos - 5;
+        page.drawLine({
+            start: { x: margin, y: lineY },
+            end: { x: width - margin, y: lineY },
+            thickness: 1,
+        });
+        return lineY - 15; // Mengembalikan posisi Y untuk baris pertama data
+    };
+
+    // --- HALAMAN 1: Setup Awal ---
+    let currentPage = pdfDoc.addPage();
+    const { height } = currentPage.getSize();
+    let y = height - margin;
+
+    // 1. Gambar Judul & Ringkasan Laporan
+    currentPage.drawText(`${storeName} - Laporan Penjualan`, { x: margin, y, font: boldFont, size: 16 });
+    y -= 25;
+    currentPage.drawText(`Periode: ${format(dateRange.from, 'dd MMM yyyy')} - ${format(dateRange.to, 'dd MMM yyyy')}`, { x: margin, y, font, size: 10 });
+    y -= 30;
+
+    const totalRevenue = transactions.reduce((sum, tx) => sum + tx.total, 0);
+    const totalTax = transactions.reduce((sum, tx) => sum + tx.tax_amount, 0);
+    
+    currentPage.drawText(`Total Omzet: ${formatCurrency(totalRevenue)}`, { x: margin, y, font, size: 9 });
+    currentPage.drawText(`Total Transaksi: ${transactions.length}`, { x: margin + 200, y, font, size: 9 });
+    y -= 15;
+    currentPage.drawText(`Total Pajak: ${formatCurrency(totalTax)}`, { x: margin, y, font, size: 9 });
+    
+    // 2. Gambar Header Tabel di Halaman 1 (Diberi jarak dari ringkasan)
+    y -= 40; 
+    y = drawTableHeader(currentPage, y);
+
+    // --- LOOP DATA ---
+    for (const tx of transactions) {
+        // Cek jika ruang tidak cukup, pindah halaman
+        if (y < 50) {
+            currentPage = pdfDoc.addPage();
+            y = height - margin; // Mulai dari paling atas di halaman baru
+            y = drawTableHeader(currentPage, y);
+        }
+
+        const txCost = tx.items.reduce((itemSum, item) => itemSum + ((item.cost_snapshot || 0) * item.qty), 0);
+        const txProfit = tx.subtotal - txCost;
+
+        const row = [
+            format(new Date(tx.created_at), 'yyyy-MM-dd HH:mm'),
+            tx.invoice_number,
+            tx.items.reduce((sum, item) => sum + item.qty, 0).toString(),
+            formatCurrency(tx.subtotal),
+            formatCurrency(txCost),
+            formatCurrency(txProfit),
+            formatCurrency(tx.tax_amount),
+            formatCurrency(tx.total)
+        ];
+
+        let currentX = margin;
+        row.forEach((cell, i) => {
+            currentPage.drawText(cell, { x: currentX, y, font, size: bodyFontSize });
+            currentX += colWidths[i];
+        });
+
+        y -= 14; 
+    }
+
+    // --- SIMPAN ---
+    const pdfBytes = await pdfDoc.save();
+    const range = format(dateRange.from, 'yyyy-MM-dd') + '_to_' + format(dateRange.to, 'yyyy-MM-dd');
+    const filename = `laporan_penjualan_${storeName.replace(/\s+/g, '_')}_${range}.pdf`;
+    await saveFileNative(pdfBytes, filename, [{ name: 'PDF', extensions: ['pdf'] }]);
+};
+
+// inventory
+export const exportInventoryToExcel = async (products: (Product & { categoryName: string })[], storeName: string) => {
     const dataForExport = products.map(p => ({
         'Product Name': p.name,
         'Category': p.categoryName,
@@ -94,10 +214,16 @@ export const exportInventoryToExcel = (products: (Product & { categoryName: stri
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Inventory Report');
 
     const date = format(new Date(), 'yyyy-MM-dd');
-    XLSX.writeFile(workbook, `inventory_report_${storeName.replace(/\s+/g, '_')}_${date}.xlsx`);
+    // // XLSX.writeFile(workbook, `inventory_report_${storeName.replace(/\s+/g, '_')}_${date}.xlsx`);
+    const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+    const uint8Array = new Uint8Array(excelBuffer);
+
+    const filename = `inventory_report_${storeName.replace(/\s+/g, '_')}_${date}.xlsx`;
+    await saveFileNative(uint8Array, filename, [{ name: 'Excel', extensions: ['xlsx'] }]);
 };
 
-export const exportStockSummaryToExcel = (reportData: any[], dateRange: { from: Date, to: Date }, storeName: string) => {
+// stock summary
+export const exportStockSummaryToExcel = async (reportData: any[], dateRange: { from: Date, to: Date }, storeName: string) => {
     const dataForExport = reportData.map(item => ({
         'Product/Ingredient': item.name,
         'Type': item.type,
@@ -113,109 +239,12 @@ export const exportStockSummaryToExcel = (reportData: any[], dateRange: { from: 
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Stock Summary');
 
     const range = format(dateRange.from, 'yyyy-MM-dd') + '_to_' + format(dateRange.to, 'yyyy-MM-dd');
-    XLSX.writeFile(workbook, `stock_summary_report_${storeName.replace(/\s+/g, '_')}_${range}.xlsx`);
-};
+    // XLSX.writeFile(workbook, `stock_summary_report_${storeName.replace(/\s+/g, '_')}_${range}.xlsx`);
+    const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+    const uint8Array = new Uint8Array(excelBuffer);
 
-export const exportSalesToPdf = async (transactions: Transaction[], dateRange: { from: Date, to: Date }, storeName: string) => {
-    const pdfDoc = await PDFDocument.create();
-    const page = pdfDoc.addPage();
-    const { width, height } = page.getSize();
-    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
-    const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
-    const fontSize = 10;
-    const margin = 50;
-    let y = height - margin;
-
-    // Title
-    page.drawText(`${storeName} - Sales Report`, {
-        x: margin,
-        y,
-        font: boldFont,
-        size: 18,
-    });
-    y -= 30;
-
-    // Date Range
-    page.drawText(`Period: ${format(dateRange.from, 'PPP')} to ${format(dateRange.to, 'PPP')}`, {
-        x: margin,
-        y,
-        font,
-        size: 12,
-    });
-    y -= 20;
-
-    // Summary
-    const totalRevenue = transactions.reduce((sum, tx) => sum + tx.total, 0);
-    const totalProfit = transactions.reduce((sum, tx) => {
-        const txCost = tx.items.reduce((itemSum, item) => itemSum + ((item.cost_snapshot || 0) * item.qty), 0);
-        return sum + (tx.subtotal - txCost);
-    }, 0);
-    const totalTax = transactions.reduce((sum, tx) => sum + tx.tax_amount, 0);
-
-    page.drawText(`Total Revenue: ${formatCurrency(totalRevenue)}`, { x: margin, y, font, size: fontSize });
-    y -= 15;
-    page.drawText(`Total Tax: ${formatCurrency(totalTax)}`, { x: margin, y, font, size: fontSize });
-    y -= 15;
-    page.drawText(`Total Profit: ${formatCurrency(totalProfit)}`, { x: margin, y, font, size: fontSize });
-    y -= 15;
-    page.drawText(`Total Transactions: ${transactions.length}`, { x: margin, y, font, size: fontSize });
-    y -= 30;
-
-    // Table Header
-    const tableHeaders = ['Date', 'Invoice', 'Items', 'Subtotal', 'Cost', 'Profit', 'Tax', 'Total'];
-    const colWidths = [70, 80, 30, 60, 60, 60, 60, 70];
-    let x = margin;
-    tableHeaders.forEach((header, i) => {
-        page.drawText(header, { x, y, font: boldFont, size: fontSize });
-        x += colWidths[i];
-    });
-    y -= 5;
-    page.drawLine({
-        start: { x: margin, y },
-        end: { x: width - margin, y },
-        thickness: 1,
-    });
-    y -= 15;
-
-    // Table Body
-    for (const tx of transactions) {
-        if (y < margin) {
-            // For simplicity, we'll assume it fits on one page. 
-            // A real implementation would add a new page here.
-            break;
-        }
-        const txCost = tx.items.reduce((itemSum, item) => itemSum + ((item.cost_snapshot || 0) * item.qty), 0);
-        const txProfit = tx.subtotal - txCost;
-        const row = [
-            format(new Date(tx.created_at), 'yyyy-MM-dd HH:mm'),
-            tx.invoice_number,
-            tx.items.reduce((sum, item) => sum + item.qty, 0).toString(),
-            formatCurrency(tx.subtotal),
-            formatCurrency(txCost),
-            formatCurrency(txProfit),
-            formatCurrency(tx.tax_amount),
-            formatCurrency(tx.total)
-        ];
-
-        x = margin;
-        row.forEach((cell, i) => {
-            page.drawText(cell, { x, y, font, size: 8 });
-            x += colWidths[i];
-        });
-        y -= 12;
-    }
-
-    const pdfBytes = await pdfDoc.save();
-
-    // Trigger download
-    const blob = new Blob([pdfBytes], { type: 'application/pdf' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    const range = format(dateRange.from, 'yyyy-MM-dd') + '_to_' + format(dateRange.to, 'yyyy-MM-dd');
-    link.download = `sales_report_${storeName.replace(/\s+/g, '_')}_${range}.pdf`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    const filename = `stock_report_${storeName.replace(/\s+/g, '_')}_${range}.xlsx`;
+    await saveFileNative(uint8Array, filename, [{ name: 'Excel', extensions: ['xlsx'] }]);
 };
 
 type ReportRow = StockMovement & {
@@ -225,7 +254,7 @@ type ReportRow = StockMovement & {
     productType: 'Product' | 'Ingredient' | 'Variant';
 };
 
-export const exportStockMovementToExcel = (movements: ReportRow[], dateRange: { from: Date, to: Date }, storeName: string) => {
+export const exportStockMovementToExcel = async (movements: ReportRow[], dateRange: { from: Date, to: Date }, storeName: string) => {
     const dataForExport = movements.map(m => ({
         'Date': format(new Date(m.created_at), 'yyyy-MM-dd HH:mm:ss'),
         'Product': m.product_name_snapshot,
@@ -242,89 +271,104 @@ export const exportStockMovementToExcel = (movements: ReportRow[], dateRange: { 
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Stock Movements');
 
     const range = format(dateRange.from, 'yyyy-MM-dd') + '_to_' + format(dateRange.to, 'yyyy-MM-dd');
-    XLSX.writeFile(workbook, `stock_movement_report_${storeName.replace(/\s+/g, '_')}_${range}.xlsx`);
+    // XLSX.writeFile(workbook, `stock_movement_report_${storeName.replace(/\s+/g, '_')}_${range}.xlsx`);
+    const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+    const uint8Array = new Uint8Array(excelBuffer);
+
+    const filename = `stock_movement_report_${storeName.replace(/\s+/g, '_')}_${range}.xlsx`;
+    await saveFileNative(uint8Array, filename, [{ name: 'Excel', extensions: ['xlsx'] }]);
 };
 
 export const exportStockMovementToPdf = async (movements: ReportRow[], dateRange: { from: Date, to: Date }, storeName: string) => {
     const pdfDoc = await PDFDocument.create();
-    let page = pdfDoc.addPage();
-    const { width, height } = page.getSize();
     const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
     const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+    
     const fontSize = 9;
+    const bodyFontSize = 8;
     const margin = 40;
-    let y = height - margin;
+    
+    // Sesuaikan lebar kolom agar pas dengan lebar kertas A4 (total ~515 unit)
+    const tableHeaders = ['Waktu', 'Produk', 'Tipe', 'Awal', 'Ubah', 'Akhir', 'Ref'];
+    const colWidths = [75, 120, 45, 35, 35, 35, 170]; 
 
-    const drawHeader = () => {
-        page.drawText(`${storeName} - Stock Movement Report`, { x: margin, y, font: boldFont, size: 16 });
-        y -= 20;
-        page.drawText(`Period: ${format(dateRange.from, 'PPP')} to ${format(dateRange.to, 'PPP')}`, { x: margin, y, font, size: 10 });
-        y -= 25;
+    // --- HELPER: Fungsi menggambar Header Tabel ---
+    const drawTableHeader = (page: any, yPos: number) => {
+        const { width } = page.getSize();
+        let xPos = margin;
+        tableHeaders.forEach((header, i) => {
+            page.drawText(header, { x: xPos, y: yPos, font: boldFont, size: fontSize });
+            xPos += colWidths[i];
+        });
+        const lineY = yPos - 5;
+        page.drawLine({
+            start: { x: margin, y: lineY },
+            end: { x: width - margin, y: lineY },
+            thickness: 1,
+        });
+        return lineY - 15; // Posisi Y untuk data pertama
     };
 
-    drawHeader();
+    // --- HALAMAN 1: Judul & Info ---
+    let currentPage = pdfDoc.addPage();
+    const { height } = currentPage.getSize();
+    let y = height - margin;
 
-    const tableHeaders = ['Date', 'Product', 'Type', 'Open', 'Qty', 'Result', 'Ref'];
-    const colWidths = [70, 130, 55, 40, 40, 45, 150];
-    let x = margin;
+    // Gambar Judul Laporan (Hanya di halaman 1)
+    currentPage.drawText(`${storeName} - Laporan Mutasi Stok`, { x: margin, y, font: boldFont, size: 16 });
+    y -= 20;
+    currentPage.drawText(`Periode: ${format(dateRange.from, 'dd/MM/yy')} - ${format(dateRange.to, 'dd/MM/yy')}`, { x: margin, y, font, size: 10 });
+    y -= 35; // Jarak sebelum tabel
 
-    // Draw table header
-    tableHeaders.forEach((header, i) => {
-        page.drawText(header, { x, y, font: boldFont, size: fontSize });
-        x += colWidths[i];
-    });
-    y -= 5;
-    page.drawLine({ start: { x: margin, y }, end: { x: width - margin, y }, thickness: 1 });
-    y -= 15;
+    // Gambar Header Tabel Halaman 1
+    y = drawTableHeader(currentPage, y);
 
+    // --- LOOP DATA ---
     for (const m of movements) {
-        if (y < margin) {
-            page = pdfDoc.addPage();
-            y = height - margin;
-            drawHeader();
-            let x = margin;
-            tableHeaders.forEach((header, i) => {
-                page.drawText(header, { x, y, font: boldFont, size: fontSize });
-                x += colWidths[i];
-            });
-            y -= 5;
-            page.drawLine({ start: { x: margin, y }, end: { x: width - margin, y }, thickness: 1 });
-            y -= 15;
+        // Cek batas bawah halaman (threshold 50)
+        if (y < 50) {
+            currentPage = pdfDoc.addPage();
+            y = height - margin; // Reset Y ke paling atas di halaman baru
+            y = drawTableHeader(currentPage, y); // Gambar ulang header tabel di halaman baru
         }
 
         const row = [
             format(new Date(m.created_at), 'yy-MM-dd HH:mm'),
             m.product_name_snapshot,
-            m.productType,
+            m.productType === 'Product' ? 'Produk' : m.productType === 'Ingredient' ? 'Bahan' : 'Varian',
             m.openingStock.toString(),
-            m.qty_change.toString(),
+            (m.qty_change > 0 ? '+' : '') + m.qty_change.toString(),
             m.resultingStock.toString(),
-            m.referenceDisplay,
+            m.referenceDisplay.replace('Sale', 'Jual').replace('Restock', 'Pasok'),
         ];
 
-        x = margin;
+        let xPos = margin;
         row.forEach((cell, i) => {
-            const textWidth = font.widthOfTextAtSize(cell, 8);
-            const truncatedCell = textWidth > colWidths[i] - 5 ? cell.substring(0, Math.floor(cell.length * ((colWidths[i] - 5) / textWidth))) + '...' : cell;
-            page.drawText(truncatedCell, { x, y, font, size: 8 });
-            x += colWidths[i];
+            // Logika Truncate agar teks tidak menabrak kolom sebelah
+            const text = String(cell || '');
+            const textWidth = font.widthOfTextAtSize(text, bodyFontSize);
+            const maxWidth = colWidths[i] - 8;
+            
+            let displayHeader = text;
+            if (textWidth > maxWidth) {
+                // Truncate sederhana jika terlalu panjang
+                displayHeader = text.substring(0, Math.floor(text.length * (maxWidth / textWidth))) + '..';
+            }
+
+            currentPage.drawText(displayHeader, { x: xPos, y, font, size: bodyFontSize });
+            xPos += colWidths[i];
         });
-        y -= 12;
+
+        y -= 14; // Tinggi baris
     }
 
     const pdfBytes = await pdfDoc.save();
-
-    const blob = new Blob([pdfBytes], { type: 'application/pdf' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
     const range = format(dateRange.from, 'yyyy-MM-dd') + '_to_' + format(dateRange.to, 'yyyy-MM-dd');
-    link.download = `stock_movement_report_${storeName.replace(/\s+/g, '_')}_${range}.pdf`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    const filename = `mutasi_stok_${storeName.replace(/\s+/g, '_')}_${range}.pdf`;
+    await saveFileNative(pdfBytes, filename, [{ name: 'PDF', extensions: ['pdf'] }]);
 }
 
-export const exportConsumptionToExcel = (reportData: any[], dateRange: { from: Date, to: Date }, storeName: string) => {
+export const exportConsumptionToExcel = async (reportData: any[], dateRange: { from: Date, to: Date }, storeName: string) => {
     const dataForExport = reportData.map(item => ({
         'Ingredient': item.name,
         'Opening Stock': item.openingStock,
@@ -341,7 +385,12 @@ export const exportConsumptionToExcel = (reportData: any[], dateRange: { from: D
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Consumption Report');
 
     const range = format(dateRange.from, 'yyyy-MM-dd') + '_to_' + format(dateRange.to, 'yyyy-MM-dd');
-    XLSX.writeFile(workbook, `consumption_report_${storeName.replace(/\s+/g, '_')}_${range}.xlsx`);
+    // XLSX.writeFile(workbook, `consumption_report_${storeName.replace(/\s+/g, '_')}_${range}.xlsx`);
+    const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+    const uint8Array = new Uint8Array(excelBuffer);
+
+    const filename = `consumption_report_${storeName.replace(/\s+/g, '_')}_${range}.xlsx`;
+    await saveFileNative(uint8Array, filename, [{ name: 'Excel', extensions: ['xlsx'] }]);
 };
 
 export const exportConsumptionToPdf = async (reportData: any[], dateRange: { from: Date, to: Date }, storeName: string) => {
@@ -351,58 +400,51 @@ export const exportConsumptionToPdf = async (reportData: any[], dateRange: { fro
     const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
     const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
     const fontSize = 9;
+    const bodyFontSize = 8;
     const margin = 40;
-    let y = height - margin;
 
-    const drawHeader = () => {
-        page.drawText(`${storeName} - Ingredient Consumption Report`, { x: margin, y, font: boldFont, size: 16 });
-        y -= 20;
-        page.drawText(`Period: ${format(dateRange.from, 'PPP')} to ${format(dateRange.to, 'PPP')}`, { x: margin, y, font, size: 10 });
-        y -= 25;
+    const tableHeaders = ['Bahan', 'Awal', 'Keluar', 'Nilai Keluar', 'Adj', 'Akhir', 'Nilai Akhir'];
+    const colWidths = [120, 60, 60, 75, 50, 60, 75];
+
+    const drawTableHeader = (page: any, yPos: number) => {
+        let x = margin;
+        tableHeaders.forEach((header, i) => {
+            page.drawText(header, { x, y: yPos, font: boldFont, size: fontSize });
+            x += colWidths[i];
+        });
+        const lineY = yPos - 5;
+        page.drawLine({ start: { x: margin, y: lineY }, end: { x: width - margin, y: lineY }, thickness: 1 });
+        return lineY - 15;
     };
 
-    drawHeader();
+    let y = height - margin;
+    page.drawText(`${storeName} - Laporan Konsumsi Bahan`, { x: margin, y, font: boldFont, size: 16 });
+    y -= 20;
+    page.drawText(`Periode: ${format(dateRange.from, 'dd MMM yyyy')} - ${format(dateRange.to, 'dd MMM yyyy')}`, { x: margin, y, font, size: 10 });
+    y -= 30;
 
-    const tableHeaders = ['Ingredient', 'Opening', 'Consumed', 'Consumed Val', 'Adjusted', 'Closing', 'Closing Val'];
-    const colWidths = [120, 60, 60, 70, 60, 60, 70];
-    let x = margin;
-
-    tableHeaders.forEach((header, i) => {
-        page.drawText(header, { x, y, font: boldFont, size: fontSize });
-        x += colWidths[i];
-    });
-    y -= 5;
-    page.drawLine({ start: { x: margin, y }, end: { x: width - margin, y }, thickness: 1 });
-    y -= 15;
+    y = drawTableHeader(page, y);
 
     for (const item of reportData) {
-        if (y < margin) {
+        if (y < 50) {
             page = pdfDoc.addPage();
             y = height - margin;
-            drawHeader();
-            let x = margin;
-            tableHeaders.forEach((header, i) => {
-                page.drawText(header, { x, y, font: boldFont, size: fontSize });
-                x += colWidths[i];
-            });
-            y -= 5;
-            page.drawLine({ start: { x: margin, y }, end: { x: width - margin, y }, thickness: 1 });
-            y -= 15;
+            y = drawTableHeader(page, y);
         }
 
         const row = [
             item.name,
-            `${item.openingStock.toLocaleString()} ${item.unit_type}`,
-            `${item.consumed > 0 ? `-${item.consumed.toLocaleString()}` : 0}`,
+            `${item.openingStock.toLocaleString()}`,
+            `${item.consumed > 0 ? `-${item.consumed.toLocaleString()}` : '0'}`,
             formatCurrency(item.costOfConsumed),
             `${item.adjusted > 0 ? `+${item.adjusted.toLocaleString()}` : item.adjusted.toLocaleString()}`,
-            `${item.closingStock.toLocaleString()} ${item.unit_type}`,
+            `${item.closingStock.toLocaleString()}`,
             formatCurrency(item.closingStock * item.cost_per_unit),
         ];
 
-        x = margin;
+        let x = margin;
         row.forEach((cell, i) => {
-            page.drawText(cell, { x, y, font, size: 8 });
+            page.drawText(cell, { x, y, font, size: bodyFontSize });
             x += colWidths[i];
         });
         y -= 12;
@@ -410,14 +452,9 @@ export const exportConsumptionToPdf = async (reportData: any[], dateRange: { fro
 
     const pdfBytes = await pdfDoc.save();
 
-    const blob = new Blob([pdfBytes], { type: 'application/pdf' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
     const range = format(dateRange.from, 'yyyy-MM-dd') + '_to_' + format(dateRange.to, 'yyyy-MM-dd');
-    link.download = `consumption_report_${storeName.replace(/\s+/g, '_')}_${range}.pdf`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    const filename = `consumption_report_${storeName.replace(/\s+/g, '_')}_${range}.pdf`;
+    await saveFileNative(pdfBytes, filename, [{ name: 'PDF', extensions: ['pdf'] }]);
 };
 
 export const exportStockSummaryToPdf = async (reportData: any[], dateRange: { from: Date, to: Date }, storeName: string) => {
@@ -427,48 +464,41 @@ export const exportStockSummaryToPdf = async (reportData: any[], dateRange: { fr
     const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
     const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
     const fontSize = 9;
+    const bodyFontSize = 8;
     const margin = 40;
-    let y = height - margin;
 
-    const drawHeader = () => {
-        page.drawText(`${storeName} - Stock Summary Report`, { x: margin, y, font: boldFont, size: 16 });
-        y -= 20;
-        page.drawText(`Period: ${format(dateRange.from, 'PPP')} to ${format(dateRange.to, 'PPP')}`, { x: margin, y, font, size: 10 });
-        y -= 25;
+    const tableHeaders = ['Produk/Bahan', 'Tipe', 'Awal', 'Masuk', 'Keluar', 'Adj', 'Akhir'];
+    const colWidths = [180, 60, 55, 55, 55, 55, 55];
+
+    const drawTableHeader = (page: any, yPos: number) => {
+        let x = margin;
+        tableHeaders.forEach((header, i) => {
+            page.drawText(header, { x, y: yPos, font: boldFont, size: fontSize });
+            x += colWidths[i];
+        });
+        const lineY = yPos - 5;
+        page.drawLine({ start: { x: margin, y: lineY }, end: { x: width - margin, y: lineY }, thickness: 1 });
+        return lineY - 15;
     };
 
-    drawHeader();
+    let y = height - margin;
+    page.drawText(`${storeName} - Ringkasan Stok`, { x: margin, y, font: boldFont, size: 16 });
+    y -= 20;
+    page.drawText(`Periode: ${format(dateRange.from, 'dd MMM yyyy')} - ${format(dateRange.to, 'dd MMM yyyy')}`, { x: margin, y, font, size: 10 });
+    y -= 30;
 
-    const tableHeaders = ['Product/Ingredient', 'Type', 'Opening', 'Added', 'Sold', 'Adjusted', 'Closing'];
-    const colWidths = [180, 60, 50, 50, 50, 50, 50];
-    let x = margin;
-
-    tableHeaders.forEach((header, i) => {
-        page.drawText(header, { x, y, font: boldFont, size: fontSize });
-        x += colWidths[i];
-    });
-    y -= 5;
-    page.drawLine({ start: { x: margin, y }, end: { x: width - margin, y }, thickness: 1 });
-    y -= 15;
+    y = drawTableHeader(page, y);
 
     for (const item of reportData) {
-        if (y < margin) {
+        if (y < 50) {
             page = pdfDoc.addPage();
             y = height - margin;
-            drawHeader();
-            let x = margin;
-            tableHeaders.forEach((header, i) => {
-                page.drawText(header, { x, y, font: boldFont, size: fontSize });
-                x += colWidths[i];
-            });
-            y -= 5;
-            page.drawLine({ start: { x: margin, y }, end: { x: width - margin, y }, thickness: 1 });
-            y -= 15;
+            y = drawTableHeader(page, y);
         }
 
         const row = [
             item.name,
-            item.type.charAt(0).toUpperCase() + item.type.slice(1),
+            item.type === 'product' ? 'Produk' : 'Bahan',
             item.openingStock.toLocaleString(),
             item.added > 0 ? `+${item.added.toLocaleString()}` : '0',
             item.sold > 0 ? `-${item.sold.toLocaleString()}` : '0',
@@ -476,9 +506,9 @@ export const exportStockSummaryToPdf = async (reportData: any[], dateRange: { fr
             item.closingStock.toLocaleString(),
         ];
 
-        x = margin;
+        let x = margin;
         row.forEach((cell, i) => {
-            page.drawText(cell, { x, y, font, size: 8 });
+            page.drawText(cell, { x, y, font, size: bodyFontSize });
             x += colWidths[i];
         });
         y -= 12;
@@ -486,16 +516,12 @@ export const exportStockSummaryToPdf = async (reportData: any[], dateRange: { fr
 
     const pdfBytes = await pdfDoc.save();
 
-    const blob = new Blob([pdfBytes], { type: 'application/pdf' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
     const range = format(dateRange.from, 'yyyy-MM-dd') + '_to_' + format(dateRange.to, 'yyyy-MM-dd');
-    link.download = `stock_summary_report_${storeName.replace(/\s+/g, '_')}_${range}.pdf`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    const filename = `stocks_summary_report_${storeName.replace(/\s+/g, '_')}_${range}.pdf`;
+    await saveFileNative(pdfBytes, filename, [{ name: 'PDF', extensions: ['pdf'] }]);
 };
 
+// individual shift detail
 export const exportShiftDetailsToPdf = async (shift: any, transactions: Transaction[], storeName: string) => {
     const pdfDoc = await PDFDocument.create();
     const page = pdfDoc.addPage();
@@ -503,19 +529,28 @@ export const exportShiftDetailsToPdf = async (shift: any, transactions: Transact
     const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
     const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
     const fontSize = 10;
+    const bodyFontSize = 8;
     const margin = 50;
-    let y = height - margin;
 
-    // Title
-    page.drawText(`${storeName} - Shift Detail Report`, {
-        x: margin,
-        y,
-        font: boldFont,
-        size: 18,
-    });
+    const tableHeaders = ['Waktu', 'Invoice', 'Item', 'Total', 'Status'];
+    const colWidths = [80, 150, 50, 100, 80];
+
+    const drawTableHeader = (page: any, yPos: number) => {
+        let x = margin;
+        tableHeaders.forEach((header, i) => {
+            page.drawText(header, { x, y: yPos, font: boldFont, size: fontSize });
+            x += colWidths[i];
+        });
+        const lineY = yPos - 5;
+        page.drawLine({ start: { x: margin, y: lineY }, end: { x: width - margin, y: lineY }, thickness: 1 });
+        return lineY - 15;
+    };
+
+    let y = height - margin;
+    page.drawText(`${storeName} - Detail Sif`, { x: margin, y, font: boldFont, size: 18 });
     y -= 30;
 
-    // Shift Summary
+    // Info Sif
     const openedAt = typeof shift.opened_at === 'string' ? parseISO(shift.opened_at) : new Date(shift.opened_at);
     const closedAt = shift.closed_at ? (typeof shift.closed_at === 'string' ? parseISO(shift.closed_at) : new Date(shift.closed_at)) : null;
 
@@ -529,14 +564,14 @@ export const exportShiftDetailsToPdf = async (shift: any, transactions: Transact
     });
     y -= 25;
 
-    // Financial Summary
+    // Ringkasan Keuangan
     const totalSales = transactions.filter(t => t.status === 'paid').reduce((sum, t) => sum + t.total, 0);
     const totalVoid = transactions.filter(t => t.status === 'voided').reduce((sum, t) => sum + t.total, 0);
     const expectedCash = shift.opening_cash + totalSales;
 
     const summaryData = [
-        { label: 'Opening Cash:', value: formatCurrency(shift.opening_cash) },
-        { label: 'Total Sales:', value: formatCurrency(totalSales) },
+        { label: 'Modal Awal:', value: formatCurrency(shift.opening_cash) },
+        { label: 'Total Jual:', value: formatCurrency(totalSales) },
         { label: 'Total Void:', value: formatCurrency(totalVoid), color: rgb(0.8, 0, 0) },
         { label: 'Expected in Drawer:', value: formatCurrency(expectedCash) },
         { label: 'Declared at Close:', value: formatCurrency(shift.declared_cash || 0) },
@@ -551,29 +586,15 @@ export const exportShiftDetailsToPdf = async (shift: any, transactions: Transact
     });
     y -= 15;
 
+    y = drawTableHeader(page, y);
 
-    // Transactions Table Header
-    const tableHeaders = ['Time', 'Invoice #', 'Items', 'Total', 'Status'];
-    const colWidths = [100, 150, 50, 100, 80];
-    x = margin;
-    tableHeaders.forEach((header, i) => {
-        page.drawText(header, { x, y, font: boldFont, size: fontSize });
-        x += colWidths[i];
-    });
-    y -= 5;
-    page.drawLine({
-        start: { x: margin, y },
-        end: { x: width - margin, y },
-        thickness: 1,
-    });
-    y -= 15;
-
-    // Transactions Table Body
+    // Tabel Transaksi
+    let activePage = page;
     for (const tx of transactions) {
-        if (y < margin) {
-            // For simplicity, we'll assume it fits on one page. 
-            // A real implementation would add a new page here.
-            break;
+        if (y < 50) {
+            activePage = pdfDoc.addPage();
+            y = height - margin;
+            y = drawTableHeader(activePage, y);
         }
 
         // Handle cases where created_at might be a UUID string or invalid date string
@@ -588,12 +609,12 @@ export const exportShiftDetailsToPdf = async (shift: any, transactions: Transact
             tx.invoice_number,
             tx.items.reduce((sum, item) => sum + item.qty, 0).toString(),
             formatCurrency(tx.total),
-            tx.status
+            tx.status === 'paid' ? 'Lunas' : 'Void'
         ];
 
-        x = margin;
+        let x = margin;
         row.forEach((cell, i) => {
-            page.drawText(cell, { x, y, font, size: 8, color: tx.status === 'voided' ? rgb(0.5, 0.5, 0.5) : rgb(0, 0, 0) });
+            activePage.drawText(cell, { x, y, font, size: bodyFontSize, color: tx.status === 'voided' ? rgb(0.5, 0.5, 0.5) : rgb(0, 0, 0) });
             x += colWidths[i];
         });
         y -= 12;
@@ -601,98 +622,439 @@ export const exportShiftDetailsToPdf = async (shift: any, transactions: Transact
 
     const pdfBytes = await pdfDoc.save();
 
-    // Trigger download
-    const blob = new Blob([pdfBytes], { type: 'application/pdf' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `shift_report_${storeName.replace(/\s+/g, '_')}_${shift.id.substring(0, 8)}.pdf`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    const filename = `shift_report_${storeName.replace(/\s+/g, '_')}_${shift.id.substring(0, 8)}.pdf`;
+    await saveFileNative(pdfBytes, filename, [{ name: 'PDF', extensions: ['pdf'] }]);
 };
 
-// export const exportBarcodeStickersToPdf = async (products: Product[]) => {
-//     // --- PDF Configuration ---
-//     const page = PageSizes.Letter; // [612, 792] points
-//     const pageMargin = 36; // 0.5 inch
-//     const stickerWidth = 192; // 2.66 inches
-//     const stickerHeight = 72; // 1 inch
-//     const gapX = 12;
-//     const gapY = 0;
-//     const cols = 3;
-//     const rows = 10;
-//     // -------------------------
+export const exportShiftsToExcel = async (shifts: Shift[], dateRange: { from: Date, to: Date }, storeName: string) => {
+    const dataForExport = shifts.map(s => ({
+        'Date': s.closed_at ? format(new Date(s.closed_at), 'yyyy-MM-dd') : '-',
+        'Time Range': (s.opened_at && s.closed_at) 
+            ? `${format(new Date(s.opened_at), 'HH:mm')} - ${format(new Date(s.closed_at), 'HH:mm')}`
+            : '-',
+        'Opening Cash': s.opening_cash,
+        'Expected Cash': s.system_cash || 0,
+        'Declared Cash': s.declared_cash || 0,
+        'Variance': s.variance || 0,
+    }));
 
-//     const pdfDoc = await PDFDocument.create();
-//     const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
-//     const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
-//     const monoFont = await pdfDoc.embedFont(StandardFonts.Courier);
+    // Add summary row
+    const totalOpening = shifts.reduce((sum, s) => sum + s.opening_cash, 0);
+    const totalExpected = shifts.reduce((sum, s) => sum + (s.system_cash || 0), 0);
+    const totalDeclared = shifts.reduce((sum, s) => sum + (s.declared_cash || 0), 0);
+    const totalVariance = shifts.reduce((sum, s) => sum + (s.variance || 0), 0);
 
-//     let productIndex = 0;
+    const summary = {
+        'Date': 'TOTAL',
+        'Time Range': '',
+        'Opening Cash': totalOpening,
+        'Expected Cash': totalExpected,
+        'Declared Cash': totalDeclared,
+        'Variance': totalVariance,
+    };
 
-//     while (productIndex < products.length) {
-//         const currentPage = pdfDoc.addPage(page);
+    const worksheet = XLSX.utils.json_to_sheet(dataForExport);
+    XLSX.utils.sheet_add_json(worksheet, [summary], { origin: -1, skipHeader: true });
 
-//         for (let r = 0; r < rows; r++) {
-//             for (let c = 0; c < cols; c++) {
-//                 if (productIndex >= products.length) break;
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Shift Report');
 
-//                 const product = products[productIndex];
-//                 if (!product.barcode) {
-//                     productIndex++;
-//                     c--; // Retry this cell with the next product
-//                     continue;
-//                 }
+    const range = format(dateRange.from, 'yyyy-MM-dd') + '_to_' + format(dateRange.to, 'yyyy-MM-dd');
+    const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+    const uint8Array = new Uint8Array(excelBuffer);
 
-//                 const x = pageMargin + c * (stickerWidth + gapX);
-//                 const y = page[1] - pageMargin - stickerHeight - r * (stickerHeight + gapY);
+    const filename = `shift_history_${storeName.replace(/\s+/g, '_')}_${range}.xlsx`;
+    await saveFileNative(uint8Array, filename, [{ name: 'Excel', extensions: ['xlsx'] }]);
+};
 
-//                 // --- Draw Sticker Content ---
-//                 // Name (truncated)
-//                 let productName = product.name;
-//                 if (productName.length > 25) {
-//                     productName = productName.substring(0, 22) + '...';
-//                 }
-//                 currentPage.drawText(productName, {
-//                     x: x + 5,
-//                     y: y + stickerHeight - 20,
-//                     font: boldFont,
-//                     size: 10,
-//                 });
+export const exportShiftsToPdf = async (shifts: Shift[], dateRange: { from: Date, to: Date }, storeName: string) => {
+    const pdfDoc = await PDFDocument.create();
+    let page = pdfDoc.addPage();
+    const { height } = page.getSize();
+    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+    const fontSize = 9;
+    const bodyFontSize = 8;
+    const margin = 40;
 
-//                 // Price
-//                 currentPage.drawText(formatCurrency(product.price), {
-//                     x: x + 5,
-//                     y: y + stickerHeight - 38,
-//                     font,
-//                     size: 9,
-//                 });
+    const tableHeaders = ['Tanggal', 'Jam', 'Modal', 'Ekspetasi', 'Deklarasi', 'Selisih'];
+    const colWidths = [75, 85, 85, 85, 85, 85];
 
-//                 // Barcode String
-//                 currentPage.drawText(`*${product.barcode}*`, {
-//                     x: x + 5,
-//                     y: y + stickerHeight - 60,
-//                     font: monoFont, // Use monospaced for barcode-like appearance
-//                     size: 11,
-//                 });
+    const drawTableHeader = (page: any, yPos: number) => {
+        const { width } = page.getSize();
+        let xPos = margin;
+        tableHeaders.forEach((header, i) => {
+            page.drawText(header, { x: xPos, y: yPos, font: boldFont, size: fontSize });
+            xPos += colWidths[i];
+        });
+        const lineY = yPos - 5;
+        page.drawLine({
+            start: { x: margin, y: lineY },
+            end: { x: width - margin, y: lineY },
+            thickness: 1,
+        });
+        return lineY - 15;
+    };
 
-//                 productIndex++;
-//             }
-//             if (productIndex >= products.length) break;
-//         }
-//     }
+    let currentPage = pdfDoc.addPage();
+    let y = height - margin;
 
-//     const pdfBytes = await pdfDoc.save();
-//     const blob = new Blob([pdfBytes], { type: 'application/pdf' });
-//     const url = URL.createObjectURL(blob);
-//     const link = document.createElement('a');
-//     link.href = url;
-//     link.download = 'barcode_labels.pdf';
-//     document.body.appendChild(link);
-//     link.click();
-//     document.body.removeChild(link);
-//     URL.revokeObjectURL(url);
-// };
+    currentPage.drawText(`${storeName} - Laporan Riwayat Sif`, { x: margin, y, font: boldFont, size: 16 });
+    y -= 20;
+    currentPage.drawText(`Periode: ${format(dateRange.from, 'dd MMM yyyy')} - ${format(dateRange.to, 'dd MMM yyyy')}`, { x: margin, y, font, size: 10 });
+    y -= 35;
+
+    y = drawTableHeader(currentPage, y);
+
+    for (const s of shifts) {
+        if (y < 50) {
+            currentPage = pdfDoc.addPage();
+            y = height - margin;
+            y = drawTableHeader(currentPage, y);
+        }
+
+        const row = [
+            s.closed_at ? format(new Date(s.closed_at), 'dd/MM/yy') : '-',
+            (s.opened_at && s.closed_at) ? `${format(new Date(s.opened_at), 'HH:mm')}-${format(new Date(s.closed_at), 'HH:mm')}` : 'Aktif',
+            formatCurrency(s.opening_cash),
+            formatCurrency(s.system_cash || 0),
+            formatCurrency(s.declared_cash || 0),
+            formatCurrency(s.variance || 0)
+        ];
+
+        let xPos = margin;
+        row.forEach((cell, i) => {
+            currentPage.drawText(cell, { 
+                x: xPos, 
+                y, 
+                font, 
+                size: bodyFontSize,
+                color: i === 5 && (s.variance || 0) !== 0 ? rgb(0.8, 0, 0) : rgb(0, 0, 0)
+            });
+            xPos += colWidths[i];
+        });
+        y -= 14;
+    }
+
+    const pdfBytes = await pdfDoc.save();
+    const range = format(dateRange.from, 'yyyy-MM-dd') + '_to_' + format(dateRange.to, 'yyyy-MM-dd');
+    const filename = `shift_history_${storeName.replace(/\s+/g, '_')}_${range}.pdf`;
+    await saveFileNative(pdfBytes, filename, [{ name: 'PDF', extensions: ['pdf'] }]);
+};
+
+export const exportVoidToExcel = async (transactions: Transaction[], dateRange: { from: Date, to: Date }, storeName: string) => {
+    const dataForExport = transactions.map(tx => ({
+        'Void Date': tx.voided_at ? format(new Date(tx.voided_at), 'yyyy-MM-dd HH:mm') : '-',
+        'Invoice #': tx.invoice_number,
+        'Reason': tx.void_reason || 'No reason provided',
+        'Amount': tx.total,
+    }));
+
+    // Add summary row
+    const totalVoidedAmount = transactions.reduce((sum, tx) => sum + tx.total, 0);
+
+    const summary = {
+        'Void Date': 'TOTAL VOIDED',
+        'Invoice #': '',
+        'Reason': `${transactions.length} Transactions`,
+        'Amount': totalVoidedAmount,
+    };
+
+    const worksheet = XLSX.utils.json_to_sheet(dataForExport);
+    XLSX.utils.sheet_add_json(worksheet, [summary], { origin: -1, skipHeader: true });
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Void Report');
+
+    const range = format(dateRange.from, 'yyyy-MM-dd') + '_to_' + format(dateRange.to, 'yyyy-MM-dd');
+    const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+    const uint8Array = new Uint8Array(excelBuffer);
+
+    const filename = `void_report_${storeName.replace(/\s+/g, '_')}_${range}.xlsx`;
+    await saveFileNative(uint8Array, filename, [{ name: 'Excel', extensions: ['xlsx'] }]);
+};
+
+export const exportVoidToPdf = async (transactions: Transaction[], dateRange: { from: Date, to: Date }, storeName: string) => {
+    const pdfDoc = await PDFDocument.create();
+    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+    
+    const fontSize = 9;
+    const margin = 40;
+    const tableHeaders = ['Waktu', 'No. Faktur', 'Alasan Void', 'Total'];
+    const colWidths = [90, 100, 225, 100];
+
+    const drawTableHeader = (page: any, yPos: number) => {
+        const { width } = page.getSize();
+        let xPos = margin;
+        tableHeaders.forEach((h, i) => {
+            page.drawText(h, { x: xPos, y: yPos, font: boldFont, size: fontSize });
+            xPos += colWidths[i];
+        });
+        const lineY = yPos - 5;
+        page.drawLine({ start: { x: margin, y: lineY }, end: { x: width - margin, y: lineY }, thickness: 1 });
+        return lineY - 15;
+    };
+
+    let currentPage = pdfDoc.addPage();
+    const { height } = currentPage.getSize();
+    let y = height - margin;
+
+    // Header Laporan
+    currentPage.drawText(`${storeName} - LAPORAN VOID`, { x: margin, y, font: boldFont, size: 16 });
+    y -= 20;
+    currentPage.drawText(`Periode: ${format(dateRange.from, 'dd/MM/yyyy')} - ${format(dateRange.to, 'dd/MM/yyyy')}`, { x: margin, y, font, size: 10 });
+    y -= 35;
+
+    y = drawTableHeader(currentPage, y);
+
+    for (const tx of transactions) {
+        if (y < 50) {
+            currentPage = pdfDoc.addPage();
+            y = height - margin;
+            y = drawTableHeader(currentPage, y);
+        }
+
+        const row = [
+            tx.voided_at ? format(new Date(tx.voided_at), 'dd/MM/yy HH:mm') : '-',
+            tx.invoice_number,
+            tx.void_reason || '-',
+            formatCurrency(tx.total)
+        ];
+
+        let xPos = margin;
+        row.forEach((cell, i) => {
+            const text = cell.length > 45 ? cell.substring(0, 42) + "..." : cell;
+            currentPage.drawText(text, { x: xPos, y, font, size: 8 });
+            xPos += colWidths[i];
+        });
+        y -= 15;
+    }
+
+    const pdfBytes = await pdfDoc.save();
+    const range = format(dateRange.from, 'yyyyMMdd') + '_' + format(dateRange.to, 'yyyyMMdd');
+    await saveFileNative(pdfBytes, `laporan_void_${range}.pdf`, [{ name: 'PDF', extensions: ['pdf'] }]);
+};
+
+export const exportAuditReportToExcel = async (auditData: any[], dateRange: { from: Date, to: Date }, _storeName: string) => {
+    const dataForExport = auditData.map(row => ({
+        'Date': format(new Date(row.date), 'yyyy-MM-dd'),
+        'Shift ID': row.shiftId,
+        'Revenue': row.revenue,
+        'Paper Profit': row.paperProfit,
+        'Cash Variance': row.variance,
+        'Net Realized Profit': row.actualProfit,
+        'TX Count': row.txCount
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(dataForExport);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Audit Report');
+
+    const range = format(dateRange.from!, 'yyyy-MM-dd') + '_to_' + format(dateRange.to!, 'yyyy-MM-dd');
+    const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+    const uint8Array = new Uint8Array(excelBuffer);
+
+    await saveFileNative(uint8Array, `audit_report_${range}.xlsx`, [{ name: 'Excel', extensions: ['xlsx'] }]);
+};
+
+export const exportAuditReportToPdf = async (auditData: any[], dateRange: { from: Date, to: Date }, storeName: string) => {
+    const pdfDoc = await PDFDocument.create();
+    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+    
+    const margin = 50;
+    const tableHeaders = ['Tanggal', 'Omzet', 'Margin', 'Selisih', 'Laba Bersih'];
+    const colWidths = [90, 105, 105, 105, 100];
+
+    const drawTableHeader = (page: any, yPos: number) => {
+        let xPos = margin;
+        tableHeaders.forEach((h, i) => {
+            page.drawText(h, { x: xPos, y: yPos, font: boldFont, size: 10 });
+            xPos += colWidths[i];
+        });
+        return yPos - 20;
+    };
+
+    let currentPage = pdfDoc.addPage();
+    const { height } = currentPage.getSize();
+    let y = height - margin;
+
+    currentPage.drawText(`${storeName} - AUDIT BISNIS`, { x: margin, y, font: boldFont, size: 18 });
+    y -= 30;
+    currentPage.drawText(`Periode: ${format(dateRange.from, 'dd MMM yyyy')} - ${format(dateRange.to, 'dd MMM yyyy')}`, { x: margin, y, font, size: 10 });
+    y -= 40;
+
+    y = drawTableHeader(currentPage, y);
+
+    auditData.forEach(row => {
+        if (y < 60) {
+            currentPage = pdfDoc.addPage();
+            y = height - margin;
+            y = drawTableHeader(currentPage, y);
+        }
+
+        const cells = [
+            format(new Date(row.date), 'dd/MM/yyyy'),
+            formatCurrency(row.revenue),
+            formatCurrency(row.paperProfit),
+            formatCurrency(row.variance),
+            formatCurrency(row.actualProfit)
+        ];
+
+        let xPos = margin;
+        cells.forEach((c, i) => {
+            currentPage.drawText(c, { x: xPos, y, font, size: 9 });
+            xPos += colWidths[i];
+        });
+        y -= 18;
+    });
+
+    const pdfBytes = await pdfDoc.save();
+    const range = format(dateRange.from, 'yyyyMMdd');
+    await saveFileNative(pdfBytes, `audit_bisnis_${range}.pdf`, [{ name: 'PDF', extensions: ['pdf'] }]);
+};
+
+
+// Add to lib/export.ts
+
+export const exportTaxAuditToExcel = async (taxGroups: any[], transactions: Transaction[], dateRange: { from: Date, to: Date }, _storeName: string) => {
+    // Sheet 1: Summary by Rate
+    const summaryData = taxGroups.map(g => ({
+        'Tax Rate': `${(g.rate * 100).toFixed(1)}%`,
+        'Taxable Amount (DPP)': g.taxableAmount,
+        'Tax Collected': g.taxAmount,
+        'Gross Total': g.taxableAmount + g.taxAmount
+    }));
+
+    // Sheet 2: Transaction Details
+    const detailedData = transactions.map(tx => ({
+        'Date': format(new Date(tx.created_at), 'yyyy-MM-dd HH:mm'),
+        'Invoice': tx.invoice_number,
+        'Status': tx.status.toUpperCase(),
+        'Net Sales': tx.subtotal,
+        'Tax': tx.tax_amount,
+        'Total': tx.total
+    }));
+
+    const wb = XLSX.utils.book_new();
+    const ws1 = XLSX.utils.json_to_sheet(summaryData);
+    const ws2 = XLSX.utils.json_to_sheet(detailedData);
+    
+    XLSX.utils.book_append_sheet(wb, ws1, "Tax Summary");
+    XLSX.utils.book_append_sheet(wb, ws2, "Invoice Details");
+
+    const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+    const range = format(dateRange.from, 'yyyyMMdd') + '-' + format(dateRange.to, 'yyyyMMdd');
+    await saveFileNative(new Uint8Array(excelBuffer), `tax_audit_${range}.xlsx`, [{ name: 'Excel', extensions: ['xlsx'] }]);
+};
+
+export const exportTaxSummaryToPdf = async (dailyStats: any[], dateRange: { from: Date, to: Date }, storeName: string) => {
+    const pdfDoc = await PDFDocument.create();
+    const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    
+    const margin = 50;
+    const tableHeaders = ['Tanggal', 'DPP (Dasar Pajak)', 'Terpungut', 'Void/Batal', 'Pajak Bersih'];
+    const colWidths = [90, 110, 100, 100, 100];
+
+    const drawTableHeader = (page: any, yPos: number) => {
+        const { width } = page.getSize();
+        let xPos = margin;
+        tableHeaders.forEach((h, i) => {
+            page.drawText(h, { x: xPos, y: yPos, font: boldFont, size: 9 });
+            xPos += colWidths[i];
+        });
+        const lineY = yPos - 5;
+        page.drawLine({ start: { x: margin, y: lineY }, end: { x: width - margin, y: lineY }, thickness: 1 });
+        return lineY - 15;
+    };
+
+    let currentPage = pdfDoc.addPage(PageSizes.A4);
+    const { width, height } = currentPage.getSize();
+    let y = height - margin;
+
+    // --- 1. HEADER & RINGKASAN (HANYA HALAMAN 1) ---
+    currentPage.drawText(storeName.toUpperCase(), { x: margin, y, font: boldFont, size: 16 });
+    y -= 20;
+    currentPage.drawText(`RINGKASAN AUDIT PAJAK`, { x: margin, y, font: boldFont, size: 12, color: rgb(0.3, 0.3, 0.3) });
+    y -= 15;
+    currentPage.drawText(`Periode: ${format(dateRange.from, 'dd MMM yyyy')} - ${format(dateRange.to, 'dd MMM yyyy')}`, { x: margin, y, font, size: 10 });
+    y -= 30;
+
+    const totalDPP = dailyStats.reduce((s, i) => s + i.taxableBase, 0);
+    const totalCollected = dailyStats.reduce((s, i) => s + i.taxCollected, 0);
+    const totalVoided = dailyStats.reduce((s, i) => s + i.taxVoided, 0);
+    const totalNet = dailyStats.reduce((s, i) => s + i.netTaxOwed, 0);
+
+    const boxHeight = 85; // Tinggi kotak ditingkatkan agar lebih lega
+    const boxY = y - boxHeight; // Koordinat bawah kotak
+
+    // Menggambar Kotak Abu-abu
+    currentPage.drawRectangle({
+        x: margin,
+        y: boxY,
+        width: width - (margin * 2),
+        height: boxHeight,
+        color: rgb(0.96, 0.96, 0.96),
+    });
+
+    // Mulai menggambar teks di dalam kotak dengan padding atas 15 unit
+    let kpiY = (boxY + boxHeight) - 18; 
+    const labelX = margin + 15;
+    const valueX = margin + 180;
+
+    currentPage.drawText(`Total DPP (Dasar Pajak):`, { x: labelX, y: kpiY, font, size: 9 });
+    currentPage.drawText(formatCurrency(totalDPP), { x: valueX, y: kpiY, font: boldFont, size: 9 });
+    
+    kpiY -= 15;
+    currentPage.drawText(`Total Pajak Terpungut:`, { x: labelX, y: kpiY, font, size: 9 });
+    currentPage.drawText(formatCurrency(totalCollected), { x: valueX, y: kpiY, font: boldFont, size: 9 });
+
+    kpiY -= 15;
+    currentPage.drawText(`Total Pajak Void:`, { x: labelX, y: kpiY, font, size: 9, color: rgb(0.7, 0, 0) });
+    currentPage.drawText(`(${formatCurrency(totalVoided)})`, { x: valueX, y: kpiY, font: boldFont, size: 9, color: rgb(0.7, 0, 0) });
+
+    kpiY -= 18; // Beri jarak sedikit lebih lebar untuk baris total bersih
+    currentPage.drawText(`KEWAJIBAN PAJAK BERSIH:`, { x: labelX, y: kpiY, font: boldFont, size: 10 });
+    currentPage.drawText(formatCurrency(totalNet), { x: valueX, y: kpiY, font: boldFont, size: 10, color: rgb(0, 0.4, 0.7) });
+
+    // Update 'y' ke posisi di bawah kotak untuk memulai tabel (beri jarak 40 unit)
+    y = boxY - 35;
+
+    // --- 2. TABEL DATA ---
+    for (const item of dailyStats) {
+        if (y < 60) {
+            currentPage = pdfDoc.addPage(PageSizes.A4);
+            y = height - margin;
+            currentPage.drawText(`${storeName} - Ringkasan Pajak (Lanj.)`, { x: margin, y, font: boldFont, size: 10 });
+            y -= 25;
+            y = drawTableHeader(currentPage, y);
+        }
+
+        const row = [
+            format(new Date(item.date), 'dd/MM/yyyy'),
+            formatCurrency(item.taxableBase),
+            formatCurrency(item.taxCollected),
+            item.taxVoided > 0 ? `(${formatCurrency(item.taxVoided)})` : 'Rp 0',
+            formatCurrency(item.netTaxOwed)
+        ];
+
+        let xPos = margin;
+        row.forEach((text, i) => {
+            currentPage.drawText(text, { 
+                x: xPos, y, font, size: 8,
+                color: i === 3 && item.taxVoided > 0 ? rgb(0.7, 0, 0) : rgb(0,0,0)
+            });
+            xPos += colWidths[i];
+        });
+        y -= 15;
+    }
+
+    const pdfBytes = await pdfDoc.save();
+    const rangeStr = format(dateRange.from, 'yyyyMMdd') + '-' + format(dateRange.to, 'yyyyMMdd');
+    await saveFileNative(pdfBytes, `ringkasan_pajak_${rangeStr}.pdf`, [{ name: 'PDF', extensions: ['pdf'] }]);
+};
 
 const mmToPt = (mm: number) => mm * 2.83465
 
@@ -846,20 +1208,7 @@ export const exportBarcodeStickersToPdf = async (
 
     const pdfBytes = await pdfDoc.save()
 
-    const blob = new Blob([pdfBytes], { type: "application/pdf" })
+    const filename = `barcode_labels.pdf`;
+    await saveFileNative(pdfBytes, filename, [{ name: 'PDF', extensions: ['pdf'] }]);
 
-    const url = URL.createObjectURL(blob)
-
-    const link = document.createElement("a")
-
-    link.href = url
-    link.download = "barcode_labels.pdf"
-
-    document.body.appendChild(link)
-
-    link.click()
-
-    document.body.removeChild(link)
-
-    URL.revokeObjectURL(url)
 }

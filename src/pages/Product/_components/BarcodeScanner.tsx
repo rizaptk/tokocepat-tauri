@@ -15,7 +15,7 @@ export const BarcodeScanner = ({ onScanSuccess }: { onScanSuccess: (text: string
                 <video ref={ref} className="w-full h-full object-cover" />
                 <div className="absolute inset-0 border-4 border-primary/50 rounded-lg pointer-events-none" />
             </div>
-            <p className="text-sm text-muted-foreground">Point the camera at a barcode</p>
+            <p className="text-sm text-muted-foreground">Arahkan kamera ke barcode</p>
         </div>
     );
 };

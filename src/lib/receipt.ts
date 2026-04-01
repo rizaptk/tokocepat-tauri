@@ -3,54 +3,102 @@ import ReceiptPrinterEncoder from '@point-of-sale/receipt-printer-encoder';
 import { Transaction, StoreConfig } from './types';
 
 const formatCurrency = (amount: number) => {
-    // Simple formatter for receipt, no currency symbol
     return new Intl.NumberFormat('id-ID').format(amount);
+};
+
+
+// Replicate the logic from transactionService
+const getTaxRateForItem = (item: any, storeConfig: StoreConfig): number => {
+    const { tax_settings, tax_rate } = storeConfig;
+    if (!tax_settings) return tax_rate;
+
+    // Check category override (using snapshot data)
+    if (item.product_snapshot.category_id) {
+        const categoryOverride = tax_settings.category_overrides.find(
+            co => co.category_id === item.product_snapshot.category_id
+        );
+        if (categoryOverride) return categoryOverride.tax_rate;
+    }
+
+    // Check product type override (using snapshot data)
+    if (item.product_snapshot.product_type === 'food_and_beverage' && 
+        tax_settings.product_type_overrides.food_and_beverage !== undefined) {
+        return tax_settings.product_type_overrides.food_and_beverage;
+    }
+
+    return tax_settings.default_rate;
 };
 
 export function generateReceiptBinary(transaction: Transaction, storeConfig: StoreConfig): Uint8Array {
     
-    // Set width (32 characters is standard for 58mm printers)
-    // width: 42, // for 80mm
+    // 58mm printers are typically 32 characters wide. 
+    // 80mm printers are typically 42-48 characters wide.
     const receiptWidth = 32;
 
-    // Initialize the new encoder
     const encoder = new ReceiptPrinterEncoder({
-        feedBeforeCut: 4,
-        columns: receiptWidth
+        feedBeforeCut: 2,
+        columns: receiptWidth,
+        language: 'esc-pos' // Explicitly set language
     });
     
-    // Helper for two column layout
+    // Improved Helper for two column layout
     const twoCols = (left: string, right: string) => {
-        const space = receiptWidth - left.length - right.length;
-        return left + ' '.repeat(Math.max(1, space)) + right;
+        const leftStr = String(left);
+        const rightStr = String(right);
+        const spaceNeeded = receiptWidth - leftStr.length - rightStr.length;
+        
+        if (spaceNeeded > 0) {
+            return leftStr + ' '.repeat(spaceNeeded) + rightStr;
+        } else {
+            // If text is too long, put right column on a new line right-aligned
+            return leftStr + '\n' + ' '.repeat(receiptWidth - rightStr.length) + rightStr;
+        }
     };
+
+    const taxGroups = new Map<number, { taxableAmount: number; taxAmount: number }>();
+
+    transaction.items.forEach((item) => {
+        const rate = getTaxRateForItem(item, storeConfig);
+        const current = taxGroups.get(rate) || { taxableAmount: 0, taxAmount: 0 };
+        
+        const itemTaxable = item.subtotal;
+        const itemTax = itemTaxable * rate;
+
+        taxGroups.set(rate, {
+            taxableAmount: current.taxableAmount + itemTaxable,
+            taxAmount: current.taxAmount + itemTax,
+        });
+    });
 
     encoder.initialize();
 
-    // --- Header ---
-    encoder
-        .align('center')
-        .bold(true)
-        .line(storeConfig.store_name.toUpperCase())
-        .bold(false);
+    // 1. OPEN CASH DRAWER (Kick Pin 2 and Pin 5)
+    // This sends the ESC p command. It will only work if a drawer is 
+    // physically connected to the printer's RJ11 port.
+    encoder.pulse(); 
 
-    // Only print address if it exists and is not empty
+    // --- Header ---
+    encoder.align('center'); // Set alignment ONCE for the block
+    
+    encoder.bold(true).line(storeConfig.store_name.toUpperCase()).bold(false);
+
     if (storeConfig.address && storeConfig.address.trim()) {
+        // We must remain in 'center' alignment
         encoder.line(storeConfig.address);
     }
     
     encoder.newline();
 
     // --- Transaction Info ---
+    encoder.align('left'); // Reset to left for body
     encoder
-        .align('left')
         .line(`Inv: ${transaction.invoice_number}`)
         .line(`Date: ${new Date(transaction.created_at).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' })}`)
-        .rule({ char: '-' }); // Automatically draws ----------------
+        .rule({ char: '-' }); 
 
     // --- Items ---
     transaction.items.forEach(item => {
-        // Product Name
+        // Product Name (Bold for clarity)
         encoder.line(item.product_snapshot.name);
         
         // Modifiers
@@ -60,24 +108,35 @@ export function generateReceiptBinary(transaction: Transaction, storeConfig: Sto
             });
         }
 
-        // Price details: "1 x 10.000          10.000"
-        const priceDetail = `  ${item.qty} x ${formatCurrency(item.price_snapshot)}`;
-        const subtotal = formatCurrency(item.subtotal);
-        encoder.line(twoCols(priceDetail, subtotal));
+        // Price details
+        // Format: "1 x 10.000             10.000"
+        const qtyAndPrice = `${item.qty} x ${formatCurrency(item.price_snapshot)}`;
+        const totalItemPrice = formatCurrency(item.subtotal);
+        
+        encoder.line(twoCols(qtyAndPrice, totalItemPrice));
     });
 
     encoder.rule({ char: '-' });
 
     // --- Totals ---
-    encoder
-        .line(twoCols('Subtotal', formatCurrency(transaction.subtotal)))
-        .line(twoCols(`Tax (${Math.round((storeConfig.tax_rate || 0.11) * 100)}%)`, formatCurrency(transaction.tax_amount)))
-        .rule({ char: '=' })
+    encoder.line(twoCols('Subtotal', formatCurrency(transaction.subtotal)))
+
+
+        // .line(twoCols(`Tax (${Math.round((storeConfig.tax_rate || 0.11) * 100)}%)`, formatCurrency(transaction.tax_amount)))
+    // Print each tax rate found
+    taxGroups.forEach((data, rate) => {
+        if (rate === 0) return; // Skip 0% items
+        const label = `Pajak (${Math.round(rate * 100)}%)`;
+        encoder.line(twoCols(label, formatCurrency(data.taxAmount)));
+    });
+    
+        
+    encoder.rule({ char: '=' })
         .bold(true)
         .line(twoCols('TOTAL', formatCurrency(transaction.total)))
         .bold(false)
-        .line(twoCols('CASH', formatCurrency(transaction.cash_paid)))
-        .line(twoCols('CHANGE', formatCurrency(transaction.change)))
+        .line(twoCols('TUNAI', formatCurrency(transaction.cash_paid)))
+        .line(twoCols('KEMBALI', formatCurrency(transaction.change)))
         .newline();
 
     // --- Footer ---
@@ -86,14 +145,13 @@ export function generateReceiptBinary(transaction: Transaction, storeConfig: Sto
     if (storeConfig.receipt_footer && storeConfig.receipt_footer.trim()) {
         encoder.line(storeConfig.receipt_footer);
     } else {
-        encoder.line('Thank You!');
+        encoder.line('TERIMA KASIH');
     }
     
     encoder
         .newline()
         .newline()
-        .cut(); // Native cut command
+        .cut(); 
 
-    // Returns a Uint8Array ready for WebUSBPrinter.print()
     return encoder.encode();
 }

@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react"
-import { detectPrinter } from "@/services/printerDetect"
 import { usePrinterStore } from "@/lib/print-detect-store"
 import { usePrintStore } from "@/lib/print-store";
 import { generateReceiptBinary } from "@/lib/receipt";
@@ -8,74 +7,60 @@ import { invoke } from "@tauri-apps/api/core";
 import { toast } from "@/hooks/use-toast";
 
 export default function PrinterDetector() {
-
-    const { savePrinter, savedPrinter, setAvailablePrinters } = usePrinterStore();
+    const { savedPrinter, savedBaudRate, isOnline, setOnline, isEnabled } = usePrinterStore();
     const { printQueue, getAndRemoveFirstFromQueue } = usePrintStore();
-    const [isPrinting, setIsPrinting] = useState(false);
     const { storeConfig } = useStore();
+    const [isProcessing, setIsProcessing] = useState(false);
 
     useEffect(() => {
+        // Jika printer dimatikan, bersihkan antrean (opsional) atau biarkan menunggu
+        if (!isEnabled) return;
 
-        async function autoSetup() {
-            const found = await detectPrinter()
-
-            if (found && found.length > 0) {
-                setAvailablePrinters(found);
-                savePrinter(found[0].address);
-                console.log("Printer detected:", found)
-            }
-        }
-
-        autoSetup()
-
-    }, [savePrinter])
-
-    useEffect(() => {
         const processQueue = async () => {
-            if (isPrinting || printQueue.length === 0) {
+            if (isProcessing || printQueue.length === 0) return;
+
+            // Jika status Offline, langsung beri peringatan dan buang antrean
+            if (!isOnline || !savedPrinter) {
+                const tx = getAndRemoveFirstFromQueue();
+                if (tx) {
+                    toast({
+                        variant: 'destructive',
+                        title: 'Printer Offline',
+                        description: `Gagal cetak ${tx.invoice_number}. Pastikan printer menyala.`
+                    });
+                }
                 return;
             }
 
-            setIsPrinting(true);
-            const transactionToPrint = getAndRemoveFirstFromQueue();
-
-            if (!transactionToPrint || !savedPrinter || !storeConfig) {
-                setIsPrinting(false);
+            setIsProcessing(true);
+            const tx = getAndRemoveFirstFromQueue();
+            if (!tx || !storeConfig) {
+                setIsProcessing(false);
                 return;
             }
 
             try {
-                const binaryData = generateReceiptBinary(transactionToPrint, storeConfig);
+                const binaryData = generateReceiptBinary(tx, storeConfig);
                 await invoke("print_receipt", {
-                    port: savePrinter, 
-                    data: Array.from(binaryData) 
+                    address: savedPrinter,
+                    data: Array.from(binaryData),
+                    baudRate: savedBaudRate || 9600,
                 });
             } catch (error) {
-                console.error("Error generating receipt binary:", error);
+                console.error("Print Error:", error);
+                setOnline(false); // Hardware error = Offline
                 toast({
                     variant: 'destructive',
-                    title: 'Print Failed',
-                    description: (error as Error).message || "Could not connect to the printer.",
+                    title: 'Cetak Gagal',
+                    description: "Terjadi gangguan pada hardware printer.",
                 });
             } finally {
-                setIsPrinting(false);
+                setIsProcessing(false);
             }
         };
 
-        if (savedPrinter) {
-            processQueue();
-        } else {
-            if (printQueue.length > 0) {
-                const transactionToPrint = getAndRemoveFirstFromQueue();
-                toast({
-                    variant: 'default',
-                    title: 'No active printer',
-                    description: `${transactionToPrint?.invoice_number} in queue. Please connect and select a printer in settings`
-                });
-            }
-        }
-    }, [savedPrinter, printQueue])
+        processQueue();
+    }, [printQueue, isOnline, isEnabled, isProcessing]);
 
-    return null
-
+    return null;
 }

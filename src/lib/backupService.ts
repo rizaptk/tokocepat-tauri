@@ -149,7 +149,7 @@ export async function promptAndSetBackupFile(): Promise<FileSystemFileHandle | n
     }
 }
 
-export async function performBackup(firesqlite: any, isFinal: boolean = false): Promise<boolean> {
+export async function performBackup(firesqlite: any, _: boolean = false): Promise<boolean> {
     
     const handle = await getBackupFileHandle(true);
     if (!handle || !firesqlite) {

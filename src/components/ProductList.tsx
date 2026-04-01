@@ -251,8 +251,8 @@ export function ProductList({ products, viewMode, isLoading, onItemClick, select
     return (
       <div className="flex items-center justify-center h-full text-center">
         <div>
-          <h2 className="text-xl font-semibold">No Products Found</h2>
-          <p className="text-muted-foreground">Try adjusting your search term.</p>
+          <h2 className="text-xl font-semibold">Produk Tidak Ditemukan</h2>
+          <p className="text-muted-foreground">Coba gunakan kata kunci pencarian lain.</p>
         </div>
       </div>
     );
@@ -263,21 +263,21 @@ export function ProductList({ products, viewMode, isLoading, onItemClick, select
       {
         viewMode === 'list' &&
         <div className='px-4'>
-          <div className='flex w-full items-center h-[54px] border bg-card rounded-t-lg px-4'>
+          <div className='flex w-full items-center h-13.5 border bg-card rounded-t-lg px-4'>
             <div className={columnClass.name}>
-              <span className="font-medium shrink text-base">Name</span>
+              <span className="font-medium shrink text-base">Nama</span>
             </div>
             <div className={columnClass.category}>
-              <span className="text-base font-medium">Category</span>
+              <span className="text-base font-medium">Kategori</span>
             </div>
             {
               context !== 'cashier' &&
               <div className={columnClass.stock}>
-                <span className="text-base font-medium">Stock</span>
+                <span className="text-base font-medium">Stok</span>
               </div>
             }
             <div className={columnClass.price}>
-              <span className="text-base font-medium">Price</span>
+              <span className="text-base font-medium">Harga</span>
             </div>
           </div>
         </div>

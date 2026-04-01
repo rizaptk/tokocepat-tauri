@@ -245,6 +245,16 @@
   button:not([disabled]), [role="button"]:not([disabled]) {
     cursor: pointer;
   }
+  
+  .badgeSuccess {
+    @apply border-blue-300 bg-blue-50 text-blue-800 dark:bg-blue-900/40 dark:text-blue-200 dark:border-blue-700;
+  }
+  .badgeWarning {
+    @apply border-purple-300 bg-purple-50 text-purple-800 dark:bg-purple-900/40 dark:text-purple-200 dark:border-purple-700;
+  }
+  .badgeInfo {
+    @apply border-green-300 bg-green-50 text-green-800 dark:bg-green-900/40 dark:text-green-200 dark:border-green-700;
+  }
 
   /* input[type="text"],
   input[type="email"],
@@ -259,4 +269,15 @@
     scrollbar-gutter: stable;
   } */
 
+}
+
+@keyframes ripple {
+  0% {
+    transform: scale(0);
+    opacity: 0.6;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 0;
+  }
 }

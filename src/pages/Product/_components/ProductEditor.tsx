@@ -21,10 +21,10 @@ export const ProductEditor = ({ selectedProductId, onProductUpdate, onClose, act
             <div className="px-4 py-4 grid grid-cols-1">
                 <div className="grid grid-cols-1 w-full overflow-x-auto no-scrollbar shrink-0">
                     <TabsList className="grid w-full grid-cols-4 min-w-122">
-                        <TabsTrigger value="product"><Package className="w-4 h-4 mr-2 text-primary" />Product</TabsTrigger>
-                        <TabsTrigger value="categories"><Library className="w-4 h-4 mr-2 text-destructive" />Categories</TabsTrigger>
-                        <TabsTrigger value="modifiers"><SlidersHorizontal className="w-4 h-4 mr-2 text-purple-500" />Modifiers</TabsTrigger>
-                        <TabsTrigger value="ingredients"><Beaker className="w-4 h-4 mr-2 text-green-600" />Ingredients</TabsTrigger>
+                        <TabsTrigger value="product"><Package className="w-4 h-4 mr-2 text-primary" />Produk</TabsTrigger>
+                        <TabsTrigger value="categories"><Library className="w-4 h-4 mr-2 text-destructive" />Kategori</TabsTrigger>
+                        <TabsTrigger value="modifiers"><SlidersHorizontal className="w-4 h-4 mr-2 text-purple-500" />Modifier</TabsTrigger>
+                        <TabsTrigger value="ingredients"><Beaker className="w-4 h-4 mr-2 text-green-600" />Bahan</TabsTrigger>
                     </TabsList>
                 </div>
             </div>

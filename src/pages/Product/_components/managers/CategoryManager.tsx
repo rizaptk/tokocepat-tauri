@@ -35,10 +35,10 @@ const CategoryManagerComponent = () => {
         try {
             if (categoryToEdit) {
                 await updateCategory(categoryToEdit.id, categoryName);
-                toast({ title: "Category updated" });
+                toast({ title: "Kategori diperbarui" });
             } else {
                 await addCategory(categoryName);
-                toast({ title: "Category added" });
+                toast({ title: "Kategori ditambahkan" });
             }
             setIsDialogOpen(false);
         } catch (error: any) {
@@ -50,20 +50,20 @@ const CategoryManagerComponent = () => {
         try {
             const result = await deleteCategory(id);
             if (!result.success) {
-                toast({ variant: "destructive", title: "Deletion Failed", description: result.message });
+                toast({ variant: "destructive", title: "Gagal Menghapus", description: result.message });
             } else {
-                toast({ title: "Category deleted" });
+                toast({ title: "Kategori dihapus" });
             }
         } catch (error: any) {
-            toast({ variant: "destructive", title: "Error", description: error.message || "Could not delete category." });
+            toast({ variant: "destructive", title: "Error", description: error.message || "Gagal menghapus kategori." });
         }
     };
 
     return (
         <div className="h-full flex flex-col min-h-0">
             <div className="flex justify-between items-center my-4 px-4">
-                <h3 className="font-semibold">Manage Categories</h3>
-                <Button size="sm" onClick={() => openDialog(null)}><PlusCircle className="mr-2 h-4 w-4" /> Add</Button>
+                <h3 className="font-semibold">Kelola Kategori</h3>
+                <Button size="sm" onClick={() => openDialog(null)}><PlusCircle className="mr-2 h-4 w-4" /> Tambah</Button>
             </div>
             <div className='flex-1 min-h-0 flex flex-col overflow-hidden relative px-4'>
                 <ScrollShadow scrollRef={scrollRef} side="top" />
@@ -88,12 +88,12 @@ const CategoryManagerComponent = () => {
                                                 </AlertDialogTrigger>
                                                 <AlertDialogContent>
                                                     <AlertDialogHeader>
-                                                        <AlertDialogTitle>Delete "{cat.name}"?</AlertDialogTitle>
-                                                        <AlertDialogDescription>This will soft-delete the category. It cannot be used for new products.</AlertDialogDescription>
+                                                        <AlertDialogTitle>Hapus "{cat.name}"?</AlertDialogTitle>
+                                                        <AlertDialogDescription>Kategori akan dinonaktifkan dan tidak bisa digunakan untuk produk baru.</AlertDialogDescription>
                                                     </AlertDialogHeader>
                                                     <AlertDialogFooter>
-                                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                        <AlertDialogAction onClick={() => handleDelete(cat.id)}>Confirm Delete</AlertDialogAction>
+                                                        <AlertDialogCancel>Batal</AlertDialogCancel>
+                                                        <AlertDialogAction onClick={() => handleDelete(cat.id)}>Hapus</AlertDialogAction>
                                                     </AlertDialogFooter>
                                                 </AlertDialogContent>
                                             </AlertDialog>
@@ -107,9 +107,9 @@ const CategoryManagerComponent = () => {
             </div>
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <DialogContent>
-                    <DialogHeader><DialogTitle>{categoryToEdit ? 'Edit' : 'Add'} Category</DialogTitle></DialogHeader>
-                    <div className="py-4"><Label htmlFor="cat-name">Category Name</Label><Input id="cat-name" value={categoryName} onChange={(e) => setCategoryName(e.target.value)} autoFocus /></div>
-                    <DialogFooter><Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button><Button onClick={handleSave}>Save</Button></DialogFooter>
+                    <DialogHeader><DialogTitle>{categoryToEdit ? 'Ubah' : 'Tambah'} Kategori</DialogTitle></DialogHeader>
+                    <div className="py-4"><Label htmlFor="cat-name">Nama Kategori</Label><Input id="cat-name" value={categoryName} onChange={(e) => setCategoryName(e.target.value)} autoFocus /></div>
+                    <DialogFooter><Button variant="outline" onClick={() => setIsDialogOpen(false)}>Batal</Button><Button onClick={handleSave}>Simpan</Button></DialogFooter>
                 </DialogContent>
             </Dialog>
         </div>

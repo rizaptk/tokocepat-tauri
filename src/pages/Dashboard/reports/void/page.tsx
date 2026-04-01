@@ -1,5 +1,3 @@
-'use client';
-
 import { Link } from 'react-router-dom';
 import { useStore } from '@/lib/store';
 import { format, startOfDay, endOfDay } from 'date-fns';
@@ -17,6 +15,7 @@ import { useToast } from '@/hooks/use-toast';
 import { TransactionDetailDialog } from '@/components/TransactionDetailDialog';
 import { NotificationBell } from '@/components/NotificationBell';
 import { ThemeToggle } from '@/components/ThemeButtons';
+import { exportVoidToExcel, exportVoidToPdf } from '@/lib/export';
 
 const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('id-ID', {
@@ -27,7 +26,7 @@ const formatCurrency = (amount: number) => {
 };
 
 export default function VoidReportPage() {
-    const { transactions } = useStore();
+    const { transactions, storeConfig } = useStore();
     const { toast } = useToast();
     const [date, setDate] = React.useState<DateRange | undefined>({
       from: startOfDay(new Date()),
@@ -44,12 +43,20 @@ export default function VoidReportPage() {
         });
     }, [transactions, date]);
     
-    const handleExcelExport = () => {
-        toast({ title: 'Coming Soon', description: 'Excel export for voided transactions is not yet available.' });
+    const handleExcelExport = async () => {
+        if (storeConfig && date?.from && date?.to) {
+            await exportVoidToExcel(voidedTransactions, { from: date.from, to: date.to }, storeConfig.store_name);
+        } else {
+            toast({ variant: 'destructive', title: 'Export Failed', description: 'Store config or date range missing.' });
+        }
     };
 
-    const handlePdfExport = () => {
-        toast({ title: 'Coming Soon', description: 'PDF export for voided transactions is not yet available.' });
+    const handlePdfExport = async () => {
+        if (storeConfig && date?.from && date?.to) {
+            await exportVoidToPdf(voidedTransactions, { from: date.from, to: date.to }, storeConfig.store_name);
+        } else {
+            toast({ variant: 'destructive', title: 'Export Failed', description: 'Store config or date range missing.' });
+        }
     };
 
     return (
@@ -59,20 +66,20 @@ export default function VoidReportPage() {
                     <Button variant="outline" size="icon" className="shrink-0" asChild>
                         <Link to="/dashboard/reports">
                             <ArrowLeft className="h-4 w-4" />
-                            <span className="sr-only">Back to Reports</span>
+                            <span className="sr-only">Kembali ke Laporan</span>
                         </Link>
                     </Button>
                     <div className="flex-1">
                         <h1 className="text-lg font-semibold flex items-center gap-2">
-                            <ArchiveX className="h-5 w-5" /> Void Report
+                            <ArchiveX className="h-5 w-5" /> Laporan Void
                         </h1>
                     </div>
                     <div className="flex items-center gap-2">
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                               <Button variant="outline" size="sm" disabled={voidedTransactions.length === 0}>
-                                <FileDown className="mr-2 h-4 w-4" />
-                                <span>Export</span>
+                                <FileDown className="mr-2 h-4 w-2" />
+                                <span>Ekspor</span>
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
@@ -93,10 +100,10 @@ export default function VoidReportPage() {
                     <CardHeader>
                         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                             <div>
-                                <CardTitle>Voided Transactions</CardTitle>
+                                <CardTitle>Transaksi Batal (Void)</CardTitle>
                                 {date?.from && date?.to && (
                                     <CardDescription>
-                                        A log of all transactions that have been voided from {format(date.from, 'PPP')} to {format(date.to, 'PPP')}.
+                                        Daftar transaksi yang dibatalkan dari {format(date.from, 'dd MMM yyyy')} s/d {format(date.to, 'dd MMM yyyy')}.
                                     </CardDescription>
                                 )}
                             </div>
@@ -107,9 +114,9 @@ export default function VoidReportPage() {
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead>Date</TableHead>
+                                    <TableHead>Waktu</TableHead>
                                     <TableHead>Invoice</TableHead>
-                                    <TableHead>Reason</TableHead>
+                                    <TableHead>Alasan</TableHead>
                                     <TableHead className="text-right">Total</TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -122,14 +129,14 @@ export default function VoidReportPage() {
                                                 <div className="text-sm text-muted-foreground">{tx.voided_at ? format(new Date(tx.voided_at), 'p') : '-'}</div>
                                             </TableCell>
                                             <TableCell className="font-mono text-xs">{tx.invoice_number}</TableCell>
-                                            <TableCell className="text-sm text-muted-foreground italic">{tx.void_reason || 'No reason provided.'}</TableCell>
+                                            <TableCell className="text-sm text-muted-foreground italic">{tx.void_reason || 'Tanpa alasan.'}</TableCell>
                                             <TableCell className="text-right font-medium">{formatCurrency(tx.total)}</TableCell>
                                         </TableRow>
                                     ))
                                 ) : (
                                     <TableRow>
                                         <TableCell colSpan={4} className="h-24 text-center">
-                                            No voided transactions found in this period.
+                                            Tidak ada transaksi void pada periode ini.
                                         </TableCell>
                                     </TableRow>
                                 )}

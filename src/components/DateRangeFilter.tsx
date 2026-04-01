@@ -26,14 +26,16 @@ export type DateRangePreset = 'today' | 'last7' | 'last30' | 'lastMonth' | 'cust
 interface DateRangeFilterProps extends React.HTMLAttributes<HTMLDivElement> {
     date: DateRange | undefined;
     setDate: (date: DateRange | undefined) => void;
+    preset?: DateRangePreset;
 }
 
 export function DateRangeFilter({
   className,
   date,
   setDate,
+  preset: p = 'today',
 }: DateRangeFilterProps) {
-    const [preset, setPreset] = React.useState<DateRangePreset>('last30');
+    const [preset, setPreset] = React.useState<DateRangePreset>(p);
 
     const handlePresetChange = (value: string) => {
         const newPreset = value as DateRangePreset;
@@ -70,15 +72,15 @@ export function DateRangeFilter({
   return (
     <div className={cn("grid gap-2 sm:flex sm:items-center", className)}>
         <Select value={preset} onValueChange={handlePresetChange}>
-            <SelectTrigger className="w-full sm:w-[180px]">
-                <SelectValue placeholder="Select period" />
+            <SelectTrigger className="w-full sm:w-45">
+                <SelectValue placeholder="Pilih periode" />
             </SelectTrigger>
             <SelectContent>
-                <SelectItem value="today">Today</SelectItem>
-                <SelectItem value="last7">Last 7 Days</SelectItem>
-                <SelectItem value="last30">Last 30 Days</SelectItem>
-                <SelectItem value="lastMonth">Last Month</SelectItem>
-                <SelectItem value="custom" disabled>Custom Range</SelectItem>
+                <SelectItem value="today">Hari Ini</SelectItem>
+                <SelectItem value="last7">7 Hari Terakhir</SelectItem>
+                <SelectItem value="last30">30 Hari Terakhir</SelectItem>
+                <SelectItem value="lastMonth">Bulan Lalu</SelectItem>
+                <SelectItem value="custom" disabled>Rentang Kustom</SelectItem>
             </SelectContent>
         </Select>
       <Popover>
@@ -95,14 +97,14 @@ export function DateRangeFilter({
             {date?.from ? (
               date.to ? (
                 <>
-                  {format(date.from, "LLL dd, y")} -{" "}
-                  {format(date.to, "LLL dd, y")}
+                  {format(date.from, "dd MMM yyyy")} -{" "}
+                  {format(date.to, "dd MMM yyyy")}
                 </>
               ) : (
-                format(date.from, "LLL dd, y")
+                format(date.from, "dd MMM yyyy")
               )
             ) : (
-              <span>Pick a date</span>
+              <span>Pilih tanggal</span>
             )}
           </Button>
         </PopoverTrigger>

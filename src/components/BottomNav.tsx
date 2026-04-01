@@ -30,7 +30,6 @@ export function BottomNav() {
 
   const isActive = (href: string) => {
     if (!isClient) return false;
-    // تخصيص المنطق النشط هنا إذا لزم الأمر
     return href === '/dashboard' || href === '/cashier' || href === '/dashboard/settings' ? location.pathname === href : location.pathname.startsWith(href);
   };
   
@@ -48,7 +47,7 @@ export function BottomNav() {
         {navItems.map((item) => (
           <Link
             key={item.href}
-            href={item.href}
+            to={item.href}
             className={cn(
               'flex flex-col items-center justify-center gap-1 rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-primary',
               isActive(item.href) && 'text-primary'
@@ -63,7 +62,7 @@ export function BottomNav() {
           <PopoverTrigger asChild>
             <button className="flex flex-col items-center justify-center gap-1 rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-primary">
               <MoreHorizontal className="h-5 w-5" />
-              <span className="text-[10px] font-medium">More</span>
+              <span className="text-[10px] font-medium">Lagi</span>
             </button>
           </PopoverTrigger>
           <PopoverContent className="w-56 p-2 mb-3" sideOffset={15}>
@@ -71,7 +70,7 @@ export function BottomNav() {
               {moreNavItems.map((item) => (
                 <Link
                   key={item.href}
-                  href={item.href}
+                  to={item.href}
                   className={cn(
                     "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-primary",
                     isActive(item.href) && 'bg-accent text-primary'

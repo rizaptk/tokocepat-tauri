@@ -7,6 +7,18 @@
   ],
   "permissions": [
     "core:default",
-    "store:default"
+    "dialog:default",
+    "store:default",
+    "fs:allow-exists",
+    {
+      "identifier": "fs:allow-write-file",
+      "allow": [{ "path": "**" }]
+    },
+    {
+      "identifier": "fs:allow-read-file",
+      "allow": [{ "path": "**" }]
+    },
+    "dialog:allow-save",
+    "dialog:allow-open"
   ]
 }

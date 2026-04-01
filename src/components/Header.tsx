@@ -108,14 +108,14 @@ export function Header() {
                     </div>
                     {declaredCash > 0 && (
                         <div className="flex justify-between items-center font-semibold text-base">
-                            <span>Variance</span>
+                            <span>Selisih</span>
                             <span className={`font-medium ${declaredCash - expectedCash !== 0 ? 'text-destructive' : 'text-green-600'}`}>{formatCurrency(declaredCash - expectedCash)}</span>
                         </div>
                     )}
                 </div>
                 <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={handleCloseShift} disabled={declaredCash <= 0}>Confirm & Close Shift</AlertDialogAction>
+                <AlertDialogCancel>Batal</AlertDialogCancel>
+                <AlertDialogAction onClick={handleCloseShift} disabled={declaredCash <= 0}>Konfirmasi & Tutup Sif</AlertDialogAction>
                 </AlertDialogFooter>
             </AlertDialogContent>
             </AlertDialog>

@@ -1,5 +1,3 @@
-
-    
 import { useStore } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { ScrollArea, ScrollAreaHandle } from "@/components/ui/scroll-area";
@@ -101,8 +99,8 @@ export function CartDisplay({ onEditItem }: CartDisplayProps) {
     if (!activeShift) {
       toast({
         variant: "destructive",
-        title: "Shift Not Open",
-        description: "Please open a shift before processing a payment.",
+        title: "Sif Belum Dibuka",
+        description: "Silakan buka sif sebelum memproses pembayaran.",
       });
       return;
     }
@@ -146,17 +144,17 @@ export function CartDisplay({ onEditItem }: CartDisplayProps) {
   
   const handleVoid = async (): Promise<boolean> => {
     if (!reviewingTransaction || !voidReason.trim()) {
-        toast({ variant: 'destructive', title: 'Reason required', description: 'Please provide a reason for voiding.' });
+        toast({ variant: 'destructive', title: 'Alasan wajib diisi', description: 'Mohon berikan alasan pembatalan.' });
         return false;
     }
     try {
         await voidTransaction(reviewingTransaction.id, voidReason);
-        toast({ title: 'Transaction Voided', description: `Invoice ${reviewingTransaction.invoice_number} has been voided.` });
+        toast({ title: 'Transaksi Dibatalkan', description: `Invoice ${reviewingTransaction.invoice_number} berhasil di-void.` });
         handleCancelReview(); // This now clears local state
         setView('history');
         return true;
     } catch (error: any) {
-        toast({ variant: 'destructive', title: 'Void Failed', description: error.message || 'An unknown error occurred.' });
+        toast({ variant: 'destructive', title: 'Gagal Void', description: error.message || 'Terjadi kesalahan.' });
         return false;
     }
   };
@@ -185,12 +183,12 @@ export function CartDisplay({ onEditItem }: CartDisplayProps) {
       <header className="hidden md:flex h-16 items-center justify-between px-6 shrink-0 gap-2">
         <Button variant={view === 'cart' ? 'secondary' : 'ghost'} onClick={() => setView('cart')} className="flex-1">
             <ShoppingCart className="mr-2 h-4 w-4" />
-            Cart
+            Keranjang
             {cartItemCount > 0 && !isReviewing && <Badge className="ml-2">{cartItemCount}</Badge>}
         </Button>
         <Button variant={view === 'history' ? 'secondary' : 'ghost'} onClick={() => setView('history')} className="flex-1">
             <ReceiptText className="mr-2 h-4 w-4" />
-            History
+            Riwayat
             {shiftTransactions.length > 0 && <Badge variant="success" className="ml-2">{shiftTransactions.length}</Badge>}
         </Button>
       </header>
@@ -199,8 +197,8 @@ export function CartDisplay({ onEditItem }: CartDisplayProps) {
         <div className="py-6 px-6 flex-1 flex">
           <div className="flex flex-1 flex-col items-center justify-center gap-4 p-6 text-center bg-card border rounded-lg">
             <ShoppingCart className="h-16 w-16 text-muted-foreground" />
-            <h3 className="text-xl font-semibold">Your cart is empty</h3>
-            <p className="text-muted-foreground">Tap on products to add them to the cart.</p>
+            <h3 className="text-xl font-semibold">Keranjang Kosong</h3>
+            <p className="text-muted-foreground">Pilih produk untuk menambahkannya ke keranjang.</p>
           </div>
         </div>
       ) : view === 'cart' ? (
@@ -235,7 +233,7 @@ export function CartDisplay({ onEditItem }: CartDisplayProps) {
                         <span>{formatCurrency(subtotal)}</span>
                     </div>
                     <div className="flex justify-between">
-                        <span>Tax</span>
+                        <span>Pajak</span>
                         <span>{formatCurrency(tax)}</span>
                     </div>
                     <Separator className="my-2"/>
@@ -251,36 +249,36 @@ export function CartDisplay({ onEditItem }: CartDisplayProps) {
                                 <AlertDialog>
                                     <AlertDialogTrigger asChild>
                                         <Button variant="destructive" size="lg" className="flex-1">
-                                            <Trash2 className="mr-2"/> Void Transaction
+                                            <Trash2 className="mr-2"/> Void Transaksi
                                         </Button>
                                     </AlertDialogTrigger>
                                     <AlertDialogContent>
                                         <AlertDialogHeader>
                                             <AlertDialogTitle>Void Invoice {reviewingTransaction?.invoice_number}?</AlertDialogTitle>
-                                            <AlertDialogDescription>This will reverse the sale, return items to stock, and cannot be undone.</AlertDialogDescription>
+                                            <AlertDialogDescription>Tindakan ini akan membatalkan penjualan dan mengembalikan stok. Tidak dapat dibatalkan.</AlertDialogDescription>
                                         </AlertDialogHeader>
                                         <div className="py-4">
-                                            <Label htmlFor="void-reason">Reason for Voiding</Label>
-                                            <Input id="void-reason" value={voidReason} onChange={(e) => setVoidReason(e.target.value)} placeholder="e.g. Customer canceled" className="mt-2" />
+                                            <Label htmlFor="void-reason">Alasan Void</Label>
+                                            <Input id="void-reason" value={voidReason} onChange={(e) => setVoidReason(e.target.value)} placeholder="Cth: Pelanggan batal" className="mt-2" />
                                         </div>
                                         <AlertDialogFooter>
-                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                            <AlertDialogAction onClick={handleVoid}>Confirm Void</AlertDialogAction>
+                                            <AlertDialogCancel>Batal</AlertDialogCancel>
+                                            <AlertDialogAction onClick={handleVoid}>Konfirmasi Void</AlertDialogAction>
                                         </AlertDialogFooter>
                                     </AlertDialogContent>
                                 </AlertDialog>
                             )}
                             <Button variant="outline" size="lg" className="flex-1" onClick={handleCancelReview}>
-                                <X className="mr-2"/> Close
+                                <X className="mr-2"/> Tutup
                             </Button>
                         </>
                     ) : (
                         <>
                             <Button variant="outline" size="lg" className="flex-1" onClick={parkCart} disabled={cart.length === 0}>
-                                <ParkingSquare /> Park
+                                <ParkingSquare /> Parkir
                             </Button>
                             <Button className="flex-1" size="lg" onClick={handleProcessPayment} disabled={!activeShift || cart.length === 0}>
-                                Process Payment
+                                Bayar
                             </Button>
                         </>
                     )}

@@ -113,28 +113,26 @@ export function TaxSettingsForm() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Tax Management</CardTitle>
+        <CardTitle>Kelola Pajak</CardTitle>
         <CardDescription>
-          Set default and override tax rates. Rates should be decimals
-          (e.g., 0.11 for 11%).
+          Atur tarif pajak standar dan khusus. Gunakan desimal (cth: 0.11 untuk 11%).
         </CardDescription>
       </CardHeader>
 
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)}>
           <CardContent className="space-y-8">
-
             <FormField
               control={form.control}
               name="default_rate"
               rules={{
-                required: "Default tax rate is required",
+                required: "Tarif standar wajib diisi",
                 min: 0,
-                max: 1
+                max: 1,
               }}
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Default Tax Rate</FormLabel>
+                  <FormLabel>Tarif Pajak Standar</FormLabel>
 
                   <FormControl>
                     <div className="relative">
@@ -153,7 +151,7 @@ export function TaxSettingsForm() {
                   </FormControl>
 
                   <FormDescription>
-                    Applied to all items unless overridden.
+                    Berlaku untuk semua produk kecuali ada pengaturan khusus.
                   </FormDescription>
 
                   <FormMessage />
@@ -164,14 +162,14 @@ export function TaxSettingsForm() {
             <Separator />
 
             <div>
-              <h4 className="font-semibold mb-4">Overrides</h4>
+              <h4 className="font-semibold mb-4">Tarif Khusus Tipe</h4>
 
               <FormField
                 control={form.control}
                 name="product_type_overrides.food_and_beverage"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Food & Beverage Rate</FormLabel>
+                    <FormLabel>Tarif F&B (Makanan/Minuman)</FormLabel>
 
                     <FormControl>
                       <div className="relative">
@@ -194,7 +192,7 @@ export function TaxSettingsForm() {
                     </FormControl>
 
                     <FormDescription>
-                      Overrides default rate for all F&B products.
+                      Mengganti tarif standar khusus untuk produk tipe F&B.
                     </FormDescription>
 
                     <FormMessage />
@@ -204,7 +202,7 @@ export function TaxSettingsForm() {
             </div>
 
             <div>
-              <h4 className="font-semibold mb-4">Category Overrides</h4>
+              <h4 className="font-semibold mb-4">Tarif Khusus Kategori</h4>
 
               <div className="space-y-4">
                 {fields.map((item, index) => (
@@ -215,10 +213,10 @@ export function TaxSettingsForm() {
                     <FormField
                       control={form.control}
                       name={`category_overrides.${index}.category_id`}
-                      rules={{ required: "Category required" }}
+                      rules={{ required: "Kategori wajib diisi" }}
                       render={({ field }) => (
-                        <FormItem className="flex-1">
-                          <FormLabel>Category</FormLabel>
+                        <FormItem className="flex-1 h-[72px]">
+                          <FormLabel>Kategori</FormLabel>
 
                           <Select
                             onValueChange={field.onChange}
@@ -226,7 +224,7 @@ export function TaxSettingsForm() {
                           >
                             <FormControl>
                               <SelectTrigger>
-                                <SelectValue placeholder="Select a category" />
+                                <SelectValue placeholder="Pilih kategori" />
                               </SelectTrigger>
                             </FormControl>
 
@@ -251,13 +249,13 @@ export function TaxSettingsForm() {
                       control={form.control}
                       name={`category_overrides.${index}.tax_rate`}
                       rules={{
-                        required: "Rate required",
+                        required: "Tarif wajib",
                         min: 0,
-                        max: 1
+                        max: 1,
                       }}
                       render={({ field }) => (
-                        <FormItem className="w-32">
-                          <FormLabel>Rate</FormLabel>
+                        <FormItem className="w-32 h-[72px]">
+                          <FormLabel>Tarif</FormLabel>
 
                           <FormControl>
                             <Input
@@ -276,16 +274,17 @@ export function TaxSettingsForm() {
                         </FormItem>
                       )}
                     />
-
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="text-destructive"
-                      onClick={() => remove(index)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    <div className=' h-[72px] flex items-end py-2'>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="text-destructive"
+                        onClick={() => remove(index)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                 ))}
 
@@ -301,7 +300,7 @@ export function TaxSettingsForm() {
                   }
                 >
                   <PlusCircle className="mr-2 h-4 w-4" />
-                  Add Category Override
+                  Tambah Tarif Kategori
                 </Button>
               </div>
             </div>
@@ -310,16 +309,15 @@ export function TaxSettingsForm() {
               {isPending ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Saving...
+                  Menyimpan...
                 </>
               ) : (
                 <>
                   <Save className="mr-2 h-4 w-4" />
-                  Save Tax Settings
+                  Simpan Pengaturan
                 </>
               )}
             </Button>
-
           </CardContent>
         </form>
       </Form>

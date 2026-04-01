@@ -1,33 +1,32 @@
-import { Product, ProductVariant, ModifierGroup, StoreConfig, Category, RawIngredient, Recipe, Shift, Transaction, StockMovement } from '@/lib/types';
+import { Recipe } from '@/lib/types';
 import { initialProducts, initialVariants, initialModifierGroups, initialCategories, initialRawIngredients } from '@/lib/products';
-import { appStorage } from './tauristorage';
 
 const DB_VERSION_KEY = 'tokoc_db_version';
-const CURRENT_DB_VERSION = '1.0.18'; // New version for simulation
+const CURRENT_DB_VERSION = '1.0.21'; // New version for simulation
 
-async function ensureIndexes(firesqlite: any, db: any) {
-    const { createIndex, collection } = firesqlite;
+async function ensureIndexes(firesqlite: any, _db: any) {
+    const { createIndex, createCompositeIndex } = firesqlite;
     
     console.log("Ensuring database indexes...");
     try {
         await Promise.all([
             // For transaction history ordering and filtering
-            createIndex(db, collection(db, 'transactions'), 'created_at'),
+            createIndex('transactions', 'created_at'),
             
             // For stock movement report filtering
-            createIndex(db, collection(db, 'stock_movements'), 'created_at'),
+            createIndex('stock_movements', 'created_at'),
 
             // For stock movement report by product ids filtering (getStockMovementsByProducts)
-            createIndex(db, collection(db, 'stock_movements'), 'product_id', 'desc', 'created_at', 'desc'),
+            createCompositeIndex('stock_movements', [{field: 'product_id', desc: true}, {field: 'created_at', desc: true}]),
 
             // For product category filtering
-            createIndex(db, collection(db, 'products'), 'category_id'),
+            createIndex('products', 'category_id'),
             
             // For product search by name
-            createIndex(db, collection(db, 'products'), 'name'),
+            createIndex('products', 'name'),
 
             // For variants lookup by product
-            createIndex(db, collection(db, 'product_variants'), 'product_id'),
+            createIndex('product_variants', 'product_id'),
 
         ]);
         console.log("Database indexes are up to date.");
@@ -36,172 +35,199 @@ async function ensureIndexes(firesqlite: any, db: any) {
     }
 }
 
+// Helper functions (add these if not already at the top of your file)
+const getRandomInt = (min: number, max: number) => Math.floor(Math.random() * (max - min + 1)) + min;
+const pickRandom = <T>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
+
+// Protection against React Strict Mode double-execution
+let isSeedingInProgress = false;
 
 export const seedDatabase = async (firesqlite: any, db: any, force = false) => {
-    if (!firesqlite || !db) return;
-    
+    if (!firesqlite || !db || isSeedingInProgress) return;
     
     try {
         const { collection, doc, getDocs, setDoc, writeBatch } = firesqlite;
+
+        // 1. Reset Flag Check (Original Logic)
+        if (localStorage.getItem('tokoc_reset_flag') === 'true') {
+            console.log("Reset flag detected. Skipping seeding.");
+            localStorage.removeItem('tokoc_reset_flag');
+            localStorage.setItem(DB_VERSION_KEY, CURRENT_DB_VERSION);
+            return;
+        }
+
+        const storedVersion = localStorage.getItem(DB_VERSION_KEY);
+        if (storedVersion === CURRENT_DB_VERSION && !force) return;
+
+        isSeedingInProgress = true;
+        console.log('Starting Combined Seeding & 8-Day Simulation...');
+
         await ensureIndexes(firesqlite, db);
-        
-        // Check if a reset just happened. If so, skip seeding.
-        if (appStorage.getItem('tokoc_reset_flag') === 'true') {
-            console.log("Reset flag detected. Skipping database seeding for a fresh start.");
-            appStorage.removeItem('tokoc_reset_flag'); // Clear the flag
-            appStorage.setItem(DB_VERSION_KEY, CURRENT_DB_VERSION); // Mark DB as "up-to-date" to prevent future seeding
-            return; // Stop the function here
-        }
-        
-        
-        const storedVersion = appStorage.getItem(DB_VERSION_KEY);
 
-        if (storedVersion === CURRENT_DB_VERSION && !force) {
-            return; // Already up-to-date and not forcing a re-seed.
-        }
-
-        console.log('Database version mismatch or not set. Seeding new data...');
-
-        // Clear all business data if we are forcing a re-seed (from reset button)
+        // 2. Clear Collections (Original Force Logic)
         if (force) {
-             const collectionsToClear = ['products','product_variants','categories','modifier_groups','raw_ingredients','recipes','transactions','stock_movements','shifts','pending_carts','store_config'];
-             for (const collectionName of collectionsToClear) {
-                const collectionRef = collection(db, collectionName);
-                const snapshot = await getDocs(collectionRef);
-                if (!snapshot.empty) {
-                    const batch = writeBatch(db);
-                    snapshot.docs.forEach((d: any) => batch.delete(d.ref));
-                    await batch.commit();
-                }
-             }
-             console.log("Forced re-seed: All business data cleared.");
+            const collectionsToClear = ['products','product_variants','categories','modifier_groups','raw_ingredients','recipes','transactions','stock_movements','shifts','pending_carts','store_config'];
+            for (const collectionName of collectionsToClear) {
+               const snap = await getDocs(collection(db, collectionName));
+               if (!snap.empty) {
+                   const batch = writeBatch(db);
+                   snap.docs.forEach((d: any) => batch.delete(d.ref));
+                   await batch.commit();
+               }
+            }
+            console.log("Forced re-seed: Data cleared.");
         }
-        
-        // Seed Categories
-        console.log('Seeding initial categories...');
-        const categoryBatch = writeBatch(db);
-        initialCategories.forEach((c: Category) => categoryBatch.set(doc(db, 'categories', c.id), c));
-        await categoryBatch.commit();
-        
-        // Seed Products
-        console.log(`Seeding ${initialProducts.length} products...`);
-        const productBatch = writeBatch(db);
-        initialProducts.forEach((p: Product) => productBatch.set(doc(db, 'products', p.id), p));
-        await productBatch.commit();
-        
-        // Seed Variants
-        console.log('Seeding initial variants...');
-        const variantBatch = writeBatch(db);
-        initialVariants.forEach((v: ProductVariant) => variantBatch.set(doc(db, 'product_variants', v.id), v));
-        await variantBatch.commit();
 
-        // Seed Modifiers
-        console.log('Seeding initial modifiers...');
-        const modifierBatch = writeBatch(db);
-        initialModifierGroups.forEach((g: ModifierGroup) => modifierBatch.set(doc(db, 'modifier_groups', g.id), g));
-        await modifierBatch.commit();
-        
-        // Seed Raw Ingredients
-        console.log('Seeding initial raw ingredients...');
-        const ingredientBatch = writeBatch(db);
-        initialRawIngredients.forEach((ing: RawIngredient) => ingredientBatch.set(doc(db, 'raw_ingredients', ing.id), ing));
-        await ingredientBatch.commit();
+        // 3. Seed Base Metadata (Original Logic)
+        const mainBatch = writeBatch(db);
 
-        // Seed Recipes
-        const recipeBatch = writeBatch(db);
+        initialCategories.forEach(c => mainBatch.set(doc(db, 'categories', c.id), c));
+        initialProducts.forEach(p => mainBatch.set(doc(db, 'products', p.id), p));
+        initialVariants.forEach(v => mainBatch.set(doc(db, 'product_variants', v.id), v));
+        initialModifierGroups.forEach(g => mainBatch.set(doc(db, 'modifier_groups', g.id), g));
+        initialRawIngredients.forEach(ing => mainBatch.set(doc(db, 'raw_ingredients', ing.id), ing));
+        
         const coffeeRecipe: Recipe = {
             product_id: '9',
-            items: [
-                { ingredient_id: 'ing-1', quantity: 18 },
-                { ingredient_id: 'ing-3', quantity: 10 },
-            ]
+            items: [{ ingredient_id: 'ing-1', quantity: 18 }, { ingredient_id: 'ing-3', quantity: 10 }]
         };
-        recipeBatch.set(doc(db, 'recipes', coffeeRecipe.product_id), coffeeRecipe);
-        await recipeBatch.commit();
+        mainBatch.set(doc(db, 'recipes', coffeeRecipe.product_id), coffeeRecipe);
+        // await metaBatch.commit();
+
+        // 4. --- 8-DAY HISTORICAL SIMULATION ---
+        const productStock = new Map(initialProducts.map(p => [p.id, p.stock]));
+        const variantStock = new Map(initialVariants.map(v => [v.id, v.stock]));
+        const ingredientStock = new Map(initialRawIngredients.map(i => [i.id, i.stock_qty]));
+
+        // i=7 is 7 days ago, i=0 is Today
+        for (let i = 7; i >= 0; i--) {
+            // const batch = writeBatch(db);
+            const baseDate = new Date();
+            baseDate.setDate(baseDate.getDate() - i);
+            const dateStr = baseDate.toISOString().split('T')[0];
+            
+            // Working Hours: 07:00 to 22:00
+            const shiftOpen = new Date(baseDate);
+            shiftOpen.setHours(7, 0, 0, 0); 
+            const shiftClose = new Date(baseDate);
+            shiftClose.setHours(22, 0, 0, 0);
+
+            const shiftId = `shift-${dateStr}`;
+            let dailyTotalSales = 0;
+
+            // MID-WEEK RESTOCK (Exactly on day 4)
+            if (i === 4) {
+                console.log(`Restocking products on ${dateStr} to prevent out-of-stock...`);
+                productStock.forEach((val, id) => {
+                    const refill = 150;
+                    productStock.set(id, val + refill);
+                    mainBatch.set(doc(db, 'stock_movements', `restock-${dateStr}-${id}`), {
+                        id: `restock-${dateStr}-${id}`, product_id: id, type: 'restock', 
+                        qty_change: refill, reason: 'Mid-week auto restock', 
+                        created_at: shiftOpen.toISOString(),
+                        product_name_snapshot: initialProducts.find(p => p.id === id)?.name
+                    });
+                });
+                ingredientStock.forEach((val, id) => ingredientStock.set(id, val + 10000));
+            }
+
+            // Create 15-35 transactions spread across working hours
+            const dailyTxCount = getRandomInt(15, 35);
+            for (let t = 0; t < dailyTxCount; t++) {
+                const txId = `tx-${dateStr}-${t}`;
+                const txTime = new Date(shiftOpen);
+                txTime.setMinutes(txTime.getMinutes() + getRandomInt(15, 880));
+
+                const txItems: any[] = [];
+                let subtotal = 0;
+
+                const cartSize = getRandomInt(1, 4);
+                for (let j = 0; j < cartSize; j++) {
+                    const product = pickRandom(initialProducts);
+                    const qty = getRandomInt(1, 2);
+                    let price = product.price;
+                    let variant_snapshot = null;
+
+                    if (product.has_variant) {
+                        const variants = initialVariants.filter(v => v.product_id === product.id);
+                        variant_snapshot = pickRandom(variants);
+                        price += variant_snapshot.additional_price;
+                    }
+
+                    const itemTotal = price * qty;
+                    subtotal += itemTotal;
+
+                    txItems.push({
+                        id: `${txId}-item-${j}`,
+                        transaction_id: txId,
+                        product_snapshot: {
+                            id: product.id,
+                            name: variant_snapshot ? `${product.name} (${variant_snapshot.name})` : product.name,
+                            price, cost_price: product.cost_price, imageUrl: product.imageUrl, imageHint: product.imageHint,
+                            product_type: product.product_type, is_composite: product.is_composite, sku: variant_snapshot ? variant_snapshot.sku : product.sku
+                        },
+                        price_snapshot: price, cost_snapshot: product.cost_price,
+                        qty, subtotal: itemTotal
+                    });
+
+                    // Stock reduction
+                    if (product.is_composite && product.id === '9') {
+                        coffeeRecipe.items.forEach(ri => {
+                            ingredientStock.set(ri.ingredient_id, (ingredientStock.get(ri.ingredient_id) || 0) - (ri.quantity * qty));
+                        });
+                    } else if (variant_snapshot && variant_snapshot.track_stock) {
+                        variantStock.set(variant_snapshot.id, (variantStock.get(variant_snapshot.id) || 0) - qty);
+                    } else if (product.track_stock) {
+                        productStock.set(product.id, (productStock.get(product.id) || 0) - qty);
+                    }
+                    
+                    mainBatch.set(doc(db, 'stock_movements', `sm-${txId}-${j}`), {
+                        id: `sm-${txId}-${j}`, product_id: variant_snapshot?.id || product.id,
+                        product_name_snapshot: variant_snapshot ? `${product.name} (${variant_snapshot.name})` : product.name,
+                        type: 'sale', qty_change: -qty, reference_id: txId, created_at: txTime.toISOString()
+                    });
+                }
+
+                const tax = subtotal * 0.11;
+                const total = subtotal + tax;
+                dailyTotalSales += total;
+
+                mainBatch.set(doc(db, 'transactions', txId), {
+                    id: txId, invoice_number: `INV-${dateStr.replace(/-/g, '')}-${t.toString().padStart(3, '0')}`,
+                    shift_id: shiftId, status: 'paid', items: txItems, subtotal, tax_amount: tax, total,
+                    cash_paid: Math.ceil(total / 1000) * 1000, change: (Math.ceil(total / 1000) * 1000) - total,
+                    created_at: txTime.toISOString()
+                });
+            }
+
+            mainBatch.set(doc(db, 'shifts', shiftId), {
+                id: shiftId, opened_at: shiftOpen.toISOString(), closed_at: shiftClose.toISOString(),
+                opening_cash: 500000, status: 'closed', system_cash: 500000 + dailyTotalSales,
+                declared_cash: 500000 + dailyTotalSales, variance: 0
+            });
+
+            // await batch.commit();
+            console.log(`Day complete: ${dateStr}`);
+        }
+
+        // 5. Finalize Stock Levels & Store Config
+        // const finalBatch = writeBatch(db);
+        productStock.forEach((stock, id) => mainBatch.update(doc(db, 'products', id), { stock }));
+        variantStock.forEach((stock, id) => mainBatch.update(doc(db, 'product_variants', id), { stock }));
+        ingredientStock.forEach((stock_qty, id) => mainBatch.update(doc(db, 'raw_ingredients', id), { stock_qty }));
         
-        // --- Data Simulation ---
-        console.log('Simulating historical data...');
-        const simBatch = writeBatch(db);
-
-        // 1. Create a closed shift from yesterday
-        const yesterday = new Date();
-        yesterday.setDate(yesterday.getDate() - 1);
-        const shiftStart = new Date(yesterday);
-        shiftStart.setHours(9, 0, 0);
-        const shiftEnd = new Date(yesterday);
-        shiftEnd.setHours(17, 0, 0);
-
-        const simulatedShift: Shift = {
-            id: 'sim-shift-1',
-            opened_at: shiftStart.toISOString(),
-            closed_at: shiftEnd.toISOString(),
-            opening_cash: 500000,
-            status: 'closed',
-            system_cash: 514650,
-            declared_cash: 515000,
-            variance: 350
-        };
-        simBatch.set(doc(db, 'shifts', simulatedShift.id), simulatedShift);
-
-        // 2. Create transactions and stock movements
-        const product1 = initialProducts.find(p => p.id === '1')!; // Mie
-        const product4 = initialProducts.find(p => p.id === '4')!; // Keripik
-        
-        // TX 1
-        const tx1Time = new Date(shiftStart);
-        tx1Time.setHours(10, 15, 0);
-        const tx1Id = 'sim-tx-1';
-        const tx1Total = product1.price * 2;
-        const tx1: Transaction = {
-            id: tx1Id, invoice_number: 'SIM-INV-001', shift_id: simulatedShift.id, status: 'paid', created_at: tx1Time.toISOString(),
-            items: [{ id: 'sim-tx-item-1', transaction_id: tx1Id, product_snapshot: { id: product1.id, name: product1.name, price: product1.price, cost_price: product1.cost_price, imageUrl: product1.imageUrl, imageHint: product1.imageHint, product_type: 'retail' }, price_snapshot: product1.price, cost_snapshot: product1.cost_price, qty: 2, subtotal: tx1Total }],
-            subtotal: tx1Total, tax_amount: tx1Total * 0.11, total: tx1Total * 1.11, cash_paid: 10000, change: 10000 - (tx1Total * 1.11)
-        };
-        simBatch.set(doc(db, 'transactions', tx1.id), tx1);
-        simBatch.set(doc(db, 'stock_movements', `sim-sm-${tx1Id}`), { id: `sim-sm-${tx1Id}`, product_id: product1.id, product_name_snapshot: product1.name, type: 'sale', qty_change: -2, reference_id: tx1Id, created_at: tx1Time.toISOString() } as StockMovement);
-        simBatch.update(doc(db, 'products', product1.id), { stock: product1.stock - 2 });
-
-        // TX 2
-        const tx2Time = new Date(shiftStart);
-        tx2Time.setHours(14, 30, 0);
-        const tx2Id = 'sim-tx-2';
-        const tx2Total = product4.price * 1;
-        const tx2: Transaction = {
-            id: tx2Id, invoice_number: 'SIM-INV-002', shift_id: simulatedShift.id, status: 'paid', created_at: tx2Time.toISOString(),
-            items: [{ id: 'sim-tx-item-2', transaction_id: tx2Id, product_snapshot: { id: product4.id, name: product4.name, price: product4.price, cost_price: product4.cost_price, imageUrl: product4.imageUrl, imageHint: product4.imageHint, product_type: 'retail' }, price_snapshot: product4.price, cost_snapshot: product4.cost_price, qty: 1, subtotal: tx2Total }],
-            subtotal: tx2Total, tax_amount: tx2Total * 0.11, total: tx2Total * 1.11, cash_paid: 10000, change: 10000 - (tx2Total * 1.11)
-        };
-        simBatch.set(doc(db, 'transactions', tx2.id), tx2);
-        simBatch.set(doc(db, 'stock_movements', `sim-sm-${tx2Id}`), { id: `sim-sm-${tx2Id}`, product_id: product4.id, product_name_snapshot: product4.name, type: 'sale', qty_change: -1, reference_id: tx2Id, created_at: tx2Time.toISOString() } as StockMovement);
-        simBatch.update(doc(db, 'products', product4.id), { stock: product4.stock - 1 });
-        
-        // 3. Simulate a manual restock
-        const product2 = initialProducts.find(p => p.id === '2')!;
-        const restockTime = new Date(shiftStart);
-        restockTime.setHours(8, 0, 0);
-        const smRestock: StockMovement = {
-            id: 'sim-sm-restock-1', product_id: product2.id, product_name_snapshot: product2.name, type: 'restock', qty_change: 50,
-            reason: 'Shipment received', reference_id: `manual-sim-${Date.now()}`, created_at: restockTime.toISOString()
-        };
-        simBatch.set(doc(db, 'stock_movements', smRestock.id), smRestock);
-        simBatch.update(doc(db, 'products', product2.id), { stock: product2.stock + 50 });
-        
-        await simBatch.commit();
-        console.log("Historical data simulation complete.");
-
-        // Seed Store Config
-        const storeConfigRef = doc(db, 'store_config', 'main');
-        const initialConfig: StoreConfig = {
+        await setDoc(doc(db, 'store_config', 'main'), {
             id: 'main', store_name: 'TokoCepat Demo', address: 'Jl. Jenderal Sudirman No. 1, Jakarta',
             tax_rate: 0.11, currency: 'IDR', receipt_footer: 'Thank you for shopping!'
-        };
-        await setDoc(storeConfigRef, initialConfig);
-        console.log("Default store config set.");
+        });
 
-        appStorage.setItem(DB_VERSION_KEY, CURRENT_DB_VERSION);
-        console.log('Database seeding process complete.');
+        await mainBatch.commit();
+        localStorage.setItem(DB_VERSION_KEY, CURRENT_DB_VERSION);
+        console.log("Seeding process complete.");
 
     } catch (error) {
         console.error("Database seeding failed:", error);
+    } finally {
+        isSeedingInProgress = false;
     }
 };

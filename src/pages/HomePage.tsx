@@ -9,11 +9,11 @@ export default function HomePage() {
         <TokoCepatLogo />
         <Card className="w-full max-w-md">
             <CardHeader>
-                <CardTitle>Welcome to TokoCepat</CardTitle>
-                <CardDescription>Your fast and reliable point-of-sale solution.</CardDescription>
+                <CardTitle>Selamat Datang di TokoCepat</CardTitle>
+                <CardDescription>Solusi kasir Anda yang cepat dan handal.</CardDescription>
             </CardHeader>
             <CardContent>
-                <p className="text-muted-foreground">Use the navigation sidebar to get started.</p>
+                <p className="text-muted-foreground">Gunakan bilah navigasi untuk memulai operasional.</p>
             </CardContent>
         </Card>
       </div>

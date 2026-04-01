@@ -2,14 +2,15 @@
 import { Suspense, useState, useEffect, useTransition } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { generateDeviceFingerprint } from '@/lib/security';
-import { saveLicenseData } from '@/services/dataService';
+// import { saveLicenseData } from '@/services/dataService';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Loader2, ShieldCheck, AlertTriangle } from 'lucide-react';
 import { TokoCepatLogo } from '@/components/TokoCepatLogo';
-import { apiFetch } from '@/lib/api-client';
+// import { apiFetch } from '@/lib/api-client';
+import { invoke } from '@tauri-apps/api/core';
 
 
 function ActivationComponent() {
@@ -25,41 +26,60 @@ function ActivationComponent() {
         generateDeviceFingerprint().then(setDeviceId);
     }, []);
 
+    // const handleActivation = () => {
+    //     if (!ticketId) {
+    //          toast({ variant: 'destructive', title: 'Error', description: 'Activation ticket is missing.' });
+    //          return;
+    //     }
+    //     if (!deviceId) {
+    //         toast({ variant: 'destructive', title: 'Error', description: 'Could not identify this device.' });
+    //         return;
+    //     }
+        
+    //     startActivation(async () => {
+    //          try {
+    //             const response = await apiFetch('/api/license/claim', {
+    //                 method: 'POST',
+    //                 body: JSON.stringify({ ticketId, deviceId }),
+    //             });
+
+    //             const result = await response.json();
+
+    //             if (!response.ok) {
+    //                 throw new Error(result.error || 'An unknown error occurred.');
+    //             }
+                
+    //             await saveLicenseData(result.token, deviceId);
+    //             toast({ title: 'Activation Successful!', description: 'Your license is now active. Redirecting...' });
+    //             setTimeout(() => {
+    //                 window.location.href = '/dashboard';
+    //             }, 1500);
+
+    //         } catch (error: any) {
+    //             toast({ variant: 'destructive', title: 'Activation Failed', description: error.message });
+    //         }
+    //     });
+    // };
+    
     const handleActivation = () => {
-        if (!ticketId) {
-             toast({ variant: 'destructive', title: 'Error', description: 'Activation ticket is missing.' });
-             return;
-        }
-        if (!deviceId) {
-            toast({ variant: 'destructive', title: 'Error', description: 'Could not identify this device.' });
-            return;
-        }
+        if (!ticketId) return;
         
         startActivation(async () => {
-             try {
-                const response = await apiFetch('/api/license/claim', {
-                    method: 'POST',
-                    body: JSON.stringify({ ticketId, deviceId }),
-                });
+            try {
+                // Call Rust instead of apiFetch
+                await invoke('claim_license', { ticketId });
 
-                const result = await response.json();
-
-                if (!response.ok) {
-                    throw new Error(result.error || 'An unknown error occurred.');
-                }
-                
-                await saveLicenseData(result.token, deviceId);
-                toast({ title: 'Activation Successful!', description: 'Your license is now active. Redirecting...' });
+                toast({ title: 'Activation Successful!' });
                 setTimeout(() => {
                     window.location.href = '/dashboard';
                 }, 1500);
 
             } catch (error: any) {
-                toast({ variant: 'destructive', title: 'Activation Failed', description: error.message });
+                toast({ variant: 'destructive', title: 'Activation Failed', description: error });
             }
         });
     };
-    
+
     if (!ticketId) {
         return (
             <Card className="w-full max-w-lg">

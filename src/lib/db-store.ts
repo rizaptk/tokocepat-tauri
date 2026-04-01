@@ -1,63 +1,41 @@
-"use client";
-
 import { create } from 'zustand';
-import * as firesqlite from 'firesqlite';
+// We import our new bridge as 'firesqliteBridge' 
+// to keep the naming consistent with your existing services.
+import * as firesqliteBridge from '@/lib/tauri';
 
-// Since firesqlite types are not available until dynamic import, use 'any'
 interface DbState {
   isInitialized: boolean;
-  db: any | null; // This will hold the Firestore instance from firesqlite
-  firesqlite: any | null; // This will hold the entire firesqlite library
+  db: any | null;           // Holds the firestore instance
+  firesqlite: any | null;   // Holds the API namespace (doc, collection, etc.)
   initialize: () => Promise<void>;
 }
 
-export const useDbStore = create<DbState>((set, get) => ({
+export const useDbStore = create<DbState>((set) => ({
   isInitialized: false,
   db: null,
   firesqlite: null,
+  
   initialize: async () => {
-    // Prevent re-initialization
-    if (get().isInitialized) return;
-    
 
     try {
-      const isTauri = typeof window !== 'undefined' && "__TAURI_INTERNALS__" in window;
-      if (isTauri) {
-        
-        const { invoke } = await import('@tauri-apps/api/core');
-        const Database = (await import('@tauri-apps/plugin-sql')).default;
-
-        await firesqlite.initializeFirestoreSQLite({
-          engine: 'tauri',
-          dbName: 'tokoc-db',
-          tauriDrivers: {
-            invoke,
-            Database,
-          }
-        });
-        console.log("Initialized using Tauri Native Engine");
-      } else {
-        const wasmUrl = new URL('/wa-sqlite-async.wasm', window.location.origin).href;
-  
-        await firesqlite.initializeFirestoreSQLite({
-          engine: 'wa-sqlite', 
-          dbName: 'tokoc-db', 
-          wasmUrl
-        });
-        console.log("Initialized using wa-sqlite (Browser) Engine");
-      }
-
-      const db = firesqlite.getFirestore();
+      /**
+       * In the new architecture:
+       * 1. The Rust side (FireLite) is initialized in your lib.rs setup block.
+       * 2. The JS side (tauri.ts bridge) communicates via 'invoke'.
+       * 3. We just need to populate the store so your services find the expected objects.
+       */
+      
+      const db = firesqliteBridge.getFirestore();
 
       set({ 
         isInitialized: true, 
         db, 
-        firesqlite 
+        firesqlite: firesqliteBridge 
       });
 
+      console.log("[DbStore] FireLite Native Bridge Initialized successfully.");
     } catch (error) {
-      console.error("Failed to initialize database:", error);
+      console.error("[DbStore] Failed to initialize FireLite bridge:", error);
     }
   },
-
 }));

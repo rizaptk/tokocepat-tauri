@@ -16,9 +16,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Loader2, Save } from 'lucide-react';
 
 const storeInfoSchema = z.object({
-  store_name: z.string().min(2, 'Store name must be at least 2 characters.'),
+  store_name: z.string().min(2, 'Nama toko minimal 2 karakter.'),
   address: z.string().optional(),
-  receipt_footer: z.string().optional(),
+  receipt_footer: z.string().optional().or(z.literal('')),
 });
 
 type StoreInfoFormValues = z.infer<typeof storeInfoSchema>;
@@ -51,9 +51,9 @@ export function StoreInfoForm() {
         startTransition(async () => {
             try {
                 await updateStoreConfig(data);
-                toast({ title: 'Success', description: 'Store information updated.' });
+                toast({ title: 'Berhasil', description: 'Informasi toko telah diperbarui.' });
             } catch (error: any) {
-                toast({ variant: 'destructive', title: 'Error', description: error.message || 'Could not update store info.' });
+                toast({ variant: 'destructive', title: 'Error', description: error.message || 'Gagal memperbarui info toko.' });
             }
         });
     };
@@ -61,23 +61,23 @@ export function StoreInfoForm() {
     return (
         <Card>
             <CardHeader>
-                <CardTitle>Store Information</CardTitle>
-                <CardDescription>This information appears on your receipts and reports.</CardDescription>
+                <CardTitle>Informasi Toko</CardTitle>
+                <CardDescription>Informasi ini akan muncul pada struk belanja dan laporan Anda.</CardDescription>
             </CardHeader>
             <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)}>
                     <CardContent className="space-y-6">
                         <FormField control={form.control} name="store_name" render={({ field }) => (
-                            <FormItem><FormLabel>Store Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                            <FormItem><FormLabel>Nama Toko</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                         )} />
                         <FormField control={form.control} name="address" render={({ field }) => (
-                            <FormItem><FormLabel>Address</FormLabel><FormControl><Textarea {...field} /></FormControl><FormMessage /></FormItem>
+                            <FormItem><FormLabel>Alamat</FormLabel><FormControl><Textarea {...field} /></FormControl><FormMessage /></FormItem>
                         )} />
                         <FormField control={form.control} name="receipt_footer" render={({ field }) => (
-                            <FormItem><FormLabel>Receipt Footer Message</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                            <FormItem><FormLabel>Pesan Kaki Struk (Footer)</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                         )} />
                          <Button type="submit" disabled={isPending}>
-                            {isPending ? <><Loader2 className="mr-2 h-4 w-4 animate-spin"/> Saving...</> : <><Save className="mr-2 h-4 w-4"/> Save Changes</>}
+                            {isPending ? <><Loader2 className="mr-2 h-4 w-4 animate-spin"/> Menyimpan...</> : <><Save className="mr-2 h-4 w-4"/> Simpan Perubahan</>}
                         </Button>
                     </CardContent>
                 </form>

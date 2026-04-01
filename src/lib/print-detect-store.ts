@@ -1,26 +1,47 @@
 import { PrinterCandidate } from '@/services/printerDetect';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { zustandStorage } from './tauristorage';
 
 interface PrinterState {
   savedPrinter: string | null;
-  savePrinter: (port: string | null) => void;
+  savedPrinterName: string | null;
+  savedBaudRate: number;
   availablePrinters: PrinterCandidate[];
+  isOnline: boolean; // New State
+  isEnabled: boolean;
+  setIsEnabled: (isEnabled: boolean) => void;
+  savePrinter: (port: string | null, baud?: number, name?: string | null) => void;
   setAvailablePrinters: (printers: PrinterCandidate[]) => void;
+  setOnline: (status: boolean) => void; // New Action
 }
 
 export const usePrinterStore = create<PrinterState>()(
   persist(
     (set) => ({
       savedPrinter: null,
-      savePrinter: (port) => set({ savedPrinter: port }),
-      availablePrinters: [],
-      setAvailablePrinters: (printers) => set({ availablePrinters: printers }),
+      savedPrinterName: null,
+      savedBaudRate: 9600,
+      availablePrinters: [], // Akan diisi saat runtime
+      isOnline: false,       // Akan diisi saat runtime
+      isEnabled: true,
+      setIsEnabled: (isEnabled) => set({ isEnabled }),
+      savePrinter: (port, baud = 9600, name = null) => set({ 
+        savedPrinter: port, 
+        savedBaudRate: baud,
+        savedPrinterName: name,
+      }),
+      setAvailablePrinters: (availablePrinters) => set({ availablePrinters }),
+      setOnline: (isOnline) => set({ isOnline }),
     }),
-    {
-      name: 'tokoc-printer-settings',
-      storage: zustandStorage,
+    { 
+      name: 'tokoc-printer-settings', 
+      // HANYA simpan alamat, baudrate, dan status aktif
+      partialize: (state) => ({ 
+        savedPrinter: state.savedPrinter, 
+        savedBaudRate: state.savedBaudRate,
+        savedPrinterName: state.savedPrinterName,
+        isEnabled: state.isEnabled 
+      }),
     }
   )
 );

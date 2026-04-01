@@ -1,6 +1,4 @@
 
-"use client";
-
 import { useEffect, useState } from 'react';
 import { usePrintStore } from '@/lib/print-store';
 import { printerManager } from '@/lib/webUSBprinter';
@@ -35,8 +33,8 @@ export const usePrinter = () => {
         if (paired.length === 0) {
           // This toast is for when a print job is initiated but no printer is set up.
           toast({
-              title: "Payment Successful",
-              description: "No printer connected. Pair one in Settings for automatic receipts.",
+              title: "Bayar Berhasil",
+              description: "Printer tak terdeteksi. Atur di Pengaturan.",
           });
           setIsPrinting(false);
           return;
@@ -51,8 +49,8 @@ export const usePrinter = () => {
         console.error("Direct print failed:", err);
         toast({
           variant: 'destructive',
-          title: 'Print Failed',
-          description: err.message || "Could not connect to the printer.",
+          title: 'Cetak Gagal',
+          description: err.message || "Gagal hubungkan printer.",
         });
       } finally {
         if ((printerManager as any).device) {

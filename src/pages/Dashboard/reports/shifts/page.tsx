@@ -1,8 +1,8 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useStore } from '@/lib/store';
-import { format, startOfDay, endOfDay, subDays, startOfMonth, endOfMonth, subMonths } from 'date-fns';
+import { format, startOfDay, endOfDay, subDays } from 'date-fns';
 import { ArrowLeft, BookOpen, AlertTriangle, FileDown, FileText } from 'lucide-react';
-import React, { useState, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { DateRange } from 'react-day-picker';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
@@ -16,6 +16,9 @@ import { cn } from '@/lib/utils';
 import { NotificationBell } from '@/components/NotificationBell';
 import { ThemeToggle } from '@/components/ThemeButtons';
 
+import { exportShiftsToExcel, exportShiftsToPdf } from '@/lib/export';
+
+
 const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('id-ID', {
         style: 'currency',
@@ -26,7 +29,7 @@ const formatCurrency = (amount: number) => {
 
 export default function ShiftsReportPage() {
     const navigate = useNavigate();
-    const { shifts } = useStore();
+    const { shifts, storeConfig } = useStore();
     const { toast } = useToast();
     const [date, setDate] = React.useState<DateRange | undefined>({
       from: startOfDay(subDays(new Date(), 29)),
@@ -42,12 +45,20 @@ export default function ShiftsReportPage() {
         });
     }, [shifts, date]);
 
-    const handlePdfExport = () => {
-        toast({ title: 'Coming Soon', description: 'PDF export for shifts is not yet available.' });
+    const handlePdfExport = async () => {
+        if (storeConfig && date?.from && date?.to) {
+            await exportShiftsToPdf(filteredShifts, { from: date.from, to: date.to }, storeConfig.store_name);
+        } else {
+            toast({ variant: 'destructive', title: 'Export Failed', description: 'Store config or date range missing.' });
+        }
     };
     
-    const handleExcelExport = () => {
-        toast({ title: 'Coming Soon', description: 'Excel export for shifts is not yet available.' });
+    const handleExcelExport = async () => {
+        if (storeConfig && date?.from && date?.to) {
+            await exportShiftsToExcel(filteredShifts, { from: date.from, to: date.to }, storeConfig.store_name);
+        } else {
+            toast({ variant: 'destructive', title: 'Export Failed', description: 'Store config or date range missing.' });
+        }
     };
 
     return (
@@ -56,12 +67,12 @@ export default function ShiftsReportPage() {
                 <Button variant="outline" size="icon" className="shrink-0" asChild>
                     <Link to="/dashboard/reports">
                         <ArrowLeft className="h-4 w-4" />
-                        <span className="sr-only">Back to Reports</span>
+                        <span className="sr-only">Kembali</span>
                     </Link>
                 </Button>
                 <div className="flex-1">
                     <h1 className="text-lg font-semibold flex items-center gap-2">
-                        <BookOpen className="h-5 w-5" /> Shift History
+                        <BookOpen className="h-5 w-5" /> Riwayat Sif
                     </h1>
                 </div>
                 <div className="flex items-center gap-2">
@@ -69,7 +80,7 @@ export default function ShiftsReportPage() {
                         <DropdownMenuTrigger asChild>
                           <Button variant="outline" size="sm" disabled={filteredShifts.length === 0}>
                             <FileDown className="mr-2 h-4 w-4" />
-                            <span>Export</span>
+                            <span>Ekspor</span>
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
@@ -90,25 +101,25 @@ export default function ShiftsReportPage() {
                 <CardHeader>
                      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                         <div>
-                            <CardTitle>Closed Shifts</CardTitle>
+                            <CardTitle>Sif Berakhir</CardTitle>
                             {date?.from && date?.to && (
                                 <CardDescription>
-                                    A history of all closed shifts from {format(date.from, 'PPP')} to {format(date.to, 'PPP')}.
+                                    Daftar sif yang telah ditutup dari {format(date.from, 'dd MMM yyyy')} s/d {format(date.to, 'dd MMM yyyy')}.
                                 </CardDescription>
                             )}
                         </div>
-                        <DateRangeFilter date={date} setDate={setDate} />
+                        <DateRangeFilter date={date} setDate={setDate} preset='last30' />
                     </div>
                 </CardHeader>
                 <CardContent>
                     <Table>
                         <TableHeader>
                             <TableRow>
-                                <TableHead>Date</TableHead>
-                                <TableHead>Opening Cash</TableHead>
-                                <TableHead>Expected Cash</TableHead>
-                                <TableHead>Declared Cash</TableHead>
-                                <TableHead>Variance</TableHead>
+                                <TableHead>Waktu</TableHead>
+                                <TableHead>Kas Awal</TableHead>
+                                <TableHead>Ekspektasi</TableHead>
+                                <TableHead>Aktual</TableHead>
+                                <TableHead>Selisih</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -136,7 +147,7 @@ export default function ShiftsReportPage() {
                             ) : (
                                 <TableRow>
                                     <TableCell colSpan={5} className="h-24 text-center">
-                                        No closed shifts found in this period.
+                                        Tidak ada data sif pada periode ini.
                                     </TableCell>
                                 </TableRow>
                             )}

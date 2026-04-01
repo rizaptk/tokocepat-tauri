@@ -4,51 +4,65 @@
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, ArrowRight, BarChart2, BookOpen, Warehouse, ArchiveX, Beaker, History } from 'lucide-react';
+import { ArrowLeft, ArrowRight, BarChart2, BookOpen, Warehouse, ArchiveX, Beaker, History, ShieldCheck, Landmark } from 'lucide-react';
 import { NotificationBell } from '@/components/NotificationBell';
 import { ThemeToggle } from '@/components/ThemeButtons';
 
 const reportLinks = [
     {
-        title: 'Sales Report',
-        description: 'Analyze sales, profit, and trends over time.',
+        title: 'Laporan Penjualan',
+        description: 'Analisis omzet, laba, dan tren performa.',
         href: '/dashboard/reports/sales',
         icon: BarChart2,
         comingSoon: false,
     },
     {
-        title: 'Stock Summary Report',
-        description: 'Opening, closing, and movement summary for all items.',
+        title: 'Ringkasan Stok',
+        description: 'Stok awal, akhir, dan mutasi seluruh item.',
         href: '/dashboard/reports/stock-summary',
         icon: Warehouse,
         comingSoon: false,
     },
     {
-        title: 'Stock Movement Ledger',
-        description: 'A detailed, real-time ledger of all inventory changes.',
+        title: 'Buku Besar Stok',
+        description: 'Detail riwayat perubahan inventori real-time.',
         href: '/dashboard/reports/stock-movement',
         icon: History,
         comingSoon: false,
     },
     {
-        title: 'Consumption Report',
-        description: 'Track raw ingredient usage and waste for F&B items.',
+        title: 'Laporan Konsumsi',
+        description: 'Pantau pemakaian bahan baku dan waste F&B.',
         href: '/dashboard/reports/consumption',
         icon: Beaker,
         comingSoon: false,
     },
     {
-        title: 'Shift History',
-        description: 'Review summaries for all closed shifts.',
+        title: 'Riwayat Sif',
+        description: 'Tinjau ringkasan seluruh sif yang telah tutup.',
         href: '/dashboard/reports/shifts',
         icon: BookOpen,
         comingSoon: false,
     },
     {
-        title: 'Void Report',
-        description: 'Review all voided transactions for auditing.',
+        title: 'Laporan Void',
+        description: 'Audit seluruh transaksi yang dibatalkan.',
         href: '/dashboard/reports/void',
         icon: ArchiveX,
+        comingSoon: false,
+    },
+    {
+        title: 'Audit Bisnis',
+        description: 'Rekonsiliasi margin laba dengan selisih kas.',
+        href: '/dashboard/reports/profit',
+        icon: ShieldCheck,
+        comingSoon: false,
+    },
+    {
+        title: 'Audit Pajak',
+        description: 'Konsolidasi data pajak untuk pelaporan.',
+        href: '/dashboard/reports/tax',
+        icon: Landmark,
         comingSoon: false,
     },
 ];
@@ -61,11 +75,11 @@ export default function ReportsPage() {
                 <Button variant="outline" size="icon" asChild>
                     <Link to="/dashboard">
                         <ArrowLeft className="h-4 w-4" />
-                        <span className="sr-only">Back</span>
+                        <span className="sr-only">Kembali</span>
                     </Link>
                 </Button>
                 <h1 className="text-lg font-semibold tracking-tight flex-1">
-                    Reports & Analytics
+                    Laporan & Analitik
                 </h1>
                 <NotificationBell />
                 <ThemeToggle />
@@ -80,12 +94,10 @@ export default function ReportsPage() {
                     <div className="max-w-md space-y-6">
                         <div className="space-y-3">
                             <h2 className="text-3xl font-bold tracking-tight leading-tight">
-                                Operational Intelligence
+                                Intelijen Operasional
                             </h2>
                             <p className="text-muted-foreground">
-                                Gain real-time visibility into sales performance, 
-                                inventory movement, and financial activity across 
-                                your business operations.
+                                Pantau performa penjualan, mutasi stok, dan aktivitas keuangan bisnis Anda secara real-time.
                             </p>
                         </div>
 
@@ -93,7 +105,7 @@ export default function ReportsPage() {
                         <div className="grid grid-cols-2 gap-4 pt-6">
                             <div className="rounded-xl border p-4">
                                 <div className="text-xs text-muted-foreground">
-                                    Active Reports
+                                    Laporan Aktif
                                 </div>
                                 <div className="text-2xl font-semibold">
                                     {reportLinks.length}
@@ -101,7 +113,7 @@ export default function ReportsPage() {
                             </div>
                             <div className="rounded-xl border p-4">
                                 <div className="text-xs text-muted-foreground">
-                                    Data Scope
+                                    Cakupan Data
                                 </div>
                                 <div className="text-2xl font-semibold">
                                     Real-time
@@ -112,7 +124,7 @@ export default function ReportsPage() {
                         <div className="pt-6">
                             <Button size="lg" asChild>
                                 <Link to="/dashboard/reports/sales">
-                                    View Sales Overview
+                                    Lihat Ikhtisar Penjualan
                                     <ArrowRight className="ml-2 h-4 w-4" />
                                 </Link>
                             </Button>

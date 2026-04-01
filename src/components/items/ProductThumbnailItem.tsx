@@ -52,20 +52,21 @@ export function ProductThumbnailItem({
       minimumFractionDigits: 0,
     }).format(amount);
 
-  const handleSelect = () => {
-    if (!isOutOfStock && onItemClick) {
-      onItemClick(product);
-    }
-  };
-
-  const isOutOfStock = product.track_stock && product.stock <= 0;
-  const isLowStock =
+    
+    const isOutOfStock = product.track_stock && product.stock <= 0;
+    const isLowStock =
     product.track_stock &&
     product.low_stock_alert != null &&
     product.stock > 0 &&
     product.stock <= product.low_stock_alert;
-  const is_active = product.is_active;
-
+    const is_active = product.is_active;
+    const not_allowed = context === "cashier" && (isOutOfStock || !is_active);
+    
+    const handleSelect = () => {
+      if (!not_allowed && onItemClick) {
+        onItemClick(product);
+      }
+    };
 
   return (
     <div
@@ -73,14 +74,15 @@ export function ProductThumbnailItem({
       style={style}
       onClick={handleSelect}
       role="button"
-      tabIndex={isOutOfStock ? -1 : 0}
-      aria-disabled={isOutOfStock}
+      tabIndex={not_allowed ? -1 : 0}
+      aria-disabled={not_allowed}
       className={cn(
         "group flex items-center gap-3 p-3 transition-colors duration-100 border border-border bg-card h-[78px] rounded-md",
         "hover:shadow-md",
+        "active:ring-1 active:ring-inset active:ring-primary",
         isSelected && "bg-background",
         isActive && "ring-1 ring-primary ring-inset text-primary bg-primary/5",
-        isOutOfStock && "opacity-60 cursor-not-allowed",
+        not_allowed && "opacity-60 cursor-not-allowed",
         !is_active && "opacity-80 relative"
       )}
     >
@@ -101,14 +103,14 @@ export function ProductThumbnailItem({
         />
       
         {isOutOfStock && (
-          <div className="absolute inset-0 bg-black/60 flex items-center justify-center text-sm font-semibold text-white">
-            Sold Out
+          <div className="absolute inset-0 bg-black/60 grid place-items-center text-sm font-semibold text-white text-center">
+            Habis
           </div>
         )}
 
         {isLowStock && (
           <div className="absolute top-1 right-1">
-            <TriangleAlert className="h-4 w-4 text-yellow-500 drop-shadow" />
+            <TriangleAlert className="h-4 w-4 text-yellow-500 drop-shadow fill-yellow-500" />
           </div>
         )}
       </div>
@@ -116,7 +118,7 @@ export function ProductThumbnailItem({
       {!is_active && (
         <div className="absolute inset-x-2 inset-y-0">
           <Badge variant="destructive" className="text-xs">
-            Inactive
+            Nonaktif
           </Badge>
         </div>
       )}
@@ -154,7 +156,7 @@ export function ProductThumbnailItem({
                 : "text-muted-foreground"
             )}
           >
-            Stock {product.stock}
+            Stok {product.stock}
           </p>
         )}
       </div>

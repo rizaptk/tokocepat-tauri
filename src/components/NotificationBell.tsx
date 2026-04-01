@@ -29,8 +29,8 @@ export function NotificationBell() {
             notifs.push({
                 id: `low-${p.id}`,
                 type: 'low_stock',
-                title: 'Low Stock',
-                description: `${p.name} has only ${p.stock} items left.`,
+                title: 'Stok Menipis',
+                description: `Sisa stok ${p.name} tinggal ${p.stock}.`,
                 timestamp: new Date().toISOString(),
             });
         });
@@ -41,8 +41,8 @@ export function NotificationBell() {
             notifs.push({
                 id: `low-${v.id}`,
                 type: 'low_stock',
-                title: 'Low Stock',
-                description: `${parent?.name} (${v.name}) has only ${v.stock} items left.`,
+                title: 'Stok Menipis',
+                description: `Sisa stok ${parent?.name} (${v.name}) tinggal ${v.stock}.`,
                 timestamp: new Date().toISOString(),
             });
         });
@@ -53,8 +53,8 @@ export function NotificationBell() {
             notifs.push({
                 id: `out-${p.id}`,
                 type: 'out_of_stock',
-                title: 'Out of Stock',
-                description: `${p.name} is now out of stock.`,
+                title: 'Stok Habis',
+                description: `Stok ${p.name} telah kosong.`,
                 timestamp: new Date().toISOString(),
             });
         });
@@ -65,8 +65,8 @@ export function NotificationBell() {
             notifs.push({
                 id: `out-${v.id}`,
                 type: 'out_of_stock',
-                title: 'Out of Stock',
-                description: `${parent?.name} (${v.name}) is now out of stock.`,
+                title: 'Stok Habis',
+                description: `Stok ${parent?.name} (${v.name}) telah kosong.`,
                 timestamp: new Date().toISOString(),
             });
         });
@@ -78,8 +78,8 @@ export function NotificationBell() {
                 notifs.push({
                     id: `void-${tx.id}`,
                     type: 'void',
-                    title: 'Transaction Voided',
-                    description: `Invoice ${tx.invoice_number} was voided.`,
+                    title: 'Transaksi Void',
+                    description: `Invoice ${tx.invoice_number} telah dibatalkan.`,
                     timestamp: tx.voided_at!,
                 });
             });
@@ -113,8 +113,8 @@ export function NotificationBell() {
             </PopoverTrigger>
             <PopoverContent className="w-80 p-0">
                 <div className="p-4 border-b">
-                    <h4 className="font-medium leading-none">Notifications</h4>
-                    <p className="text-sm text-muted-foreground">Recent system alerts.</p>
+                    <h4 className="font-medium leading-none">Notifikasi</h4>
+                    <p className="text-sm text-muted-foreground">Pemberitahuan sistem terbaru.</p>
                 </div>
                 <ScrollArea className="h-80">
                    <div className="p-4 space-y-4">
@@ -132,7 +132,7 @@ export function NotificationBell() {
                                 </div>
                             ))
                         ) : (
-                            <p className="text-sm text-muted-foreground text-center py-8">No new notifications.</p>
+                            <p className="text-sm text-muted-foreground text-center py-8">Tidak ada notifikasi baru.</p>
                         )}
                    </div>
                 </ScrollArea>

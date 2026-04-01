@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import type { ViewMode } from "@/app/cashier/page";
+import type { ViewMode } from "@/pages/CashierPage";
 import { BarcodeScanner } from './BarcodeScanner';
 import { useProductSearch } from '@/lib/useProductSearch';
 import { useActiveProduct } from '@/lib/product-active-store';
@@ -65,7 +65,7 @@ export const ProductSearchBar = React.memo(({ viewMode, onViewModeChange, onBarc
                 <Search className="absolute left-2.5 top-2.5 h-5 w-5 text-muted-foreground/50" />
                 <Input
                     type="search"
-                    placeholder="Search products or scan barcode..."
+                    placeholder="Cari produk atau scan barcode..."
                     className="w-full pl-10 pe-14 bg-card"
                     value={localValue}
                     onChange={handleInputChange}
@@ -85,7 +85,7 @@ export const ProductSearchBar = React.memo(({ viewMode, onViewModeChange, onBarc
                         </DialogTrigger>
                         <DialogContent>
                             <DialogHeader>
-                                <DialogTitle>Barcode Scanner</DialogTitle>
+                                <DialogTitle>Scan Barcode</DialogTitle>
                             </DialogHeader>
                             <BarcodeScanner onScanSuccess={handleScanSuccess} />
                         </DialogContent>
@@ -103,13 +103,13 @@ export const ProductSearchBar = React.memo(({ viewMode, onViewModeChange, onBarc
                     <DropdownMenuContent>
                         <DropdownMenuRadioGroup value={viewMode} onValueChange={(value) => onViewModeChange(value as ViewMode)}>
                             <DropdownMenuRadioItem value="card" className='py-2'>
-                                <Image className="mr-2 size-4 text-emerald-500" /> Card View
+                                <Image className="mr-2 size-4 text-emerald-500" /> Kartu
                             </DropdownMenuRadioItem>
                              <DropdownMenuRadioItem value="thumbnail" className='py-2'>
-                                <StretchHorizontal className="mr-2 size-4 text-rose-500" /> Thumbnail View
+                                <StretchHorizontal className="mr-2 size-4 text-rose-500" /> List
                             </DropdownMenuRadioItem>
                              <DropdownMenuRadioItem value="list" className='py-2'>
-                                <Equal className="mr-2 size-4 text-purple-500" /> List View
+                                <Equal className="mr-2 size-4 text-purple-500" /> Tabel
                             </DropdownMenuRadioItem>
                         </DropdownMenuRadioGroup>
                     </DropdownMenuContent>

@@ -8,7 +8,7 @@ interface SelectedProduct {
   clearSelected: () => void;
 }
 
-export const useSelectedProduct = create<SelectedProduct>((set, get) => ({
+export const useSelectedProduct = create<SelectedProduct>((set) => ({
   selectedIds: new Set(),
 
   toggleSelected: (id) => {

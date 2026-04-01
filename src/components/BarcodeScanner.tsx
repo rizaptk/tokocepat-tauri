@@ -24,15 +24,15 @@ export function BarcodeScanner({ onScanSuccess }: BarcodeScannerProps) {
             // play beep on success scan
             beepSound.play();
         },
-        onError(error) {
+        onError(error: any) {
             if (error?.name === 'NotAllowedError') {
                 setPermissionDenied(true);
             } else {
                 console.error(error);
                 toast({
                     variant: 'destructive',
-                    title: 'Scanner Error',
-                    description: error?.message || 'An unknown error occurred with the camera.',
+                    title: 'Error Scanner',
+                    description: error?.message || 'Terjadi kesalahan pada kamera.',
                 });
             }
         },
@@ -43,9 +43,9 @@ export function BarcodeScanner({ onScanSuccess }: BarcodeScannerProps) {
             {permissionDenied ? (
                  <Alert variant="destructive">
                     <Camera className="h-4 w-4" />
-                    <AlertTitle>Camera Access Denied</AlertTitle>
+                    <AlertTitle>Akses Kamera Ditolak</AlertTitle>
                     <AlertDescription>
-                        Please grant camera permissions in your browser settings to use the scanner.
+                        Izinkan akses kamera di pengaturan browser untuk memindai.
                     </AlertDescription>
                 </Alert>
             ) : (
@@ -54,7 +54,7 @@ export function BarcodeScanner({ onScanSuccess }: BarcodeScannerProps) {
                         <video ref={ref} className="w-full h-full object-cover" />
                         <div className="absolute inset-0 border-4 border-primary/50 rounded-lg pointer-events-none" />
                     </div>
-                    <p className="text-sm text-muted-foreground">Point the camera at a barcode</p>
+                    <p className="text-sm text-muted-foreground">Arahkan kamera ke barcode</p>
                 </>
             )}
         </div>

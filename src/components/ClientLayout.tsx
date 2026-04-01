@@ -1,14 +1,11 @@
-
 import { useLocation } from 'react-router-dom';
 import { DbProvider } from '@/components/DbProvider';
 import { LicenseProvider } from '@/components/LicenseProvider';
 import { BottomNav } from '@/components/BottomNav';
-// import { BackupManager } from './BackupManager';
 import { useIsMobile } from '@/lib/ismobile-store';
 import { SideNav } from './SideNav';
 import { useLicense } from '@/hooks/useLicense';
 import { useMemo } from 'react';
-// import { PrintManager } from './PrintManager';
 import { ThemeSwitcher } from './ThemeSwitcher';
 
 export default function ClientLayout({ children }: { children: React.ReactNode }) {
@@ -29,9 +26,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
     return (
         <DbProvider>
             <ThemeSwitcher />
-            {/* <BackupManager /> */}
             <LicenseProvider>
-                {/* <PrintManager /> */}
                 <div className={!isMobile && isLicensed ? 'pl-16' : ''}>{children}</div>
                 {
                     isLicensed &&

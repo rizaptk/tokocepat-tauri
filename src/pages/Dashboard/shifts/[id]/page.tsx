@@ -5,7 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Button } from '@/components/ui/button';
 import { TokoCepatLogo } from '@/components/TokoCepatLogo';
 import { ArrowLeft } from 'lucide-react';
-import { formatDistance, parseISO, isValid } from 'date-fns';
+import { parseISO, isValid } from 'date-fns';
 import { Separator } from '@/components/ui/separator';
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
@@ -13,7 +13,7 @@ import { voidTransaction } from '@/services/transactionService';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { cn } from '@/lib/utils';
+import { cn, formatDistanceShort } from '@/lib/utils';
 import { exportShiftDetailsToPdf } from '@/lib/export';
 
 // Helper to safely parse dates that might be in different formats
@@ -44,12 +44,12 @@ export default function ShiftDetailsPage() {
 
     const handleVoid = async (transactionId: string, invoiceNumber: string) => {
         if (!voidReason.trim()) {
-            toast({ variant: 'destructive', title: 'Reason required', description: 'Please provide a reason for voiding.' });
+            toast({ variant: 'destructive', title: 'Alasan wajib diisi', description: 'Mohon berikan alasan pembatalan.' });
             return false;
         }
         try {
             await voidTransaction(transactionId, voidReason);
-            toast({ title: 'Transaction Voided', description: `Invoice ${invoiceNumber} has been successfully voided.` });
+            toast({ title: 'Transaksi Batal', description: `Invoice ${invoiceNumber} berhasil dibatalkan.` });
             setVoidReason("");
             return true;
         } catch (error: any) {
@@ -63,7 +63,7 @@ export default function ShiftDetailsPage() {
         if (storeConfig && shift) {
             exportShiftDetailsToPdf(shift, shiftTransactions, storeConfig.store_name);
         } else {
-            toast({ variant: 'destructive', title: 'Error', description: 'Cannot generate PDF. Store configuration or shift data is missing.' });
+            toast({ variant: 'destructive', title: 'Error', description: 'Gagal ekspor PDF. Data toko atau sif tidak ditemukan.' });
         }
     }
 
@@ -79,19 +79,19 @@ export default function ShiftDetailsPage() {
         return (
              <div className="flex min-h-screen w-full flex-col bg-muted/40">
                 <header className="sticky top-0 flex h-16 items-center gap-4 border-b bg-background px-4 md:px-6">
-                    <Link href="/dashboard">
+                    <Link to="/dashboard">
                         <TokoCepatLogo />
                     </Link>
                 </header>
                 <main className="flex flex-1 items-center justify-center">
                     <Card className="w-full max-w-md">
                         <CardHeader>
-                            <CardTitle>Shift Not Found</CardTitle>
-                            <CardDescription>The shift you are looking for does not exist.</CardDescription>
+                            <CardTitle>Sif Tidak Ditemukan</CardTitle>
+                            <CardDescription>Data sif yang Anda cari tidak tersedia.</CardDescription>
                         </CardHeader>
                         <CardContent>
                             <Button asChild>
-                                <Link href="/dashboard">Go Back to Dashboard</Link>
+                                <Link to="/dashboard">Kembali ke Dashboard</Link>
                             </Button>
                         </CardContent>
                     </Card>
@@ -102,7 +102,7 @@ export default function ShiftDetailsPage() {
 
     const openedAt = getSafeDate(shift.opened_at);
     const closedAt = getSafeDate(shift.closed_at);
-    const duration = (closedAt && openedAt) ? formatDistance(closedAt, openedAt) : 'Still open';
+    const duration = (closedAt && openedAt) ? formatDistanceShort(closedAt, openedAt) : 'Masih aktif';
     const activeTransactions = shiftTransactions.filter(t => t.status === 'paid');
     const totalSales = activeTransactions.reduce((sum, t) => sum + t.total, 0);
     const transactionCount = activeTransactions.length;
@@ -114,7 +114,7 @@ export default function ShiftDetailsPage() {
          <div className="flex min-h-screen w-full flex-col bg-muted/40">
            <header className="sticky top-0 flex h-16 items-center gap-4 border-b bg-background px-4 md:px-6 z-10">
                 <Button variant="outline" size="icon" asChild>
-                    <Link href="/dashboard">
+                    <Link to="/dashboard">
                         <ArrowLeft />
                     </Link>
                 </Button>
@@ -124,27 +124,27 @@ export default function ShiftDetailsPage() {
             <div className="w-full max-w-4xl space-y-8">
                 <Card>
                     <CardHeader>
-                        <CardTitle>Shift Summary</CardTitle>
+                        <CardTitle>Ringkasan Sif</CardTitle>
                         <CardDescription>
-                            Shift ID: {shift.id}
+                            ID Sif: {shift.id}
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                             <div>
-                                <p className="text-muted-foreground">Start Time</p>
+                                <p className="text-muted-foreground">Waktu Buka</p>
                                 <p className="font-medium">{openedAt ? openedAt.toLocaleString() : '-'}</p>
                             </div>
                              <div>
-                                <p className="text-muted-foreground">End Time</p>
+                                <p className="text-muted-foreground">Waktu Tutup</p>
                                 <p className="font-medium">{closedAt ? closedAt.toLocaleString() : '-'}</p>
                             </div>
                             <div>
-                                <p className="text-muted-foreground">Duration</p>
+                                <p className="text-muted-foreground">Durasi</p>
                                 <p className="font-medium">{duration}</p>
                             </div>
                              <div>
-                                <p className="text-muted-foreground">Transactions</p>
+                                <p className="text-muted-foreground">Transaksi</p>
                                 <p className="font-medium">{transactionCount}</p>
                             </div>
                         </div>
@@ -152,31 +152,31 @@ export default function ShiftDetailsPage() {
                         <div className="grid grid-cols-2 md:grid-cols-3 gap-6 pt-2">
                             <div className="space-y-2 text-sm">
                                 <div className="flex justify-between">
-                                    <span className="text-muted-foreground">Opening Cash</span>
+                                    <span className="text-muted-foreground">Kas Awal</span>
                                     <span className="font-medium">{formatCurrency(shift.opening_cash)}</span>
                                 </div>
                                 <div className="flex justify-between">
-                                    <span className="text-muted-foreground">Total Sales</span>
+                                    <span className="text-muted-foreground">Total Penjualan</span>
                                     <span className="font-medium">{formatCurrency(totalSales)}</span>
                                 </div>
                                 <div className="flex justify-between">
-                                    <span className="text-muted-foreground">Total Void</span>
+                                    <span className="text-muted-foreground">Total Batal</span>
                                     <span className="font-medium text-destructive">{formatCurrency(totalVoid)}</span>
                                 </div>
                             </div>
                              <div className="space-y-2 text-sm">
                                 <div className="flex justify-between font-semibold">
-                                    <span>Expected Cash</span>
+                                    <span>Ekspektasi Kas</span>
                                     <span>{formatCurrency(expectedCash)}</span>
                                 </div>
                                 <div className="flex justify-between font-semibold">
-                                    <span>Declared Cash</span>
+                                    <span>Kas Aktual</span>
                                     <span>{formatCurrency(shift.declared_cash || 0)}</span>
                                 </div>
                             </div>
                              <div className={`space-y-2 text-sm p-3 rounded-lg ${shift.variance !== 0 ? 'bg-destructive/10' : 'bg-green-500/10'}`}>
-                                 <div className={`flex justify-between font-bold text-lg ${shift.variance !== 0 ? 'text-destructive' : 'text-green-600'}`}>
-                                    <span>Variance</span>
+                                 <div className={`flex items-center h-full justify-between font-bold text-lg ${shift.variance !== 0 ? 'text-destructive' : 'text-green-600'}`}>
+                                    <span>Selisih</span>
                                     <span>{formatCurrency(shift.variance || 0)}</span>
                                 </div>
                             </div>
@@ -186,18 +186,18 @@ export default function ShiftDetailsPage() {
 
                  <Card>
                     <CardHeader>
-                        <CardTitle>Transactions</CardTitle>
-                        <CardDescription>All transactions recorded during this shift.</CardDescription>
+                        <CardTitle>Daftar Transaksi</CardTitle>
+                        <CardDescription>Semua transaksi yang tercatat pada sif ini.</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead>Time</TableHead>
+                                    <TableHead>Waktu</TableHead>
                                     <TableHead>Invoice #</TableHead>
-                                    <TableHead>Items</TableHead>
+                                    <TableHead>Item</TableHead>
                                     <TableHead className="text-right">Total</TableHead>
-                                    <TableHead className="text-right">Actions</TableHead>
+                                    <TableHead className="text-right">Aksi</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -217,23 +217,23 @@ export default function ShiftDetailsPage() {
                                                         </AlertDialogTrigger>
                                                         <AlertDialogContent>
                                                             <AlertDialogHeader>
-                                                                <AlertDialogTitle>Void Transaction {tx.invoice_number}?</AlertDialogTitle>
+                                                                <AlertDialogTitle>Batalkan Transaksi {tx.invoice_number}?</AlertDialogTitle>
                                                                 <AlertDialogDescription>
-                                                                    This action cannot be undone. It will reverse the sale and return items to stock.
+                                                                    Tindakan ini tidak dapat dibatalkan. Stok akan dikembalikan secara otomatis.
                                                                 </AlertDialogDescription>
                                                             </AlertDialogHeader>
                                                             <div className="py-4">
-                                                                <Label htmlFor="void-reason" className="mb-2 block">Reason for Voiding</Label>
-                                                                <Input id="void-reason" value={voidReason} onChange={(e) => setVoidReason(e.target.value)} placeholder="e.g., Customer canceled order" />
+                                                                <Label htmlFor="void-reason" className="mb-2 block">Alasan Void</Label>
+                                                                <Input id="void-reason" value={voidReason} onChange={(e) => setVoidReason(e.target.value)} placeholder="Cth: Salah input, Pelanggan batal" />
                                                             </div>
                                                             <AlertDialogFooter>
-                                                                <AlertDialogCancel onClick={() => setVoidReason('')}>Cancel</AlertDialogCancel>
+                                                                <AlertDialogCancel onClick={() => setVoidReason('')}>Batal</AlertDialogCancel>
                                                                 <AlertDialogAction onClick={async (e) => {
                                                                     const success = await handleVoid(tx.id, tx.invoice_number);
                                                                     if (!success) {
                                                                         e.preventDefault(); // Prevent dialog from closing on failure
                                                                     }
-                                                                }}>Confirm Void</AlertDialogAction>
+                                                                }}>Konfirmasi Pembatalan</AlertDialogAction>
                                                             </AlertDialogFooter>
                                                         </AlertDialogContent>
                                                     </AlertDialog>
@@ -248,9 +248,9 @@ export default function ShiftDetailsPage() {
                 </Card>
 
                 <div className="flex gap-2 pt-4">
-                    <Button variant="outline" onClick={handlePdfExport} disabled={!shift}>Export PDF</Button>
+                    <Button variant="outline" onClick={handlePdfExport} disabled={!shift}>Ekspor PDF</Button>
                     <Button asChild>
-                        <Link href="/dashboard">Done</Link>
+                        <Link to="/dashboard">Selesai</Link>
                     </Button>
                 </div>
             </div>

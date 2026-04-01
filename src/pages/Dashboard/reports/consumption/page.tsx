@@ -99,12 +99,12 @@ export default function ConsumptionReportPage() {
                 <Button variant="outline" size="icon" className="shrink-0" asChild>
                     <Link to="/dashboard/reports">
                         <ArrowLeft className="h-4 w-4" />
-                        <span className="sr-only">Back to Reports</span>
+                        <span className="sr-only">Kembali</span>
                     </Link>
                 </Button>
                 <div className="flex-1">
                     <h1 className="text-lg font-semibold flex items-center gap-2">
-                        <Beaker className="h-5 w-5" /> F&B Consumption Report
+                        <Beaker className="h-5 w-5" /> Pemakaian Bahan Baku
                     </h1>
                 </div>
                 <div className="flex items-center gap-2">
@@ -112,7 +112,7 @@ export default function ConsumptionReportPage() {
                         <DropdownMenuTrigger asChild>
                           <Button variant="outline" size="sm" disabled={reportData.length === 0}>
                             <FileDown className="mr-2 h-4 w-4" />
-                            <span>Export</span>
+                            <span>Ekspor</span>
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
@@ -133,10 +133,10 @@ export default function ConsumptionReportPage() {
                 <CardHeader>
                     <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                         <div>
-                            <CardTitle>Ingredient Consumption</CardTitle>
+                            <CardTitle>Konsumsi Bahan</CardTitle>
                             {date?.from && date?.to && (
                                 <CardDescription>
-                                    Showing consumption data from {format(date.from, 'PPP')} to {format(date.to, 'PPP')}.
+                                    Data pemakaian dari {format(date.from, 'dd MMM yyyy')} s/d {format(date.to, 'dd MMM yyyy')}.
                                 </CardDescription>
                             )}
                         </div>
@@ -147,13 +147,13 @@ export default function ConsumptionReportPage() {
                     <Table>
                         <TableHeader>
                             <TableRow>
-                                <TableHead>Ingredient</TableHead>
-                                <TableHead className="text-right">Opening</TableHead>
-                                <TableHead className="text-right">Consumed</TableHead>
-                                <TableHead className="text-right">Consumed Value</TableHead>
-                                <TableHead className="text-right">Adjusted</TableHead>
-                                <TableHead className="text-right">Closing</TableHead>
-                                <TableHead className="text-right">Closing Value</TableHead>
+                                <TableHead>Nama Bahan</TableHead>
+                                <TableHead className="text-right">Awal</TableHead>
+                                <TableHead className="text-right">Terpakai</TableHead>
+                                <TableHead className="text-right">Nilai Pakai</TableHead>
+                                <TableHead className="text-right">Koreksi</TableHead>
+                                <TableHead className="text-right">Akhir</TableHead>
+                                <TableHead className="text-right">Nilai Stok</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -174,7 +174,7 @@ export default function ConsumptionReportPage() {
                             ) : (
                                 <TableRow>
                                     <TableCell colSpan={7} className="h-24 text-center">
-                                        No raw ingredients found.
+                                        Tidak ada data pemakaian bahan.
                                     </TableCell>
                                 </TableRow>
                             )}

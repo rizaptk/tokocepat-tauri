@@ -26,10 +26,10 @@ export default function LicensePage() {
                 <div className="space-y-8">
                     <div className="space-y-3">
                         <h1 className="text-3xl font-bold tracking-tight">
-                            License & Subscription
+                            Lisensi & Langganan
                         </h1>
                         <p className="text-muted-foreground">
-                            Manage your product license, activation, and billing details.
+                            Kelola lisensi produk, aktivasi, dan detail penagihan Anda.
                         </p>
                     </div>
 
@@ -38,8 +38,8 @@ export default function LicensePage() {
                             <div className="flex items-center gap-3">
                                 <Shield className="h-5 w-5 text-primary" />
                                 <div>
-                                    <p className="text-sm font-medium">License</p>
-                                    <p className="text-xs text-muted-foreground">Activation & validation</p>
+                                    <p className="text-sm font-medium">Lisensi</p>
+                                    <p className="text-xs text-muted-foreground">Aktivasi & validasi</p>
                                 </div>
                             </div>
                         </div>
@@ -47,8 +47,8 @@ export default function LicensePage() {
                             <div className="flex items-center gap-3">
                                 <CreditCard className="h-5 w-5 text-primary" />
                                 <div>
-                                    <p className="text-sm font-medium">Subscription</p>
-                                    <p className="text-xs text-muted-foreground">Billing & plan management</p>
+                                    <p className="text-sm font-medium">Langganan</p>
+                                    <p className="text-xs text-muted-foreground">Tagihan & paket</p>
                                 </div>
                             </div>
                         </div>
@@ -56,7 +56,7 @@ export default function LicensePage() {
                 </div>
                 <div className="mt-8">
                     <Link to="/dashboard/settings" className="text-sm font-medium text-primary hover:underline">
-                        &larr; Back to all settings
+                        &larr; Kembali ke Pengaturan
                     </Link>
                 </div>
             </section>
@@ -66,15 +66,15 @@ export default function LicensePage() {
                     <div className='p-8'>
                         <Tabs defaultValue="license" className="w-full">
                             <TabsList className="w-full mb-8">
-                                <TabsTrigger value="license"><Shield className="mr-2 h-4 w-4" />License</TabsTrigger>
-                                <TabsTrigger value="subscription"><CreditCard className="mr-2 h-4 w-4" />Subscription</TabsTrigger>
+                                <TabsTrigger value="license"><Shield className="mr-2 h-4 w-4" />Lisensi</TabsTrigger>
+                                <TabsTrigger value="subscription"><CreditCard className="mr-2 h-4 w-4" />Langganan</TabsTrigger>
                             </TabsList>
                             
                             <TabsContent value="license">
                                 <Card>
                                     <CardHeader>
-                                        <CardTitle>License Status</CardTitle>
-                                        <CardDescription>Manage your application license and activation.</CardDescription>
+                                        <CardTitle>Status Lisensi</CardTitle>
+                                        <CardDescription>Kelola lisensi aplikasi dan aktivasi perangkat.</CardDescription>
                                     </CardHeader>
                                     <CardContent>
                                         <LicenseManager />

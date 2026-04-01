@@ -13,10 +13,10 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { ProductSearchBar } from "@/components/ProductSearchBar";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { PlusCircle, Plus, Minus, Calculator, Package, Beaker, Layers2, WarehouseIcon, History, ArrowUp, ArrowDown } from "lucide-react";
+import { PlusCircle, Plus, Minus, Calculator, Package, WarehouseIcon, History, ArrowUp, ArrowDown } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useGlobalBarcodeScanner } from "@/hooks/use-global-barcode-scanner";
-import { cn } from "@/lib/utils";
+import { cn, typeConfig } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
@@ -28,45 +28,44 @@ import { Link } from "react-router-dom";
 import { TokoCepatLogo } from "@/components/TokoCepatLogo";
 import { NotificationBell } from "@/components/NotificationBell";
 import { ThemeToggle } from "@/components/ThemeButtons";
+import { itemMapping } from "@/lib/utils"; 
 
 
 const reasonOptions: Record<'add' | 'remove' | 'count', { id: string, value: StockMovementType, label: string }[]> = {
     add: [
-        { id: 'add-restock', value: 'restock', label: 'New Purchase / Restock' },
-        { id: 'add-initial', value: 'initial_balance', label: 'Opening Stock' },
-        { id: 'add-return', value: 'correction', label: 'Customer Return' },
-        { id: 'add-other', value: 'correction', label: 'Other' }
+        { id: 'add-restock', value: 'restock', label: 'Stok Masuk / Restok' },
+        { id: 'add-initial', value: 'initial_balance', label: 'Saldo Awal' },
+        { id: 'add-return', value: 'correction', label: 'Retur Pelanggan' },
+        { id: 'add-other', value: 'correction', label: 'Lainnya' }
     ],
     remove: [
-        { id: 'remove-damaged', value: 'damaged', label: 'Damaged' },
-        { id: 'remove-lost', value: 'lost', label: 'Lost / Stolen' },
-        { id: 'remove-internal', value: 'correction', label: 'Internal Use' },
-        { id: 'remove-other', value: 'correction', label: 'Other' }
+        { id: 'remove-damaged', value: 'damaged', label: 'Barang Rusak' },
+        { id: 'remove-lost', value: 'lost', label: 'Barang Hilang' },
+        { id: 'remove-internal', value: 'correction', label: 'Pemakaian Internal' },
+        { id: 'remove-other', value: 'correction', label: 'Lainnya' }
     ],
     count: [
-        { id: 'count-correction', value: 'correction', label: 'Stock Count Correction' },
-        { id: 'count-audit', value: 'correction', label: 'End of Month Audit' },
-        { id: 'count-other', value: 'correction', label: 'Other' }
+        { id: 'count-correction', value: 'correction', label: 'Koreksi Stok Opname' },
+        { id: 'count-audit', value: 'correction', label: 'Audit Akhir Bulan' },
+        { id: 'count-other', value: 'correction', label: 'Lainnya' }
     ]
 };
-
-const typeConfig = {
-    product: { icon: Package, badge: 'success' },
-    ingredient: { icon: Beaker, badge: 'warning' },
-    variant: { icon: Layers2, badge: 'info' }
-}
 
 type InventoryItemType = (Product & { itemType: 'product', stock: number }) 
     | (RawIngredient & { itemType: 'ingredient', stock: number })
     | (ProductVariant & { itemType: 'variant', stock: number, parentName: string });
 
 
-const StockHistoryCards = ({selectedItem}: {selectedItem: { id: string, type: 'product' | 'ingredient' | 'variant' }[]}) => {
+const StockHistoryCards = memo(({selectedItem}: {selectedItem: { id: string, type: 'product' | 'ingredient' | 'variant' }[]}) => {
     const { products, rawIngredients, productVariants } = useStore();
     const [histories, setHistory] = useState<StockMovement[]>([]);
     const [loading, setTransition] = useTransition();
 
-    const ids = useMemo(() => selectedItem.map(item => item.id), [selectedItem]);
+    // const ids = useMemo(() => selectedItem.map(item => item.id), [selectedItem]);
+    const ids = useMemo(() => 
+        selectedItem.map(item => item.id).join(','), // Ubah jadi string untuk perbandingan primitif
+        [selectedItem]
+    );
 
     // const histories = use(getStockMovementsByProducts(ids));
     useEffect(() => {
@@ -75,8 +74,10 @@ const StockHistoryCards = ({selectedItem}: {selectedItem: { id: string, type: 'p
         return;
         }
 
+        const idArray = ids.split(',');
+
         setTransition(() => {
-            getStockMovementsByProducts(ids).then((result) => {
+            getStockMovementsByProducts(idArray).then((result) => {
                 setHistory(result);
             });
         });
@@ -103,7 +104,7 @@ const StockHistoryCards = ({selectedItem}: {selectedItem: { id: string, type: 'p
         <div className="space-y-4">
             <h4 className="font-medium px-1 flex items-center gap-2">
                 <History className="size-4" />
-                Stock History
+                Riwayat Stok
             </h4>
             {mapedByIds.map((group) => {
                 const firstHistory = group[0];
@@ -112,10 +113,10 @@ const StockHistoryCards = ({selectedItem}: {selectedItem: { id: string, type: 'p
                 return (
                     <Card key={firstHistory.product_id} className="overflow-hidden">
                         <CardHeader className="px-6 pb-4 pt-6 border-b flex flex-row justify-between items-center">
-                            <CardTitle className="text-sm font-bold">{item?.name || 'Unknown Item'} <span className="ms-2 font-normal">{group.length > 1 && ` (${group.length} times)`}</span></CardTitle>
+                            <CardTitle className="text-sm font-bold">{item?.name || 'Unknown Item'} <span className="ms-2 font-normal">{group.length > 1 && ` (${group.length} kali)`}</span></CardTitle>
                             <Button variant="ghost" size="sm">
                                 <Link to="/dashboard/reports/stock-movement">
-                                    Show full report
+                                    Laporan Lengkap
                                 </Link>
                             </Button>
                         </CardHeader>
@@ -136,7 +137,7 @@ const StockHistoryCards = ({selectedItem}: {selectedItem: { id: string, type: 'p
                                             <div className="flex-1 min-w-0">
                                                 <div className="flex justify-between items-start mb-0.5">
                                                     <span className="text-[11px] text-muted-foreground uppercase tracking-wider font-bold">
-                                                        {hisType === 'SALE' ? `Customer Purchase` : hisType}
+                                                        {hisType === 'SALE' ? `Penjualan` : hisType}
                                                     </span>
                                                     <div className={cn("font-bold text-sm tabular-nums", isPositive ? "text-green-600" : "text-destructive")}>
                                                         {isPositive ? `+${history.qty_change}` : history.qty_change}
@@ -144,7 +145,7 @@ const StockHistoryCards = ({selectedItem}: {selectedItem: { id: string, type: 'p
                                                 </div>
                                                 <div className="flex justify-between items-end gap-2 truncate">
                                                     <span className="text-xs text-foreground/80 italic truncate flex-1">
-                                                        {hisType === 'SALE' ? `Ref: ${history.reference_id}` : (history.reason || 'No reason provided')}
+                                                        {hisType === 'SALE' ? `Ref: ${history.reference_id}` : (history.reason || 'Tanpa keterangan')}
                                                     </span>
                                                     <span className="text-[11px] text-muted-foreground shrink-0">
                                                         {date}
@@ -161,9 +162,9 @@ const StockHistoryCards = ({selectedItem}: {selectedItem: { id: string, type: 'p
             })}
         </div>
     )
-}
+})
 
-const StockAdjustmentPanel = ({ selectedItem, onSave, onCancel }: { selectedItem: { id: string, type: 'product' | 'ingredient' | 'variant' } | null; onSave: () => void; onCancel: () => void; }) => {
+const StockAdjustmentPanel = memo(({ selectedItem, onSave, onCancel }: { selectedItem: { id: string, type: 'product' | 'ingredient' | 'variant' } | null; onSave: () => void; onCancel: () => void; }) => {
     const [mode, setMode] = useState<'add' | 'remove' | 'count' | null>(null);
     const [quantity, setQuantity] = useState('');
     const [actualCount, setActualCount] = useState('');
@@ -235,12 +236,12 @@ const StockAdjustmentPanel = ({ selectedItem, onSave, onCancel }: { selectedItem
 
     const handleSubmit = async () => {
         if (!isFormValid || !item || !mode) {
-            toast({ variant: 'destructive', title: 'Invalid', description: 'Please complete the form with a valid reason and quantity.' });
+            toast({ variant: 'destructive', title: 'Tidak Valid', description: 'Mohon lengkapi formulir dengan alasan dan jumlah yang benar.' });
             return;
         }
 
         if (change === 0) {
-            toast({ title: "No Changes", description: "Actual count matches system stock. No adjustment needed." });
+            toast({ title: "Tidak Ada Perubahan", description: "Jumlah fisik sesuai dengan stok sistem. Penyesuaian tidak diperlukan." });
             onSave();
             return;
         }
@@ -248,7 +249,7 @@ const StockAdjustmentPanel = ({ selectedItem, onSave, onCancel }: { selectedItem
         try {
             const selectedOption = reasonOptions[mode].find(opt => opt.id === reason);
             if (!selectedOption) {
-                toast({ variant: 'destructive', title: 'Invalid Reason', description: 'Please select a valid reason.' });
+                toast({ variant: 'destructive', title: 'Alasan Tidak Valid', description: 'Silakan pilih alasan yang valid.' });
                 return;
             }
 
@@ -267,7 +268,7 @@ const StockAdjustmentPanel = ({ selectedItem, onSave, onCancel }: { selectedItem
                 await adjustVariantStock(item.id, selectedOption.value, change, adjustmentReason);
             }
 
-            toast({ title: 'Stock Adjusted', description: `${item.name} stock has been updated to ${newStock}.` });
+            toast({ title: 'Stok Berhasil Diperbarui', description: `Stok ${item.name} telah diperbarui menjadi ${newStock}.` });
             onSave();
         } catch (error: any) {
             toast({ variant: 'destructive', title: 'Error', description: error.message });
@@ -279,7 +280,7 @@ const StockAdjustmentPanel = ({ selectedItem, onSave, onCancel }: { selectedItem
     return (
         <div className="flex flex-col h-full min-h-0">
             <div className="pt-6 pb-2 px-4 flex items-center justify-between">
-                <h3 className="font-semibold text-lg">Manual Stock Adjustment</h3>
+                <h3 className="font-semibold text-lg">Penyesuaian Stok</h3>
                 <WarehouseIcon className="size-5" />
             </div>
             <div className="flex-1 min-h-0 flex flex-col relative">
@@ -290,7 +291,7 @@ const StockAdjustmentPanel = ({ selectedItem, onSave, onCancel }: { selectedItem
                             <Card className="h-full">
                                 <div className="flex flex-col items-center justify-center text-center text-muted-foreground h-full p-8">
                                     <Package className="w-12 h-12 mb-4" />
-                                    <p>No item selected</p>
+                                    <p>Tidak ada item dipilih</p>
                                 </div>
                             </Card>
                         ) : (
@@ -299,29 +300,30 @@ const StockAdjustmentPanel = ({ selectedItem, onSave, onCancel }: { selectedItem
                                     <CardHeader>
                                         <CardTitle>{item.itemType === 'variant' ? `${item.parentName} (${item.name})` : item.name}</CardTitle>
                                         <div className="flex justify-between items-center">
-                                            <CardDescription>Current Stock: <span className="font-bold text-foreground">{item.stock}</span></CardDescription>
-                                            <Badge variant={badgeVariant as any} className="border border-border">
+                                            <CardDescription>Stok Tersedia: <span className="font-bold text-foreground">{item.stock}</span></CardDescription>
+                                            <Badge variant={badgeVariant as any} className="border border-border capitalize">
                                                 <ItemIcon className="h-3 w-3 mr-1.5" />
-                                                {item.itemType === 'product' ? 'Product' : item.itemType === 'ingredient' ? 'Ingredient' : 'Variant'}
+                                                {/* {item.itemType === 'product' ? 'Product' : item.itemType === 'ingredient' ? 'Ingredient' : 'Variant'} */}
+                                                {itemMapping.get(item.itemType)}
                                             </Badge>
                                         </div>
                                     </CardHeader>
                                     <CardContent className="space-y-2">
 
                                         <div>
-                                            <Label>What happened?</Label>
+                                            <Label>Aksi?</Label>
                                             <ButtonGroup className="w-full mt-2">
                                                 <Button variant={mode === 'add' ? 'success' : 'outline'} onClick={() => setMode('add')} className="flex-1 flex-col h-16">
                                                     <Plus className="w-5 h-5 mb-1" />
-                                                    <span className="text-xs">Add Stock</span>
+                                                    <span className="text-xs">Tambah</span>
                                                 </Button>
                                                 <Button variant={mode === 'remove' ? 'destructive' : 'outline'} onClick={() => setMode('remove')} className="flex-1 flex-col h-16">
                                                     <Minus className="w-5 h-5 mb-1" />
-                                                    <span className="text-xs">Remove Stock</span>
+                                                    <span className="text-xs">Kurang</span>
                                                 </Button>
                                                 <Button variant={mode === 'count' ? 'default' : 'outline'} onClick={() => setMode('count')} className="flex-1 flex-col h-16">
                                                     <Calculator className="w-5 h-5 mb-1" />
-                                                    <span className="text-xs">Count Stock</span>
+                                                    <span className="text-xs">Koreksi</span>
                                                 </Button>
                                             </ButtonGroup>
                                         </div>
@@ -331,13 +333,13 @@ const StockAdjustmentPanel = ({ selectedItem, onSave, onCancel }: { selectedItem
                                                 {mode === 'add' || mode === 'remove' ? (
                                                     <div className="space-y-4">
                                                         <div className="space-y-2">
-                                                            <Label htmlFor="quantity">Quantity to {mode}</Label>
-                                                            <Input id="quantity" type="number" placeholder="Enter a positive number" value={quantity} onChange={(e) => setQuantity(e.target.value)} min="1" />
+                                                            <Label htmlFor="quantity">Jumlah</Label>
+                                                            <Input id="quantity" type="number" placeholder="Masukkan angka" value={quantity} onChange={(e) => setQuantity(e.target.value)} min="1" />
                                                         </div>
                                                         <div className="space-y-2">
-                                                            <Label htmlFor="reason-select">Reason</Label>
+                                                            <Label htmlFor="reason-select">Alasan</Label>
                                                             <Select value={reason} onValueChange={setReason}>
-                                                                <SelectTrigger><SelectValue placeholder="Select a reason" /></SelectTrigger>
+                                                                <SelectTrigger><SelectValue placeholder="Tentukan alasan" /></SelectTrigger>
                                                                 <SelectContent>
                                                                     {reasonOptions[mode].map(opt => <SelectItem key={opt.id} value={opt.id}>{opt.label}</SelectItem>)}
                                                                 </SelectContent>
@@ -347,14 +349,14 @@ const StockAdjustmentPanel = ({ selectedItem, onSave, onCancel }: { selectedItem
                                                 ) : (
                                                     <div className="space-y-4">
                                                         <div className="space-y-2">
-                                                            <Label htmlFor="actual-count">Actual Physical Count</Label>
-                                                            <Input id="actual-count" type="number" placeholder="e.g. 142" value={actualCount} onChange={(e) => setActualCount(e.target.value)} />
+                                                            <Label htmlFor="actual-count">Stok Rill (Fisik)</Label>
+                                                            <Input id="actual-count" type="number" placeholder="cth. 142" value={actualCount} onChange={(e) => setActualCount(e.target.value)} />
                                                         </div>
                                                         {change !== 0 && (
                                                             <div className="space-y-2">
-                                                                <Label htmlFor="reason-count">Reason for Difference</Label>
+                                                                <Label htmlFor="reason-count">Alasan Selisih</Label>
                                                                 <Select value={reason} onValueChange={setReason}>
-                                                                    <SelectTrigger><SelectValue placeholder="Select a reason" /></SelectTrigger>
+                                                                    <SelectTrigger><SelectValue placeholder="Pilih Alasan" /></SelectTrigger>
                                                                     <SelectContent>
                                                                         {reasonOptions.count.map(opt => <SelectItem key={opt.id} value={opt.id}>{opt.label}</SelectItem>)}
                                                                     </SelectContent>
@@ -364,8 +366,8 @@ const StockAdjustmentPanel = ({ selectedItem, onSave, onCancel }: { selectedItem
                                                     </div>
                                                 )}
                                                 <div className="space-y-2">
-                                                    <Label htmlFor="note">Note (Optional)</Label>
-                                                    <Textarea id="note" placeholder="e.g., 'Box was found open'" value={note} onChange={e => setNote(e.target.value)} />
+                                                    <Label htmlFor="note">Catatan (Optional)</Label>
+                                                    <Textarea id="note" placeholder="cth, 'Box telah terbuka'" value={note} onChange={e => setNote(e.target.value)} />
                                                 </div>
                                             </div>
                                         )}
@@ -375,24 +377,24 @@ const StockAdjustmentPanel = ({ selectedItem, onSave, onCancel }: { selectedItem
                                 {mode && change !== 0 && (
                                     <Card>
                                         <CardHeader>
-                                            <CardTitle className="text-base">Adjustment Summary</CardTitle>
+                                            <CardTitle className="text-base">Ringkasan</CardTitle>
                                         </CardHeader>
                                         <CardContent className="space-y-2 text-sm">
                                             <div className="flex justify-between">
-                                                <span className="text-muted-foreground">Previous Stock</span>
+                                                <span className="text-muted-foreground">Stok Lama</span>
                                                 <span>{item.stock}</span>
                                             </div>
                                             <div className={cn("flex justify-between font-semibold", change > 0 ? "text-green-600" : "text-destructive")}>
-                                                <span className="text-muted-foreground">Change</span>
+                                                <span className="text-muted-foreground">Perubahan</span>
                                                 <span>{change > 0 ? `+${change}` : change}</span>
                                             </div>
                                             <Separator />
                                             <div className="flex justify-between font-bold text-lg">
-                                                <span>New Stock</span>
+                                                <span>Stok Baru</span>
                                                 <span>{newStock}</span>
                                             </div>
                                             {newStock < 0 && (
-                                                <p className="text-xs text-center pt-2 text-destructive font-semibold">⚠ This will result in negative stock.</p>
+                                                <p className="text-xs text-center pt-2 text-destructive font-semibold">⚠ Peringatan: Stok akan negatif.</p>
                                             )}
                                         </CardContent>
                                     </Card>
@@ -411,16 +413,14 @@ const StockAdjustmentPanel = ({ selectedItem, onSave, onCancel }: { selectedItem
                 {
                     item &&
                     <Button variant="outline" className="flex-1" onClick={onCancel}>
-                        Cancel
+                        Batal
                     </Button>
                 }
-                <Button className="flex-1" onClick={handleSubmit} disabled={!isFormValid || !item || (mode === 'count' && change === 0)}>Save Adjustment</Button>
+                <Button className="flex-1" onClick={handleSubmit} disabled={!isFormValid || !item || (mode === 'count' && change === 0)}>Simpan</Button>
             </div>
         </div>
     );
-}
-
-
+})
 
 
 const ColumnClass = {
@@ -448,12 +448,12 @@ const InventoryListItem = ({ item, isSelected, onItemClick, categories, isEven }
     const { icon: ItemIcon, badge: badgeVariant } = typeConfig[item.itemType];
 
     return (
-        <div className="bg-card border-x border-b border-b-border/50 p-0 h-[56px]">
+        <div className="bg-card border-x border-b border-b-border/50 p-0 h-14">
             <div
                 data-item
                 onClick={() => onItemClick(item)}
                 className={cn(
-                    "flex items-center px-4 transition-colors cursor-pointer  hover:bg-accent h-[56px]",
+                    "flex items-center px-4 transition-colors cursor-pointer  hover:bg-accent h-14",
                     isSelected ? "bg-success/20 text-success-foreground" : isEven ? 'bg-border/10' : ''
                 )}
             >
@@ -463,7 +463,8 @@ const InventoryListItem = ({ item, isSelected, onItemClick, categories, isEven }
                 <div className={ColumnClass.type}>
                     <Badge variant={badgeVariant as any} className="text-[10px] uppercase px-2 py-0.5 border border-border">
                         <ItemIcon className="h-3 w-3 mr-1" />
-                        {item.itemType}
+                        {/* {item.itemType} */}
+                        {itemMapping.get(item.itemType)}
                     </Badge>
                 </div>
                 <div className={ColumnClass.category}>
@@ -549,21 +550,21 @@ export default function InventoryPage() {
             if (!product.track_stock) {
                 toast({
                     variant: "destructive",
-                    title: "Untracked Product",
-                    description: `"${product.name}" does not have stock tracking enabled.`,
+                    title: "Stok tidak terlacak",
+                    description: `"${product.name}" tidak diatur untuk melacak stok.`,
                 });
                 return;
             }
             handleItemSelect({ ...product, itemType: 'product', stock: product.stock });
             toast({
-                title: "Product Found",
-                description: `Selected "${product.name}" for adjustment.`,
+                title: "Product Ditemukan",
+                description: `"${product.name}" siap disesuaikan.`,
             });
         } else {
             toast({
                 variant: "destructive",
-                title: "Product Not Found",
-                description: `No product found with barcode: ${barcode}`,
+                title: "Produk tidak ditemukan",
+                description: `Tidak ada produk yang ditemukan dengan barcode: ${barcode}`,
             });
         }
     };
@@ -655,20 +656,20 @@ export default function InventoryPage() {
                             </div>
                             <div className="md:hidden">
                                 <Button onClick={handleOpenAdjustmentSheet}>
-                                    <PlusCircle className="mr-2 h-4 w-4" /> Adjustment
+                                    <PlusCircle className="mr-2 h-4 w-4" /> Penyesuaian
                                 </Button>
                             </div>
                         </div>
                         <div className="flex items-center gap-4 overflow-x-auto no-scrollbar">
                             <Button variant={filter === 'all' ? 'secondary' : 'outline'} onClick={() => setFilter('all')} className="rounded-full px-4 shrink-0">All</Button>
-                            <Button variant={filter === 'product' ? 'secondary' : 'outline'} onClick={() => setFilter('product')} className="rounded-full px-4 shrink-0">Product</Button>
-                            <Button variant={filter === 'ingredient' ? 'secondary' : 'outline'} onClick={() => setFilter('ingredient')} className="rounded-full px-4 shrink-0">Ingredient</Button>
-                            <Button variant={filter === 'variant' ? 'secondary' : 'outline'} onClick={() => setFilter('variant')} className="rounded-full px-4 shrink-0">Variant</Button>
+                            <Button variant={filter === 'product' ? 'secondary' : 'outline'} onClick={() => setFilter('product')} className="rounded-full px-4 shrink-0">Produk</Button>
+                            <Button variant={filter === 'ingredient' ? 'secondary' : 'outline'} onClick={() => setFilter('ingredient')} className="rounded-full px-4 shrink-0">Bahan</Button>
+                            <Button variant={filter === 'variant' ? 'secondary' : 'outline'} onClick={() => setFilter('variant')} className="rounded-full px-4 shrink-0">Varian</Button>
                             
                             <Separator orientation="vertical" />
 
-                            <Button variant={filter === 'low_stock' ? 'secondary' : 'outline'} onClick={() => setFilter('low_stock')} className="rounded-full px-4 shrink-0">Low Stock</Button>
-                            <Button variant={filter === 'out_of_stock' ? 'secondary' : 'outline'} onClick={() => setFilter('out_of_stock')} className="rounded-full px-4 shrink-0">Out of Stock</Button>
+                            <Button variant={filter === 'low_stock' ? 'secondary' : 'outline'} onClick={() => setFilter('low_stock')} className="rounded-full px-4 shrink-0">Stok Tipis</Button>
+                            <Button variant={filter === 'out_of_stock' ? 'secondary' : 'outline'} onClick={() => setFilter('out_of_stock')} className="rounded-full px-4 shrink-0">Habis</Button>
                         </div>
                     </div>
                     <div className="flex-1 bg-background h-full min-h-0 flex flex-col">
@@ -677,16 +678,16 @@ export default function InventoryPage() {
                                 <div className="px-4 w-full">
                                     <div className="rounded-t-lg h-12 w-full border bg-card flex items-center px-4">
                                         <div className={ColumnClass.name}>
-                                            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Item Name</span>
+                                            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Nama Item</span>
                                         </div>
                                         <div className={ColumnClass.type}>
-                                            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Type</span>
+                                            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Tipe</span>
                                         </div>
                                         <div className={ColumnClass.category}>
-                                            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Category</span>
+                                            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Kategori</span>
                                         </div>
                                         <div className={ColumnClass.stock}>
-                                            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Stock</span>
+                                            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Stok</span>
                                         </div>
                                     </div>
                                 </div>
@@ -716,7 +717,7 @@ export default function InventoryPage() {
                         ) : (
                             <div className="flex flex-col items-center justify-center text-center text-muted-foreground h-full p-8">
                                 <Package className="w-12 h-12 mb-4" />
-                                <p>No inventory items found.</p>
+                                <p>Tidak ada item yang ditemukan</p>
                             </div>
                         )}
                     </div>
@@ -727,9 +728,9 @@ export default function InventoryPage() {
                 </aside>
 
                 <Sheet open={isSheetOpen} onOpenChange={handleSheetOpenChange}>
-                    <SheetContent side="right" className="w-full sm:w-[500px] p-0 flex flex-col h-full min-h-0">
+                    <SheetContent side="right" className="w-full sm:w-125 p-0 flex flex-col h-full min-h-0">
                         <SheetHeader className="sr-only">
-                            <SheetTitle>Stock Adjustment</SheetTitle>
+                            <SheetTitle>Penyesuaian Stok</SheetTitle>
                         </SheetHeader>
                         <StockAdjustmentPanel onSave={handleSave} onCancel={handleCancel} selectedItem={selectedItem} />
                     </SheetContent>

@@ -27,6 +27,6 @@
     },
     "types": ["@types/wicg-file-system-access", "w3c-web-usb"]
   },
-  "include": ["src"],
+  "include": ["src","vite-env.d.ts"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

@@ -1,6 +1,6 @@
 
 
-import { Product, ProductType, ProductVariant, RecipeItem } from '@/lib/types';
+import { Product, ProductType, RecipeItem } from '@/lib/types';
 import { useDbStore } from '@/lib/db-store';
 import { useStore } from '@/lib/store';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
@@ -104,7 +104,6 @@ export const addProduct = async (productData: ProductFormData): Promise<Product 
     const newProduct: Product = {
         id: newId,
         ...restOfProductData,
-        stock: 0, // Always create with 0 stock initially for audit trail
         imageUrl: productData.imageUrl || placeholder.imageUrl,
         imageHint: productData.imageHint || placeholder.imageHint,
         is_composite: isComposite,
@@ -136,6 +135,8 @@ export const addProduct = async (productData: ProductFormData): Promise<Product 
         await setRecipeForProduct(newProduct.id, []);
     }
     
+    console.log("New product created:", newProduct);
+
     return newProduct;
 };
 
@@ -192,9 +193,6 @@ export async function searchProducts(term: string): Promise<Product[]> {
     const { collection, query, where, getDocs } = firesqlite;
     
     const productsRef = collection(db, 'products');
-    // Using the custom 'like' operator assumed to be in firesqlite v0.0.5
-    // also filtering for active products only.
-    // implement != operator for optional field i.e. is_active to make sure only field with is_active != false will shown per firesqlite v0.0.7
     const q = query(
         productsRef, 
         where('is_active', '!=', false), 
@@ -209,6 +207,6 @@ export async function searchProducts(term: string): Promise<Product[]> {
         // Fallback for older versions or if the operator isn't ready
         const allProductsSnapshot = await getDocs(collection(db, 'products'));
         const allProducts = allProductsSnapshot.docs.map((d:any) => d.data() as Product);
-        return allProducts.filter(p => p.is_active && p.name.toLowerCase().includes(term.toLowerCase()));
+        return allProducts.filter((p:any) => p.is_active && p.name.toLowerCase().includes(term.toLowerCase()));
     }
 }

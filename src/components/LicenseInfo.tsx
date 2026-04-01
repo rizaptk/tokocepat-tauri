@@ -1,23 +1,33 @@
 import { useLicense } from "@/hooks/useLicense"
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
-import { AlertTriangle, CheckCircle, Clock, ShieldOff, XCircle } from "lucide-react";
+import { AlertTriangle, CheckCircle, Clock, Loader2, ShieldOff, XCircle } from "lucide-react";
 import { Badge } from "./ui/badge";
 import { Card, CardContent } from "./ui/card";
 import { Button } from "./ui/button";
 import { Link } from "react-router-dom";
+import { formatDistanceToNowShort } from "@/lib/utils";
 
 export const LicenseInfo = () => {
-    const { status, licenseDetails } = useLicense();
+
+    const { status, licenseDetails } =  useLicense();
+
+    if (status === 'LOADING') return (
+        <div className="flex items-center justify-center p-4">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        </div>
+    ) 
 
     if (status === 'VALID' || status === 'EXPIRES_SOON') {
+        const expireAt = new Date(licenseDetails.expiresAt);
+        const remaining = formatDistanceToNowShort(expireAt);
         return (
              <div className="space-y-4">
                   {status === 'EXPIRES_SOON' && licenseDetails?.daysRemaining != null && (
                     <Alert variant="destructive" className="bg-orange-50 border-orange-200 text-orange-800 dark:bg-orange-950/30 dark:border-orange-800 dark:text-orange-300 [&>svg]:text-orange-600">
                         <AlertTriangle className="h-4 w-4" />
-                        <AlertTitle>License Expiring Soon</AlertTitle>
+                        <AlertTitle>Lisensi Segera Berakhir</AlertTitle>
                         <AlertDescription>
-                            Your license will expire in {licenseDetails.daysRemaining} day(s). Please renew your subscription to avoid service interruption.
+                            Lisensi berakhir dalam {licenseDetails.daysRemaining === 0 ? remaining : licenseDetails.daysRemaining + ' hari'}. Perbarui langganan agar layanan tidak terputus.
                         </AlertDescription>
                     </Alert>
                   )}
@@ -25,15 +35,14 @@ export const LicenseInfo = () => {
                     <CardContent className="flex flex-col gap-2 pt-6">
                         <div className="flex items-center gap-2">
                             <CheckCircle className="h-5 w-5 text-green-600" />
-                            <p className="font-semibold text-green-600">License Active</p>
+                            <p className="font-semibold text-green-600">Lisensi Aktif</p>
                             <Link to="/license" className="ms-auto text-sm font-medium text-primary hover:underline">
-                                Manage License &rarr;
+                                Kelola &rarr;
                             </Link>
                         </div>
                         <div className="text-sm space-y-1">
-                            <p>Plan: <Badge variant="secondary">{licenseDetails.plan}</Badge></p>
-                            <p>Expires: <span className="font-medium">{licenseDetails.expiresAt === 'Never' ? 'Never' : new Date(licenseDetails.expiresAt).toLocaleDateString()}</span></p>
-                            <p className="text-xs text-muted-foreground pt-1 break-all">Device ID: {licenseDetails.deviceId}</p>
+                            <p>Paket: <Badge variant="secondary">{licenseDetails.plan}</Badge></p>
+                            <p>Berakhir: <span className="font-medium">{licenseDetails.expiresAt === 'Never' ? 'Selamanya' : new Date(licenseDetails.expiresAt).toLocaleDateString()}</span></p>
                         </div>
                     </CardContent>
                   </Card>
@@ -45,13 +54,13 @@ export const LicenseInfo = () => {
     const getErrorContent = () => {
         switch (status) {
             case 'INVALID':
-                return { icon: XCircle, title: "License Invalid", description: "Your license data appears to be corrupt. Please try reactivating." };
+                return { icon: XCircle, title: "Lisensi Tidak Valid", description: "Data lisensi rusak. Silakan aktivasi ulang." };
             case 'EXPIRED':
-                return { icon: Clock, title: "License Expired", description: "Please renew your license to continue using the application." };
+                return { icon: Clock, title: "Lisensi Kedaluwarsa", description: "Perbarui lisensi untuk terus menggunakan aplikasi." };
             case 'TAMPERED':
-                return { icon: ShieldOff, title: "Clock Tampering Detected", description: "Your system clock has been moved backwards. Please set it to the correct time." };
+                return { icon: ShieldOff, title: "Manipulasi Waktu", description: "Waktu sistem tidak akurat. Mohon atur jam dengan benar." };
             case 'CLONED':
-                return { icon: ShieldOff, title: "Device Mismatch", description: "This license is registered to a different device. Please deactivate it there before activating here." };
+                return { icon: ShieldOff, title: "Perangkat Berbeda", description: "Lisensi terdaftar di perangkat lain. Deaktivasi perangkat lama dahulu." };
             default:
                 return null;
         }
@@ -62,22 +71,25 @@ export const LicenseInfo = () => {
         <>
         <div className="space-y-4">
             {errorContent && (
-                <div className="flex items-start gap-3 text-destructive font-medium p-3 bg-destructive/10 rounded-md">
-                    <errorContent.icon className="h-5 w-5 mt-0.5 shrink-0" />
-                    <div>
-                        <p>{errorContent.title}</p>
-                        <p className="text-xs font-normal text-destructive/80">{errorContent.description}</p>
-                    </div>
-                </div>
+                <Alert variant="destructive">
+                    <errorContent.icon className="h-4 w-4" />
+                    <AlertTitle>{errorContent.title}</AlertTitle>
+                    <AlertDescription className="flex flex-col gap-3">
+                        <p>{errorContent.description}</p>
+                        <Link to="/license">
+                            <Button size="sm" variant="outline" className="w-full">Kelola Lisensi</Button>
+                        </Link>
+                    </AlertDescription>
+                </Alert>
             )}
             {!errorContent && status === 'NOT_FOUND' && (
                 <Alert variant="destructive">
                     <ShieldOff className="h-4 w-4" />
-                    <AlertTitle>No Active License</AlertTitle>
+                    <AlertTitle>Belum Ada Lisensi</AlertTitle>
                     <AlertDescription className="flex flex-col gap-3">
-                        <p>You haven't activated a license on this device yet. Some features may be restricted.</p>
+                        <p>Aplikasi belum diaktivasi. Beberapa fitur mungkin dibatasi.</p>
                         <Link to="/license">
-                            <Button size="sm" className="w-full">Activate Now</Button>
+                            <Button size="sm" className="w-full">Aktivasi Sekarang</Button>
                         </Link>
                     </AlertDescription>
                 </Alert>

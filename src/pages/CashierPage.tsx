@@ -22,7 +22,6 @@ import { useIsMobile } from '@/lib/ismobile-store';
 import { useGlobalBarcodeScanner } from '@/hooks/use-global-barcode-scanner';
 import { useSettingsStore } from '@/lib/settings';
 import { useProductSearch } from '@/lib/useProductSearch';
-import { useGlobalKeydown } from '@/hooks/use-global-keydown';
 
 export type ViewMode = 'card' | 'thumbnail' | 'list';
 
@@ -75,8 +74,8 @@ export default function CashierPage() {
         if (!activeShift) {
             toast({
                 variant: "destructive",
-                title: "Shift Not Open",
-                description: "Please open a shift before making a sale.",
+                title: "Sif Belum Dibuka",
+                description: "Silakan buka sif sebelum melakukan penjualan.",
             });
             return;
         }
@@ -119,8 +118,8 @@ export default function CashierPage() {
         } else {
             toast({
                 variant: "destructive",
-                title: "Product Not Found",
-                description: `No product found with barcode: ${barcode}`,
+                title: "Produk Tidak Ditemukan",
+                description: `Tidak ada produk dengan barcode: ${barcode}`,
             });
         }
     };
@@ -145,8 +144,8 @@ export default function CashierPage() {
         } else {
             showToast.noModifier &&
                 toast({
-                    title: "No custom options",
-                    description: "This item does not have any variants or modifiers to edit."
+                    title: "Tidak ada opsi tambahan",
+                    description: "Item ini tidak memiliki varian atau modifier untuk diubah."
                 })
         }
     }
@@ -162,18 +161,18 @@ export default function CashierPage() {
             <div className="flex h-screen w-full items-center justify-center bg-muted/40 p-4">
                 <Card className="w-full max-w-md">
                     <CardHeader>
-                        <CardTitle>Open a New Shift</CardTitle>
-                        <CardDescription>Enter the starting cash amount in your drawer to begin making sales.</CardDescription>
+                        <CardTitle>Buka Sif Baru</CardTitle>
+                        <CardDescription>Masukkan jumlah kas awal di laci Anda untuk memulai penjualan.</CardDescription>
                     </CardHeader>
                     <CardContent className="flex flex-col sm:flex-row items-center gap-4">
                         <div className="flex-1 w-full">
-                            <Label htmlFor="opening-cash" className="sr-only">Opening Cash</Label>
+                            <Label htmlFor="opening-cash" className="sr-only">Kas Awal</Label>
                             <div className="relative">
                                 <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">Rp</span>
                                 <Input
                                     id="opening-cash"
                                     type="number"
-                                    placeholder="Enter opening cash amount"
+                                    placeholder="Masukkan jumlah kas awal"
                                     value={openingCash || ''}
                                     onChange={(e) => setOpeningCash(Number(e.target.value))}
                                     className="pl-10 text-lg"
@@ -183,7 +182,7 @@ export default function CashierPage() {
                             </div>
                         </div>
                         <Button onClick={handleOpenShift} className="w-full sm:w-auto" disabled={openingCash <= 0}>
-                            <LogIn className="mr-2 h-4 w-4" /> Start Shift
+                            <LogIn className="mr-2 h-4 w-4" /> Mulai
                         </Button>
                     </CardContent>
                 </Card>
@@ -213,7 +212,7 @@ export default function CashierPage() {
                                     className="rounded-full px-4 shrink-0"
                                     onClick={() => setSelectedCategoryId(null)}
                                 >
-                                    All
+                                    Semua
                                 </Button>
                                 {
                                     categories.map(category => (

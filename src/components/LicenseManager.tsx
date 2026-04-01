@@ -1,5 +1,3 @@
-
-
 import { useLicense } from '@/hooks/useLicense';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -9,10 +7,11 @@ import { Badge } from './ui/badge';
 import { CheckCircle, XCircle, Clock, ShieldOff, Loader2, AlertTriangle } from 'lucide-react';
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { generateDeviceFingerprint } from '@/lib/security';
-import { saveLicenseData } from '@/services/dataService';
+// import { generateDeviceFingerprint } from '@/lib/security';
+// import { saveLicenseData } from '@/services/dataService';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
-import { apiFetch } from '@/lib/api-client';
+// import { apiFetch } from '@/lib/api-client';
+import { invoke } from '@tauri-apps/api/core';
 
 export function LicenseManager() {
     const { status, licenseDetails, deactivate } = useLicense();
@@ -20,47 +19,36 @@ export function LicenseManager() {
     const [isLoading, setIsLoading] = useState(false);
     const { toast } = useToast();
 
+    // LicenseManager.tsx snippet
     const handleActivate = async () => {
         if (!licenseKey.trim()) {
-            toast({ variant: 'destructive', title: 'License key cannot be empty.' });
+            toast({ variant: 'destructive', title: 'Kode lisensi tidak boleh kosong.' });
             return;
         }
         setIsLoading(true);
 
         try {
-            const deviceId = await generateDeviceFingerprint();
+            // Simple call to Rust - no deviceId or apiFetch needed here
+            await invoke('activate_manual_license', { license_key: licenseKey });
 
-            const response = await apiFetch('/api/license/activate', {
-                method: 'POST',
-                body: JSON.stringify({ licenseKey, deviceId }),
-            });
-
-            const data = await response.json();
-
-            if (!response.ok) {
-                throw new Error(data.error || 'An unknown error occurred during activation.');
-            }
-            
-            await saveLicenseData(data.token, deviceId);
-
-            toast({ title: 'Activation Successful!', description: 'The application will now reload.' });
-
+            toast({ title: 'Aktivasi Berhasil!', description: 'Aplikasi akan dimuat ulang.' });
             setTimeout(() => window.location.reload(), 1500);
 
         } catch (error: any) {
-            toast({ variant: 'destructive', title: 'Activation Failed', description: error.message });
+            toast({ variant: 'destructive', title: 'Aktivasi Gagal', description: error });
             setIsLoading(false);
         }
     };
 
+    // handleDeactivate stays mostly the same but now triggers the Rust-powered hook method
     const handleDeactivate = async () => {
         setIsLoading(true);
         try {
-            await deactivate(); // Call deactivate from the hook
-            toast({ title: 'Deactivation Successful!', description: 'This device is no longer licensed. The app will reload.'});
+            await deactivate(); 
+            toast({ title: 'Deaktivasi Berhasil!' });
             setTimeout(() => window.location.reload(), 1500);
         } catch (error: any) {
-            toast({ variant: 'destructive', title: 'Deactivation Failed', description: error.message });
+            toast({ variant: 'destructive', title: 'Deaktivasi Gagal', description: error });
         } finally {
             setIsLoading(false);
         }
@@ -82,23 +70,23 @@ export function LicenseManager() {
                   {status === 'EXPIRES_SOON' && licenseDetails?.daysRemaining != null && (
                     <Alert variant="destructive" className="bg-orange-50 border-orange-200 text-orange-800 dark:bg-orange-950/30 dark:border-orange-800 dark:text-orange-300 [&>svg]:text-orange-600">
                         <AlertTriangle className="h-4 w-4" />
-                        <AlertTitle>License Expiring Soon</AlertTitle>
+                        <AlertTitle>Lisensi Segera Berakhir</AlertTitle>
                         <AlertDescription>
-                            Your license will expire in {licenseDetails.daysRemaining} day(s). Please renew your subscription to avoid service interruption.
+                            Lisensi berakhir dalam {licenseDetails.daysRemaining} hari. Perbarui langganan agar layanan tidak terputus.
                         </AlertDescription>
                     </Alert>
                   )}
                   <div className="flex items-center gap-2">
                     <CheckCircle className="h-5 w-5 text-green-600" />
-                    <p className="font-semibold text-green-600">License Active</p>
+                    <p className="font-semibold text-green-600">Lisensi Aktif</p>
                   </div>
                   <div className="text-sm space-y-1">
-                    <p>Plan: <Badge variant="secondary">{licenseDetails.plan}</Badge></p>
-                    <p>Expires: <span className="font-medium">{licenseDetails.expiresAt === 'Never' ? 'Never' : new Date(licenseDetails.expiresAt).toLocaleDateString()}</span></p>
+                    <p>Paket: <Badge variant="secondary">{licenseDetails.plan}</Badge></p>
+                    <p>Berakhir: <span className="font-medium">{licenseDetails.expiresAt === 'Never' ? 'Selamanya' : new Date(licenseDetails.expiresAt).toLocaleDateString()}</span></p>
                     <p className="text-xs text-muted-foreground pt-1 break-all">Device ID: {licenseDetails.deviceId}</p>
                   </div>
                   <Button variant="outline" className="w-full" onClick={handleDeactivate} disabled={isLoading}>
-                    {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin"/> Deactivating...</> : 'Deactivate This Device'}
+                    {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin"/> Memproses...</> : 'Deaktivasi Perangkat Ini'}
                   </Button>
               </div>
         )
@@ -108,13 +96,13 @@ export function LicenseManager() {
     const getErrorContent = () => {
         switch (status) {
             case 'INVALID':
-                return { icon: XCircle, title: "License Invalid", description: "Your license data appears to be corrupt. Please try reactivating." };
+                return { icon: XCircle, title: "Lisensi Tidak Valid", description: "Data lisensi rusak. Silakan aktivasi ulang." };
             case 'EXPIRED':
-                return { icon: Clock, title: "License Expired", description: "Please renew your license to continue using the application." };
+                return { icon: Clock, title: "Lisensi Kedaluwarsa", description: "Perbarui lisensi untuk terus menggunakan aplikasi." };
             case 'TAMPERED':
-                return { icon: ShieldOff, title: "Clock Tampering Detected", description: "Your system clock has been moved backwards. Please set it to the correct time." };
+                return { icon: ShieldOff, title: "Manipulasi Waktu", description: "Waktu sistem tidak akurat. Mohon atur jam dengan benar." };
             case 'CLONED':
-                return { icon: ShieldOff, title: "Device Mismatch", description: "This license is registered to a different device. Please deactivate it there before activating here." };
+                return { icon: ShieldOff, title: "Perangkat Berbeda", description: "Lisensi terdaftar di perangkat lain. Deaktivasi perangkat lama dahulu." };
             default:
                 return null;
         }
@@ -133,11 +121,11 @@ export function LicenseManager() {
                 </div>
             )}
             <div className="space-y-2">
-                <Label htmlFor="license-key">License Key</Label>
-                <Input id="license-key" placeholder="Paste your license key here" value={licenseKey} onChange={(e) => setLicenseKey(e.target.value)} disabled={isLoading} />
+                <Label htmlFor="license-key">Kode Lisensi</Label>
+                <Input id="license-key" placeholder="Tempel kode lisensi di sini" value={licenseKey} onChange={(e) => setLicenseKey(e.target.value)} disabled={isLoading} />
             </div>
             <Button className="w-full" onClick={handleActivate} disabled={isLoading}>
-                {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin"/> Activating...</> : 'Activate'}
+                {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin"/> Mengaktifkan...</> : 'Aktivasi'}
             </Button>
         </div>
     )

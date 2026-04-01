@@ -56,7 +56,7 @@ export const adjustStock = async (data: AdjustmentData): Promise<void> => {
     const { doc, setDoc, updateDoc } = firesqlite;
     
     const product = products.find(p => p.id === data.product_id);
-    if (!product) throw new Error("Product not found");
+    if (!product) throw new Error("Produk tidak ditemukan");
 
     const now = new Date().toISOString();
     const movementId = `sm-${crypto.randomUUID().slice(0, 8)}`;
@@ -88,7 +88,7 @@ export const adjustVariantStock = async (variantId: string, type: StockMovementT
     const { productVariants, products } = useStore.getState();
     if (!db || !firesqlite) throw new Error("Database not initialized");
 
-    const { doc, updateDoc, setDoc } = firesqlite;
+    const { doc, setDoc, updateDoc } = firesqlite;
     const variant = productVariants.find(v => v.id === variantId);
     if (!variant) throw new Error("Variant not found");
 
@@ -124,7 +124,7 @@ export const adjustIngredientStock = async (ingredientId: string, type: StockMov
     const { doc, setDoc, updateDoc } = firesqlite;
 
     const ingredient = rawIngredients.find(i => i.id === ingredientId);
-    if (!ingredient) throw new Error("Ingredient not found");
+    if (!ingredient) throw new Error("Bahan baku tidak ditemukan");
 
     const now = new Date().toISOString();
     const movementId = `sm-ing-${crypto.randomUUID().slice(0, 8)}`;
@@ -138,7 +138,7 @@ export const adjustIngredientStock = async (ingredientId: string, type: StockMov
         type: type,
         qty_change: qty_change,
         reason: reason,
-        reference_id: `manual-ing-${movementId}`,
+        reference_id: `manual-bahan-${movementId}`,
         created_at: now,
     };
     

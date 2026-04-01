@@ -104,17 +104,17 @@ export default function StockSummaryReportPage() {
         });
     }, [allStockableItems, stockMovements, filterType]);
     
-    const handleExcelExport = () => {
+    const handleExcelExport = async () => {
         if (storeConfig && date?.from && date?.to) {
-            exportStockSummaryToExcel(reportData, { from: date.from, to: date.to }, storeConfig.store_name);
+            await exportStockSummaryToExcel(reportData, { from: date.from, to: date.to }, storeConfig.store_name);
         } else {
             toast({ variant: 'destructive', title: 'Error', description: 'Store configuration or date range not found.' });
         }
     };
 
-    const handlePdfExport = () => {
+    const handlePdfExport = async () => {
         if (storeConfig && date?.from && date?.to) {
-            exportStockSummaryToPdf(reportData, { from: date.from, to: date.to }, storeConfig.store_name);
+            await exportStockSummaryToPdf(reportData, { from: date.from, to: date.to }, storeConfig.store_name);
         } else {
             toast({ variant: 'destructive', title: 'Error', description: 'Store configuration or date range not found.' });
         }
@@ -126,12 +126,12 @@ export default function StockSummaryReportPage() {
                 <Button variant="outline" size="icon" className="shrink-0" asChild>
                     <Link to="/dashboard/reports">
                         <ArrowLeft className="h-4 w-4" />
-                        <span className="sr-only">Back to Reports</span>
+                        <span className="sr-only">Kembali</span>
                     </Link>
                 </Button>
                 <div className="flex-1">
                     <h1 className="text-lg font-semibold flex items-center gap-2">
-                        <Warehouse className="h-5 w-5" /> Stock Summary Report
+                        <Warehouse className="h-5 w-5" /> Ringkasan Stok
                     </h1>
                 </div>
                 <div className="flex items-center gap-2">
@@ -139,7 +139,7 @@ export default function StockSummaryReportPage() {
                         <DropdownMenuTrigger asChild>
                           <Button variant="outline" size="sm" disabled={reportData.length === 0}>
                             <FileDown className="mr-2 h-4 w-4" />
-                            <span>Export</span>
+                            <span>Ekspor</span>
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
@@ -160,24 +160,24 @@ export default function StockSummaryReportPage() {
                 <CardHeader>
                     <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                         <div>
-                            <CardTitle>Stock Summary</CardTitle>
+                            <CardTitle>Mutasi Stok</CardTitle>
                              {date?.from && date?.to && (
                                 <CardDescription>
-                                    Showing a summary of stock movements from {format(date.from, 'PPP')} to {format(date.to, 'PPP')}.
+                                    Ringkasan pergerakan stok dari {format(date.from, 'dd MMM yyyy')} s/d {format(date.to, 'dd MMM yyyy')}.
                                 </CardDescription>
                             )}
                         </div>
                         <div className="flex flex-col sm:flex-row items-center gap-2">
                             <DateRangeFilter date={date} setDate={setDate} />
                             <Select value={filterType} onValueChange={(v) => setFilterType(v as any)}>
-                                <SelectTrigger className="w-full sm:w-[150px]">
-                                    <SelectValue placeholder="Filter type" />
+                                <SelectTrigger className="w-full sm:w-40">
+                                    <SelectValue placeholder="Tipe Item" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="all">All Items</SelectItem>
-                                    <SelectItem value="product">Products</SelectItem>
-                                    <SelectItem value="variant">Variants</SelectItem>
-                                    <SelectItem value="ingredient">Ingredients</SelectItem>
+                                    <SelectItem value="all">Semua Item</SelectItem>
+                                    <SelectItem value="product">Produk</SelectItem>
+                                    <SelectItem value="variant">Varian Produk</SelectItem>
+                                    <SelectItem value="ingredient">Bahan Baku</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
@@ -187,13 +187,13 @@ export default function StockSummaryReportPage() {
                     <Table>
                         <TableHeader>
                             <TableRow>
-                                <TableHead>Product / Ingredient</TableHead>
-                                <TableHead>Type</TableHead>
-                                <TableHead className="text-right">Opening</TableHead>
-                                <TableHead className="text-right">Added</TableHead>
-                                <TableHead className="text-right">Sold</TableHead>
-                                <TableHead className="text-right">Adjusted</TableHead>
-                                <TableHead className="text-right">Closing</TableHead>
+                                <TableHead>Nama Item</TableHead>
+                                <TableHead>Tipe</TableHead>
+                                <TableHead className="text-right">Awal</TableHead>
+                                <TableHead className="text-right">Masuk</TableHead>
+                                <TableHead className="text-right">Keluar</TableHead>
+                                <TableHead className="text-right">Koreksi</TableHead>
+                                <TableHead className="text-right">Akhir</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -210,7 +210,7 @@ export default function StockSummaryReportPage() {
                                                 'border-green-300 bg-green-50 text-green-800'
                                             }>
                                                 {item.type === 'product' ? <Package className="h-3 w-3 mr-1.5" /> : item.type === 'variant' ? <Layers2 className="h-3 w-3 mr-1.5" /> : <Beaker className="h-3 w-3 mr-1.5" />}
-                                                {item.type}
+                                                {item.type === 'product' ? 'Produk' : item.type === 'variant' ? 'Varian' : 'Bahan'}
                                             </Badge>
                                         </TableCell>
                                         <TableCell className="text-right">{item.openingStock.toLocaleString()}</TableCell>
@@ -223,7 +223,7 @@ export default function StockSummaryReportPage() {
                             ) : (
                                 <TableRow>
                                     <TableCell colSpan={7} className="h-24 text-center">
-                                        No stock-tracked items found.
+                                        Tidak ada data stok pada periode ini.
                                     </TableCell>
                                 </TableRow>
                             )}

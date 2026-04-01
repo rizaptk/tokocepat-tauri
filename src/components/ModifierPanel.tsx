@@ -98,7 +98,7 @@ export function ModifierPanel({ item, onOpenChange, onConfirm }: ModifierPanelPr
             const selection = selectedModifiers[group.id] || [];
             if (group.required && selection.length < group.min_select) {
                 isValid = false;
-                errors.push(`Please select at least ${group.min_select} option(s) for ${group.name}.`);
+                errors.push(`Pilih minimal ${group.min_select} untuk ${group.name}.`);
             }
         }
         return { isValid, errors };
@@ -149,8 +149,8 @@ export function ModifierPanel({ item, onOpenChange, onConfirm }: ModifierPanelPr
                 {productData && (
                     <>
                         <SheetHeader>
-                            <SheetTitle>{isEditing ? `Edit ${productData.name}` : productData.name}</SheetTitle>
-                            <SheetDescription>Customize your item. Base price: {formatCurrency(productData.price)}</SheetDescription>
+                            <SheetTitle>{isEditing ? `Ubah ${productData.name}` : productData.name}</SheetTitle>
+                            <SheetDescription>Kustomisasi pesanan. Harga dasar: {formatCurrency(productData.price)}</SheetDescription>
                         </SheetHeader>
                         <ScrollArea className="flex-1 -mx-6 px-4">
                             <div className="space-y-6 py-4 px-2">
@@ -159,8 +159,8 @@ export function ModifierPanel({ item, onOpenChange, onConfirm }: ModifierPanelPr
                                         <div>
                                             <h4 className="font-semibold">{group.name}</h4>
                                             <p className="text-sm text-muted-foreground">
-                                                {group.required ? 'Required' : 'Optional'}.
-                                                {group.max_select > 1 ? ` Select up to ${group.max_select}.` : ' Select one.'}
+                                                {group.required ? 'Wajib' : 'Opsional'}.
+                                                {group.max_select > 1 ? ` Pilih maks. ${group.max_select}.` : ' Pilih satu.'}
                                             </p>
                                         </div>
                                         {group.max_select === 1 ? (
@@ -207,11 +207,11 @@ export function ModifierPanel({ item, onOpenChange, onConfirm }: ModifierPanelPr
                                    </div>
                                )}
                                 <div className="flex justify-between items-center text-lg font-bold">
-                                    <span>Total Price</span>
+                                    <span>Total Harga</span>
                                     <span>{formatCurrency(finalPrice)}</span>
                                 </div>
                                 <Button onClick={handleConfirm} disabled={!validation.isValid} className="w-full" size="lg">
-                                    {isEditing ? 'Update Item' : 'Add to Cart'}
+                                    {isEditing ? 'Simpan Perubahan' : 'Tambah ke Keranjang'}
                                 </Button>
                            </div>
                         </SheetFooter>

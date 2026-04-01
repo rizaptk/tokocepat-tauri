@@ -4,7 +4,7 @@ import { useStore } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Play, Trash2 } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
 
@@ -33,21 +33,21 @@ export function PendingCartsDialog({ isOpen, onOpenChange }: PendingCartsDialogP
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Parked Carts</DialogTitle>
+          <DialogTitle>Pesanan Terparkir</DialogTitle>
           <DialogDescription>
-            Resume a previously parked cart or delete it.
+            Lanjutkan pesanan yang diparkir atau hapus dari daftar.
           </DialogDescription>
         </DialogHeader>
         <ScrollArea className="h-96 -mx-6 px-6">
             <div className="py-4 space-y-4">
                 {pendingCarts.length === 0 ? (
                     <div className="text-center text-muted-foreground py-8">
-                        <p>No carts are parked.</p>
+                        <p>Tidak ada pesanan terparkir.</p>
                     </div>
                 ) : (
                     pendingCarts.map(cart => (
                         <Card key={cart.id}>
-                            <CardHeader>
+                            <CardHeader className="p-4 pb-2">
                                 <CardTitle>{cart.name}</CardTitle>
                                 <CardDescription>
                                     {cart.itemCount} items &bull; Total: {formatCurrency(cart.total)}
@@ -57,22 +57,22 @@ export function PendingCartsDialog({ isOpen, onOpenChange }: PendingCartsDialogP
                                 <AlertDialog>
                                     <AlertDialogTrigger asChild>
                                         <Button variant="destructive" size="sm">
-                                            <Trash2 className="mr-2 h-4 w-4"/> Delete
+                                            <Trash2 className="mr-2 h-4 w-4"/> Hapus
                                         </Button>
                                     </AlertDialogTrigger>
                                     <AlertDialogContent>
                                         <AlertDialogHeader>
-                                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                            <AlertDialogDescription>This will permanently delete "{cart.name}". This action cannot be undone.</AlertDialogDescription>
+                                            <AlertDialogTitle>Hapus Pesanan?</AlertDialogTitle>
+                                            <AlertDialogDescription>Pesanan "{cart.name}" akan dihapus permanen. Tindakan ini tidak dapat dibatalkan.</AlertDialogDescription>
                                         </AlertDialogHeader>
                                         <AlertDialogFooter>
-                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                            <AlertDialogAction onClick={() => deletePendingCart(cart.id)}>Confirm Delete</AlertDialogAction>
+                                            <AlertDialogCancel>Batal</AlertDialogCancel>
+                                            <AlertDialogAction onClick={() => deletePendingCart(cart.id)}>Ya, Hapus</AlertDialogAction>
                                         </AlertDialogFooter>
                                     </AlertDialogContent>
                                 </AlertDialog>
                                 <Button size="sm" onClick={() => handleResume(cart.id)}>
-                                    <Play className="mr-2 h-4 w-4"/> Resume
+                                    <Play className="mr-2 h-4 w-4"/> Buka
                                 </Button>
                             </CardFooter>
                         </Card>

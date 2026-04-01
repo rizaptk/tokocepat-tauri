@@ -4,7 +4,7 @@ import { Product } from "@/lib/types";
 import { useStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
 import { SlidersHorizontal, TriangleAlert } from "lucide-react";
-import { useMemo, useRef, useEffect } from "react";
+import { useMemo, useRef, useEffect, useCallback } from "react";
 import React from "react";
 import { Badge } from "../ui/badge";
 import { Checkbox } from "../ui/checkbox";
@@ -70,15 +70,17 @@ export function ProductListItem({
       minimumFractionDigits: 0,
     }).format(amount);
 
-  const handleSelect = () => {
-    if (!isOutOfStock && onItemClick) {
-      onItemClick(product);
-    }
-  };
-
-  const isOutOfStock = product.has_variant ? totalVariantStock <= 0 : (product.track_stock && product.stock <= 0);
-  const isLowStock = product.track_stock && product.low_stock_alert != null && product.stock > 0 && product.stock <= product.low_stock_alert;
-  const is_active = product.is_active;
+    
+    const isOutOfStock = product.has_variant ? totalVariantStock <= 0 : (product.track_stock && product.stock <= 0);
+    const isLowStock = product.track_stock && product.low_stock_alert != null && product.stock > 0 && product.stock <= product.low_stock_alert;
+    const is_active = product.is_active;
+    const not_allowed = context === "cashier" && (isOutOfStock || !is_active);
+    
+    const handleSelect = useCallback(() => {
+      if (!not_allowed && onItemClick) {
+        onItemClick(product);
+      }
+    },[not_allowed, onItemClick, product])
 
   const stockDisplay = useMemo(() => {
     if (product.has_variant) return totalVariantStock;
@@ -88,21 +90,22 @@ export function ProductListItem({
 
 
   return (
-      <div className={cn('bg-card h-[54px]')} ref={itemRef}>
+      <div className={cn('bg-card h-13.5')} ref={itemRef}>
         <div
           style={style}
           onClick={handleSelect}
           role="button"
-          tabIndex={isOutOfStock ? -1 : 0}
-          aria-disabled={isOutOfStock}
+          tabIndex={not_allowed ? -1 : 0}
+          aria-disabled={not_allowed}
           className={cn(
-            "flex items-center px-4 gap-0 h-[54px] border-b-border border-x",
+            "flex items-center px-4 gap-0 h-13.5 border-b-border border-x",
             "transition-colors",
             "hover:bg-accent",
+            "active:ring-1 active:ring-inset active:ring-primary",
             isEvent && 'bg-primary/5',
             isSelected && "bg-background",
             isActive && "bg-primary/10 text-primary ring-1 ring-inset ring-primary",
-            isOutOfStock && "opacity-60 cursor-not-allowed",
+            not_allowed && "opacity-60 cursor-not-allowed",
             !is_active && "opacity-80 relative"
           )}
         >
@@ -132,7 +135,7 @@ export function ProductListItem({
             !is_active && (
               <div className="absolute inset-x-2 inset-y-0">
                 <Badge variant="destructive" className="text-xs">
-                  Inactive
+                  Nonaktif
                 </Badge>
               </div>
             )
