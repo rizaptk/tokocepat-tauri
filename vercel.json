@@ -8,7 +8,8 @@
         "react": false,
         "redesign": false,
         "tauri-tailwindcss4": false,
-        "with-firelite": false
+        "with-firelite": false,
+        "android": false
       }
     }
   }
