@@ -29,7 +29,7 @@ export function LicenseManager() {
 
         try {
             // Simple call to Rust - no deviceId or apiFetch needed here
-            await invoke('activate_manual_license', { license_key: licenseKey });
+            await invoke('activate_manual_license', { licenseKey });
 
             toast({ title: 'Aktivasi Berhasil!', description: 'Aplikasi akan dimuat ulang.' });
             setTimeout(() => window.location.reload(), 1500);
