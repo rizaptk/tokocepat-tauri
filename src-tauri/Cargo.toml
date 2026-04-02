@@ -1,6 +1,6 @@
 [package]
 name = "tokocepat"
-version = "0.2.7"
+version = "0.2.8"
 description = "Tokocepat - kasir cepat"
 authors = ["you"]
 license = ""
@@ -29,7 +29,7 @@ tauri-plugin-store = "2.4.2"
 tauri-plugin-dialog = "2.6.0"
 uuid = {version = "1.20.0", features = ["v4"] }
 tokio = { version = "1", features = ["full"] }
-firelite = { git = "https://github.com/rizaptk/firelite", branch = "main" , version = "0.5.30", features = ["tauri-gateway", "tokio"] }
+firelite = { git = "https://github.com/rizaptk/firelite", branch = "main" , version = "0.5.31", features = ["tauri-gateway", "tokio"] }
 rusb = "0.9"
 tauri-plugin-fs = "2"
 jsonwebtoken = "9.3"
