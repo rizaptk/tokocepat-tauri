@@ -1,6 +1,6 @@
 [package]
 name = "tokocepat"
-version = "0.2.6"
+version = "0.2.7"
 description = "Tokocepat - kasir cepat"
 authors = ["you"]
 license = ""
