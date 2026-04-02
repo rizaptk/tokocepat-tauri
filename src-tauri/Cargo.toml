@@ -30,11 +30,17 @@ tauri-plugin-dialog = "2.6.0"
 uuid = {version = "1.20.0", features = ["v4"] }
 tokio = { version = "1", features = ["full"] }
 firelite = { git = "https://github.com/rizaptk/firelite", branch = "main" , version = "0.5.30", features = ["tauri-gateway", "tokio"] }
-machine-uid = "0.3"
 rusb = "0.9"
 tauri-plugin-fs = "2"
 jsonwebtoken = "9.3"
 chrono = { version = "0.4", features = ["serde"] }
-reqwest = { version = "0.12", features = ["json"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 dotenvy = "0.15"
 flate2 = "1.0"
+
+[target.'cfg(not(target_os = "android"))'.dependencies]
+machine-uid = "0.3"
+
+[target.'cfg(target_os = "android")'.dependencies]
+jni = "0.21"
+ndk-context = "0.1"
