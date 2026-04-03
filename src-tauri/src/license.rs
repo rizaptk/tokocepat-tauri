@@ -7,7 +7,6 @@ use firelite::document::value::Value;
 use jsonwebtoken::{decode, DecodingKey, Validation, Algorithm}; 
 use chrono::{Utc, DateTime};
 use std::time::Duration;
-use std::sync::Arc;
 use tauri::{AppHandle, Manager, Runtime, Emitter};
 
 use std::env;
@@ -63,82 +62,6 @@ pub fn init_env() {
     let _ = dotenvy::dotenv();
 }
 
-fn local_json_value_to_value(v: &serde_json::Value) -> Result<Value, String> {
-    match v {
-        serde_json::Value::Null => Ok(Value::Null),
-        serde_json::Value::Bool(b) => Ok(Value::Bool(*b)),
-        serde_json::Value::Number(n) => {
-            if let Some(i) = n.as_i64() { Ok(Value::Int(i)) }
-            else { Ok(Value::Float(n.as_f64().unwrap_or(0.0))) }
-        }
-        serde_json::Value::String(s) => Ok(Value::String(s.clone())),
-        serde_json::Value::Array(arr) => {
-            let mut values = Vec::new();
-            for val in arr { values.push(local_json_value_to_value(val)?); }
-            Ok(Value::Array(values))
-        }
-        serde_json::Value::Object(obj) => {
-            // --- ADDED: Reference Detection ---
-            if let Some(serde_json::Value::String(path)) = obj.get("__ref__") {
-                if let Some((col, id)) = path.split_once('/') {
-                    return Ok(Value::Reference {
-                        collection: col.to_string(),
-                        doc_id: id.to_string(),
-                    });
-                }
-            }
-
-            // --- ADDED: BlobLink Detection ---
-            if let Some(serde_json::Value::Object(meta)) = obj.get("__blob__") {
-                let offset = meta.get("offset").and_then(|o| o.as_u64()).unwrap_or(0);
-                let len = meta.get("len").and_then(|l| l.as_u64()).unwrap_or(0) as u32;
-                return Ok(Value::BlobLink { offset, len });
-            }
-
-            let mut map = Vec::new();
-            for (k, v) in obj {
-                map.push((Arc::from(k.as_str()), local_json_value_to_value(v)?));
-            }
-            Ok(Value::Map(map))
-        }
-    }
-}
-
-fn local_value_to_json(v: &Value) -> serde_json::Value {
-    match v {
-        Value::Null | Value::ServerTimestamp => serde_json::Value::Null,
-        Value::Bool(b) => serde_json::Value::Bool(*b),
-        Value::Int(i) => serde_json::Value::Number((*i).into()),
-        Value::Float(f) => serde_json::Number::from_f64(*f).map(serde_json::Value::Number).unwrap_or(serde_json::Value::Null),
-        Value::String(s) => serde_json::Value::String(s.clone()),
-        Value::Binary(bytes) => serde_json::Value::Array(bytes.iter().map(|b| serde_json::Value::Number((*b as u64).into())).collect()),
-        Value::Timestamp(micros) => serde_json::Value::Number((*micros).into()),
-        
-        // NEW: BlobLink arm
-        Value::BlobLink { offset, len } => {
-            let mut map = serde_json::Map::new();
-            let mut meta = serde_json::Map::new();
-            meta.insert("offset".to_string(), (*offset).into());
-            meta.insert("len".to_string(), (*len).into());
-            map.insert("__blob__".to_string(), serde_json::Value::Object(meta));
-            serde_json::Value::Object(map)
-        }
-
-        Value::Reference { collection, doc_id } => {
-            let mut map = serde_json::Map::new();
-            map.insert("__ref__".to_string(), serde_json::Value::String(format!("{collection}/{doc_id}")));
-            serde_json::Value::Object(map)
-        }
-        Value::Map(fields) => {
-            let mut map = serde_json::Map::new();
-            for (k, v) in fields {
-                map.insert(k.to_string(), local_value_to_json(v));
-            }
-            serde_json::Value::Object(map)
-        }
-        Value::Array(values) => serde_json::Value::Array(values.iter().map(local_value_to_json).collect()),
-    }
-}
 
 // --- CORE LOGIC ---
 
@@ -147,7 +70,7 @@ pub fn get_license_db(gateway: &FireLiteGateway) -> Option<LicenseDbData> {
         Ok(Some(doc)) => {
             let mut map = serde_json::Map::new();
             for (k, v) in &doc.fields {
-                map.insert(k.to_string(), local_value_to_json(v));
+                map.insert(k.to_string(), v.to_json());
             }
             serde_json::from_value(serde_json::Value::Object(map)).ok()
         }
@@ -161,7 +84,7 @@ pub fn save_license_db(gateway: &FireLiteGateway, data: LicenseDbData) -> Result
     
     let mut doc = FireLiteDoc::default();
     for (k, v) in obj {
-        doc.insert(k.clone(), local_json_value_to_value(v)?);
+        doc.insert(k.clone(), Value::from_json(v.clone())?);
     }
     
     gateway.db.put("app_state", "license", &doc).map_err(|e| e.to_string())
