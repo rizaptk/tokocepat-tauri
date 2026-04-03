@@ -7,10 +7,7 @@ import { Badge } from './ui/badge';
 import { CheckCircle, XCircle, Clock, ShieldOff, Loader2, AlertTriangle } from 'lucide-react';
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
-// import { generateDeviceFingerprint } from '@/lib/security';
-// import { saveLicenseData } from '@/services/dataService';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
-// import { apiFetch } from '@/lib/api-client';
 import { invoke } from '@tauri-apps/api/core';
 
 export function LicenseManager() {

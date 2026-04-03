@@ -68,37 +68,37 @@ export function Header() {
         <AlertDialog>
             <AlertDialogTrigger asChild>
                 <Button variant="destructive" size="sm">
-                    <LogOut className="mr-2 h-4 w-4"/> Close Shift
+                    <LogOut className="mr-2 h-4 w-4"/> Tutup Sif
                 </Button>
             </AlertDialogTrigger>
             <AlertDialogContent>
                 <AlertDialogHeader>
-                <AlertDialogTitle>Close Current Shift</AlertDialogTitle>
+                <AlertDialogTitle>Tutup Sif</AlertDialogTitle>
                 <AlertDialogDescription>
-                    Count the cash in your drawer and enter the final amount below. This action cannot be undone.
+                    Hitung total uang di laci dan masukkan jumlah akhirnya. Tindakan ini tidak dapat dibatalkan.
                 </AlertDialogDescription>
                 </AlertDialogHeader>
                 <div className="space-y-4">
                     <div className="flex justify-between items-center text-sm">
-                        <span className="text-muted-foreground">Opening Cash</span>
+                        <span className="text-muted-foreground">Kas Awal</span>
                         <span className="font-medium">{formatCurrency(activeShift?.opening_cash || 0)}</span>
                     </div>
                     <div className="flex justify-between items-center text-sm">
-                        <span className="text-muted-foreground">Shift Revenue</span>
+                        <span className="text-muted-foreground">Total Penjualan</span>
                         <span className="font-medium">{formatCurrency(shiftRevenue)}</span>
                     </div>
                     <div className="flex justify-between items-center font-semibold text-base">
-                        <span>Expected Cash</span>
+                        <span>Ekspektasi Kas</span>
                         <span>{formatCurrency(expectedCash)}</span>
                     </div>
                     <div>
-                        <Label htmlFor="declared-cash">Declared Cash Amount</Label>
+                        <Label htmlFor="declared-cash">Kas Aktual (Uang di Laci)</Label>
                         <div className="relative mt-1">
                             <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">Rp</span>
                             <Input 
                                 id="declared-cash"
                                 type="number" 
-                                placeholder="Enter final cash amount" 
+                                placeholder="Masukkan jumlah uang tunai" 
                                 value={declaredCash || ''}
                                 onChange={(e) => setDeclaredCash(Number(e.target.value))}
                                 className="pl-10 text-lg"

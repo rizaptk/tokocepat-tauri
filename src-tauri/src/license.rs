@@ -52,7 +52,7 @@ fn get_api_url(path: &str) -> String {
     // 1. Try to get from system environment (set during build or in .env)
     // 2. Fallback to a hardcoded production URL if nothing is found
     let base_url = env::var("VITE_API_BASE_URL")
-        .unwrap_or_else(|_| "https://api.tokocepat.com".to_string());
+        .unwrap_or_else(|_| "https://tokocepat-three.vercel.app".to_string());
     
     format!("{}{}", base_url, path)
 }
@@ -78,6 +78,23 @@ fn local_json_value_to_value(v: &serde_json::Value) -> Result<Value, String> {
             Ok(Value::Array(values))
         }
         serde_json::Value::Object(obj) => {
+            // --- ADDED: Reference Detection ---
+            if let Some(serde_json::Value::String(path)) = obj.get("__ref__") {
+                if let Some((col, id)) = path.split_once('/') {
+                    return Ok(Value::Reference {
+                        collection: col.to_string(),
+                        doc_id: id.to_string(),
+                    });
+                }
+            }
+
+            // --- ADDED: BlobLink Detection ---
+            if let Some(serde_json::Value::Object(meta)) = obj.get("__blob__") {
+                let offset = meta.get("offset").and_then(|o| o.as_u64()).unwrap_or(0);
+                let len = meta.get("len").and_then(|l| l.as_u64()).unwrap_or(0) as u32;
+                return Ok(Value::BlobLink { offset, len });
+            }
+
             let mut map = Vec::new();
             for (k, v) in obj {
                 map.push((Arc::from(k.as_str()), local_json_value_to_value(v)?));
@@ -96,6 +113,17 @@ fn local_value_to_json(v: &Value) -> serde_json::Value {
         Value::String(s) => serde_json::Value::String(s.clone()),
         Value::Binary(bytes) => serde_json::Value::Array(bytes.iter().map(|b| serde_json::Value::Number((*b as u64).into())).collect()),
         Value::Timestamp(micros) => serde_json::Value::Number((*micros).into()),
+        
+        // NEW: BlobLink arm
+        Value::BlobLink { offset, len } => {
+            let mut map = serde_json::Map::new();
+            let mut meta = serde_json::Map::new();
+            meta.insert("offset".to_string(), (*offset).into());
+            meta.insert("len".to_string(), (*len).into());
+            map.insert("__blob__".to_string(), serde_json::Value::Object(meta));
+            serde_json::Value::Object(map)
+        }
+
         Value::Reference { collection, doc_id } => {
             let mut map = serde_json::Map::new();
             map.insert("__ref__".to_string(), serde_json::Value::String(format!("{collection}/{doc_id}")));

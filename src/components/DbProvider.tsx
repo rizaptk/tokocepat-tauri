@@ -5,12 +5,10 @@ import { seedDatabase } from "@/lib/database";
 import { useEffect, useState } from "react";
 import { 
     Product, ProductVariant, ModifierGroup, 
-    // Transaction, 
     Shift, StoreConfig, Category, PendingCart, 
     RawIngredient, Recipe 
 } from '@/lib/types';
 import { TokoCepatLogo } from "./TokoCepatLogo";
-// import { where } from "firesqlite";
 
 export function DbProvider({ children }: { children: React.ReactNode }) {
     const { isInitialized, db, firesqlite } = useDbStore();
@@ -23,23 +21,10 @@ export function DbProvider({ children }: { children: React.ReactNode }) {
     
     const [isDataLoaded, setIsDataLoaded] = useState(false);
 
-    // 1. Initialize the Database connection
-    // useEffect(() => {
-    //     if (!isInitialized) {
-    //         initialize();
-    //     }
-    // }, [initialize, isInitialized]);
-
     // 2. Manage Data Subscriptions
     useEffect(() => {
         // Only proceed if DB is ready
-        if (!isInitialized) return;
-
-        // In case of mock mode or missing engine
-        if (!db || !firesqlite) {
-            setIsDataLoaded(true);
-            return;
-        }
+        if (!isInitialized || !db) return;
 
         // Memory Management: Track all active listeners
         let isMounted = true;
@@ -94,12 +79,11 @@ export function DbProvider({ children }: { children: React.ReactNode }) {
                 // PRODUCTS: The "Anchor" for Tier 1
                 subscribe(onSnapshot(collection(db, 'products'), (snap: any) => {
                     const productList = snap.docs.map((d: any) => d.data() as Product);
-                    console.log('snapshoot : ', productList);
                     setProducts(productList);
                     
                     // Once we have products, we consider the primary UI "Loaded"
                     if (isMounted && !isDataLoaded) {
-                        console.log("Firesqlite: Critical UI Data Sync Complete.");
+                        // console.log("Firesqlite: Critical UI Data Sync Complete.");
                         setIsDataLoaded(true); 
                     }
                 }));

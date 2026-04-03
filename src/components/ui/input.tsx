@@ -54,6 +54,10 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
           inputVariants({ variant, shape, borderWidth, size, className })
         )}
         ref={ref}
+        spellCheck="false"
+        autoCorrect="off"
+        autoComplete="off"
+        autoCapitalize="off"
         {...props}
       />
     )

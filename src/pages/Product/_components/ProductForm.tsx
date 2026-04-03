@@ -224,7 +224,17 @@ export const ProductForm = ({ productId, onSave, onCancel }: ProductFormProps) =
                                         </div>
                                     </div>
                                     <FormField control={form.control} name="barcode" render={({ field }) => (
-                                        <FormItem><FormLabel>Barcode</FormLabel><FormControl><Input placeholder="Scan atau ketik barcode" {...field} /></FormControl>
+                                        <FormItem><FormLabel>Barcode</FormLabel><FormControl>
+                                            <Input 
+                                                placeholder="Scan atau ketik barcode" 
+                                                {...field} 
+                                                onKeyDown={(e) => {
+                                                    (field as any).onKeyDown?.(e); // preserve existing behavior (optional)
+                                                    if (e.key === "Enter") {
+                                                    e.preventDefault();
+                                                    }
+                                                }}
+                                            /></FormControl>
                                             <div className="flex gap-2 pt-2">
                                                 <Dialog open={isScannerOpen} onOpenChange={setIsScannerOpen}><DialogTrigger asChild><Button type="button" variant="outline" className="w-full"><Scan className="h-4 w-4" /> Kamera</Button></DialogTrigger>
                                                     <DialogContent><DialogHeader><DialogTitle>Scan Barcode</DialogTitle></DialogHeader><BarcodeScanner onScanSuccess={handleScanSuccess} /></DialogContent>

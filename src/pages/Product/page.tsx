@@ -128,15 +128,15 @@ export default function ProductManagementPage() {
         const product = products.find(p => p.barcode === barcode || p.sku === barcode);
         if (product) {
             handleSelectProduct(product);
-            toast({
-                title: "Produk Ditemukan",
-                description: `Melakukan perubahan pada produk "${product.name}".`,
-            });
+            // toast({
+            //     title: "Produk Ditemukan",
+            //     description: `Melakukan perubahan pada produk "${product.name}".`,
+            // });
         } else {
             toast({
                 variant: "destructive",
                 title: "Produk Tidak Ditemukan",
-                description: `Tidak ada produk dengan barcode/SKU: ${barcode}`,
+                description: `Tidak ada produk dengan kode barcode/SKU: ${barcode}`,
             });
         }
     };

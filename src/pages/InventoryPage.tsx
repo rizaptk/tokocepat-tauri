@@ -556,10 +556,10 @@ export default function InventoryPage() {
                 return;
             }
             handleItemSelect({ ...product, itemType: 'product', stock: product.stock });
-            toast({
-                title: "Product Ditemukan",
-                description: `"${product.name}" siap disesuaikan.`,
-            });
+            // toast({
+            //     title: "Product Ditemukan",
+            //     description: `"${product.name}" siap disesuaikan.`,
+            // });
         } else {
             toast({
                 variant: "destructive",
