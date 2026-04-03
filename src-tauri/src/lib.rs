@@ -22,6 +22,8 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .setup(|app| {
+            let package_info = app.package_info();
+            let version = &package_info.version;
             let app_dir = app
                 .path()
                 .app_data_dir()
@@ -57,6 +59,10 @@ pub fn run() {
             tauri::async_runtime::spawn(async move {
                 license::run_heartbeat(handle).await;
             });
+
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.set_title(&format!("TokoCepat v{}", version));
+            }
 
             Ok(())
         })

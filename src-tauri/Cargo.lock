@@ -3,6 +3,35 @@
 version = 3
 
 [[package]]
+name = "TokoCepat"
+version = "0.2.9"
+dependencies = [
+ "chrono",
+ "dotenvy",
+ "firelite",
+ "flate2",
+ "jni",
+ "json-patch 0.3.0",
+ "jsonwebtoken",
+ "log",
+ "machine-uid",
+ "ndk-context",
+ "reqwest 0.12.28",
+ "rusb",
+ "serde",
+ "serde_json",
+ "serialport",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-dialog",
+ "tauri-plugin-fs",
+ "tauri-plugin-log",
+ "tauri-plugin-store",
+ "tokio",
+ "uuid",
+]
+
+[[package]]
 name = "adler2"
 version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4740,35 +4769,6 @@ dependencies = [
  "futures-sink",
  "pin-project-lite",
  "tokio",
-]
-
-[[package]]
-name = "tokocepat"
-version = "0.2.8"
-dependencies = [
- "chrono",
- "dotenvy",
- "firelite",
- "flate2",
- "jni",
- "json-patch 0.3.0",
- "jsonwebtoken",
- "log",
- "machine-uid",
- "ndk-context",
- "reqwest 0.12.28",
- "rusb",
- "serde",
- "serde_json",
- "serialport",
- "tauri",
- "tauri-build",
- "tauri-plugin-dialog",
- "tauri-plugin-fs",
- "tauri-plugin-log",
- "tauri-plugin-store",
- "tokio",
- "uuid",
 ]
 
 [[package]]
