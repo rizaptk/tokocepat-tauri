@@ -39,6 +39,8 @@ struct Claims {
     device_id: Option<String>,
     #[serde(rename = "isTrial")]
     is_trial: bool,
+    #[serde(rename = "maxSeats")] 
+    pub max_seats: Option<u32>, 
     exp: usize,  
 }
 
@@ -137,12 +139,16 @@ pub async fn check_license(
     // if it's not expired yet, or 0 if it expires today.
     let days_remaining = (expiry_date - now).num_days();
 
+    // is Multi device support subscriptions?
+    let is_sync_available = token_data.claims.max_seats.unwrap_or(0) > 1;
+
     // Prepare response
     let mut ui_details = serde_json::to_value(&token_data.claims).unwrap();
     if let Some(obj) = ui_details.as_object_mut() {
         obj.insert("expiresAt".to_string(), serde_json::json!(expiry_date.to_rfc3339()));
         obj.insert("daysRemaining".to_string(), serde_json::json!(days_remaining));
         obj.insert("deviceId".to_string(), serde_json::json!(license_data.device_id));
+        obj.insert("isSyncAvailable".to_string(), serde_json::json!(is_sync_available));
         // 'plan' is now included automatically because it's in the struct!
     }
 

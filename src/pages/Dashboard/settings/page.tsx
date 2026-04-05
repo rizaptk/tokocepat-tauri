@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect } from 'react';
+import { useRef, useState, useEffect, useMemo } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { resetApplicationData } from '@/services/dataService';
 
@@ -10,7 +10,7 @@ import { Link } from 'react-router-dom';
 import { StoreInfoForm } from './_components/StoreInfoForm';
 import { TaxSettingsForm } from './_components/TaxSettingsForm';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Database, Trash2, Printer, Usb, AlertTriangle, Store, Percent, CheckCircle2, Bluetooth } from 'lucide-react';
+import { Database, Trash2, Printer, Usb, AlertTriangle, Store, Percent, CheckCircle2, Bluetooth, RefreshCw } from 'lucide-react';
 import { TokoCepatLogo } from '@/components/TokoCepatLogo';
 import { ThemeToggle } from '@/components/ThemeButtons';
 import { useDbStore } from '@/lib/db-store';
@@ -25,6 +25,9 @@ import { Label } from '@/components/ui/label';
 
 import { save, open } from '@tauri-apps/plugin-dialog';
 import { invoke } from '@tauri-apps/api/core';
+import { SyncManager } from './_components/Syncmanager';
+import { RolesManager } from './_components/RolesManager';
+import { NetworkSecurity } from './_components/NetworkSecurity';
 
 export default function SettingsPage() {
     const { firesqlite } = useDbStore();
@@ -32,10 +35,22 @@ export default function SettingsPage() {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [isRestoreAlertOpen, setIsRestoreAlertOpen] = useState(false);
     const [isResetAlertOpen, setIsResetAlertOpen] = useState(false);
+    const [licenseDetails, setLicenseDetails] = useState<any>(null);
+    const [currentRoleIsLeader, setCurrentRoleIsLeader] = useState(false);
+    const [isSyncActive, setIsSyncActive] = useState(false);
 
     // Printer state
     const [isPairing, setIsPairing] = useState(false);
     const { availablePrinters, savedPrinter, savedPrinterName, savePrinter, isOnline, isEnabled, setIsEnabled } = usePrinterStore();
+
+    useEffect(() => {
+        // Fetch license details to check if sync is available
+        invoke('check_license').then(([_, details]: any) => {
+            setLicenseDetails(details);
+        });
+    }, []);
+
+    const isSyncAvailable = useMemo(() => licenseDetails?.isSyncAvailable === true, [licenseDetails]);
 
     useEffect(() => {
         if (!isPairing) return;
@@ -189,6 +204,9 @@ export default function SettingsPage() {
                             <Tabs defaultValue="store" className="w-full min-h-0">
                                 <TabsList className="w-full mb-8 overflow-x-auto overflow-y-hidden no-scrollbar">
                                     <TabsTrigger value="store"><Store className="mr-2 h-4 w-4" />Toko</TabsTrigger>
+                                    {isSyncAvailable && (
+                                        <TabsTrigger value="sync"><RefreshCw className="mr-2 h-4 w-4" />Jaringan</TabsTrigger>
+                                    )}
                                     <TabsTrigger value="taxes"><Percent className="mr-2 h-4 w-4" />Pajak</TabsTrigger>
                                     <TabsTrigger value="printer"><Printer className="mr-2 h-4 w-4" />Printer</TabsTrigger>
                                     <TabsTrigger value="database"><Database className="mr-2 h-4 w-4" />Database</TabsTrigger>
@@ -197,6 +215,22 @@ export default function SettingsPage() {
 
                                 <TabsContent value="store">
                                     <StoreInfoForm />
+                                </TabsContent>
+
+                                <TabsContent value="sync" className="space-y-6">
+                                    <SyncManager 
+                                        isSyncAvailable={isSyncAvailable} 
+                                        onSyncStatusChange={(active, isLeader) => {
+                                            setIsSyncActive(active);
+                                            setCurrentRoleIsLeader(isLeader);
+                                        }} />
+                                    <RolesManager />
+                                    {isSyncActive && (
+                                        <>  
+                                            { currentRoleIsLeader && <RolesManager /> }
+                                            <NetworkSecurity isLeader={currentRoleIsLeader} />
+                                        </>
+                                    )}
                                 </TabsContent>
 
                                 <TabsContent value="taxes">
