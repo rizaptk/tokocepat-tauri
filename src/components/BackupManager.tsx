@@ -1,6 +1,3 @@
-
-'use client';
-
 import { useEffect, useState, useTransition } from 'react';
 import { useDbStore } from '@/lib/db-store';
 import { hasBackupConfig, performRestore, promptAndSetBackupFile, getBackupMetadata } from '@/lib/backupService';

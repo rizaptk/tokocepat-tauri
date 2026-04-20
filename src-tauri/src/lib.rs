@@ -13,6 +13,7 @@ mod printmon;
 mod license;
 mod maintenance;
 mod hwid;
+mod sync;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -49,9 +50,18 @@ pub fn run() {
 
             let db = FireLite::open(db_path, FireLiteConfig::default())
                 .expect("Failed to init FireLite");
+                
 
             let gateway = FireLiteGateway::new(db);
-            app.manage(gateway);
+            
+            app.manage(gateway.clone());
+            
+            let sync_state = sync::SyncState {
+                syncer: std::sync::Arc::new(tokio::sync::Mutex::new(None)),
+                app_handle: app.handle().clone(),
+            };
+            
+            app.manage(sync_state);
             
             printmon::start_monitor(app.handle().clone());
             
@@ -84,8 +94,16 @@ pub fn run() {
             license::claim_license,
             license::activate_manual_license,
             license::deactivate_license, 
+            
             maintenance::native_backup,
-            maintenance::native_restore,
+            // maintenance::native_restore,
+
+            sync::toggle_net_sync,
+            sync::get_sync_status,
+            sync::check_sync_security_exists,
+            sync::list_network_peers,
+            sync::bootstrap_sync,
+
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

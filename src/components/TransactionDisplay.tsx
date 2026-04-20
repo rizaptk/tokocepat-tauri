@@ -1,5 +1,3 @@
-
-
 import { useStore } from '@/lib/store';
 import { Transaction } from '@/lib/types';
 import { ScrollArea } from './ui/scroll-area';

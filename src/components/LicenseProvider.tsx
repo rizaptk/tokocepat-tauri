@@ -2,6 +2,11 @@ import { useLicense } from '@/hooks/useLicense';
 import { TokoCepatLogo } from "./TokoCepatLogo";
 import { ShieldOff } from "lucide-react";
 import { Button } from "./ui/button";
+import { useEffect, useMemo, useState } from 'react';
+import { initializeSyncService } from '@/services/syncService';
+import { useSyncStore } from '@/lib/sync-store';
+import { invoke } from '@tauri-apps/api/core';
+import { useDbStore } from '@/lib/db-store';
 
 const statusMessages: Record<string, string> = {
     INVALID: "Data lisensi tidak valid. Silakan aktivasi ulang.",
@@ -12,7 +17,63 @@ const statusMessages: Record<string, string> = {
 };
 
 export function LicenseProvider({ children }: { children: React.ReactNode }) {
-    const { status } = useLicense();
+    const { status, licenseDetails } = useLicense();
+    const [isLoad, setIsload] = useState(false);
+    const [statusChecked, setStatusChecked] = useState(false);
+    const syncStore = useSyncStore();
+    const { db, firesqlite } = useDbStore();
+
+    useEffect(() => {
+        setIsload(true);
+        return () => setIsload(false);
+    },[])
+
+    const isLicensed = useMemo(() => status === 'VALID' || status === 'EXPIRES_SOON', [status]);
+    const canSync = useMemo(() => isLicensed && licenseDetails?.isSyncAvailable === true, [isLicensed, licenseDetails]);
+    
+    useEffect(() => {
+        if (!canSync) {
+            return;
+        }
+        invoke('get_sync_status').then((st: any) => {
+            syncStore.setIsNetworkEnable(st?.status == 'connected');
+            setStatusChecked(true);
+        });
+        return () => setStatusChecked(false);
+    },[isLoad, canSync])
+
+        // 1. Setup global event listeners once
+    useEffect(() => {
+        const sub = initializeSyncService();
+        return () => { sub.then(cleanup => cleanup()); };
+    }, []);
+
+    useEffect(() => {
+        if (status === 'LOADING' || !statusChecked || !db || !firesqlite) return;
+
+        const {doc, getDoc} = firesqlite;
+
+        const geSync = async () => {
+            const sync = await getDoc(doc(db, 'app_state/sync_prefs'));
+            return sync.data();
+        }
+
+        // SCENARIO A: License is lost or doesn't support sync, but sync is running
+        if (!canSync && syncStore.isNetworkEnable) {
+            syncStore.toggleSync(false); // Shuts down Rust syncer
+            return;
+        }
+
+        // SCENARIO B: License is valid, user enabled it, but it's not running yet
+        if (canSync && !syncStore.isNetworkEnable && syncStore.isSyncEnabled) {
+            geSync().then((data: any) => {
+                if (data as boolean) {
+                    syncStore.toggleSync(true);
+                }
+            })
+        }
+
+    }, [canSync, syncStore.isNetworkEnable, syncStore.isSyncEnabled, status, statusChecked, db, firesqlite]);
 
     if (status === 'LOADING') {
          return (
@@ -27,8 +88,6 @@ export function LicenseProvider({ children }: { children: React.ReactNode }) {
             </div>
         )
     }
-
-    const isLicensed = status === 'VALID' || status === 'EXPIRES_SOON';
     
     const isAllowedUnlicensedPage = typeof window !== 'undefined' && 
         (window.location.pathname.startsWith('/dashboard/settings') || 

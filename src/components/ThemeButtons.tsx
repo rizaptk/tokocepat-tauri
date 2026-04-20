@@ -1,5 +1,3 @@
-"use client"
-
 import { Button } from "@/components/ui/button"
 import { Moon, Sun } from "lucide-react"
 import { useThemeStore } from "@/lib/theme-store"

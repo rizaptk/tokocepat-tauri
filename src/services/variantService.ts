@@ -29,7 +29,7 @@ export const setProductVariants = async (productId: string, variants: VariantFor
     const { collection, query, where, getDocs, deleteDoc, setDoc, updateDoc, doc } = firesqlite;
 
     const variantsRef = collection(db, 'product_variants');
-    const q = query(variantsRef, where('product_id', '==', productId));
+    const q = query(variantsRef, where('product_id', 'eq', productId));
     const querySnapshot = await getDocs(q);
     const existingVariantIds = new Set(querySnapshot.docs.map((d: any) => d.id));
     const updatedVariantIds = new Set<string>();

@@ -1,111 +1,162 @@
+use firelite::document::firelite_doc::FireLiteDoc;
+use firelite::document::value::Value;
 use firelite::net_sync::{NetSyncer, NetworkStatus};
-use firelite::engine::{SecurityRule, AccessOp};
-use tauri::State;
-use std::sync::Arc;
-use tokio::sync::Mutex;
-use crate::license;
+use firelite::query::filter::Operator;
+use firelite::query::query::Query;
 use firelite::tauri_gateway::FireLiteGateway;
+use std::collections::HashMap;
+use std::sync::Arc;
+use tauri::State;
+use tauri::{AppHandle, Emitter};
+use tokio::sync::Mutex;
 
 pub struct SyncState {
     pub syncer: Arc<Mutex<Option<NetSyncer>>>,
-    pub is_authority: Arc<Mutex<bool>>,
+    pub app_handle: AppHandle,
 }
 
 #[tauri::command]
 pub async fn toggle_net_sync(
     enabled: bool,
-    is_authority: bool,
-    leader_id: String, // Consumer passes the designated Leader's HWID
     port: u16,
     state: State<'_, SyncState>,
     gateway: State<'_, FireLiteGateway>,
 ) -> Result<String, String> {
     let mut syncer_lock = state.syncer.lock().await;
+    let app = state.app_handle.clone();
+
+    // OPTIMIZATION: Check if the state is already the same
+    let current_config = gateway.db.get("app_state", "sync_prefs").ok().flatten();
+    let doc = current_config.unwrap_or_default();
+    let current_enabled = doc.get("enabled").and_then(|v| v.to_json().as_bool()).unwrap_or(false);
+
+    // println!("{} -> {}",&current_enabled, &enabled);
+
+    if enabled != current_enabled {
+        let mut prefs = FireLiteDoc::default();
+        prefs.insert("enabled", Value::Bool(enabled));
+        let _ = gateway.db.put("app_state", "sync_prefs", &prefs);
+    }
 
     if !enabled {
-        *syncer_lock = None;
-        // Restore default behavior (allow local writes)
-        gateway.db.set_security_rules(vec![]); 
-        return Ok("Sync stopped".into());
+        if !syncer_lock.is_none() {
+            if let Some(s) = syncer_lock.take() {
+                s.stop();
+            }
+            let _ = app.emit("sync_off", ());
+        }
+        return Ok("OFF".into());
     }
 
-    // --- 1. LICENSE VALIDATION ---
-    let license_data = license::get_license_db(&gateway).ok_or("License not found")?;
-    // Note: Use the Claims struct from your license.rs
-    let decoded = jsonwebtoken::dangerous_insecure_decode::<license::Claims>(&license_data.jwt)
-        .map_err(|e| e.to_string())?;
-    
-    if decoded.claims.max_seats.unwrap_or(0) <= 1 {
-        return Err("License plan does not support Multi-Device Sync".into());
+    // Only start if not already started
+    if syncer_lock.is_none() {
+        let self_id = crate::hwid::get_license_hwid();
+        let db = Arc::clone(&gateway.db);
+        let excluded = vec!["app_state".to_string()];
+
+        let new_syncer = NetSyncer::new(db, &self_id, "tokocepat", excluded);
+        new_syncer.start(port).await.map_err(|e| e.to_string())?;
+
+        *syncer_lock = Some(new_syncer);
+        let _ = app.emit("sync_on", ());
     }
 
-    // --- 2. ENGINE-LEVEL ACCESS CONTROL ---
-    let mut rules = Vec::new();
-    
-    if !is_authority {
-        // FOLLOWER PROTECTION: 
-        // Prevent the local app/user from tampering with synced security data.
-        // follower must receive their permissions via net_sync from the Leader.
-        rules.push(SecurityRule {
-            collection_prefix: "__firelite_security".to_string(),
-            op: AccessOp::Put,
-            allow: false,
-        });
-        rules.push(SecurityRule {
-            collection_prefix: "__firelite_security".to_string(),
-            op: AccessOp::Delete,
-            allow: false,
-        });
-    }
-
-    gateway.db.set_security_rules(rules);
-
-    // --- 3. START SYNC ENGINE ---
-    let db = Arc::clone(&gateway.db);
-    let self_id = crate::hwid::get_license_hwid(); 
-    
-    // EXCLUSION LIST: 
-    // "app_state" contains local license/JWT info unique to this hardware.
-    // Syncing it would cause "Cloned License" errors on other devices.
-    let excluded = vec!["app_state".to_string()];
-
-    let new_syncer = NetSyncer::new(
-        db, 
-        &self_id, 
-        &leader_id, 
-        excluded, 
-        is_authority
-    );
-
-    new_syncer.start(port).await.map_err(|e| e.to_string())?;
-    
-    *syncer_lock = Some(new_syncer);
-    *state.is_authority.lock().await = is_authority;
-
-    Ok(format!("Network Active as {}", if is_authority { "Leader" } else { "Follower" }))
+    Ok("ON".into())
 }
 
 #[tauri::command]
 pub async fn get_sync_status(state: State<'_, SyncState>) -> Result<Option<NetworkStatus>, String> {
     let lock = state.syncer.lock().await;
-    // status() returns the NetworkStatus struct defined in net_sync.rs
-    Ok(lock.as_ref().map(|s| s.status()))
+    match lock.as_ref() {
+        // NetSyncer::status() is public in the library implementation
+        Some(s) => Ok(Some(s.status())),
+        None => Ok(None),
+    }
 }
 
 #[tauri::command]
-pub async fn check_sync_security_exists(gateway: State<'_, FireLiteGateway>) -> bool {
-    // Check if the internal security config document is present
-    gateway.db.get("__firelite_security", "config")
-        .map(|doc| doc.is_some())
-        .unwrap_or(false)
+pub async fn check_sync_security_exists(
+    gateway: State<'_, FireLiteGateway>,
+) -> Result<bool, String> {
+    Ok(gateway
+        .db
+        .get("__firelite_security", "config")
+        .map_err(|e| e.to_string())?
+        .is_some())
 }
 
 #[tauri::command]
-pub async fn init_sync_security(pin: String, gateway: State<'_, FireLiteGateway>) -> Result<(), String> {
-    let mut doc = firelite::document::firelite_doc::FireLiteDoc::default();
-    // It's recommended to hash the pin before saving, but for now we save as string
-    doc.insert("leader_pin", firelite::document::value::Value::String(pin));
-    doc.insert("created_at", firelite::document::value::Value::ServerTimestamp);
-    
-    gateway.db.put("__firelite_security", "config", &doc).map_err(|e| e.to_string())
+pub async fn list_network_peers(
+    state: State<'_, SyncState>,
+    gateway: State<'_, FireLiteGateway>,
+) -> Result<Vec<serde_json::Value>, String> {
+    // 1. Get the Live Peers (raw HWIDs)
+    let syncer_guard = state.syncer.lock().await;
+    let live_ids = match syncer_guard.as_ref() {
+        Some(s) => s.status().known_peers,
+        None => Vec::new(),
+    };
+
+    if live_ids.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    // 2. Map the Vec<String> of IDs to Vec<Value> for the FireLite Query
+    let id_values: Vec<Value> = live_ids
+        .iter()
+        .map(|id| Value::String(id.clone()))
+        .collect();
+
+    // 2. Get Authorized Peers using the NEW "id" virtual field
+    // Note: We use "id" here, not "_id"
+    let query = Query::new("__firelite_security").where_filter(
+        "id",
+        Operator::In,
+        Value::Array(id_values),
+    );
+
+    let db_results = gateway.db.query(query).map_err(|e| e.to_string())?;
+
+    // 4. Create a lookup map for the results found in the database
+    let mut db_map = HashMap::new();
+    for (id, doc) in db_results {
+        db_map.insert(id, doc);
+    }
+
+    // 5. Construct the final list based ONLY on live_ids
+    let mut final_list = Vec::new();
+    for id in live_ids {
+        let db_doc = db_map.get(&id);
+
+        final_list.push(serde_json::json!({
+            "id": id,
+            "is_online": true,
+            // Status: use DB value if exists, otherwise "new_device"
+            "status": db_doc.and_then(|d| d.get("status"))
+                .map(|v| v.to_json())
+                .unwrap_or(serde_json::json!("new_device")),
+            // Name: use DB name if exists, otherwise "Perangkat Baru"
+            "name": db_doc.and_then(|d| d.get("name"))
+                .map(|v| v.to_json())
+                .unwrap_or(serde_json::json!("Perangkat Baru"))
+        }));
+    }
+
+    Ok(final_list)
+}
+
+#[tauri::command]
+pub async fn bootstrap_sync(
+    state: State<'_, SyncState>,
+    gateway: State<'_, FireLiteGateway>,
+) -> Result<(), String> {
+    // 1. Check DB if sync was previously enabled
+    let config = gateway.db.get("app_state", "sync_prefs").ok().flatten();
+    if let Some(doc) = config {
+        if let Some(Value::Bool(true)) = doc.get("enabled") {
+            // Pass through to your existing toggle logic (port 8055 default)
+            let _ = toggle_net_sync(true, 8055, state, gateway).await;
+        }
+    }
+    Ok(())
 }

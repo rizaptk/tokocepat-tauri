@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { useZxing } from 'react-zxing';
 import { useToast } from '@/hooks/use-toast';

@@ -1,5 +1,3 @@
-'use client';
-
 import { useMemo } from 'react';
 import { useStore } from '@/lib/store';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';

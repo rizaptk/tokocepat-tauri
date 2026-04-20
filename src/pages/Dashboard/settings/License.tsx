@@ -64,8 +64,8 @@ export default function LicensePage() {
             <section className="flex-1 min-h-0">
                 <ScrollArea className="h-full">
                     <div className='p-8'>
-                        <Tabs defaultValue="license" className="w-full">
-                            <TabsList className="w-full mb-8">
+                        <Tabs defaultValue="license" className="w-full" layoutId='lisensi'>
+                            <TabsList defaultValue="license" className="w-full mb-8 justify-start">
                                 <TabsTrigger value="license"><Shield className="mr-2 h-4 w-4" />Lisensi</TabsTrigger>
                                 <TabsTrigger value="subscription"><CreditCard className="mr-2 h-4 w-4" />Langganan</TabsTrigger>
                             </TabsList>

@@ -1,10 +1,5 @@
-
-'use client';
-
 import { useStore } from '@/lib/store';
 import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
 import { useEffect, useTransition } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { updateStoreConfig } from '@/services/settingsService';
@@ -15,13 +10,11 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, Save } from 'lucide-react';
 
-const storeInfoSchema = z.object({
-  store_name: z.string().min(2, 'Nama toko minimal 2 karakter.'),
-  address: z.string().optional(),
-  receipt_footer: z.string().optional().or(z.literal('')),
-});
-
-type StoreInfoFormValues = z.infer<typeof storeInfoSchema>;
+type StoreInfoFormValues = {
+  store_name: string;
+  address?: string;
+  receipt_footer?: string;
+};
 
 export function StoreInfoForm() {
     const { storeConfig } = useStore();
@@ -29,7 +22,6 @@ export function StoreInfoForm() {
     const { toast } = useToast();
 
     const form = useForm<StoreInfoFormValues>({
-        resolver: zodResolver(storeInfoSchema),
         defaultValues: {
             store_name: '',
             address: '',
@@ -67,7 +59,14 @@ export function StoreInfoForm() {
             <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)}>
                     <CardContent className="space-y-6">
-                        <FormField control={form.control} name="store_name" render={({ field }) => (
+                        <FormField 
+                            control={form.control} 
+                            name="store_name" 
+                            rules={{ 
+                                required: 'Nama toko wajib diisi',
+                                minLength: { value: 2, message: 'Nama toko minimal 2 karakter.' }
+                            }}
+                            render={({ field }) => (
                             <FormItem><FormLabel>Nama Toko</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                         )} />
                         <FormField control={form.control} name="address" render={({ field }) => (

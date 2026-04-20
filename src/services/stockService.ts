@@ -12,8 +12,8 @@ export const getStockMovementsByDateRange = async (from: Date, to: Date): Promis
     const movementsRef = collection(db, 'stock_movements');
     const q = query(
         movementsRef,
-        where('created_at', '>=', from.toISOString()),
-        where('created_at', '<=', to.toISOString()),
+        where('created_at', 'gte', from.toISOString()),
+        where('created_at', 'lte', to.toISOString()),
         orderBy('created_at', 'desc')
     );
 

@@ -1,4 +1,3 @@
-
 import { useDbStore } from "@/lib/db-store";
 import { useStore } from "@/lib/store";
 import { seedDatabase } from "@/lib/database";
@@ -6,16 +5,17 @@ import { useEffect, useState } from "react";
 import { 
     Product, ProductVariant, ModifierGroup, 
     Shift, StoreConfig, Category, PendingCart, 
-    RawIngredient, Recipe 
+    RawIngredient, Recipe, 
+    CustomAccessType
 } from '@/lib/types';
 import { TokoCepatLogo } from "./TokoCepatLogo";
+import { generateDeviceFingerprint } from "@/lib/security";
 
 export function DbProvider({ children }: { children: React.ReactNode }) {
     const { isInitialized, db, firesqlite } = useDbStore();
     const { 
         setProducts, setProductVariants, setModifierGroups, 
-        // setTransactions, 
-        setShifts, setStoreConfig, 
+        setShifts, setStoreConfig, setCustomAccess,
         setCategories, setPendingCarts, setRawIngredients, setRecipes 
     } = useStore();
     
@@ -24,7 +24,7 @@ export function DbProvider({ children }: { children: React.ReactNode }) {
     // 2. Manage Data Subscriptions
     useEffect(() => {
         // Only proceed if DB is ready
-        if (!isInitialized || !db) return;
+        if (!isInitialized || !db || !firesqlite) return;
 
         // Memory Management: Track all active listeners
         let isMounted = true;
@@ -33,12 +33,13 @@ export function DbProvider({ children }: { children: React.ReactNode }) {
         const setupData = async () => {
             try {
                 // A. Ensure tables exist and default data is present
+                const hwid = await generateDeviceFingerprint();
                 await seedDatabase(firesqlite, db);
                 
                 // B. Guard: If user navigated away during seeding, don't start listeners
                 if (!isMounted) return;
 
-                const { collection, doc, onSnapshot } = firesqlite;
+                const { collection, doc, onSnapshot, query, where } = firesqlite;
 
                 /**
                  * Helper to register unsubs automatically
@@ -99,6 +100,12 @@ export function DbProvider({ children }: { children: React.ReactNode }) {
                 subscribe(onSnapshot(collection(db, 'shifts'), (snap: any) => {
                     const shiftList = snap.docs.map((d: any) => d.data() as Shift); 
                     setShifts(shiftList);
+                }));
+
+                /// Custom Access
+                subscribe(onSnapshot(doc(db, '__firelite_security', hwid), (snap: any) => {
+                    const data = snap.data() as CustomAccessType;
+                    if (data) setCustomAccess(data as CustomAccessType);
                 }));
 
 

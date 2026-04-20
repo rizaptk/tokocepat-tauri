@@ -208,3 +208,11 @@ export interface PaymentInstructions {
     accountNumber?: string;
     whatsappNumber?: string;
 }
+
+export interface CustomAccessType {
+    id: string;
+    name?: string;
+    description?: string;
+    access?: string[], 
+    cashier_layout?: string 
+}

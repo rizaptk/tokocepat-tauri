@@ -210,18 +210,23 @@ export const seedDatabase = async (firesqlite: any, db: any, force = false) => {
             console.log(`Day complete: ${dateStr}`);
         }
 
+        await mainBatch.commit();
+
+        // updates
+        console.log("Seeding updates..");
+        const updateBatch = writeBatch(db);
         // 5. Finalize Stock Levels & Store Config
         // const finalBatch = writeBatch(db);
-        productStock.forEach((stock, id) => mainBatch.update(doc(db, 'products', id), { stock }));
-        variantStock.forEach((stock, id) => mainBatch.update(doc(db, 'product_variants', id), { stock }));
-        ingredientStock.forEach((stock_qty, id) => mainBatch.update(doc(db, 'raw_ingredients', id), { stock_qty }));
+        productStock.forEach((stock, id) => updateBatch.update(doc(db, 'products', id), { stock }));
+        variantStock.forEach((stock, id) => updateBatch.update(doc(db, 'product_variants', id), { stock }));
+        ingredientStock.forEach((stock_qty, id) => updateBatch.update(doc(db, 'raw_ingredients', id), { stock_qty }));
         
         await setDoc(doc(db, 'store_config', 'main'), {
             id: 'main', store_name: 'TokoCepat Demo', address: 'Jl. Jenderal Sudirman No. 1, Jakarta',
             tax_rate: 0.11, currency: 'IDR', receipt_footer: 'Thank you for shopping!'
         });
 
-        await mainBatch.commit();
+        await updateBatch.commit();
         localStorage.setItem(DB_VERSION_KEY, CURRENT_DB_VERSION);
         console.log("Seeding process complete.");
 

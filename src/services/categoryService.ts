@@ -1,4 +1,3 @@
-
 import { Category } from '@/lib/types';
 import { useDbStore } from '@/lib/db-store';
 
@@ -36,7 +35,7 @@ export const deleteCategory = async (id: string): Promise<{success: boolean, mes
     // Check if any product is using this category
     const { collection, getDocs, query, where } = firesqlite;
     const productsRef = collection(db, 'products');
-    const q = query(productsRef, where('category_id', '==', id));
+    const q = query(productsRef, where('category_id', 'eq', id));
     const querySnapshot = await getDocs(q);
     
     if (!querySnapshot.empty) {

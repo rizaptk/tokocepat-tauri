@@ -1,4 +1,12 @@
 {
     "geminicodeassist.enableTelemetry": false,
-    "geminicodeassist.localCodebaseAwareness": false
+    "geminicodeassist.localCodebaseAwareness": false,
+    "rust-analyzer.linkedProjects": [
+        "src-tauri/Cargo.toml"
+    ],
+    "rust-analyzer.files.excludeDirs": [
+        "node_modules",
+        "dist",
+        "build"
+    ]
 }

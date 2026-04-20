@@ -1,5 +1,3 @@
-
-
 import { Product } from "@/lib/types";
 import { useStore } from "@/lib/store";
 import { cn } from "@/lib/utils";

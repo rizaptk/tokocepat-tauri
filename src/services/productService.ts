@@ -195,8 +195,8 @@ export async function searchProducts(term: string): Promise<Product[]> {
     const productsRef = collection(db, 'products');
     const q = query(
         productsRef, 
-        where('is_active', '!=', false), 
-        where('name', 'like', term)
+        where('is_active', 'ne', false), 
+        where('name', 'contains', term)
     );
     
     try {

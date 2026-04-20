@@ -13,8 +13,8 @@ export const getTransactionsByDateRange = async (from: Date, to: Date): Promise<
     const transactionsRef = collection(db, 'transactions');
     const q = query(
         transactionsRef,
-        where('created_at', '>=', from.toISOString()),
-        where('created_at', '<=', to.toISOString()),
+        where('created_at', 'gte', from.toISOString()),
+        where('created_at', 'lte', to.toISOString()),
         orderBy('created_at', 'desc')
     );
 
@@ -131,13 +131,13 @@ export const createTransaction = async (cart: CartItem[], activeShift: Shift, st
                     if (ingredientSnap.exists()) {
                         const ingredient = ingredientSnap.data();
                         const quantityToDeduct = recipeItem.quantity * cartItem.quantity;
-                        await updateDoc(ingredientRef, { stock_qty: ingredient.stock_qty - quantityToDeduct });
+                        await updateDoc(ingredientRef, { stock_qty: ingredient?.stock_qty - quantityToDeduct });
 
-                        const movementId = `sm-${transactionId}-${ingredient.id}`;
+                        const movementId = `sm-${transactionId}-${ingredient?.id}`;
                         const stockMovement: StockMovement = {
                             id: movementId,
-                            product_id: ingredient.id, // Using product_id to store ingredient_id
-                            product_name_snapshot: ingredient.name,
+                            product_id: ingredient?.id, // Using product_id to store ingredient_id
+                            product_name_snapshot: ingredient?.name,
                             type: 'sale',
                             qty_change: -quantityToDeduct,
                             reason: `Penjualan komposit: ${cartItem.name}`,
@@ -154,7 +154,7 @@ export const createTransaction = async (cart: CartItem[], activeShift: Shift, st
                 const variantRef = doc(db, 'product_variants', cartItem.selectedVariant.id);
                 const variantSnap = await getDoc(variantRef);
                 if (variantSnap.exists()) {
-                    const currentStock = variantSnap.data().stock;
+                    const currentStock = variantSnap.data()?.stock;
                     await updateDoc(variantRef, { stock: currentStock - cartItem.quantity });
 
                     const movementId = `sm-var-${transactionId}-${cartItem.selectedVariant.id}`;
@@ -175,7 +175,7 @@ export const createTransaction = async (cart: CartItem[], activeShift: Shift, st
             const productRef = doc(db, 'products', cartItem.id);
             const productSnap = await getDoc(productRef);
             if (productSnap.exists()) {
-                const currentStock = productSnap.data().stock;
+                const currentStock = productSnap.data()?.stock;
                 await updateDoc(productRef, { stock: currentStock - cartItem.quantity });
 
                 const movementId = `sm-${transactionId}-${cartItem.id}`;
@@ -266,7 +266,7 @@ export const voidTransaction = async (transactionId: string, reason: string): Pr
                     const variantRef = doc(db, 'product_variants', variant.id);
                     const variantSnap = await getDoc(variantRef);
                     if (variantSnap.exists()) {
-                        const currentStock = variantSnap.data().stock;
+                        const currentStock = variantSnap.data()?.stock;
                         await updateDoc(variantRef, { stock: currentStock + item.qty });
 
                         const movementId = `sm-void-var-${transaction.id}-${variant.id}`;
@@ -288,9 +288,9 @@ export const voidTransaction = async (transactionId: string, reason: string): Pr
             // Regular product stock return
             const productRef = doc(db, 'products', item.product_snapshot.id);
             const productSnap = await getDoc(productRef);
-            if (productSnap.exists() && productSnap.data().track_stock) {
+            if (productSnap.exists() && productSnap.data()?.track_stock) {
                 const productData = productSnap.data();
-                const currentStock = productData.stock;
+                const currentStock = productData?.stock;
                 const quantityToReturn = item.qty;
 
                 await updateDoc(productRef, { stock: currentStock + quantityToReturn });

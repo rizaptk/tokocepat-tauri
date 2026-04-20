@@ -1,5 +1,3 @@
-'use client'
-
 import { useIsMobile } from "@/lib/ismobile-store";
 import { useEffect } from "react";
 

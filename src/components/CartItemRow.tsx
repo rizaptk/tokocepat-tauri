@@ -1,5 +1,3 @@
-
-
 import { motion } from 'framer-motion';
 import { useStore } from '@/lib/store';
 import { CartItem } from '@/lib/types';

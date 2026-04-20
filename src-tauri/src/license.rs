@@ -32,7 +32,7 @@ pub struct LicenseDbData {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-struct Claims {
+pub struct Claims {
     sub: String,            
     plan: String,           
     #[serde(rename = "deviceId")]
@@ -89,7 +89,8 @@ pub fn save_license_db(gateway: &FireLiteGateway, data: LicenseDbData) -> Result
         doc.insert(k.clone(), Value::from_json(v.clone())?);
     }
     
-    gateway.db.put("app_state", "license", &doc).map_err(|e| e.to_string())
+    gateway.db.put("app_state", "license", &doc).map_err(|e| e.to_string())?;
+    Ok(())
 }
 
 #[tauri::command]

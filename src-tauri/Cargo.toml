@@ -1,6 +1,6 @@
 [package]
 name = "TokoCepat"
-version = "0.2.10"
+version = "0.2.11"
 description = "Tokocepat - kasir cepat"
 authors = ["you"]
 license = ""
@@ -29,14 +29,15 @@ tauri-plugin-store = "2.4.2"
 tauri-plugin-dialog = "2.6.0"
 uuid = {version = "1.20.0", features = ["v4"] }
 tokio = { version = "1", features = ["full"] }
-firelite = { git = "https://github.com/rizaptk/firelite", branch = "main" , version = "0.6.5", features = ["tauri-gateway"] }
+firelite = { git = "https://github.com/rizaptk/firelite", branch = "main" , version = "0.6.34", features = ["tauri-gateway", "net-sync"] }
 rusb = "0.9"
 tauri-plugin-fs = "2"
 jsonwebtoken = "9.3"
 chrono = { version = "0.4", features = ["serde"] }
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 dotenvy = "0.15"
-flate2 = "1.0"
+zip = "2.1.0"
+walkdir = "2.5.0"
 
 [target.'cfg(not(target_os = "android"))'.dependencies]
 machine-uid = "0.3"

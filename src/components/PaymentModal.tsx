@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useRef } from 'react';
+import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -17,6 +17,7 @@ import { cn } from '@/lib/utils';
 import { usePrintStore } from '@/lib/print-store';
 import { useGlobalKeydown } from '@/hooks/use-global-keydown';
 import { useGlobalNumberInputFix } from '@/hooks/useGlobalNumberInputFix';
+import { useCurrencyFormat } from '@/hooks/useCurrencyFormat';
 
 type PaymentModalProps = {
   isOpen: boolean;
@@ -34,6 +35,7 @@ export function PaymentModal({ isOpen, setIsOpen, total }: PaymentModalProps) {
   const { checkout } = useStore();
   const { addToQueue } = usePrintStore();
   const { toast } = useToast();
+  const curr = useCurrencyFormat();
 
   const numericCash = parseFloat(cashReceived) || 0;
   const change = numericCash - total;
@@ -81,6 +83,10 @@ export function PaymentModal({ isOpen, setIsOpen, total }: PaymentModalProps) {
     return final;
   }, [total]);
 
+  useEffect(() => {
+    setCashReceived(curr.raw);
+  },[curr.raw])
+
   const handlePayment = useCallback(async () => {
     if (numericCash < total) {
       toast({
@@ -100,7 +106,8 @@ export function PaymentModal({ isOpen, setIsOpen, total }: PaymentModalProps) {
   const resetAndClose = useCallback(() => {
     setIsOpen(false);
     setTimeout(() => {
-      setCashReceived('');
+      // setCashReceived('');
+      curr.setRaw('0');
       setStatus('pending');
     }, 200);
   }, [setIsOpen]);
@@ -150,21 +157,24 @@ export function PaymentModal({ isOpen, setIsOpen, total }: PaymentModalProps) {
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-medium">Rp</span>
                     <Input
                       id="cash"
-                      type="number"
+                      type="text"
+                      inputMode='numeric'
                       className={cn(
                         "pl-10 text-xl h-14 font-semibold transition-all",
                         isInsufficient && "border-destructive focus-visible:ring-destructive",
                         numericCash >= total && "border-green-500 focus-visible:ring-green-500"
                       )}
-                      value={cashReceived}
-                      onChange={(e) => setCashReceived(e.target.value)}
+                      // value={cashReceived}
+                      value={curr.value}
+                      // onChange={(e) => setCashReceived(e.target.value)}
+                      onChange={curr.onChange}
                       placeholder="0"
                       autoFocus
                       enable-global-keydown="true"
                     />
                     {cashReceived && (
                       <button
-                        onClick={() => setCashReceived('')}
+                        onClick={() => curr.setRaw('0')}
                         className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                       >
                         <Delete className="h-5 w-5" />
@@ -180,7 +190,7 @@ export function PaymentModal({ isOpen, setIsOpen, total }: PaymentModalProps) {
                       variant="outline"
                       type="button"
                       className="h-12 font-semibold hover:border-primary hover:bg-primary/5"
-                      onClick={() => setCashReceived(amt.toString())}
+                      onClick={() => curr.setRaw(amt.toString())}
                     >
                       {amt === total ? "Uang Pas" : formatCurrency(amt)}
                     </Button>

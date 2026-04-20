@@ -2,11 +2,12 @@ import { create } from 'zustand';
 // We import our new bridge as 'firesqliteBridge' 
 // to keep the naming consistent with your existing services.
 import * as firesqliteBridge from '@/lib/tauri';
+import { FireLite } from '@/lib/tauri';
 
 interface DbState {
   isInitialized: boolean;
-  db: any | null;           // Holds the firestore instance
-  firesqlite: any | null;   // Holds the API namespace (doc, collection, etc.)
+  db: FireLite | null;           // Holds the firelite instance
+  firesqlite: typeof firesqliteBridge | null;   // Holds the API namespace (doc, collection, etc.)
   initialize: () => Promise<void>;
 }
 

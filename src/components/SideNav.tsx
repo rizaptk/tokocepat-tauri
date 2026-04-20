@@ -16,11 +16,11 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 
 const navItems = [
     { href: '/dashboard', label: 'Dashboard', icon: LayoutGrid },
-    { href: '/cashier', label: 'Cashier', icon: ShoppingCart },
-    { href: '/product', label: 'Products', icon: Package },
-    { href: '/inventory', label: 'Inventory', icon: Warehouse },
-    { href: '/dashboard/reports', label: 'Reports', icon: BarChartIcon },
-    { href: '/dashboard/settings', label: 'Settings', icon: Settings },
+    { href: '/classiccashier', label: 'Kasir', icon: ShoppingCart },
+    { href: '/product', label: 'Produk', icon: Package },
+    { href: '/inventory', label: 'Inventori', icon: Warehouse },
+    { href: '/dashboard/reports', label: 'Laporan', icon: BarChartIcon },
+    { href: '/dashboard/settings', label: 'Pengaturan', icon: Settings },
 ];
 
 export function SideNav() {

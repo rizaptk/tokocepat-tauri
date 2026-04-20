@@ -1,5 +1,3 @@
-
-
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { Product, ProductVariant } from '@/lib/types';
 import { useStore } from '@/lib/store';

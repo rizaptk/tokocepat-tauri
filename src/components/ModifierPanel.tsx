@@ -1,5 +1,3 @@
-
-
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { Product, ModifierGroup, ModifierItem, SelectedModifier, CartItem } from '@/lib/types';
 import { useStore } from '@/lib/store';

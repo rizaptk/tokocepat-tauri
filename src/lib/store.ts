@@ -1,9 +1,6 @@
-
-"use client";
-
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { Product, CartItem, Transaction, Category, ModifierGroup, ProductVariant, Shift, StoreConfig, SelectedModifier, PendingCart, RawIngredient, Recipe, StockMovement } from '@/lib/types';
+import { Product, CartItem, Transaction, Category, ModifierGroup, ProductVariant, Shift, StoreConfig, SelectedModifier, PendingCart, RawIngredient, Recipe, StockMovement, CustomAccessType } from '@/lib/types';
 import { toast } from '@/hooks/use-toast';
 import { openShift as openShiftService, closeShift as closeShiftService } from '@/services/shiftService';
 import { createTransaction } from '@/services/transactionService';
@@ -29,6 +26,7 @@ interface StoreState {
     storeConfig: StoreConfig | null;
     pendingCarts: PendingCart[];
     stockMovements: StockMovement[];
+    customAccess: CustomAccessType | null;
 
     // Actions
     setProducts: (products: Product[]) => void;
@@ -52,6 +50,7 @@ interface StoreState {
     parkCart: () => Promise<void>;
     resumeCart: (cartId: string) => Promise<void>;
     deletePendingCart: (cartId: string) => Promise<void>;
+    setCustomAccess: (customAccess: CustomAccessType) => void;
 }
 
 export const useStore = create<StoreState>()(
@@ -70,7 +69,9 @@ export const useStore = create<StoreState>()(
             storeConfig: null,
             pendingCarts: [],
             stockMovements: [],
+            customAccess: null,
 
+            setCustomAccess: (customAccess) => set({ customAccess }),
             setProducts: (products) => set({ products }),
             setCategories: (categories) => set({ categories }),
             setModifierGroups: (modifierGroups) => set({ modifierGroups }),
@@ -296,6 +297,7 @@ export const useStore = create<StoreState>()(
                     return;
                 }
                 const cartToResume = pendingCarts.find(c => c.id === cartId);
+                console.log(cartToResume);
                 if (cartToResume) {
                     try {
                         await deletePendingCartFromDb(cartId);
