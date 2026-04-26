@@ -2,7 +2,6 @@ import { CartItem, Transaction, Shift, StoreConfig, StockMovement, RawIngredient
 import { useDbStore } from '@/lib/db-store';
 import { useStore } from '@/lib/store';
 import { toast } from '@/hooks/use-toast';
-// import { error } from 'node:console';
 
 export const getTransactionsByDateRange = async (from: Date, to: Date): Promise<Transaction[]> => {
     const { db, firesqlite } = useDbStore.getState();
@@ -122,7 +121,6 @@ export const createTransaction = async (cart: CartItem[], activeShift: Shift, st
     // 2. Update stock and create stock movements
     for (const cartItem of cart) {
         if (cartItem.is_composite) {
-            console.log('memproses item komposit', recipes, cartItem);
             const recipe = recipes.find(r => r.product_id === cartItem.id);
             if (recipe) {
                 for (const recipeItem of recipe.items) {
@@ -311,3 +309,30 @@ export const voidTransaction = async (transactionId: string, reason: string): Pr
         }
     }
 };
+
+export const listenTransaction = async (shift: string) => {
+    const store = useStore();
+    const {db, firesqlite} = useDbStore();
+    if (!db || !firesqlite) return;
+
+    const { collection, query, where, orderBy, onSnapshot } = firesqlite;
+
+    // Set up the initial query
+    const transactionsRef = collection(db, 'transactions');
+    const q = query(
+        transactionsRef,
+        where('shift_id', 'eq', shift),
+            orderBy('created_at', 'desc')
+    );
+
+    // Set up the real-time listener
+    onSnapshot(q, (snapshot) => {
+        const transactions: Transaction[] = [];
+        snapshot.forEach((doc) => {
+            transactions.push(doc.data() as Transaction);
+        });
+
+        // Update the store with the new transactions
+        store.setTransactions(transactions);
+    });
+}

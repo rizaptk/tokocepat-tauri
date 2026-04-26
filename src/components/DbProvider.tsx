@@ -39,7 +39,7 @@ export function DbProvider({ children }: { children: React.ReactNode }) {
                 // B. Guard: If user navigated away during seeding, don't start listeners
                 if (!isMounted) return;
 
-                const { collection, doc, onSnapshot, query, where } = firesqlite;
+                const { collection, doc, onSnapshot } = firesqlite;
 
                 /**
                  * Helper to register unsubs automatically
@@ -103,9 +103,10 @@ export function DbProvider({ children }: { children: React.ReactNode }) {
                 }));
 
                 /// Custom Access
-                subscribe(onSnapshot(doc(db, '__firelite_security', hwid), (snap: any) => {
-                    const data = snap.data() as CustomAccessType;
-                    if (data) setCustomAccess(data as CustomAccessType);
+                subscribe(onSnapshot(doc(db, '__firelite_security', hwid), (snap) => {
+                    if (snap.exists()) {
+                        setCustomAccess(snap.data() as CustomAccessType);
+                    }
                 }));
 
 

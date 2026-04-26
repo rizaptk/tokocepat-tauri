@@ -25,7 +25,6 @@ export function useLicense() {
             try {
                 // Call Rust to do the heavy lifting
                 const [newStatus, details] = await invoke<[LicenseStatus, any]>('check_license');
-                // console.log(newStatus, details)
                 setStatus(newStatus);
                 setLicenseDetails(details);
             } catch (err) {

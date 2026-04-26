@@ -187,8 +187,8 @@ export async function performRestore(): Promise<boolean> {
     }
 
     try {
-        const file = await handle.getFile();
-        await firesqlite.importFullBinary(file);
+        // const file = await handle.getFile();
+        // await firesqlite.importFullBinary(file);
         
         // Short delay to allow DB to settle after import
         await new Promise(res => setTimeout(res, 100));

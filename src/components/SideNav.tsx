@@ -10,13 +10,14 @@ import {
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/lib/ismobile-store';
 import { useLicense } from '@/hooks/useLicense';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { useStore } from '@/lib/store';
 
 const navItems = [
     { href: '/dashboard', label: 'Dashboard', icon: LayoutGrid },
-    { href: '/classiccashier', label: 'Kasir', icon: ShoppingCart },
+    { href: '/cashier', label: 'Kasir', icon: ShoppingCart },
     { href: '/product', label: 'Produk', icon: Package },
     { href: '/inventory', label: 'Inventori', icon: Warehouse },
     { href: '/dashboard/reports', label: 'Laporan', icon: BarChartIcon },
@@ -28,8 +29,17 @@ export function SideNav() {
     const { isMobile } = useIsMobile();
     const { status: licenseStatus } = useLicense();
     const [isClient, setIsClient] = useState(false);
+    const { customAccess } = useStore();
 
     useEffect(() => setIsClient(true), []);
+
+    const filteredNav = useMemo(() => {
+        if (!customAccess?.access) {
+            return navItems;
+        }
+
+        return navItems.filter(f => customAccess.access?.includes(f.label.toLowerCase()));
+    },[customAccess]);
 
     const isLicensed = licenseStatus === 'VALID' || licenseStatus === 'EXPIRES_SOON';
 
@@ -51,7 +61,7 @@ export function SideNav() {
             <nav className="flex h-full flex-col items-center justify-center">
                 <TooltipProvider>
                     <div className="flex flex-col items-center gap-4 px-2 py-5">
-                        {navItems.map((item) => (
+                        {filteredNav.map((item) => (
                             <Tooltip key={item.href}>
                                 <TooltipTrigger asChild>
                                     <Link

@@ -1,5 +1,5 @@
 import { useDbStore } from '@/lib/db-store';
-import { clearBackupConfig } from '@/lib/backupService';
+import { useStore } from '@/lib/store';
 
 export type LicenseDbData = {
     jwt: string;
@@ -23,38 +23,37 @@ export const resetApplicationData = async (): Promise<{ success: boolean, messag
         'shifts',
         'pending_carts',
         'store_config',
-        // 'app_state' is intentionally omitted to preserve license data
     ];
-    const { collection, getDocs, writeBatch, doc } = firesqlite;
+    const { collection, query, deleteDocs } = firesqlite;
 
     try {
-        for (const collectionName of collectionsToClear) {
-            const collectionRef = collection(db, collectionName);
-            const snapshot = await getDocs(collectionRef);
+        const toDelete = collectionsToClear.map((col) => {
+            const collectionRef = collection(db, col);
+            return deleteDocs(query(collectionRef));
+        })
 
-            if (snapshot.empty) continue;
+        useStore.setState({
+            transactions: [],
+            stockMovements: [],
+            storeConfig: {
+                store_name: '',
+                id: 'main',
+                currency: 'Rp',
+                tax_rate: 0.11,
+                address: '',
+            }
+        });
 
-            const batch = writeBatch(db);
-            snapshot.docs.forEach((d: any) => {
-                batch.delete(doc(db, collectionName, d.id));
-            });
-            await batch.commit();
-        }
-        
-        // Clear backup file handle from IndexedDB
-        await clearBackupConfig();
-
-        // Remove the database version key to trigger re-seeding on next load
-        localStorage.removeItem('tokoc_db_version');
-        
-        // Set a flag to prevent seeding on next app load
+        await Promise.all(toDelete);
+        localStorage.setItem('tokoc_db_version','0');
         localStorage.setItem('tokoc_reset_flag', 'true');
 
         return { success: true };
+
     } catch (error: any) {
         console.error("Failed to reset application data:", error);
         return { success: false, message: error.message || "An unknown error occurred during data reset." };
-    }
+    } 
 };
 
 export const saveLicenseData = async (jwt: string, deviceId: string): Promise<void> => {

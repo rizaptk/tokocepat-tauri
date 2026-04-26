@@ -61,16 +61,16 @@ export const typeConfig = {
   product: {
     icon: Package,
     badge: 'success',
-    class: 'border-blue-300 bg-blue-50 text-blue-800 dark:bg-blue-900/40 dark:text-blue-200 dark:border-blue-700'
+    class: 'border-indigo-500 bg-primary/5 text-primary'
   },
   ingredient: {
     icon: Beaker,
     badge: 'warning',
-    class: 'border-purple-300 bg-purple-50 text-purple-800 dark:bg-purple-900/40 dark:text-purple-200 dark:border-purple-700'
+    class: 'border-warning bg-warning/5 text-warning'
   },
   variant: {
     icon: Layers2,
     badge: 'info',
-    class: 'border-green-300 bg-green-50 text-green-800 dark:bg-green-900/40 dark:text-green-200 dark:border-green-700'
+    class: 'border-green-500 bg-success/5 text-success-foreground'
   }
 }

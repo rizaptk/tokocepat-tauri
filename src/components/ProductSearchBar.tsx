@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import type { ViewMode } from "@/pages/CashierPage";
+import type { ViewMode } from "@/pages/DefaultCashierPage";
 import { BarcodeScanner } from './BarcodeScanner';
 import { useProductSearch } from '@/lib/useProductSearch';
 import { useActiveProduct } from '@/lib/product-active-store';

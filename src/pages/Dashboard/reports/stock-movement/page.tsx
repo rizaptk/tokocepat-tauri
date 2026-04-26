@@ -1,8 +1,6 @@
-'use client';
-
 import { Link } from 'react-router-dom';
 import { useStore } from '@/lib/store';
-import React, { useState, useMemo, useCallback, useEffect, memo } from 'react';
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { DateRange } from 'react-day-picker';
 import { ArrowLeft, History, PackageSearch, Filter, X, Package, Loader2, FileDown, FileText } from 'lucide-react';
 import { format, startOfDay, endOfDay } from 'date-fns';
@@ -10,9 +8,11 @@ import { exportStockMovementToExcel, exportStockMovementToPdf } from '@/lib/expo
 import { useToast } from '@/hooks/use-toast';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
+import { useVirtualizer } from '@tanstack/react-virtual';
+
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+// import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { StockMovement } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -40,41 +40,99 @@ type ReportRow = StockMovement & {
     productType: 'Product' | 'Ingredient' | 'Variant';
 };
 
-const movementTypeLabels: Record<string, { label: string, color: string }> = {
-    sale: { label: 'Jual', color: 'bg-red-500/10 text-red-700' },
-    restock: { label: 'Restok', color: 'bg-green-500/10 text-green-700' },
-    initial_balance: { label: 'Saldo Awal', color: 'bg-blue-500/10 text-blue-700' },
-    correction: { label: 'Koreksi', color: 'bg-yellow-500/10 text-yellow-700' },
-    lost: { label: 'Hilang', color: 'bg-gray-500/10 text-gray-700' },
-    damaged: { label: 'Rusak', color: 'bg-purple-500/10 text-purple-700' },
-};
+// const movementTypeLabels: Record<string, { label: string, color: string }> = {
+//     sale: { label: 'Jual', color: 'bg-red-500/10 text-red-700' },
+//     restock: { label: 'Restok', color: 'bg-green-500/10 text-green-700' },
+//     initial_balance: { label: 'Saldo Awal', color: 'bg-blue-500/10 text-blue-700' },
+//     correction: { label: 'Koreksi', color: 'bg-yellow-500/10 text-yellow-700' },
+//     lost: { label: 'Hilang', color: 'bg-gray-500/10 text-gray-700' },
+//     damaged: { label: 'Rusak', color: 'bg-purple-500/10 text-purple-700' },
+// };
 
 
 // 1. Memoize Table Row to prevent re-renders when chart or other parts change
-const MovementRow = memo(({ m, movementTypeLabels }: { m: ReportRow, movementTypeLabels: any }) => {
+// const MovementRow = memo(({ m, movementTypeLabels }: { m: ReportRow, movementTypeLabels: any }) => {
+//     const type = m.productType.toLowerCase() as keyof typeof typeConfig;
+//     const { icon: ItemIcon, class: className } = typeConfig[type] || typeConfig.product;
+//     return (
+//     <TableRow>
+//         <TableCell className="text-xs">{format(new Date(m.created_at), 'Pp')}</TableCell>
+//         <TableCell className="font-medium">{m.product_name_snapshot}</TableCell>
+//         <TableCell>
+//             <Badge variant='outline' className={cn('text-xs capitalize', className)}>
+//                 <ItemIcon className="h-3 w-3 mr-1.5"/>
+//                 {itemMapping.get(m.productType)}
+//             </Badge>
+//         </TableCell>
+//         <TableCell>
+//             <Badge variant="outline" className={movementTypeLabels[m.type]?.color || ''}>
+//                 {movementTypeLabels[m.type]?.label || m.type}
+//             </Badge>
+//         </TableCell>
+//         <TableCell className={`text-right font-bold ${m.qty_change > 0 ? 'text-green-600' : 'text-red-600'}`}>
+//             {m.qty_change > 0 ? `+${m.qty_change}` : m.qty_change}
+//         </TableCell>
+//         <TableCell className="text-xs text-muted-foreground truncate max-w-37.5">{m.referenceDisplay}</TableCell>
+//     </TableRow>
+// )});
+// MovementRow.displayName = "MovementRow";
+
+// type ReportRow = StockMovement & {
+//     referenceDisplay: string;
+//     openingStock: number; // Note: these two aren't currently calculated or used in your display, but good to keep in type
+//     resultingStock: number; // Note: these two aren't currently calculated or used in your display, but good to keep in type
+//     productType: 'Product' | 'Ingredient' | 'Variant';
+// };
+
+// 1. Memoized Table Row Component
+// Move this component OUTSIDE of the StockMovementReportPage component
+const MovementRow = React.memo(({
+    m,
+    virtualRow,
+    colStyles,
+    movementTypeLabels
+}: {
+    m: ReportRow;
+    virtualRow: any; // VirtualItem from useVirtualizer
+    colStyles: any;
+    movementTypeLabels: Record<string, { label: string, color: string }>;
+}) => {
     const type = m.productType.toLowerCase() as keyof typeof typeConfig;
+    // Safely access typeConfig, providing a fallback if type is not found
     const { icon: ItemIcon, class: className } = typeConfig[type] || typeConfig.product;
+
     return (
-    <TableRow>
-        <TableCell className="text-xs">{format(new Date(m.created_at), 'Pp')}</TableCell>
-        <TableCell className="font-medium">{m.product_name_snapshot}</TableCell>
-        <TableCell>
-            <Badge variant='outline' className={cn('text-xs capitalize', className)}>
-                <ItemIcon className="h-3 w-3 mr-1.5"/>
-                {itemMapping.get(m.productType)}
-            </Badge>
-        </TableCell>
-        <TableCell>
-            <Badge variant="outline" className={movementTypeLabels[m.type]?.color || ''}>
-                {movementTypeLabels[m.type]?.label || m.type}
-            </Badge>
-        </TableCell>
-        <TableCell className={`text-right font-bold ${m.qty_change > 0 ? 'text-green-600' : 'text-red-600'}`}>
-            {m.qty_change > 0 ? `+${m.qty_change}` : m.qty_change}
-        </TableCell>
-        <TableCell className="text-xs text-muted-foreground truncate max-w-37.5">{m.referenceDisplay}</TableCell>
-    </TableRow>
-)});
+        <div
+            key={m.id}
+            className="flex items-center px-6 border-b hover:bg-muted/30 transition-colors text-sm absolute top-0 left-0 w-full"
+            style={{ height: `${virtualRow.size}px`, transform: `translateY(${virtualRow.start}px)` }}
+        >
+            <div className={`${colStyles.waktu} text-[13px]`}>
+                {format(new Date(m.created_at), 'dd MMM, HH:mm')}
+            </div>
+            <div className={`${colStyles.item} font-medium truncate`}>
+                {m.product_name_snapshot}
+            </div>
+            <div className={colStyles.type}>
+                <Badge variant='outline' className={cn('capitalize whitespace-nowrap', className)}>
+                    <ItemIcon className="h-3 w-3 mr-1"/> {itemMapping.get(m.productType)}
+                </Badge>
+            </div>
+            <div className={colStyles.mutasi}>
+                <Badge variant="outline" className={cn(movementTypeLabels[m.type]?.color || '')}>
+                    {movementTypeLabels[m.type]?.label || m.type}
+                </Badge>
+            </div>
+            <div className={`${colStyles.perubahan} font-bold ${m.qty_change > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                {m.qty_change > 0 ? `+${m.qty_change}` : m.qty_change}
+            </div>
+            <div className={`${colStyles.ref} text-xs italic`}>
+                {m.referenceDisplay}
+            </div>
+        </div>
+    );
+});
+
 MovementRow.displayName = "MovementRow";
 
 export default function StockMovementReportPage() {
@@ -87,6 +145,8 @@ export default function StockMovementReportPage() {
     const [filterProductId, setFilterProductId] = useState<string | null>(null);
     const [stockMovements, setStockMovements] = useState<StockMovement[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+
+    const parentRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         if (!date?.from || !date?.to) return;
@@ -200,6 +260,34 @@ export default function StockMovementReportPage() {
             return Object.values(dataMap);
         }
     }, [date, reportData]);
+
+
+    const rowVirtualizer = useVirtualizer({
+        count: reportData.length,
+        getScrollElement: () => parentRef.current,
+        estimateSize: () => 52,
+        overscan: 10,
+    });
+
+    // 3. Define Column Styles
+    const colStyles = {
+        waktu: "w-[180px] shrink-0",
+        item: "flex-1 min-w-0 px-2",
+        type: "w-[120px] shrink-0",
+        mutasi: "w-[120px] shrink-0",
+        perubahan: "w-[100px] shrink-0 text-center",
+        ref: "w-[180px] px-2 text-muted-foreground truncate"
+    };
+
+        // 3. Memoize movementTypeLabels
+    const memoizedMovementTypeLabels = useMemo(() => ({
+        sale: { label: 'Jual', color: 'bg-red-500/10 text-red-700' },
+        restock: { label: 'Restok', color: 'bg-green-500/10 text-green-700' },
+        initial_balance: { label: 'Saldo Awal', color: 'bg-blue-500/10 text-blue-700' },
+        correction: { label: 'Koreksi', color: 'bg-yellow-500/10 text-yellow-700' },
+        lost: { label: 'Hilang', color: 'bg-gray-500/10 text-gray-700' },
+        damaged: { label: 'Rusak', color: 'bg-purple-500/10 text-purple-700' },
+    }), []); 
 
     const selectedProductName = useMemo(() => {
         if (!filterProductId) return "Semua Produk & Bahan";
@@ -387,8 +475,8 @@ export default function StockMovementReportPage() {
                     }
                 </CardContent>
             </Card>
-            <Card>
-                <CardHeader>
+            <Card className="flex-1 flex flex-col overflow-hidden">
+                <CardHeader className="shrink-0 py-3 px-6">
                     <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                         <div>
                             <CardTitle>Buku Mutasi</CardTitle>
@@ -400,35 +488,76 @@ export default function StockMovementReportPage() {
                         </div>
                     </div>
                 </CardHeader>
-                <CardContent>
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Waktu</TableHead>
-                                <TableHead>Item</TableHead>
-                                <TableHead>Type</TableHead>
-                                <TableHead>Jenis Mutasi</TableHead>
-                                <TableHead className="text-right">Perubahan</TableHead>
-                                <TableHead>Alasan / Ref.</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
+                
+                <CardContent className="py-0 px-6 flex-1 flex flex-col relative overflow-hidden">
+                    {/* Header Row */}
+                    <div className="w-full border-b shrink-0">
+                        <div className="flex items-center px-6 pb-2 pt-4 text-[13px] uppercase tracking-wider font-semibold text-muted-foreground hover:bg-muted/50">
+                            <div className={colStyles.waktu}>Waktu</div>
+                            <div className={colStyles.item}>Item</div>
+                            <div className={colStyles.type}>Tipe</div>
+                            <div className={colStyles.mutasi}>Jenis Mutasi</div>
+                            <div className={colStyles.perubahan}>Perubahan</div>
+                            <div className={colStyles.ref}>Alasan / Ref.</div>
+                        </div>
+                    </div>
+
+                    {/* Scrolling Body */}
+                    <div ref={parentRef} className="flex-1 overflow-auto scrollbar-thin relative">
+                        <div style={{ height: `${rowVirtualizer.getTotalSize()}px`, width: '100%', position: 'relative' }}>
                             {isLoading ? (
-                                <TableRow><TableCell colSpan={6} className="h-24 text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground"/></TableCell></TableRow>
+                                <div className="p-12 text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" /></div>
                             ) : reportData.length > 0 ? (
-                                reportData.map(m => (
-                                    <MovementRow key={m.id} m={m} movementTypeLabels={movementTypeLabels} />
-                                ))
+                                rowVirtualizer.getVirtualItems().map((virtualRow) => 
+                                    <MovementRow
+                                        key={reportData[virtualRow.index].id}
+                                        m={reportData[virtualRow.index]}
+                                        virtualRow={virtualRow}
+                                        colStyles={colStyles}
+                                        movementTypeLabels={memoizedMovementTypeLabels}
+                                    />
+                                //     {
+                                //     const m = reportData[virtualRow.index];
+                                //     const type = m.productType.toLowerCase() as keyof typeof typeConfig;
+                                //     const { icon: ItemIcon, class: className } = typeConfig[type] || typeConfig.product;
+
+                                //     return (
+                                //         <div
+                                //             key={m.id}
+                                //             className="flex items-center px-6 border-b hover:bg-muted/30 transition-colors text-sm absolute top-0 left-0 w-full"
+                                //             style={{ height: `${virtualRow.size}px`, transform: `translateY(${virtualRow.start}px)` }}
+                                //         >
+                                //             <div className={`${colStyles.waktu} text-[13px]`}>
+                                //                 {format(new Date(m.created_at), 'dd MMM, HH:mm')}
+                                //             </div>
+                                //             <div className={`${colStyles.item} font-medium truncate`}>
+                                //                 {m.product_name_snapshot}
+                                //             </div>
+                                //             <div className={colStyles.type}>
+                                //                 <Badge variant='outline' className={cn('capitalize whitespace-nowrap', className)}>
+                                //                     <ItemIcon className="h-3 w-3 mr-1"/> {itemMapping.get(m.productType)}
+                                //                 </Badge>
+                                //             </div>
+                                //             <div className={colStyles.mutasi}>
+                                //                 <Badge variant="outline" className={cn(movementTypeLabels[m.type]?.color || '')}>
+                                //                     {movementTypeLabels[m.type]?.label || m.type}
+                                //                 </Badge>
+                                //             </div>
+                                //             <div className={`${colStyles.perubahan} font-bold ${m.qty_change > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                //                 {m.qty_change > 0 ? `+${m.qty_change}` : m.qty_change}
+                                //             </div>
+                                //             <div className={`${colStyles.ref} text-xs italic`}>
+                                //                 {m.referenceDisplay}
+                                //             </div>
+                                //         </div>
+                                //     );
+                                // }
+                            )
                             ) : (
-                                <TableRow>
-                                    <TableCell colSpan={6} className="h-24 text-center">
-                                       <PackageSearch className="mx-auto h-12 w-12 text-muted-foreground" />
-                                       <p className="mt-2">Tidak ada mutasi stok pada periode ini.</p>
-                                    </TableCell>
-                                </TableRow>
+                                <div className="p-20 text-center"><PackageSearch className="mx-auto h-8 w-8 text-muted-foreground opacity-20" /><p className="text-sm text-muted-foreground mt-2">Tidak ada mutasi.</p></div>
                             )}
-                        </TableBody>
-                    </Table>
+                        </div>
+                    </div>
                 </CardContent>
             </Card>
           </main>

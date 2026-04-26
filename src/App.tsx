@@ -3,7 +3,6 @@ import RootLayout from './layouts/RootLayout'
 import HomePage from './pages/HomePage'
 import ActivationPage from './pages/ActivationPage'
 import CashierPage from './pages/CashierPage'
-import ClassicCashierPage from './pages/ClassicCashierPage'
 import InventoryPage from './pages/InventoryPage'
 
 // Dashboard pages
@@ -34,9 +33,8 @@ function App() {
         {/* Main POS */}
         <Route path="/" element={<RootLayout />}>
           <Route index element={<HomePage />} />
-          <Route path="aktivasi" element={<ActivationPage />} />
+          <Route path="aktivasi" element={<ActivationPage />} /> 
           <Route path="cashier" element={<CashierPage />} />
-          <Route path="classiccashier" element={<ClassicCashierPage />} />
           <Route path="inventory" element={<InventoryPage />} />
           <Route path="license" element={<LicensePage />} />
 

@@ -8,8 +8,14 @@ export const initializeSyncService = async () => {
     const store = useSyncStore.getState();
 
     // Just setup listeners to know if Rust actually started/stopped
-    const unlistenOn = await listen("sync_on", () => store.setIsNetworkEnable(true));
-    const unlistenOff = await listen("sync_off", () => store.setIsNetworkEnable(false));
+    const unlistenOn = await listen("sync_on", () => {
+        store.setIsNetworkEnable(true);
+        store.setIsSyncEnabled(true);
+    });
+    const unlistenOff = await listen("sync_off", () => {
+        store.setIsNetworkEnable(false);
+        store.setIsSyncEnabled(false);
+    });
 
     return () => {
         unlistenOn();
@@ -31,6 +37,14 @@ export const SyncIden = async (hwid: string, name?: string) => {
             name: data.data()?.name??'Perangkat Baru'
         }
     }
+}
+
+export const SetSync = async () => {
+    const {db, firesqlite} = useDbStore.getState();
+    if (!firesqlite || !db) throw new Error("Database not initialized");
+
+    const {setDoc, doc} = firesqlite;
+    await setDoc(doc(db, 'app_state', 'sync_prefs'), {enable: true});
 }
 
 export const SaveAccess = async (hwid: string, access: Partial<CustomAccessType>) => {

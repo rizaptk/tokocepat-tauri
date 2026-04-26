@@ -12,6 +12,7 @@ async function ensureIndexes(firesqlite: any, _db: any) {
         await Promise.all([
             // For transaction history ordering and filtering
             createIndex('transactions', 'created_at'),
+            createCompositeIndex('transactions',[{field: 'shift_id', desc: true}, {field: 'created_at', desc: true}]),
             
             // For stock movement report filtering
             createIndex('stock_movements', 'created_at'),
@@ -52,6 +53,7 @@ export const seedDatabase = async (firesqlite: any, db: any, force = false) => {
         if (localStorage.getItem('tokoc_reset_flag') === 'true') {
             console.log("Reset flag detected. Skipping seeding.");
             localStorage.removeItem('tokoc_reset_flag');
+            localStorage.setItem('on_seeding','false');
             localStorage.setItem(DB_VERSION_KEY, CURRENT_DB_VERSION);
             return;
         }
@@ -100,7 +102,7 @@ export const seedDatabase = async (firesqlite: any, db: any, force = false) => {
         const ingredientStock = new Map(initialRawIngredients.map(i => [i.id, i.stock_qty]));
 
         // i=7 is 7 days ago, i=0 is Today
-        for (let i = 7; i >= 0; i--) {
+        for (let i = 30; i >= 0; i--) {
             // const batch = writeBatch(db);
             const baseDate = new Date();
             baseDate.setDate(baseDate.getDate() - i);
@@ -115,11 +117,11 @@ export const seedDatabase = async (firesqlite: any, db: any, force = false) => {
             const shiftId = `shift-${dateStr}`;
             let dailyTotalSales = 0;
 
-            // MID-WEEK RESTOCK (Exactly on day 4)
-            if (i === 4) {
+            // MID-WEEK RESTOCK (Exactly on day 6 and 15)
+            if ([6,15].includes(i)) {
                 console.log(`Restocking products on ${dateStr} to prevent out-of-stock...`);
                 productStock.forEach((val, id) => {
-                    const refill = 150;
+                    const refill = 120;
                     productStock.set(id, val + refill);
                     mainBatch.set(doc(db, 'stock_movements', `restock-${dateStr}-${id}`), {
                         id: `restock-${dateStr}-${id}`, product_id: id, type: 'restock', 
@@ -228,6 +230,7 @@ export const seedDatabase = async (firesqlite: any, db: any, force = false) => {
 
         await updateBatch.commit();
         localStorage.setItem(DB_VERSION_KEY, CURRENT_DB_VERSION);
+        localStorage.setItem('on_seeding','true');
         console.log("Seeding process complete.");
 
     } catch (error) {

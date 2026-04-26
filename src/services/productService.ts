@@ -135,8 +135,6 @@ export const addProduct = async (productData: ProductFormData): Promise<Product 
         await setRecipeForProduct(newProduct.id, []);
     }
     
-    console.log("New product created:", newProduct);
-
     return newProduct;
 };
 

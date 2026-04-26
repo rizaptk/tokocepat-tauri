@@ -21,6 +21,7 @@ interface StoreState {
     recipes: Recipe[];
     cart: CartItem[];
     transactions: Transaction[];
+    shiftTransactions: Transaction[];
     shifts: Shift[];
     activeShift: Shift | null | undefined;
     storeConfig: StoreConfig | null;
@@ -36,6 +37,7 @@ interface StoreState {
     setRawIngredients: (ingredients: RawIngredient[]) => void;
     setRecipes: (recipes: Recipe[]) => void;
     setTransactions: (transactions: Transaction[]) => void;
+    setShiftTransactions: (transactions: Transaction[]) =>void;
     setShifts: (shifts: Shift[]) => void;
     setStoreConfig: (config: StoreConfig) => void;
     setPendingCarts: (carts: PendingCart[]) => void;
@@ -64,6 +66,7 @@ export const useStore = create<StoreState>()(
             recipes: [],
             cart: [],
             transactions: [],
+            shiftTransactions: [],
             shifts: [],
             activeShift: undefined,
             storeConfig: null,
@@ -79,6 +82,7 @@ export const useStore = create<StoreState>()(
             setRawIngredients: (ingredients) => set({ rawIngredients: ingredients.sort((a, b) => a.name.localeCompare(b.name)) }),
             setRecipes: (recipes) => set({ recipes }),
             setTransactions: (transactions) => set({ transactions: transactions.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()) }),
+            setShiftTransactions: (transactions) => set({ transactions: transactions.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()) }),
             setShifts: (shifts) => {
                 const sortedShifts = shifts.sort((a, b) => new Date(b.opened_at).getTime() - new Date(a.opened_at).getTime());
                 const activeShift = sortedShifts.find(s => s.status === 'open') || null;
@@ -297,7 +301,6 @@ export const useStore = create<StoreState>()(
                     return;
                 }
                 const cartToResume = pendingCarts.find(c => c.id === cartId);
-                console.log(cartToResume);
                 if (cartToResume) {
                     try {
                         await deletePendingCartFromDb(cartId);

@@ -70,12 +70,12 @@ const StockHistoryCards = memo(({selectedItem}: {selectedItem: { id: string, typ
     // const histories = use(getStockMovementsByProducts(ids));
     useEffect(() => {
         if (ids.length === 0) {
-        setHistory([]);
-        return;
+            setHistory([]);
+            return;
         }
-
+        
         const idArray = ids.split(',');
-
+        
         setTransition(() => {
             getStockMovementsByProducts(idArray).then((result) => {
                 setHistory(result);
@@ -556,10 +556,6 @@ export default function InventoryPage() {
                 return;
             }
             handleItemSelect({ ...product, itemType: 'product', stock: product.stock });
-            // toast({
-            //     title: "Product Ditemukan",
-            //     description: `"${product.name}" siap disesuaikan.`,
-            // });
         } else {
             toast({
                 variant: "destructive",

@@ -1,8 +1,8 @@
 mod printer_commands;
 mod printer_detect;
-
 use tauri::Manager;
 use tauri_plugin_store::Builder;
+use std::collections::HashSet;
 
 // 1. Import the tauri_gateway module itself, not just the function
 use firelite::config::FireLiteConfig;
@@ -48,7 +48,11 @@ pub fn run() {
                 let _ = std::fs::remove_file(&flag_path);
             }
 
-            let db = FireLite::open(db_path, FireLiteConfig::default())
+            let mut cfg = FireLiteConfig::default();
+            cfg.encryption_key = Some("e172dd95f4feb21412a692e73929961e".to_string());
+            cfg.encrypted_cols = Some(["app_state", "__firelite_security"].into_iter().map(|s| s.to_string()).collect::<HashSet<String>>());
+
+            let db = FireLite::open(db_path, cfg)
                 .expect("Failed to init FireLite");
                 
 

@@ -1,5 +1,3 @@
-'use client';
-
 import { Link } from 'react-router-dom';
 import { useStore } from '@/lib/store';
 import React, { useState, useMemo, useEffect } from 'react';
@@ -205,9 +203,9 @@ export default function StockSummaryReportPage() {
                                         <TableCell className="font-medium">{item.name}</TableCell>
                                         <TableCell>
                                             <Badge variant="outline" className={
-                                                item.type === 'product' ? 'border-blue-300 bg-blue-50 text-blue-800' : 
-                                                item.type === 'variant' ? 'border-purple-300 bg-purple-50 text-purple-800' :
-                                                'border-green-300 bg-green-50 text-green-800'
+                                                item.type === 'product' ? 'border-indigo-500 bg-primary/5 text-primary' : 
+                                                item.type === 'variant' ? 'border-warning bg-warning/5 text-warning' :
+                                                'border-green-500 bg-success/5 text-success-foreground'
                                             }>
                                                 {item.type === 'product' ? <Package className="h-3 w-3 mr-1.5" /> : item.type === 'variant' ? <Layers2 className="h-3 w-3 mr-1.5" /> : <Beaker className="h-3 w-3 mr-1.5" />}
                                                 {item.type === 'product' ? 'Produk' : item.type === 'variant' ? 'Varian' : 'Bahan'}

@@ -1,18 +1,18 @@
-'use client';
-
 import { Link } from 'react-router-dom';
 import * as React from 'react';
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { DateRange } from 'react-day-picker';
 import { endOfDay, startOfDay, subDays, format } from 'date-fns';
 import { ArrowLeft, BarChart2, DollarSign, ReceiptText, Landmark, Search, Loader2, FileDown, FileText } from 'lucide-react';
 import { exportSalesToExcel, exportSalesToPdf } from '@/lib/export';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
+// 1. Import Virtualizer
+import { useVirtualizer } from '@tanstack/react-virtual';
+
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Transaction } from '@/lib/types';
 import { TransactionDetailDialog } from '@/components/TransactionDetailDialog';
 import { DateRangeFilter } from '@/components/DateRangeFilter';
@@ -22,7 +22,6 @@ import { NotificationBell } from '@/components/NotificationBell';
 import { ThemeToggle } from '@/components/ThemeButtons';
 import { useLoadTransactions } from '@/hooks/useLoadTransaction';
 
-
 const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('id-ID', {
         style: 'currency',
@@ -30,6 +29,61 @@ const formatCurrency = (amount: number) => {
         minimumFractionDigits: 0,
     }).format(amount);
 };
+
+
+// Pre-define the Memoized Row
+const TransactionRow = React.memo(({ 
+    tx, 
+    virtualRow, 
+    columnStyles, 
+    onClick 
+}: { 
+    tx: Transaction, 
+    virtualRow: any, 
+    columnStyles: any, 
+    onClick: (tx: Transaction) => void 
+}) => {
+    // Move logic inside the memoized component
+    const txCost = tx.items.reduce((sum, i) => sum + ((i.cost_snapshot || 0) * i.qty), 0);
+    const txProfit = tx.subtotal - txCost;
+
+    return (
+        <div
+            onClick={() => onClick(tx)}
+            className="flex items-center px-4 border-b hover:bg-muted/50 cursor-pointer transition-colors text-sm absolute top-0 left-0 w-full"
+            style={{
+                height: `${virtualRow.size}px`,
+                transform: `translateY(${virtualRow.start}px)`,
+            }}
+        >
+            <div className={columnStyles.waktu}>
+                <div className="font-medium">{format(new Date(tx.created_at), 'dd MMM yyyy')}</div>
+                <div className="text-[12px] text-muted-foreground">{format(new Date(tx.created_at), 'p')}</div>
+            </div>
+            <div className={`${columnStyles.invoice} font-mono text-[13px]`}>
+                {tx.invoice_number}
+            </div>
+            <div className={columnStyles.subtotal}>
+                {formatCurrency(tx.subtotal)}
+            </div>
+            <div className={`${columnStyles.hpp} text-destructive/80`}>
+                {formatCurrency(txCost)}
+            </div>
+            <div className={`${columnStyles.laba} text-green-600 font-medium`}>
+                {formatCurrency(txProfit)}
+            </div>
+            <div className={columnStyles.pajak}>
+                {formatCurrency(tx.tax_amount)}
+            </div>
+            <div className={`${columnStyles.total} font-bold text-primary`}>
+                {formatCurrency(tx.total)}
+            </div>
+        </div>
+    );
+});
+
+TransactionRow.displayName = 'TransactionRow';
+
 
 export default function SalesReportPage() {
     const [date, setDate] = React.useState<DateRange | undefined>({
@@ -41,6 +95,9 @@ export default function SalesReportPage() {
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const { storeConfig } = useStore();
+
+    // 2. Setup Reference for the scrolling container
+    const parentRef = useRef<HTMLDivElement>(null);
 
     useLoadTransactions(date);
 
@@ -62,6 +119,25 @@ export default function SalesReportPage() {
             tx.invoice_number.toLowerCase().includes(searchTerm.toLowerCase())
         );
     }, [transactions, searchTerm]);
+
+    const rowVirtualizer = useVirtualizer({
+        count: filteredTransactions.length,
+        getScrollElement: () => parentRef.current,
+        estimateSize: () => 60,
+        overscan: 10,
+    });
+
+    // Define columns to ensure header and body are ALWAYS identical
+    // We use Tailwind 'w-[px]' for fixed and 'flex-1' for relative columns
+    const columnStyles = {
+        waktu: "w-[200px] shrink-0",
+        invoice: "w-[160px] shrink-0",
+        subtotal: "flex-1 text-right",
+        hpp: "flex-1 text-right",
+        laba: "flex-1 text-right",
+        pajak: "flex-1 text-right",
+        total: "flex-1 shrink-0 text-right pr-6"
+    };
 
     const stats = useMemo(() => {
         const paidTransactions = transactions.filter(tx => tx.status === 'paid');
@@ -100,6 +176,10 @@ export default function SalesReportPage() {
             alert("Konfigurasi toko atau periode tidak ditemukan.");
         }
     }
+
+    const handleRowClick = React.useCallback((tx: Transaction) => {
+        setSelectedTx(tx);
+    }, []);
 
     return (
         <>
@@ -152,25 +232,23 @@ export default function SalesReportPage() {
                 ))}
             </div>
 
-            <Card>
-                <CardHeader>
+            <Card className="flex-1 flex flex-col overflow-hidden mb-4">
+                <CardHeader className="shrink-0">
                     <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                         <div>
                             <CardTitle>Detail Transaksi</CardTitle>
-                            {date?.from && date?.to && (
-                                <CardDescription>
-                                    Menampilkan {transactions.filter(t => t.status === 'paid').length} transaksi dari {format(date.from, 'dd MMM yyyy')} s/d {format(date.to, 'dd MMM yyyy')}.
-                                </CardDescription>
-                            )}
+                            <CardDescription>
+                                Menampilkan {filteredTransactions.length} transaksi.
+                            </CardDescription>
                         </div>
-                         <div className="flex flex-col sm:flex-row items-center gap-2">
+                        <div className="flex items-center gap-2">
                             <DateRangeFilter date={date} setDate={setDate} preset='last30' />
-                             <div className="relative w-full sm:w-auto">
+                            <div className="relative">
                                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                                 <Input
                                     type="search"
                                     placeholder="Cari invoice..."
-                                    className="w-full pl-8 sm:w-64"
+                                    className="pl-8 w-64"
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
                                 />
@@ -178,50 +256,90 @@ export default function SalesReportPage() {
                         </div>
                     </div>
                 </CardHeader>
-                <CardContent>
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Waktu</TableHead>
-                                <TableHead>Invoice</TableHead>
-                                <TableHead className="text-right">Subtotal</TableHead>
-                                <TableHead className="text-right">HPP</TableHead>
-                                <TableHead className="text-right">Laba</TableHead>
-                                <TableHead className="text-right">Pajak</TableHead>
-                                <TableHead className="text-right">Total</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
+
+                <CardContent className="py-0 px-6 flex-1 flex flex-col relative overflow-hidden">
+                    {/* TABLE HEADER (Separated to stay static) */}
+                    <div className="w-full border-b shrink-0">
+                        <div className="flex items-center h-12 px-4 pb-2 pt-4 text-sm font-medium text-muted-foreground hover:bg-muted/50">
+                            <div className={columnStyles.waktu}>Waktu</div>
+                            <div className={columnStyles.invoice}>Invoice</div>
+                            <div className={columnStyles.subtotal}>Subtotal</div>
+                            <div className={columnStyles.hpp}>HPP</div>
+                            <div className={columnStyles.laba}>Laba</div>
+                            <div className={columnStyles.pajak}>Pajak</div>
+                            <div className={columnStyles.total}>Total</div>
+                        </div>
+                    </div>
+
+                    {/* VIRTUALIZED BODY CONTAINER */}
+                    <div 
+                        ref={parentRef} 
+                        className="flex-1 overflow-auto scrollbar-thin relative"
+                    >
+                        <div
+                            style={{
+                                height: `${rowVirtualizer.getTotalSize()}px`,
+                                width: '100%',
+                                position: 'relative',
+                            }}
+                        >
                             {isLoading ? (
-                                <TableRow><TableCell colSpan={7} className="h-24 text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" /></TableCell></TableRow>
+                                <div className="p-8 text-center"><Loader2 className="animate-spin mx-auto"/></div>
                             ) : filteredTransactions.length > 0 ? (
-                                filteredTransactions.map((tx: Transaction) => {
-                                    const txCost = tx.items.reduce((itemSum, item) => itemSum + ((item.cost_snapshot || 0) * item.qty), 0);
-                                    const txProfit = tx.subtotal - txCost;
-                                    return (
-                                    <TableRow key={tx.id} onClick={() => setSelectedTx(tx)} className="cursor-pointer">
-                                        <TableCell>
-                                            <div className="font-medium">{format(new Date(tx.created_at), 'PP')}</div>
-                                            <div className="text-sm text-muted-foreground">{format(new Date(tx.created_at), 'p')}</div>
-                                        </TableCell>
-                                        <TableCell className="font-mono text-xs">{tx.invoice_number}</TableCell>
-                                        <TableCell className="text-right font-medium">{formatCurrency(tx.subtotal)}</TableCell>
-                                        <TableCell className="text-right font-medium text-destructive">{formatCurrency(txCost)}</TableCell>
-                                        <TableCell className="text-right font-medium text-green-600">{formatCurrency(txProfit)}</TableCell>
-                                        <TableCell className="text-right font-medium">{formatCurrency(tx.tax_amount)}</TableCell>
-                                        <TableCell className="text-right font-bold">{formatCurrency(tx.total)}</TableCell>
-                                    </TableRow>
-                                    )
-                                })
+                                rowVirtualizer.getVirtualItems().map((virtualRow) => 
+                                    // {
+                                    // const tx = filteredTransactions[virtualRow.index];
+                                    // const txCost = tx.items.reduce((sum, i) => sum + ((i.cost_snapshot || 0) * i.qty), 0);
+                                    // const txProfit = tx.subtotal - txCost;
+
+                                    // return (
+                                    //     <div
+                                    //         key={tx.id}
+                                    //         onClick={() => setSelectedTx(tx)}
+                                    //         className="flex items-center px-4 border-b hover:bg-muted/50 cursor-pointer transition-colors text-sm absolute top-0 left-0 w-full"
+                                    //         style={{
+                                    //             height: `${virtualRow.size}px`,
+                                    //             transform: `translateY(${virtualRow.start}px)`,
+                                    //         }}
+                                    //     >
+                                    //         <div className={columnStyles.waktu}>
+                                    //             <div className="font-medium">{format(new Date(tx.created_at), 'dd MMM yyyy')}</div>
+                                    //             <div className="text-[12px] text-muted-foreground">{format(new Date(tx.created_at), 'p')}</div>
+                                    //         </div>
+                                    //         <div className={`${columnStyles.invoice} font-mono text-[13px]`}>
+                                    //             {tx.invoice_number}
+                                    //         </div>
+                                    //         <div className={columnStyles.subtotal}>
+                                    //             {formatCurrency(tx.subtotal)}
+                                    //         </div>
+                                    //         <div className={`${columnStyles.hpp} text-destructive/80`}>
+                                    //             {formatCurrency(txCost)}
+                                    //         </div>
+                                    //         <div className={`${columnStyles.laba} text-green-600 font-medium`}>
+                                    //             {formatCurrency(txProfit)}
+                                    //         </div>
+                                    //         <div className={columnStyles.pajak}>
+                                    //             {formatCurrency(tx.tax_amount)}
+                                    //         </div>
+                                    //         <div className={`${columnStyles.total} font-bold text-primary`}>
+                                    //             {formatCurrency(tx.total)}
+                                    //         </div>
+                                    //     </div>
+                                    // );
+                                // }
+                                <TransactionRow
+                                    key={filteredTransactions[virtualRow.index].id}
+                                    tx={filteredTransactions[virtualRow.index]}
+                                    virtualRow={virtualRow}
+                                    columnStyles={columnStyles}
+                                    onClick={handleRowClick}
+                                />
+                                )
                             ) : (
-                                <TableRow>
-                                    <TableCell colSpan={7} className="h-24 text-center">
-                                        Tidak ada transaksi pada periode ini.
-                                    </TableCell>
-                                </TableRow>
+                                <div className="p-20 text-center text-muted-foreground">Tidak ada data.</div>
                             )}
-                        </TableBody>
-                    </Table>
+                        </div>
+                    </div>
                 </CardContent>
             </Card>
           </main>

@@ -27,8 +27,8 @@ export function useLoadTransactions(range?: DateRange) {
 
         const txQuery = query(
             collection(db, 'transactions'),
-            where('created_at', '>=', fromDate),
-            where('created_at', '<=', toDate),
+            where('created_at', 'gte', fromDate),
+            where('created_at', 'lte', toDate),
             orderBy('created_at', 'desc')
         );
 

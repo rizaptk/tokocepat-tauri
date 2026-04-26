@@ -297,12 +297,12 @@ export default function ClassicCashierPage() {
                             <Table>
                                 <TableHeader className="sticky top-0 bg-card z-10 shadow-sm">
                                     <TableRow>
-                                        <TableHead className="w-[50px]">No</TableHead>
+                                        <TableHead className="w-12.5">No</TableHead>
                                         <TableHead>Produk</TableHead>
                                         <TableHead className="text-right">Harga</TableHead>
-                                        <TableHead className="text-center w-[150px]">Qty</TableHead>
+                                        <TableHead className="text-center w-37.5">Qty</TableHead>
                                         <TableHead className="text-right">Subtotal</TableHead>
-                                        <TableHead className="w-[40px]"></TableHead>
+                                        <TableHead className="w-10"></TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -399,7 +399,7 @@ export default function ClassicCashierPage() {
                                         <span className={cn("text-2xl font-black truncate", change >= 0 ? "text-success-foreground" : "text-warning-foreground")}>{change >= 0 ? "" : "-"}{formatIDR(Math.abs(change))}</span>
                                     </div>
 
-                                    <div className="mt-auto space-y-3 mt-auto">
+                                    <div className="mt-auto space-y-3">
                                         <div className="grid grid-cols-2 gap-2">
                                             <Button variant="secondary" className="font-bold h-14" onClick={handleParkAction} disabled={cart.length === 0}>
                                                 <ParkingSquare className="mr-2 size-4" /> Parkir (F3)
@@ -460,7 +460,7 @@ export default function ClassicCashierPage() {
                                         <TableHead>Invoice</TableHead>
                                         <TableHead className="text-right">Total</TableHead>
                                         <TableHead className="text-center">Status</TableHead>
-                                        <TableHead className="w-[100px]"></TableHead>
+                                        <TableHead className="w-25"></TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>

@@ -5,7 +5,6 @@ import { resetApplicationData } from '@/services/dataService';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-// import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Link } from 'react-router-dom';
 import { StoreInfoForm } from './_components/StoreInfoForm';
 import { TaxSettingsForm } from './_components/TaxSettingsForm';
@@ -13,7 +12,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Settings2, Trash2, Printer, Usb, AlertTriangle, Store, Percent, Bluetooth, RefreshCw, Download, MenuIcon } from 'lucide-react';
 import { TokoCepatLogo } from '@/components/TokoCepatLogo';
 import { ThemeToggle } from '@/components/ThemeButtons';
-// import { useDbStore } from '@/lib/db-store';
 import { NotificationBell } from '@/components/NotificationBell';
 import { LicenseInfo } from '@/components/LicenseInfo';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -21,7 +19,6 @@ import { usePrinterStore } from '@/lib/print-detect-store';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
-// import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 
 import { save } from '@tauri-apps/plugin-dialog';
@@ -84,9 +81,8 @@ export default function SettingsPage() {
         try {
             const result = await resetApplicationData();
             if (result.success) {
-                localStorage.removeItem('tokoc_db_version');
-                toast({ title: 'Reset Berhasil', description: 'Aplikasi akan dimuat ulang.' });
-                setTimeout(() => window.location.reload(), 1500);
+                toast({ title: 'Reset Berhasil', description: 'Reset data berhasil.' });
+                // setTimeout(() => window.location.reload(), 1500);
             } else {
                 throw new Error(result.message);
             }

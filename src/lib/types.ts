@@ -150,6 +150,7 @@ export interface Shift {
     system_cash?: number;
     variance?: number;
     status: 'open' | 'closed';
+    device?: string;
 }
 
 export interface RawIngredient {
@@ -214,5 +215,8 @@ export interface CustomAccessType {
     name?: string;
     description?: string;
     access?: string[], 
-    cashier_layout?: string 
+    cashier_layout?: string ,
+    peer_mode?: 'master'|'slave',
+    room?: string,
+    key?: string,
 }

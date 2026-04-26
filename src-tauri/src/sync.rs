@@ -43,8 +43,8 @@ pub async fn toggle_net_sync(
             if let Some(s) = syncer_lock.take() {
                 s.stop();
             }
-            let _ = app.emit("sync_off", ());
         }
+        let _ = app.emit("sync_off", ());
         return Ok("OFF".into());
     }
 
