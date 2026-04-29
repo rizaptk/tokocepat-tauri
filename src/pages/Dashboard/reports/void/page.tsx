@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useStore } from '@/lib/store';
 import { format, startOfDay, endOfDay } from 'date-fns';
 import { ArrowLeft, ArchiveX, FileDown, FileText } from 'lucide-react';
@@ -12,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Transaction } from '@/lib/types';
 import { DateRangeFilter } from '@/components/DateRangeFilter';
 import { useToast } from '@/hooks/use-toast';
-import { TransactionDetailDialog } from '@/components/TransactionDetailDialog';
+import TransactionDetailDialog from '@/components/TransactionDetailDialog';
 import { NotificationBell } from '@/components/NotificationBell';
 import { ThemeToggle } from '@/components/ThemeButtons';
 import { exportVoidToExcel, exportVoidToPdf } from '@/lib/export';
@@ -33,6 +33,7 @@ export default function VoidReportPage() {
       to: endOfDay(new Date()),
     });
     const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
+    const nav = useNavigate();
 
     const voidedTransactions = useMemo(() => {
         if (!date?.from || !date?.to) return [];
@@ -64,7 +65,7 @@ export default function VoidReportPage() {
             <div className="flex min-h-screen w-full flex-col bg-muted/40">
                <header className="sticky top-0 flex h-16 items-center gap-4 border-b bg-background px-4 md:px-6 z-10">
                     <Button variant="outline" size="icon" className="shrink-0" asChild>
-                        <Link to="/dashboard/reports">
+                        <Link to="#" onClick={() => nav(-1)}>
                             <ArrowLeft className="h-4 w-4" />
                             <span className="sr-only">Kembali ke Laporan</span>
                         </Link>
@@ -84,10 +85,10 @@ export default function VoidReportPage() {
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                                 <DropdownMenuItem onSelect={handleExcelExport}>
-                                    <FileDown className="mr-2 h-4 w-4"/> Excel (.xlsx)
+                                    <FileDown className="mr-2 h-4 w-4 text-green-500"/> Excel (.xlsx)
                                 </DropdownMenuItem>
                                 <DropdownMenuItem onSelect={handlePdfExport}>
-                                    <FileText className="mr-2 h-4 w-4"/> PDF (.pdf)
+                                    <FileText className="mr-2 h-4 w-4 text-red-400"/> PDF (.pdf)
                                 </DropdownMenuItem>
                             </DropdownMenuContent>
                         </DropdownMenu>

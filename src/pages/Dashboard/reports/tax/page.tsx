@@ -1,6 +1,4 @@
-'use client';
-
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useState, useMemo, useEffect } from 'react';
 import { DateRange } from 'react-day-picker';
 import { endOfDay, startOfDay, subDays, format } from 'date-fns';
@@ -28,6 +26,7 @@ export default function TaxReportPage() {
     const [date, setDate] = useState<DateRange | undefined>({ from: startOfDay(subDays(new Date(), 29)), to: endOfDay(new Date()) });
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const nav = useNavigate();
 
     useEffect(() => {
         if (!date?.from || !date?.to) return;
@@ -111,7 +110,7 @@ export default function TaxReportPage() {
     return (
         <div className="flex min-h-screen w-full flex-col bg-muted/40">
             <header className="sticky top-0 flex h-16 items-center gap-4 border-b bg-background px-4 md:px-6 z-10">
-                <Button variant="outline" size="icon" asChild><Link to="/dashboard/reports"><ArrowLeft className="h-4 w-4" /></Link></Button>
+                <Button variant="outline" size="icon" asChild><Link to="#" onClick={() => nav(-1)}><ArrowLeft className="h-4 w-4" /></Link></Button>
                 <div className="flex-1">
                     <h1 className="text-lg font-semibold flex items-center gap-2"><Landmark className="h-5 w-5" /> Audit Kewajiban Pajak</h1>
                 </div>
@@ -124,10 +123,10 @@ export default function TaxReportPage() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                             <DropdownMenuItem onSelect={handleExcelExport}>
-                                <FileDown className="mr-2 h-4 w-4" /> Audit Detail (.xlsx)
+                                <FileDown className="mr-2 h-4 w-4 text-green-500" /> Audit Detail (.xlsx)
                             </DropdownMenuItem>
                             <DropdownMenuItem onSelect={handlePdfExport}>
-                                <FileText className="mr-2 h-4 w-4" /> Ringkasan Laporan (.pdf)
+                                <FileText className="mr-2 h-4 w-4 text-red-400" /> Ringkasan Laporan (.pdf)
                             </DropdownMenuItem>
                         </DropdownMenuContent>
                     </DropdownMenu>

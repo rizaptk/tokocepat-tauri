@@ -28,7 +28,10 @@ pub async fn toggle_net_sync(
     // OPTIMIZATION: Check if the state is already the same
     let current_config = gateway.db.get("app_state", "sync_prefs").ok().flatten();
     let doc = current_config.unwrap_or_default();
-    let current_enabled = doc.get("enabled").and_then(|v| v.to_json().as_bool()).unwrap_or(false);
+    let current_enabled = doc
+        .get("enabled")
+        .and_then(|v| v.to_json().as_bool())
+        .unwrap_or(false);
 
     // println!("{} -> {}",&current_enabled, &enabled);
 
@@ -109,11 +112,8 @@ pub async fn list_network_peers(
 
     // 2. Get Authorized Peers using the NEW "id" virtual field
     // Note: We use "id" here, not "_id"
-    let query = Query::new("__firelite_security").where_filter(
-        "id",
-        Operator::In,
-        Value::Array(id_values),
-    );
+    let query =
+        Query::new("__firelite_security").where_filter("id", Operator::In, Value::Array(id_values));
 
     let db_results = gateway.db.query(query).map_err(|e| e.to_string())?;
 

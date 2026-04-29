@@ -76,13 +76,6 @@ export function SyncManager() {
             }
         }
         setIsBusy(true);
-        // try {
-        //     store.toggleSync(val);
-        // } catch (e: any) {
-        //     toast({ variant: "destructive", title: "Gagal Mengubah Status", description: e });
-        // } finally {
-        //     setTimeout(() => setIsBusy(false), 800);
-        // }
         trySync(val, () => setTimeout(() => setIsBusy(false), 800));
     };
 
@@ -143,14 +136,14 @@ export function SyncManager() {
                         {
                             editNama ?
                             <div className='flex items-center gap-2'>
-                                <Input type="text" size="sm" placeholder='Nama penrangkat' value={device} onChange={e => setDevice(e.target.value)} />
+                                <Input type="text" size="sm" placeholder='Nama Perangkat' value={device} onChange={e => setDevice(e.target.value)} />
                                 <Button variant="outline" size="sm" onClick={() => setName(myHwid, device)}>Simpan</Button>
                                 <Button variant="ghost" size="sm" onClick={() =>setEditName(false)} title='Tutup'>
                                     <X size="8" />
                                 </Button>
                             </div> :
                             <div className='flex items-center gap-2'>
-                                <span>{customAccess?.name??'Perangkat Baru'}</span>
+                                <span>{customAccess?.name??'Nama Perangkat'}</span>
                                 <Button variant="ghost" size="sm" onClick={() => setEditName(true)}>
                                     <PencilIcon size="8" />
                                 </Button>

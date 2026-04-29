@@ -5,7 +5,7 @@ import { resetApplicationData } from '@/services/dataService';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { StoreInfoForm } from './_components/StoreInfoForm';
 import { TaxSettingsForm } from './_components/TaxSettingsForm';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -34,6 +34,7 @@ export default function SettingsPage() {
     const [isResetAlertOpen, setIsResetAlertOpen] = useState(false);
     const { licenseDetails } = useLicense();
     const { isNetworkEnable } = useSyncStore();
+    const nav = useNavigate();
 
     // Printer state
     const [isPairing, setIsPairing] = useState(false);
@@ -96,7 +97,7 @@ export default function SettingsPage() {
     return (
         <div className="flex h-screen min-h-0 w-full flex-col bg-muted/40">
             <header className="sticky shrink-0 top-0 z-20 flex h-16 items-center gap-4 border-b bg-background px-4 md:px-6 justify-between">
-                <Link to="/"><TokoCepatLogo /></Link>
+                <Link to="#" onClick={() => nav(-1)}><TokoCepatLogo /></Link>
                 <div className="flex items-center gap-2">
                     <NotificationBell />
                     <ThemeToggle />
@@ -120,23 +121,16 @@ export default function SettingsPage() {
                             <Tabs defaultValue="store" className="w-full min-h-0">
                                 <TabsList className="w-full mb-8 overflow-x-auto no-scrollbar justify-start">
                                     <TabsTrigger value="store"><Store className="mr-2 h-4 w-4" />Toko</TabsTrigger>
-                                    {isSyncAvailable && <TabsTrigger value="sync"><RefreshCw className="mr-2 h-4 w-4" />Jaringan</TabsTrigger>}
                                     <TabsTrigger value="taxes"><Percent className="mr-2 h-4 w-4" />Pajak</TabsTrigger>
                                     <TabsTrigger value="printer"><Printer className="mr-2 h-4 w-4" />Printer</TabsTrigger>
                                     {isSyncAvailable && <TabsTrigger value="access"><MenuIcon className="mr-2 h-4 w-4" />Akses</TabsTrigger>}
+                                    {isSyncAvailable && <TabsTrigger value="sync"><RefreshCw className="mr-2 h-4 w-4" />Sinkronisasi</TabsTrigger>}
                                     <TabsTrigger value="maintenance"><Settings2 className="mr-2 h-4 w-4" />Sistem</TabsTrigger>
                                 </TabsList>
 
                                 <TabsContent value="store"><StoreInfoForm /></TabsContent>
 
-                                <TabsContent value="sync" className="space-y-6">
-                                    {isSyncAvailable && (
-                                        <>
-                                            <SyncManager />
-                                            {isNetworkEnable && <NetworkSecurity />}
-                                        </>
-                                    )}
-                                </TabsContent>
+                                
 
                                 <TabsContent value="taxes"><TaxSettingsForm /></TabsContent>
 
@@ -169,6 +163,15 @@ export default function SettingsPage() {
                                             </div>
                                         </CardContent>
                                     </Card>
+                                </TabsContent>
+
+                                <TabsContent value="sync" className="space-y-6">
+                                    {isSyncAvailable && (
+                                        <>
+                                            <SyncManager />
+                                            {isNetworkEnable && <NetworkSecurity />}
+                                        </>
+                                    )}
                                 </TabsContent>
 
                                 <TabsContent value="access" className="space-y-6">

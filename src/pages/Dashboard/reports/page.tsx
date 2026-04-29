@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowLeft, ArrowRight, BarChart2, BookOpen, Warehouse, ArchiveX, Beaker, History, ShieldCheck, Landmark } from 'lucide-react';
@@ -65,12 +65,13 @@ const reportLinks = [
 ];
 
 export default function ReportsPage() {
+    const nav = useNavigate();
     return (
         <div className="flex min-h-screen w-full flex-col bg-muted/30">
             {/* Header */}
             <header className="sticky top-0 flex h-16 items-center gap-4 border-b bg-background px-6 z-10">
                 <Button variant="outline" size="icon" asChild>
-                    <Link to="/dashboard">
+                    <Link to="#" onClick={() => nav(-1)}>
                         <ArrowLeft className="h-4 w-4" />
                         <span className="sr-only">Kembali</span>
                     </Link>

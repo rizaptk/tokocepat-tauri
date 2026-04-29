@@ -1,8 +1,8 @@
+use crate::tauri_gateway::FireLiteGateway;
 use std::fs::{self, File};
-use std::io::{Write, Read};
+use std::io::{Read, Write};
 use std::path::Path;
 use tauri::{AppHandle, Runtime};
-use crate::tauri_gateway::FireLiteGateway;
 use walkdir::WalkDir;
 use zip::write::SimpleFileOptions;
 
@@ -13,14 +13,16 @@ pub async fn native_backup<R: Runtime>(
     target_path: String,
 ) -> Result<(), String> {
     let gateway = state.inner();
-    
+
     // 1. Setup a temporary directory for an atomic snapshot
     // This ensures we copy a consistent state of all shards
     let mut temp_snapshot_dir = std::env::temp_dir();
     temp_snapshot_dir.push(format!("fl_snapshot_{}", uuid::Uuid::new_v4()));
 
     // 2. Perform the FireLite atomic backup (copies folders/files to temp)
-    gateway.db.backup(&temp_snapshot_dir)
+    gateway
+        .db
+        .backup(&temp_snapshot_dir)
         .map_err(|e| format!("Database snapshot failed: {}", e))?;
 
     // 3. Create the ZIP archive at the target path
@@ -53,7 +55,8 @@ pub async fn native_backup<R: Runtime>(
         }
     }
 
-    zip.finish().map_err(|e| format!("Failed to finalize ZIP: {}", e))?;
+    zip.finish()
+        .map_err(|e| format!("Failed to finalize ZIP: {}", e))?;
 
     // 5. Cleanup the temporary snapshot folder
     let _ = fs::remove_dir_all(temp_snapshot_dir);
@@ -68,7 +71,7 @@ pub async fn native_backup<R: Runtime>(
 //     source_path: String,
 // ) -> Result<(), String> {
 //     let gateway = state.inner();
-    
+
 //     // 1. Flush current DB to ensure everything is written
 //     let _ = gateway.db.flush();
 
@@ -88,10 +91,10 @@ pub async fn native_backup<R: Runtime>(
 //     fs::write(restore_flag, staging_path.to_str().unwrap()).map_err(|e| e.to_string())?;
 
 //     // 4. Force restart the app.
-//     // Since app.restart() terminates the process, we use an attribute 
+//     // Since app.restart() terminates the process, we use an attribute
 //     // to tell the compiler it's okay that the following Ok(()) is unreachable.
 //     app.restart();
-    
+
 //     #[allow(unreachable_code)]
 //     Ok(())
 // }

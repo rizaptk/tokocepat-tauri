@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import * as React from 'react';
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { DateRange } from 'react-day-picker';
@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Transaction } from '@/lib/types';
-import { TransactionDetailDialog } from '@/components/TransactionDetailDialog';
+import TransactionDetailDialog from '@/components/TransactionDetailDialog';
 import { DateRangeFilter } from '@/components/DateRangeFilter';
 import { getTransactionsByDateRange } from '@/services/transactionService';
 import { useStore } from '@/lib/store';
@@ -95,6 +95,7 @@ export default function SalesReportPage() {
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const { storeConfig } = useStore();
+    const nav = useNavigate();
 
     // 2. Setup Reference for the scrolling container
     const parentRef = useRef<HTMLDivElement>(null);
@@ -186,7 +187,7 @@ export default function SalesReportPage() {
         <div className="flex min-h-screen w-full flex-col bg-muted/40">
            <header className="sticky top-0 flex h-16 items-center gap-4 border-b bg-background px-4 md:px-6 z-10">
                 <Button variant="outline" size="icon" className="shrink-0" asChild>
-                    <Link to="/dashboard/reports">
+                    <Link to="#" onClick={() => nav(-1)}>
                         <ArrowLeft className="h-4 w-4" />
                         <span className="sr-only">Kembali ke Laporan</span>
                     </Link>
@@ -206,10 +207,10 @@ export default function SalesReportPage() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                             <DropdownMenuItem onSelect={handleExcelExport}>
-                                <FileDown className="mr-2 h-4 w-4"/> Excel (.xlsx)
+                                <FileDown className="mr-2 h-4 w-4 text-green-500"/> Excel (.xlsx)
                             </DropdownMenuItem>
                             <DropdownMenuItem onSelect={handlePdfExport}>
-                                <FileText className="mr-2 h-4 w-4"/> PDF (.pdf)
+                                <FileText className="mr-2 h-4 w-4 text-red-400"/> PDF (.pdf)
                             </DropdownMenuItem>
                         </DropdownMenuContent>
                     </DropdownMenu>

@@ -228,7 +228,7 @@ export default function ClassicCashierPage() {
             <div className="flex h-screen w-full items-center justify-center bg-muted/40 p-4">
                 <Card className="w-full max-w-md">
                     <CardHeader>
-                        <CardTitle>Buka Sif Baru (Classic POS)</CardTitle>
+                        <CardTitle>Buka Sif Baru</CardTitle>
                         <CardDescription>Masukkan kas awal untuk memulai.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">

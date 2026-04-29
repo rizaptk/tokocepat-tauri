@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useStore } from '@/lib/store';
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { DateRange } from 'react-day-picker';
@@ -145,6 +145,7 @@ export default function StockMovementReportPage() {
     const [filterProductId, setFilterProductId] = useState<string | null>(null);
     const [stockMovements, setStockMovements] = useState<StockMovement[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const nav = useNavigate();
 
     const parentRef = useRef<HTMLDivElement>(null);
 
@@ -281,9 +282,9 @@ export default function StockMovementReportPage() {
 
         // 3. Memoize movementTypeLabels
     const memoizedMovementTypeLabels = useMemo(() => ({
-        sale: { label: 'Jual', color: 'bg-red-500/10 text-red-700' },
-        restock: { label: 'Restok', color: 'bg-green-500/10 text-green-700' },
-        initial_balance: { label: 'Saldo Awal', color: 'bg-blue-500/10 text-blue-700' },
+        sale: { label: 'Penjualan', color: 'bg-red-500/10 text-red-700' },
+        restock: { label: 'Masuk', color: 'bg-green-500/10 text-green-700' },
+        initial_balance: { label: 'Penyesuaian', color: 'bg-blue-500/10 text-blue-700' },
         correction: { label: 'Koreksi', color: 'bg-yellow-500/10 text-yellow-700' },
         lost: { label: 'Hilang', color: 'bg-gray-500/10 text-gray-700' },
         damaged: { label: 'Rusak', color: 'bg-purple-500/10 text-purple-700' },
@@ -320,7 +321,7 @@ export default function StockMovementReportPage() {
         <div className="flex min-h-screen w-full flex-col bg-muted/40">
            <header className="sticky top-0 flex h-16 items-center gap-2 border-b bg-background px-4 md:px-6 z-10">
                 <Button variant="outline" size="icon" className="shrink-0" asChild>
-                    <Link to="/dashboard/reports">
+                    <Link to="#" onClick={() => nav(-1)}>
                         <ArrowLeft className="h-4 w-4" />
                         <span className="sr-only">Kembali</span>
                     </Link>
@@ -340,10 +341,10 @@ export default function StockMovementReportPage() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                             <DropdownMenuItem onSelect={handleExcelExport}>
-                                <FileDown className="mr-2 h-4 w-4"/> Excel (.xlsx)
+                                <FileDown className="mr-2 h-4 w-4 text-green-500"/> Excel (.xlsx)
                             </DropdownMenuItem>
                             <DropdownMenuItem onSelect={handlePdfExport}>
-                                <FileText className="mr-2 h-4 w-4"/> PDF (.pdf)
+                                <FileText className="mr-2 h-4 w-4 text-red-400"/> PDF (.pdf)
                             </DropdownMenuItem>
                         </DropdownMenuContent>
                     </DropdownMenu>

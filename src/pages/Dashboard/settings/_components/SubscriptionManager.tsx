@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useTransition } from 'react';
+import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,6 +19,7 @@ import { generateDeviceFingerprint } from '@/lib/security';
 import { apiFetch } from '@/lib/api-client';
 import { invoke } from '@tauri-apps/api/core';
 import { Link } from 'react-router-dom';
+import { useLicense } from '@/hooks/useLicense';
 
 type TicketStatusInfo = { 
     ticketId: string; 
@@ -153,8 +154,11 @@ export function SubscriptionManager() {
     const [ticketStatus, setTicketStatus] = useState<TicketStatusInfo | null>(null);
     const [_formErrors, setFormErrors] = useState<any>({});
     const [isSubmitting, startSubmitTransition] = useTransition();
+    const { status } = useLicense();
 
     const formRef = useRef<HTMLFormElement>(null);
+
+    const isLicensed = useMemo(() => status === 'VALID' || status === 'EXPIRES_SOON', [status]);
 
     const fetchStatusAndSettings = async () => {
         setLoading(true);
@@ -260,7 +264,7 @@ export function SubscriptionManager() {
             </CardHeader>
             <CardContent className="space-y-6">
                  {/* Bagian Trial */}
-                 {!isTrialUsed && trialPlans.length > 0 && !selectedPlan && (
+                 {!isTrialUsed && !isLicensed && trialPlans.length > 0 && !selectedPlan && (
                     <div className="space-y-3">
                         {trialPlans.map(plan => (
                              <Card key={plan.id} className="border-primary/50 bg-primary/5 overflow-hidden">
@@ -297,6 +301,17 @@ export function SubscriptionManager() {
                             {multiPlans.map(plan => (
                                 <PlanCard key={plan.id} plan={plan} isSelected={false} onSelect={() => setSelectedPlan(plan)} />
                             ))}
+                            <div className='grid md:col-span-2 mt-4 px-2 space-y-2'>
+                                <span className='text-sm font-semibold underline'>Catatan :</span>
+                                <ul className='list-disc list-inside'>
+                                    <li>
+                                        <span className='text-sm'><strong>Sync:</strong> Sinkronisasi data antar perangkat dalam satu jaringan secara real-time.</span>
+                                    </li>
+                                    <li>
+                                        <span className='text-sm'><strong>Multi Unit:</strong> Kelola menu di tiap perangkat dengan fleksibel (bonus layout kasir klasik).</span>
+                                    </li>
+                                </ul>
+                            </div>
                         </TabsContent>
                     </Tabs>
                 )}
@@ -318,15 +333,15 @@ export function SubscriptionManager() {
                              </Alert>
                         )}
                         
-                        <div className="bg-blue-50 border border-blue-100 p-4 rounded-xl">
-                            <h4 className="text-sm font-bold text-blue-900 mb-3 flex items-center gap-2">
+                        <div className="bg-primary/5 border border-primary/50 p-4 rounded-xl">
+                            <h4 className="text-sm font-bold text-primary mb-3 flex items-center gap-2">
                                 <Info size={16}/> Instruksi Transfer
                             </h4>
                             <div className="grid grid-cols-2 gap-y-4 text-sm">
-                                <div><p className="text-xs text-blue-800/60 uppercase font-bold">Bank</p><p className="font-semibold">{settings?.instructions.bankName}</p></div>
-                                <div><p className="text-xs text-blue-800/60 uppercase font-bold">No. Rekening</p><p className="font-semibold">{settings?.instructions.accountNumber}</p></div>
-                                <div className="col-span-2"><p className="text-xs text-blue-800/60 uppercase font-bold">Atas Nama</p><p className="font-semibold">{settings?.instructions.accountName}</p></div>
-                                <div className="col-span-2 pt-2 border-t border-blue-200/50 italic text-xs text-blue-800/80">
+                                <div><p className="text-xs text-primary/60 uppercase font-bold">Bank</p><p className="font-semibold">{settings?.instructions.bankName}</p></div>
+                                <div><p className="text-xs text-primary/60 uppercase font-bold">No. Rekening</p><p className="font-semibold">{settings?.instructions.accountNumber}</p></div>
+                                <div className="col-span-2"><p className="text-xs text-primary/60 uppercase font-bold">Atas Nama</p><p className="font-semibold">{settings?.instructions.accountName}</p></div>
+                                <div className="col-span-2 pt-2 border-t border-blue-200/50 italic text-xs text-primary/80">
                                     "{settings?.instructions.message}"
                                 </div>
                             </div>

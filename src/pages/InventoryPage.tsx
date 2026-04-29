@@ -13,10 +13,10 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { ProductSearchBar } from "@/components/ProductSearchBar";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { PlusCircle, Plus, Minus, Calculator, Package, WarehouseIcon, History, ArrowUp, ArrowDown } from "lucide-react";
+import { PlusCircle, Plus, Minus, Calculator, Package, WarehouseIcon, History, ArrowUp, ArrowDown, ArrowRight } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useGlobalBarcodeScanner } from "@/hooks/use-global-barcode-scanner";
-import { cn, typeConfig } from "@/lib/utils";
+import { cn, reasonMapping, typeConfig } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
@@ -109,14 +109,14 @@ const StockHistoryCards = memo(({selectedItem}: {selectedItem: { id: string, typ
             {mapedByIds.map((group) => {
                 const firstHistory = group[0];
                 const item = [...products, ...rawIngredients, ...productVariants].find(i => i.id === firstHistory.product_id);
-
+                const over50 = group.length >= 50;
                 return (
                     <Card key={firstHistory.product_id} className="overflow-hidden">
                         <CardHeader className="px-6 pb-4 pt-6 border-b flex flex-row justify-between items-center">
-                            <CardTitle className="text-sm font-bold">{item?.name || 'Unknown Item'} <span className="ms-2 font-normal">{group.length > 1 && ` (${group.length} kali)`}</span></CardTitle>
+                            <CardTitle className="text-sm font-bold">{item?.name || 'Unknown Item'} {group.length > 1 && <Badge variant="success" className="ms-2 py-0.5 px-2 leading-none font-mono">{` ${group.length} ${over50 ? '+' : ''}`}</Badge>}</CardTitle>
                             <Button variant="ghost" size="sm">
-                                <Link to="/dashboard/reports/stock-movement">
-                                    Laporan Lengkap
+                                <Link to="/dashboard/reports/stock-movement" className="flex items-center gap-2">
+                                    Laporan <ArrowRight />
                                 </Link>
                             </Button>
                         </CardHeader>
@@ -124,7 +124,8 @@ const StockHistoryCards = memo(({selectedItem}: {selectedItem: { id: string, typ
                             <div className="divide-y divide-border/50">
                                 {group.map((history, index) => {
                                     const date = new Date(history.created_at).toLocaleString();
-                                    const hisType = history.type.replace('_', ' ').toUpperCase();
+                                    const mapped = reasonMapping.get(history.type);
+                                    const hisType = (mapped??history.type).toUpperCase();
                                     const isPositive = history.qty_change > 0;
                                     return (
                                         <div key={history.id} className={cn("px-6 py-4 text-sm hover:bg-muted/30 transition-colors flex gap-3 items-start", index % 2 === 0 ? "bg-muted/40" : "bg-transparent")}>
@@ -137,7 +138,7 @@ const StockHistoryCards = memo(({selectedItem}: {selectedItem: { id: string, typ
                                             <div className="flex-1 min-w-0">
                                                 <div className="flex justify-between items-start mb-0.5">
                                                     <span className="text-[11px] text-muted-foreground uppercase tracking-wider font-bold">
-                                                        {hisType === 'SALE' ? `Penjualan` : hisType}
+                                                        {hisType}
                                                     </span>
                                                     <div className={cn("font-bold text-sm tabular-nums", isPositive ? "text-green-600" : "text-destructive")}>
                                                         {isPositive ? `+${history.qty_change}` : history.qty_change}

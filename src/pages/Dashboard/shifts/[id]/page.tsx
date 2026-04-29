@@ -1,4 +1,4 @@
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useNavigate } from 'react-router-dom';
 import { useStore } from '@/lib/store';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -33,6 +33,7 @@ const getSafeDate = (dateInput: any): Date | null => {
 export default function ShiftDetailsPage() {
     const params = useParams();
     const shiftId = params.id as string;
+    const nav = useNavigate();
     
     const { shifts, transactions, storeConfig } = useStore();
     const { toast } = useToast();
@@ -79,7 +80,7 @@ export default function ShiftDetailsPage() {
         return (
              <div className="flex min-h-screen w-full flex-col bg-muted/40">
                 <header className="sticky top-0 flex h-16 items-center gap-4 border-b bg-background px-4 md:px-6">
-                    <Link to="/dashboard">
+                    <Link to="#" onClick={() => nav(-1)}>
                         <TokoCepatLogo />
                     </Link>
                 </header>
@@ -114,7 +115,7 @@ export default function ShiftDetailsPage() {
          <div className="flex min-h-screen w-full flex-col bg-muted/40">
            <header className="sticky top-0 flex h-16 items-center gap-4 border-b bg-background px-4 md:px-6 z-10">
                 <Button variant="outline" size="icon" asChild>
-                    <Link to="/dashboard">
+                    <Link to="#" onClick={() => nav(-1)}>
                         <ArrowLeft />
                     </Link>
                 </Button>
@@ -250,7 +251,7 @@ export default function ShiftDetailsPage() {
                 <div className="flex gap-2 pt-4">
                     <Button variant="outline" onClick={handlePdfExport} disabled={!shift}>Ekspor PDF</Button>
                     <Button asChild>
-                        <Link to="/dashboard">Selesai</Link>
+                        <Link to="#" onClick={() => nav(-1)}>Selesai</Link>
                     </Button>
                 </div>
             </div>

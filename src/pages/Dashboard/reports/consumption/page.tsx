@@ -1,5 +1,3 @@
-'use client';
-
 import { Link } from 'react-router-dom';
 import { useStore } from '@/lib/store';
 import React, { useState, useMemo, useEffect } from 'react';
@@ -117,10 +115,10 @@ export default function ConsumptionReportPage() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                             <DropdownMenuItem onSelect={handleExcelExport}>
-                                <FileDown className="mr-2 h-4 w-4"/> Excel (.xlsx)
+                                <FileDown className="mr-2 h-4 w-4 text-green-500"/> Excel (.xlsx)
                             </DropdownMenuItem>
                             <DropdownMenuItem onSelect={handlePdfExport}>
-                                <FileText className="mr-2 h-4 w-4"/> PDF (.pdf)
+                                <FileText className="mr-2 h-4 w-4 text-red-400"/> PDF (.pdf)
                             </DropdownMenuItem>
                         </DropdownMenuContent>
                     </DropdownMenu>

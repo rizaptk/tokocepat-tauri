@@ -1,6 +1,3 @@
-
-'use client';
-
 import { Link } from 'react-router-dom';
 import { useStore } from '@/lib/store';
 import { useMemo } from 'react';

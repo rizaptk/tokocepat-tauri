@@ -25,7 +25,7 @@ export const getStockMovementsByProducts = async (productIds: string[]): Promise
     const { db, firesqlite } = useDbStore.getState();
     if (!db || !firesqlite || productIds.length === 0) return [];
 
-    const { collection, query, where, getDocs, orderBy } = firesqlite;
+    const { collection, query, where, getDocs, orderBy, limit } = firesqlite;
     
     const movementsRef = collection(db, 'stock_movements');
     // Note: 'in' operator is supported in firesqlite for array filtering
@@ -33,7 +33,8 @@ export const getStockMovementsByProducts = async (productIds: string[]): Promise
         movementsRef,
         where('product_id', 'in', productIds),
         orderBy('product_id', 'desc'),
-        orderBy('created_at', 'desc')
+        orderBy('created_at', 'desc'),
+        limit(50)
     );
 
     const snapshot = await getDocs(q);

@@ -6,6 +6,7 @@ import {
     Warehouse,
     BarChart as BarChartIcon,
     Settings,
+    ShieldAlert,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/lib/ismobile-store';
@@ -23,6 +24,7 @@ const navItems = [
     { href: '/dashboard/reports', label: 'Laporan', icon: BarChartIcon },
     { href: '/dashboard/settings', label: 'Pengaturan', icon: Settings },
 ];
+
 
 export function SideNav() {
     const location = useLocation();
@@ -95,6 +97,27 @@ export function SideNav() {
                                 </TooltipContent>
                             </Tooltip>
                         ))}
+                        {
+                            isActive('/license') &&
+                            <Tooltip key="license">
+                                <TooltipTrigger asChild>
+                                    <Link to="/license" className={cn(
+                                            "group relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl",
+                                            "transition-colors duration-200",
+                                            "text-sidebar-active-foreground"
+                                        )}>
+                                            {isActive('/license') && (
+                                                <motion.div
+                                                    layoutId="active-nav-bg"
+                                                    className="absolute inset-0 rounded-xl bg-sidebar-active"
+                                                    transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                                                />
+                                            )}
+                                            <ShieldAlert className="relative z-10 h-5 w-5 transition-colors duration-200" />
+                                    </Link>
+                                </TooltipTrigger>
+                            </Tooltip>
+                        }
                     </div>
                 </TooltipProvider>
             </nav>

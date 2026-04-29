@@ -57,6 +57,15 @@ export const itemMapping = new Map<string, string>([
   ['Variant', 'Varian']
 ])
 
+export const reasonMapping = new Map<string, string>([
+  ['restock', 'masuk'],
+  ['initial_balance', 'penyesuaian'],
+  ['correction', 'koreksi'],
+  ['damaged', 'rusak'],
+  ['lost', 'hilang'],
+  ['sale', 'penjualan']
+])
+
 export const typeConfig = {
   product: {
     icon: Package,

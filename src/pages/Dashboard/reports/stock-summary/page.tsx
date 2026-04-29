@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useStore } from '@/lib/store';
 import React, { useState, useMemo, useEffect } from 'react';
 import { DateRange } from 'react-day-picker';
@@ -29,6 +29,7 @@ export default function StockSummaryReportPage() {
     const [stockMovements, setStockMovements] = useState<StockMovement[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [filterType, setFilterType] = useState<'all' | 'product' | 'ingredient' | 'variant'>('all');
+    const nav = useNavigate();
 
     useEffect(() => {
         if (!date?.from || !date?.to) return;
@@ -122,7 +123,7 @@ export default function StockSummaryReportPage() {
         <div className="flex min-h-screen w-full flex-col bg-muted/40">
            <header className="sticky top-0 flex h-16 items-center gap-2 border-b bg-background px-4 md:px-6 z-10">
                 <Button variant="outline" size="icon" className="shrink-0" asChild>
-                    <Link to="/dashboard/reports">
+                    <Link to="#" onClick={() => nav(-1)}>
                         <ArrowLeft className="h-4 w-4" />
                         <span className="sr-only">Kembali</span>
                     </Link>
@@ -142,10 +143,10 @@ export default function StockSummaryReportPage() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                             <DropdownMenuItem onSelect={handleExcelExport}>
-                                <FileDown className="mr-2 h-4 w-4"/> Excel (.xlsx)
+                                <FileDown className="mr-2 h-4 w-4 text-green-500"/> Excel (.xlsx)
                             </DropdownMenuItem>
                             <DropdownMenuItem onSelect={handlePdfExport}>
-                                <FileText className="mr-2 h-4 w-4"/> PDF (.pdf)
+                                <FileText className="mr-2 h-4 w-4 text-red-400"/> PDF (.pdf)
                             </DropdownMenuItem>
                         </DropdownMenuContent>
                     </DropdownMenu>

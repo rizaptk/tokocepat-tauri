@@ -1,24 +1,26 @@
 mod printer_commands;
 mod printer_detect;
+use std::collections::HashSet;
 use tauri::Manager;
 use tauri_plugin_store::Builder;
-use std::collections::HashSet;
 
 // 1. Import the tauri_gateway module itself, not just the function
 use firelite::config::FireLiteConfig;
 use firelite::engine::FireLite;
 pub use firelite::tauri_gateway::{self, FireLiteGateway}; // Note the 'self'
 
-mod printmon;
+mod hwid;
 mod license;
 mod maintenance;
-mod hwid;
+mod printmon;
 mod sync;
+mod theme;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    license::init_env(); 
+    license::init_env();
     tauri::Builder::default()
+        .plugin(tauri_plugin_single_instance::init(|_app, _args, _cwd| {}))
         .plugin(Builder::default().build())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
@@ -50,25 +52,28 @@ pub fn run() {
 
             let mut cfg = FireLiteConfig::default();
             cfg.encryption_key = Some("e172dd95f4feb21412a692e73929961e".to_string());
-            cfg.encrypted_cols = Some(["app_state", "__firelite_security"].into_iter().map(|s| s.to_string()).collect::<HashSet<String>>());
+            cfg.encrypted_cols = Some(
+                ["app_state", "__firelite_security"]
+                    .into_iter()
+                    .map(|s| s.to_string())
+                    .collect::<HashSet<String>>(),
+            );
 
-            let db = FireLite::open(db_path, cfg)
-                .expect("Failed to init FireLite");
-                
+            let db = FireLite::open(db_path, cfg).expect("Failed to init FireLite");
 
             let gateway = FireLiteGateway::new(db);
-            
+
             app.manage(gateway.clone());
-            
+
             let sync_state = sync::SyncState {
                 syncer: std::sync::Arc::new(tokio::sync::Mutex::new(None)),
                 app_handle: app.handle().clone(),
             };
-            
+
             app.manage(sync_state);
-            
+
             printmon::start_monitor(app.handle().clone());
-            
+
             let handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
                 license::run_heartbeat(handle).await;
@@ -97,17 +102,16 @@ pub fn run() {
             license::activate_trial,
             license::claim_license,
             license::activate_manual_license,
-            license::deactivate_license, 
-            
+            license::deactivate_license,
             maintenance::native_backup,
-            // maintenance::native_restore,
-
+            
             sync::toggle_net_sync,
             sync::get_sync_status,
             sync::check_sync_security_exists,
             sync::list_network_peers,
             sync::bootstrap_sync,
 
+            theme::set_theme,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
