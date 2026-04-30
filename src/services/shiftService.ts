@@ -2,6 +2,7 @@
 import { Shift, Transaction } from '@/lib/types';
 import { useDbStore } from '@/lib/db-store';
 import { generateDeviceFingerprint } from '@/lib/security';
+import { useStore } from '@/lib/store';
 
 export const openShift = async (openingCash: number): Promise<void> => {
     const { db, firesqlite } = useDbStore.getState();
@@ -21,15 +22,22 @@ export const openShift = async (openingCash: number): Promise<void> => {
     await setDoc(doc(db, 'shifts', newShift.id), newShift);
 };
 
-export const closeShift = async (activeShift: Shift, transactions: Transaction[], declaredCash: number): Promise<void> => {
+export const closeShift = async (activeShift: Shift, _transactions: Transaction[], declaredCash: number): Promise<void> => {
     
     const { db, firesqlite } = useDbStore.getState();
     if (!db || !firesqlite) throw new Error("Database not initialized");
 
-    const { doc, updateDoc } = firesqlite;
+    const { doc, updateDoc, collection, query, where, getSumFromServer, orderBy } = firesqlite;
 
-    const activeTransactions = transactions.filter(t => t.shift_id === activeShift.id && t.status === 'paid');
-    const system_cash = activeShift.opening_cash + activeTransactions.reduce((_, t) => t.total, 0);
+    const tmp = await getSumFromServer(
+        query(
+            collection(db, 'transactions'),
+            where('shift_id','eq',activeShift.id),
+            orderBy('created_at', 'desc')
+        )
+    , 'total');
+    
+    const system_cash = Number(tmp.data().value) + activeShift.opening_cash;
 
     const updatedShift: Partial<Shift> = {
         closed_at: new Date().toISOString(),
@@ -41,3 +49,20 @@ export const closeShift = async (activeShift: Shift, transactions: Transaction[]
 
     await updateDoc(doc(db, 'shifts', activeShift.id), updatedShift);
 };
+
+export const reloadShift = async (shift: string) => {
+    const { db, firesqlite } = useDbStore.getState();
+    if (!db || !firesqlite) throw new Error("Database not initialized");
+    const { getDocs, collection, where, query, orderBy } = firesqlite;
+    const store = useStore.getState();
+
+    const data = await getDocs(
+        query(
+            collection(db, 'transactions'), 
+            where('shift_id' ,'eq' , shift),
+            orderBy('created_at', 'desc')
+        )
+    )
+    const transactions = data.docs.map(d => d.data() as Transaction);
+    store.setTransactions(transactions);
+}

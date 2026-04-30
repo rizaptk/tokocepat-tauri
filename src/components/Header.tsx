@@ -1,4 +1,3 @@
-
 import { Link, useNavigate } from "react-router-dom";
 import { LogOut, ParkingSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -16,11 +15,12 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useStore } from "@/lib/store";
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { Label } from "./ui/label";
 import { PendingCartsDialog } from "./PendingCartsDialog";
 import { ThemeToggle } from "./ThemeButtons";
 import { NotificationBell } from "./NotificationBell";
+import { useCurrencyFormat } from "@/hooks/useCurrencyFormat";
 
 export function Header() {
   const navigate = useNavigate();
@@ -30,6 +30,7 @@ export function Header() {
   const transactions = useStore((state) => state.transactions);
   const pendingCarts = useStore(state => state.pendingCarts);
   const closeShift = useStore((state) => state.closeShift);
+  const cash = useCurrencyFormat();
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('id-ID', {
@@ -45,11 +46,17 @@ export function Header() {
     return { shiftRevenue: revenue, expectedCash: activeShift ? activeShift.opening_cash + revenue : 0 };
   }, [activeShift, transactions]);
   
+  useEffect(() => {
+    setDeclaredCash(parseInt(cash.raw));
+  }, [cash.raw])
+  
   const handleCloseShift = useCallback(() => {
     closeShift(declaredCash);
-    setDeclaredCash(0);
+    // setDeclaredCash(0);
+    cash.setRaw('0');
     navigate('/dashboard');
   }, [closeShift, declaredCash, navigate]);
+
 
   return (
     <>
@@ -97,11 +104,12 @@ export function Header() {
                             <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">Rp</span>
                             <Input 
                                 id="declared-cash"
-                                type="number" 
+                                type="text"
+                                inputMode="numeric" 
                                 placeholder="Masukkan jumlah uang tunai" 
-                                value={declaredCash || ''}
-                                onChange={(e) => setDeclaredCash(Number(e.target.value))}
-                                className="pl-10 text-lg"
+                                value={cash.value}
+                                onChange={cash.onChange}
+                                className="pl-10 text-lg" 
                                 autoFocus
                             />
                         </div>

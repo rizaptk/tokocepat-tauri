@@ -131,7 +131,7 @@ export function PaymentModal({ isOpen, setIsOpen, total }: PaymentModalProps) {
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && resetAndClose()}>
-      <DialogContent ref={dialogContentRef} className="sm:max-w-[480px] p-0 overflow-hidden gap-0 bg-card">
+      <DialogContent ref={dialogContentRef} className="sm:max-w-120 p-0 overflow-hidden gap-0 bg-card">
         {status === 'pending' && (
           <>
             <div className="p-6 pb-4">
@@ -164,9 +164,7 @@ export function PaymentModal({ isOpen, setIsOpen, total }: PaymentModalProps) {
                         isInsufficient && "border-destructive focus-visible:ring-destructive",
                         numericCash >= total && "border-green-500 focus-visible:ring-green-500"
                       )}
-                      // value={cashReceived}
                       value={curr.value}
-                      // onChange={(e) => setCashReceived(e.target.value)}
                       onChange={curr.onChange}
                       placeholder="0"
                       autoFocus

@@ -1,6 +1,6 @@
 {
   "name": "tokocepat",
-  "version": "0.2.13",
+  "version": "0.2.15",
   "private": true,
   "scripts": {
     "dev": "vite --port 9002 --host",

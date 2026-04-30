@@ -19,6 +19,7 @@ import { useIsMobile } from '@/lib/ismobile-store';
 import { useGlobalBarcodeScanner } from '@/hooks/use-global-barcode-scanner';
 import { useSettingsStore } from '@/lib/settings';
 import { useProductSearch } from '@/lib/useProductSearch';
+import { reloadShift } from '@/services/shiftService';
 
 export type ViewMode = 'card' | 'thumbnail' | 'list';
 
@@ -61,6 +62,11 @@ export default function DefaultCashierPage() {
         });
     }, [products, selectedCategoryId]);
 
+    useEffect(() => {
+        if (!activeShift) return;
+        const {id} = activeShift;
+        reloadShift(id);
+    }, [activeShift])
 
     const handleOpenShift = () => {
         openShift(openingCash);

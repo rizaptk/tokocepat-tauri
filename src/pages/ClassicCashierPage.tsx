@@ -24,6 +24,7 @@ import { useCurrencyFormat } from '@/hooks/useCurrencyFormat';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { voidTransaction } from '@/services/transactionService';
 import { format } from 'date-fns';
+import { reloadShift } from '@/services/shiftService';
 
 const formatIDR = (amt: number) => new Intl.NumberFormat('id-ID', {
     style: 'currency', currency: 'IDR', minimumFractionDigits: 0 
@@ -71,6 +72,11 @@ export default function ClassicCashierPage() {
     const [voidReason, setVoidReason] = useState("");
     const [isVoiding, setIsVoiding] = useState(false);
 
+    useEffect(() => {
+        if (!activeShift) return;
+        const {id} = activeShift;
+        reloadShift(id);
+    }, [activeShift])
 
     const shiftTransactions = useMemo(() => 
         transactions.filter(t => t.shift_id === activeShift?.id).sort((a, b) => 

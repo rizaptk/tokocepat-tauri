@@ -81,7 +81,6 @@ async function exec(op: any): Promise<any> {
     // The other fields must match the Rust struct fields (snake_case)
     const bytes = await invoke<number[]>('firelite_exec', { op });
     const res = decode(new Uint8Array(bytes)) as any;
-    console.log(op, bytes, res)
     if (res?.error) throw new Error(res.error);
     return res;
 }
