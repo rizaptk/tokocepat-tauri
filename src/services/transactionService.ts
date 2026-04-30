@@ -17,6 +17,7 @@ export const getTransactionsByDateRange = async (from: Date, to: Date): Promise<
         orderBy('created_at', 'desc')
     );
 
+    console.log(q)
     const snapshot = await getDocs(q);
     return snapshot.docs.map((doc: any) => doc.data() as Transaction);
 };

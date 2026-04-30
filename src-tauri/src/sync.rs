@@ -53,6 +53,10 @@ pub async fn toggle_net_sync(
 
     // Only start if not already started
     if syncer_lock.is_none() {
+        // 1. Acquire Multicast Lock ONLY when starting
+        #[cfg(target_os = "android")]
+        acquire_multicast_lock(); 
+        
         let self_id = crate::hwid::get_license_hwid();
         let db = Arc::clone(&gateway.db);
         let excluded = vec!["app_state".to_string()];
@@ -159,4 +163,41 @@ pub async fn bootstrap_sync(
         }
     }
     Ok(())
+}
+
+#[cfg(target_os = "android")]
+pub fn acquire_multicast_lock() {
+    use jni::objects::JObject;
+    
+    let res = (|| {
+        let ctx = ndk_context::android_context();
+        let vm = unsafe { jni::JavaVM::from_raw(ctx.vm().cast()) }.ok()?;
+        let mut env = vm.attach_current_thread().ok()?;
+
+        let context = unsafe { JObject::from_raw(ctx.context().cast()) };
+        let wifi_service_str = env.new_string("wifi").ok()?;
+        
+        let wifi_manager = env.call_method(
+            &context, 
+            "getSystemService", 
+            "(Ljava/lang/String;)Ljava/lang/Object;", 
+            &[(&wifi_service_str).into()]
+        ).ok()?.l().ok()?;
+
+        let lock_tag = env.new_string("tokocepat_sync_lock").ok()?;
+        
+        let mcast_lock = env.call_method(
+            &wifi_manager, 
+            "createMulticastLock", 
+            "(Ljava/lang/String;)Landroid/net/wifi/WifiManager$MulticastLock;", 
+            &[(&lock_tag).into()]
+        ).ok()?.l().ok()?;
+
+        let _ = env.call_method(&mcast_lock, "acquire", "()V", &[]);
+        Some(())
+    })();
+
+    if res.is_none() {
+        eprintln!("Failed to acquire Multicast Lock. Sync may not work on this WiFi.");
+    }
 }

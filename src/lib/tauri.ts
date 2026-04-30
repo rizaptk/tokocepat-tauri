@@ -1,5 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
+import { decode } from "@msgpack/msgpack";
 
 // --- Types & Interfaces ---
 export type FireLitePrimitive = 
@@ -59,15 +60,13 @@ function generateId() {
 function normalizeValue(v: any): any {
     if (v === null || typeof v !== 'object') return v; // Fast path for primitives
     
-    if (v instanceof Uint8Array) return Array.from(v);
-    // if (v instanceof Date) return v.getTime() * 1000;
-    if (v instanceof Date) return v.getTime();
+    if (v instanceof Uint8Array) {
+        return v;
+    }
+    if (v instanceof Date) return v.getTime() * 1000;
     
     if (Array.isArray(v)) {
-        const len = v.length;
-        const out = new Array(len);
-        for (let i = 0; i < len; i++) out[i] = normalizeValue(v[i]);
-        return out;
+        return v.map(normalizeValue);
     }
 
     const out: any = {};
@@ -80,7 +79,9 @@ function normalizeValue(v: any): any {
 async function exec(op: any): Promise<any> {
     // Note: The 'op' field inside the payload is the variant tag
     // The other fields must match the Rust struct fields (snake_case)
-    const res = await invoke<any>('firelite_exec', { op });
+    const bytes = await invoke<number[]>('firelite_exec', { op });
+    const res = decode(new Uint8Array(bytes)) as any;
+    console.log(op, bytes, res)
     if (res?.error) throw new Error(res.error);
     return res;
 }
@@ -115,7 +116,7 @@ export class DocumentSnapshot {
         private readonly _ref?: DocumentReference
     ) {
         // Use the ID from data if the provided ID is null (common in queries)
-        this.id = id || _data?.id;
+        this.id = id;
         this._time = (_data as any)?._time || 0;
     }
     
@@ -125,34 +126,12 @@ export class DocumentSnapshot {
     data(): FireLiteRecord | undefined { 
         if (!this._data) return undefined;
         
-        // FIXED: Correct lazy-cache assignment
         if (!this._cachedData) {
-            this._cachedData = this.transformOutput({ ...this._data, id: this.id });
+            this._cachedData = { ...this._data, id: this.id };
         }
         return this._cachedData;
     }
 
-    private transformOutput(obj: any): any {
-        if (Array.isArray(obj)) return obj.map(v => this.transformOutput(v));
-        if (obj !== null && typeof obj === 'object') {
-            const out: any = {};
-            for (const key in obj) {
-                let val = obj[key];
-                
-                // Optimized Binary Handling
-                if (typeof val === 'string' && val.startsWith('__b64__:')) {
-                    const b64String = val.slice(8);
-                    const bin = atob(b64String);
-                    const bytes = new Uint8Array(bin.length);
-                    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-                    val = bytes;
-                }
-                out[key] = this.transformOutput(val);
-            }
-            return out;
-        }
-        return obj;
-    }
 }
 
 export interface DocumentChange {
@@ -318,8 +297,13 @@ export function onSnapshot(
 
     const start = async () => {
         try {
-            unlisten = await listen<DeltaPayload>(event_name, (event) => {
-                const { changes } = event.payload;
+            unlisten = await listen<Uint8Array>(event_name, (event) => {
+
+                // const payload = decode(event.payload) as DeltaPayload;
+                const payload = decode(new Uint8Array(event.payload)) as DeltaPayload;
+                const { changes } = payload;
+                
+                // const { changes } = event.payload;
                 let hasChanged = false;
 
                 changes.forEach(change => {
@@ -530,7 +514,7 @@ function buildQueryParams(q: Query | CollectionReference | CollectionGroupRefere
     
     const filters: any[] = [];
     const or_groups: any[][] = [];
-    const order_bys: any[] = [];
+    let order_by: any[] = [];
     let limit: number | undefined = undefined;
     let offset: number | undefined = undefined;
     let projection: string[] | undefined = undefined;
@@ -556,9 +540,7 @@ function buildQueryParams(q: Query | CollectionReference | CollectionGroupRefere
                     value: normalizeValue(cc.data.value) 
                 }))); 
                 break;
-            case 'order_by': 
-                order_bys.push(c.data); // 2. Push to the array instead of assigning
-                break;
+            case 'order_by': order_by.push(c.data); break;
             case 'limit': limit = c.data; break;
             case 'offset': offset = c.data; break;
             case 'select': projection = c.data; break;
@@ -580,7 +562,7 @@ function buildQueryParams(q: Query | CollectionReference | CollectionGroupRefere
         doc_id_filter: undefined, // Not used for collection-wide queries
         filters,
         or_groups: or_groups.length > 0 ? or_groups : undefined,
-        order_by: order_bys.length > 0 ? order_bys : undefined,
+        order_by: order_by.length > 0 ? order_by : undefined,
         limit,
         offset,
         projection,

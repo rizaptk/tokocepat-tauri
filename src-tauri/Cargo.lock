@@ -4,7 +4,7 @@ version = 3
 
 [[package]]
 name = "TokoCepat"
-version = "0.2.11"
+version = "0.2.13"
 dependencies = [
  "chrono",
  "dotenvy",
@@ -1406,10 +1406,9 @@ checksum = "5baebc0774151f905a1a2cc41989300b1e6fbb29aff0ceffa1064fdd3088d582"
 
 [[package]]
 name = "firelite"
-version = "0.6.56"
-source = "git+https://github.com/rizaptk/firelite?branch=main#48765e72e8346df40bb60badfd9dde7100b4ee56"
+version = "0.6.60"
+source = "git+https://github.com/rizaptk/firelite?branch=main#8a84b1a3f3828f22d3ccd39e77c32a0a9844b3c8"
 dependencies = [
- "base64 0.22.1",
  "bincode",
  "cbindgen",
  "chacha20poly1305",
@@ -1424,6 +1423,8 @@ dependencies = [
  "parking_lot",
  "rand 0.8.5",
  "rayon",
+ "rmp-serde",
+ "rmpv",
  "serde",
  "serde_json",
  "sha2",
@@ -4071,6 +4072,36 @@ dependencies = [
 ]
 
 [[package]]
+name = "rmp"
+version = "0.8.15"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4ba8be72d372b2c9b35542551678538b562e7cf86c3315773cae48dfbfe7790c"
+dependencies = [
+ "num-traits",
+]
+
+[[package]]
+name = "rmp-serde"
+version = "1.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "72f81bee8c8ef9b577d1681a70ebbc962c232461e397b22c208c43c04b67a155"
+dependencies = [
+ "rmp",
+ "serde",
+]
+
+[[package]]
+name = "rmpv"
+version = "1.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7a4e1d4b9b938a26d2996af33229f0ca0956c652c1375067f0b45291c1df8417"
+dependencies = [
+ "rmp",
+ "serde",
+ "serde_bytes",
+]
+
+[[package]]
 name = "rusb"
 version = "0.9.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4323,6 +4354,16 @@ dependencies = [
  "serde",
  "serde_core",
  "typeid",
+]
+
+[[package]]
+name = "serde_bytes"
+version = "0.11.19"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a5d440709e79d88e51ac01c4b72fc6cb7314017bb7da9eeff678aa94c10e3ea8"
+dependencies = [
+ "serde",
+ "serde_core",
 ]
 
 [[package]]

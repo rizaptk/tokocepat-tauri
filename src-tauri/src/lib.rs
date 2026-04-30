@@ -15,16 +15,25 @@ mod maintenance;
 mod printmon;
 mod sync;
 mod theme;
+mod android;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     license::init_env();
-    tauri::Builder::default()
-        .plugin(tauri_plugin_single_instance::init(|_app, _args, _cwd| {}))
-        .plugin(Builder::default().build())
+    let mut builder = tauri::Builder::default();
+    #[cfg(desktop)]
+    {
+        builder = builder.plugin(tauri_plugin_single_instance::init(|_app, _args, _cwd| {}));
+    }
+    // tauri::Builder::default()
+    //     .plugin(tauri_plugin_single_instance::init(|_app, _args, _cwd| {}))
+    builder.plugin(Builder::default().build())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .setup(|app| {
+            #[cfg(target_os = "android")]
+            android::android_wake_lock();
+
             let package_info = app.package_info();
             let version = &package_info.version;
             let app_dir = app
@@ -79,13 +88,21 @@ pub fn run() {
                 license::run_heartbeat(handle).await;
             });
 
-            if let Some(window) = app.get_webview_window("main") {
-                let _ = window.set_title(&format!("TokoCepat v{}", version));
+            #[cfg(desktop)]
+            {
+                if let Some(window) = app.get_webview_window("main") {
+                    let _ = window.set_title(&format!("TokoCepat v{}", version));
+                }
             }
 
             Ok(())
         })
         .on_window_event(|window, event| {
+            #[cfg(target_os = "android")]
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                api.prevent_close(); 
+            }
+
             if let tauri::WindowEvent::CloseRequested { .. } = event {
                 if let Some(gateway) = window.try_state::<FireLiteGateway>() {
                     let _ = gateway.db.flush();

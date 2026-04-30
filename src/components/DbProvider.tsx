@@ -41,6 +41,9 @@ export function DbProvider({ children }: { children: React.ReactNode }) {
 
                 const { collection, doc, onSnapshot } = firesqlite;
 
+                // const data = await getDocs(query(collection(db, 'products'), limit(10)));
+                // console.log(data.docs)
+
                 /**
                  * Helper to register unsubs automatically
                  */
