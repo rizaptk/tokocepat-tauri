@@ -34,8 +34,12 @@ pub fn run() {
             #[cfg(target_os = "android")]
             android::android_wake_lock();
 
+            #[cfg(desktop)]
             let package_info = app.package_info();
+
+            #[cfg(desktop)]
             let version = &package_info.version;
+            
             let app_dir = app
                 .path()
                 .app_data_dir()

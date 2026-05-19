@@ -1,6 +1,10 @@
+#[cfg(not(target_os = "android"))]
 use rusb::{Context, UsbContext};
+#[cfg(not(target_os = "android"))]
 use serialport::{available_ports, SerialPortType};
+#[cfg(not(target_os = "android"))]
 use std::io::{Read, Write};
+#[cfg(not(target_os = "android"))]
 use std::sync::mpsc;
 use std::thread;
 use std::time::Duration;
@@ -13,9 +17,11 @@ pub struct PrinterCandidate {
     pub baud_rate: u32,
 }
 
+#[cfg(not(target_os = "android"))]
 const PROBE_BAUDS: [u32; 2] = [9600, 115200]; // Most common POS speeds
 
 /// Helper to test a specific serial port for a response
+#[cfg(not(target_os = "android"))]
 fn probe_serial_port(port_name: String) -> Option<(u32, String)> {
     for &baud in &PROBE_BAUDS {
         let builder = serialport::new(&port_name, baud)
@@ -134,7 +140,7 @@ pub fn auto_detect_printer() -> Vec<PrinterCandidate> {
 
 #[cfg(target_os = "android")]
 fn get_android_paired_bluetooth() -> Option<Vec<PrinterCandidate>> {
-    use jni::objects::JObject;
+    // use jni::objects::JObject;
     let ctx = ndk_context::android_context();
     let vm = unsafe { jni::JavaVM::from_raw(ctx.vm().cast()) }.ok()?;
     let mut env = vm.attach_current_thread().ok()?;

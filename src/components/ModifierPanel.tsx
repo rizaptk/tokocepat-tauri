@@ -143,7 +143,7 @@ export function ModifierPanel({ item, onOpenChange, onConfirm }: ModifierPanelPr
 
     return (
         <Sheet open={!!item} onOpenChange={onOpenChange}>
-            <SheetContent ref={contentRef} side={isDesktop ? 'right' : 'bottom'} className={isDesktop ? "w-[400px] sm:w-[540px] flex flex-col" : "h-[90vh] flex flex-col"}>
+            <SheetContent ref={contentRef} side={isDesktop ? 'right' : 'bottom'} className={isDesktop ? "w-100 sm:w-135 flex flex-col" : "h-[90vh] flex flex-col"}>
                 {productData && (
                     <>
                         <SheetHeader>

@@ -1,5 +1,8 @@
+#[cfg(not(target_os = "android"))]
 use rusb::UsbContext;
+#[cfg(not(target_os = "android"))]
 use std::io::Write;
+#[cfg(not(target_os = "android"))]
 use std::time::Duration; // Removed DeviceHandle as it's inferred
 
 #[tauri::command]
@@ -63,7 +66,7 @@ pub fn print_receipt(address: String, baud_rate: u32, data: Vec<u8>) -> Result<(
 
 #[cfg(target_os = "android")]
 fn print_to_android_bluetooth(address: String, data: Vec<u8>) -> Result<(), String> {
-    use jni::objects::{JObject, JValue};
+    // use jni::objects::{JObject, JValue};
     let ctx = ndk_context::android_context();
     let vm = unsafe { jni::JavaVM::from_raw(ctx.vm().cast()) }.map_err(|e| e.to_string())?;
     let mut env = vm.attach_current_thread().map_err(|e| e.to_string())?;

@@ -1,8 +1,8 @@
-
 import { Shift, Transaction } from '@/lib/types';
 import { useDbStore } from '@/lib/db-store';
 import { generateDeviceFingerprint } from '@/lib/security';
 import { useStore } from '@/lib/store';
+import { useEffect } from 'react';
 
 export const openShift = async (openingCash: number): Promise<void> => {
     const { db, firesqlite } = useDbStore.getState();
@@ -33,10 +33,11 @@ export const closeShift = async (activeShift: Shift, _transactions: Transaction[
         query(
             collection(db, 'transactions'),
             where('shift_id','eq',activeShift.id),
+            where('status','eq', 'paid'),
             orderBy('created_at', 'desc')
         )
     , 'total');
-    
+
     const system_cash = Number(tmp.data().value) + activeShift.opening_cash;
 
     const updatedShift: Partial<Shift> = {
@@ -50,19 +51,64 @@ export const closeShift = async (activeShift: Shift, _transactions: Transaction[
     await updateDoc(doc(db, 'shifts', activeShift.id), updatedShift);
 };
 
-export const reloadShift = async (shift: string) => {
+// export const reloadShift = async (shift: string) => {
+//     const { db, firesqlite } = useDbStore.getState();
+//     if (!db || !firesqlite) throw new Error("Database not initialized");
+//     const { getDocs, collection, where, query, orderBy } = firesqlite;
+//     const store = useStore.getState();
+
+//     const data = await getDocs(
+//         query(
+//             collection(db, 'transactions'), 
+//             where('shift_id' ,'eq' , shift),
+//             orderBy('created_at', 'desc')
+//         )
+//     )
+//     const transactions = data.docs.map(d => d.data() as Transaction);
+//     store.setTransactions(transactions);
+// }
+
+// Removed async so it synchronously returns the unsubscribe function
+export const reloadShift = (shift: string): (() => void) => {
     const { db, firesqlite } = useDbStore.getState();
     if (!db || !firesqlite) throw new Error("Database not initialized");
-    const { getDocs, collection, where, query, orderBy } = firesqlite;
-    const store = useStore.getState();
+    
+    // Extracted onSnapshot instead of getDocs
+    const { onSnapshot, collection, where, query, orderBy } = firesqlite;
 
-    const data = await getDocs(
-        query(
-            collection(db, 'transactions'), 
-            where('shift_id' ,'eq' , shift),
-            orderBy('created_at', 'desc')
-        )
-    )
-    const transactions = data.docs.map(d => d.data() as Transaction);
-    store.setTransactions(transactions);
+    const q = query(
+        collection(db, 'transactions'), 
+        where('shift_id' ,'eq' , shift),
+        orderBy('created_at', 'desc')
+    );
+
+    // Set up the real-time listener and store the returned unsubscribe function
+    const unsubscribe = onSnapshot(q, (snapshot: any) => {
+        const transactions = snapshot.docs.map((d: any) => d.data() as Transaction);
+        // Get the freshest state of the store actions and update
+        useStore.getState().setTransactions(transactions);
+    });
+
+    // Return the unsubscribe function so the caller can clean it up
+    return unsubscribe;
+}
+
+export function GlobalShiftSync() {
+    const activeShift = useStore((state) => state.activeShift);
+
+    useEffect(() => {
+        // If there is no active shift, don't do anything
+        if (!activeShift) return;
+
+        // This hooks into firelite.onSnapshot.
+        // Whenever net_sync updates the local database, this triggers instantly
+        // and updates the global Zustand store.
+        const unsubscribe = reloadShift(activeShift.id);
+
+        return () => {
+            unsubscribe();
+        };
+    }, [activeShift]);
+
+    return null; // This component is invisible, it just manages data
 }

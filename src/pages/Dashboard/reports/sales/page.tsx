@@ -1,6 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom';
 import * as React from 'react';
-import { useState, useMemo, useEffect, useRef } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import { DateRange } from 'react-day-picker';
 import { endOfDay, startOfDay, subDays, format } from 'date-fns';
 import { ArrowLeft, BarChart2, DollarSign, ReceiptText, Landmark, Search, Loader2, FileDown, FileText } from 'lucide-react';
@@ -16,7 +16,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Transaction } from '@/lib/types';
 import TransactionDetailDialog from '@/components/TransactionDetailDialog';
 import { DateRangeFilter } from '@/components/DateRangeFilter';
-import { getTransactionsByDateRange } from '@/services/transactionService';
+// import { getTransactionsByDateRange } from '@/services/transactionService';
 import { useStore } from '@/lib/store';
 import { NotificationBell } from '@/components/NotificationBell';
 import { ThemeToggle } from '@/components/ThemeButtons';
@@ -92,26 +92,26 @@ export default function SalesReportPage() {
     });
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
-    const [transactions, setTransactions] = useState<Transaction[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
+    // const [transactions, setTransactions] = useState<Transaction[]>([]);
+    // const [isLoading, setIsLoading] = useState(true);
     const { storeConfig } = useStore();
     const nav = useNavigate();
 
     // 2. Setup Reference for the scrolling container
     const parentRef = useRef<HTMLDivElement>(null);
 
-    useLoadTransactions(date);
+    const {transactions, isLoading} = useLoadTransactions(date);
 
-    useEffect(() => {
-        if (!date?.from || !date?.to) return;
-        const fetchTransactions = async () => {
-            setIsLoading(true);
-            const data = await getTransactionsByDateRange(date.from!, date.to!);
-            setTransactions(data);
-            setIsLoading(false);
-        };
-        fetchTransactions();
-    }, [date]);
+    // useEffect(() => {
+    //     if (!date?.from || !date?.to) return;
+    //     const fetchTransactions = async () => {
+    //         setIsLoading(true);
+    //         const data = await getTransactionsByDateRange(date.from!, date.to!);
+    //         setTransactions(data);
+    //         setIsLoading(false);
+    //     };
+    //     fetchTransactions();
+    // }, [date]);
 
     const filteredTransactions = useMemo(() => {
         const paidTransactions = transactions.filter(tx => tx.status === 'paid');
@@ -288,46 +288,6 @@ export default function SalesReportPage() {
                                 <div className="p-8 text-center"><Loader2 className="animate-spin mx-auto"/></div>
                             ) : filteredTransactions.length > 0 ? (
                                 rowVirtualizer.getVirtualItems().map((virtualRow) => 
-                                    // {
-                                    // const tx = filteredTransactions[virtualRow.index];
-                                    // const txCost = tx.items.reduce((sum, i) => sum + ((i.cost_snapshot || 0) * i.qty), 0);
-                                    // const txProfit = tx.subtotal - txCost;
-
-                                    // return (
-                                    //     <div
-                                    //         key={tx.id}
-                                    //         onClick={() => setSelectedTx(tx)}
-                                    //         className="flex items-center px-4 border-b hover:bg-muted/50 cursor-pointer transition-colors text-sm absolute top-0 left-0 w-full"
-                                    //         style={{
-                                    //             height: `${virtualRow.size}px`,
-                                    //             transform: `translateY(${virtualRow.start}px)`,
-                                    //         }}
-                                    //     >
-                                    //         <div className={columnStyles.waktu}>
-                                    //             <div className="font-medium">{format(new Date(tx.created_at), 'dd MMM yyyy')}</div>
-                                    //             <div className="text-[12px] text-muted-foreground">{format(new Date(tx.created_at), 'p')}</div>
-                                    //         </div>
-                                    //         <div className={`${columnStyles.invoice} font-mono text-[13px]`}>
-                                    //             {tx.invoice_number}
-                                    //         </div>
-                                    //         <div className={columnStyles.subtotal}>
-                                    //             {formatCurrency(tx.subtotal)}
-                                    //         </div>
-                                    //         <div className={`${columnStyles.hpp} text-destructive/80`}>
-                                    //             {formatCurrency(txCost)}
-                                    //         </div>
-                                    //         <div className={`${columnStyles.laba} text-green-600 font-medium`}>
-                                    //             {formatCurrency(txProfit)}
-                                    //         </div>
-                                    //         <div className={columnStyles.pajak}>
-                                    //             {formatCurrency(tx.tax_amount)}
-                                    //         </div>
-                                    //         <div className={`${columnStyles.total} font-bold text-primary`}>
-                                    //             {formatCurrency(tx.total)}
-                                    //         </div>
-                                    //     </div>
-                                    // );
-                                // }
                                 <TransactionRow
                                     key={filteredTransactions[virtualRow.index].id}
                                     tx={filteredTransactions[virtualRow.index]}

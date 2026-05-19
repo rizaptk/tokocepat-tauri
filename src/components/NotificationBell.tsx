@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { useStore } from '@/lib/store';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
-import { Bell, AlertTriangle, Package, ArchiveX } from 'lucide-react';
+import { Bell, AlertTriangle, Package, ArchiveX, Check, X } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { formatDistanceToNow } from 'date-fns';
@@ -13,10 +13,11 @@ type Notification = {
     title: string;
     description: string;
     timestamp: string;
+    isRead?: boolean;
 };
 
 export function NotificationBell() {
-    const { products, productVariants, transactions, activeShift } = useStore();
+    const { products, productVariants, transactions, activeShift, readNotificationIds, markAsRead, dismissedNotificationIds, dismissNotification } = useStore();
 
     const notifications = useMemo((): Notification[] => {
         const notifs: Notification[] = [];
@@ -83,8 +84,15 @@ export function NotificationBell() {
             });
         }
 
-        return notifs.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-    }, [products, productVariants, transactions, activeShift]);
+        return notifs
+            .filter(n => !dismissedNotificationIds.includes(n.id))
+            .map(n => ({
+                ...n,
+                isRead: readNotificationIds.includes(n.id)
+            }))
+            .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+            .slice(0, 50);
+    }, [products, productVariants, transactions, activeShift, readNotificationIds, dismissedNotificationIds]);
     
     const notificationCount = notifications.length;
 
@@ -118,14 +126,69 @@ export function NotificationBell() {
                    <div className="p-4 space-y-4">
                         {notificationCount > 0 ? (
                             notifications.map(notif => (
-                                <div key={notif.id} className="grid grid-cols-[auto_1fr] items-start gap-3">
+                                // <div key={notif.id} className="grid grid-cols-[auto_1fr] items-start gap-3">
+                                //     <div className="flex items-center justify-center h-full pt-0.5">
+                                //         {getIcon(notif.type)}
+                                //     </div>
+                                //     <div className="space-y-1">
+                                //         <p className="text-sm font-medium leading-none">{notif.title}</p>
+                                //         <p className="text-sm text-muted-foreground">{notif.description}</p>
+                                //         <p className="text-xs text-muted-foreground">{formatDistanceToNow(new Date(notif.timestamp), { addSuffix: true })}</p>
+                                //     </div>
+                                // </div>
+                                <div 
+                                    key={notif.id} 
+                                    className={`group grid grid-cols-[auto_1fr_auto] items-start gap-3 p-3 rounded-lg transition-colors hover:bg-slate-50 ${
+                                        notif.isRead ? 'opacity-60' : 'bg-blue-50/40' // Distinct background for unread
+                                    }`}
+                                >
                                     <div className="flex items-center justify-center h-full pt-0.5">
                                         {getIcon(notif.type)}
                                     </div>
                                     <div className="space-y-1">
-                                        <p className="text-sm font-medium leading-none">{notif.title}</p>
+                                        <div className="flex items-center gap-2">
+                                            <p className="text-sm font-medium leading-none">{notif.title}</p>
+                                            {/* Unread dot indicator */}
+                                            {!notif.isRead && <span className="h-1.5 w-1.5 rounded-full bg-blue-600" />}
+                                        </div>
                                         <p className="text-sm text-muted-foreground">{notif.description}</p>
-                                        <p className="text-xs text-muted-foreground">{formatDistanceToNow(new Date(notif.timestamp), { addSuffix: true })}</p>
+                                        <p className="text-xs text-muted-foreground">
+                                            {formatDistanceToNow(new Date(notif.timestamp), { addSuffix: true })}
+                                        </p>
+                                    </div>
+
+                                    {/* Actions */}
+                                    <div className="flex items-center justify-center h-full">
+                                        {notif.type === 'void' ? (
+                                            <Button 
+                                                variant="ghost" 
+                                                size="icon" 
+                                                className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    dismissNotification(notif.id);
+                                                }}
+                                                title="Hapus"
+                                            >
+                                                <X className="h-4 w-4" />
+                                            </Button>
+                                        ) : (
+                                            // Only show 'Mark as Read' if it isn't already read
+                                            !notif.isRead && (
+                                                <Button 
+                                                    variant="ghost" 
+                                                    size="icon" 
+                                                    className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        markAsRead(notif.id);
+                                                    }}
+                                                    title="Tandai dibaca"
+                                                >
+                                                    <Check className="h-4 w-4" />
+                                                </Button>
+                                            )
+                                        )}
                                     </div>
                                 </div>
                             ))

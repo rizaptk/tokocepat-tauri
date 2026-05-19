@@ -19,7 +19,6 @@ import { useIsMobile } from '@/lib/ismobile-store';
 import { useGlobalBarcodeScanner } from '@/hooks/use-global-barcode-scanner';
 import { useSettingsStore } from '@/lib/settings';
 import { useProductSearch } from '@/lib/useProductSearch';
-import { reloadShift } from '@/services/shiftService';
 
 export type ViewMode = 'card' | 'thumbnail' | 'list';
 
@@ -61,12 +60,6 @@ export default function DefaultCashierPage() {
             return p.is_active && matchesCategory;
         });
     }, [products, selectedCategoryId]);
-
-    useEffect(() => {
-        if (!activeShift) return;
-        const {id} = activeShift;
-        reloadShift(id);
-    }, [activeShift])
 
     const handleOpenShift = () => {
         openShift(openingCash);
@@ -140,10 +133,19 @@ export default function DefaultCashierPage() {
         setItemToModify(null);
     };
 
+    const cleanModifier = (chart: CartItem) => {
+        const items = {...chart};
+        const { selectedModifiers } = items;
+        const modifierPrices = selectedModifiers.reduce((a,b) => b.item.additional_price + a ,0);
+        items.price = items.price - modifierPrices;
+        setItemToModify(items);
+    }
+
     const handleEditCartItem = (item: CartItem) => {
         // For now, only allow editing modifiers. Variant editing can be added later.
         if (item.has_modifier) {
-            setItemToModify(item);
+            cleanModifier(item);
+            // setItemToModify(item);
         } else {
             showToast.noModifier &&
                 toast({

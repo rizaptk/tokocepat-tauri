@@ -1,8 +1,8 @@
 #[tauri::command]
-pub fn set_theme(window: tauri::Window, theme: String) -> Result<(), String> {
+pub fn set_theme(window: tauri::Window, _theme: String) -> Result<(), String> {
     #[cfg(desktop)] 
     {
-        let theme = match theme.to_lowercase().as_str() {
+        let theme = match _theme.to_lowercase().as_str() {
             "dark" => tauri::Theme::Dark,
             "light" => tauri::Theme::Light,
             _ => return Err("Invalid theme".into()),

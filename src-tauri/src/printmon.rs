@@ -1,4 +1,4 @@
-#[cfg(desktop)]
+#[cfg(not(target_os = "android"))]
 use rusb::UsbContext;
 
 use std::thread;
@@ -12,7 +12,7 @@ pub fn start_monitor(app_handle: AppHandle) {
             let mut current_count = 0;
 
             // --- DESKTOP POLLING ---
-            #[cfg(desktop)]
+            #[cfg(not(target_os = "android"))]
             {
                 // 1. Count Serial/COM ports
                 let serial_count = serialport::available_ports().map(|p| p.len()).unwrap_or(0);

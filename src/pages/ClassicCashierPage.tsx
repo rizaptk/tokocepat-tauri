@@ -24,7 +24,6 @@ import { useCurrencyFormat } from '@/hooks/useCurrencyFormat';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { voidTransaction } from '@/services/transactionService';
 import { format } from 'date-fns';
-import { reloadShift } from '@/services/shiftService';
 
 const formatIDR = (amt: number) => new Intl.NumberFormat('id-ID', {
     style: 'currency', currency: 'IDR', minimumFractionDigits: 0 
@@ -71,12 +70,6 @@ export default function ClassicCashierPage() {
     const [reviewingTx, setReviewingTx] = useState<Transaction | null>(null);
     const [voidReason, setVoidReason] = useState("");
     const [isVoiding, setIsVoiding] = useState(false);
-
-    useEffect(() => {
-        if (!activeShift) return;
-        const {id} = activeShift;
-        reloadShift(id);
-    }, [activeShift])
 
     const shiftTransactions = useMemo(() => 
         transactions.filter(t => t.shift_id === activeShift?.id).sort((a, b) => 
@@ -147,6 +140,7 @@ export default function ClassicCashierPage() {
             setItemToModify(product);
         } else {
             saveItemToCart(product);
+            cashInputRef.current?.focus();
         }
     }, [activeShift, saveItemToCart, setQuery]);
 
@@ -201,6 +195,7 @@ export default function ClassicCashierPage() {
         const composite: ItemWithVariant = { ...item, price: item.price + selectedVariant.additional_price, _selectedVariant: selectedVariant };
         if (item.has_modifier) setItemToModify(composite);
         else saveItemToCart(composite, [], selectedVariant);
+        cashInputRef.current?.focus();
     };
 
     const handleModifierConfirm = (selectedModifiers: SelectedModifier[]) => {
@@ -209,7 +204,16 @@ export default function ClassicCashierPage() {
         const selectedVariant = '_selectedVariant' in item ? (item as ItemWithVariant)._selectedVariant : undefined;
         saveItemToCart(item, selectedModifiers, selectedVariant);
         setItemToModify(null);
+        cashInputRef.current?.focus();
     };
+
+    const cleanModifier = (chart: CartItem) => {
+        const items = {...chart};
+        const { selectedModifiers } = items;
+        const modifierPrices = selectedModifiers.reduce((a,b) => b.item.additional_price + a ,0);
+        items.price = items.price - modifierPrices;
+        setItemToModify(items);
+    }
 
     const handleProcessPayment = async () => {
         if (change < 0 || cart.length === 0) return;
@@ -217,7 +221,6 @@ export default function ClassicCashierPage() {
             const invoiceNum = `INV-${Date.now().toString().slice(-6)}`;
             await checkout(parseFloat(cashReceived));
             setSuccessData({ change, invoice: invoiceNum });
-            // setCashReceived('');
             curr.setRaw('0');
         } catch (error) {
             toast({ variant: "destructive", title: "Gagal memproses pembayaran" });
@@ -332,7 +335,7 @@ export default function ClassicCashierPage() {
                                                                     {mod.item.name} {mod.item.additional_price > 0 && `(+${mod.item.additional_price/1000}k)`}
                                                                 </Badge>
                                                             ))}
-                                                            <Button variant="ghost" size="icon" className="size-4 rounded-full" onClick={() => setItemToModify(item)}>
+                                                            <Button variant="ghost" size="icon" className="size-4 rounded-full" onClick={() => cleanModifier(item)}>
                                                                 <Settings2 className="size-3" />
                                                             </Button>
                                                         </div>

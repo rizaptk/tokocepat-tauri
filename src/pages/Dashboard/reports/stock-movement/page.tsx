@@ -40,50 +40,6 @@ type ReportRow = StockMovement & {
     productType: 'Product' | 'Ingredient' | 'Variant';
 };
 
-// const movementTypeLabels: Record<string, { label: string, color: string }> = {
-//     sale: { label: 'Jual', color: 'bg-red-500/10 text-red-700' },
-//     restock: { label: 'Restok', color: 'bg-green-500/10 text-green-700' },
-//     initial_balance: { label: 'Saldo Awal', color: 'bg-blue-500/10 text-blue-700' },
-//     correction: { label: 'Koreksi', color: 'bg-yellow-500/10 text-yellow-700' },
-//     lost: { label: 'Hilang', color: 'bg-gray-500/10 text-gray-700' },
-//     damaged: { label: 'Rusak', color: 'bg-purple-500/10 text-purple-700' },
-// };
-
-
-// 1. Memoize Table Row to prevent re-renders when chart or other parts change
-// const MovementRow = memo(({ m, movementTypeLabels }: { m: ReportRow, movementTypeLabels: any }) => {
-//     const type = m.productType.toLowerCase() as keyof typeof typeConfig;
-//     const { icon: ItemIcon, class: className } = typeConfig[type] || typeConfig.product;
-//     return (
-//     <TableRow>
-//         <TableCell className="text-xs">{format(new Date(m.created_at), 'Pp')}</TableCell>
-//         <TableCell className="font-medium">{m.product_name_snapshot}</TableCell>
-//         <TableCell>
-//             <Badge variant='outline' className={cn('text-xs capitalize', className)}>
-//                 <ItemIcon className="h-3 w-3 mr-1.5"/>
-//                 {itemMapping.get(m.productType)}
-//             </Badge>
-//         </TableCell>
-//         <TableCell>
-//             <Badge variant="outline" className={movementTypeLabels[m.type]?.color || ''}>
-//                 {movementTypeLabels[m.type]?.label || m.type}
-//             </Badge>
-//         </TableCell>
-//         <TableCell className={`text-right font-bold ${m.qty_change > 0 ? 'text-green-600' : 'text-red-600'}`}>
-//             {m.qty_change > 0 ? `+${m.qty_change}` : m.qty_change}
-//         </TableCell>
-//         <TableCell className="text-xs text-muted-foreground truncate max-w-37.5">{m.referenceDisplay}</TableCell>
-//     </TableRow>
-// )});
-// MovementRow.displayName = "MovementRow";
-
-// type ReportRow = StockMovement & {
-//     referenceDisplay: string;
-//     openingStock: number; // Note: these two aren't currently calculated or used in your display, but good to keep in type
-//     resultingStock: number; // Note: these two aren't currently calculated or used in your display, but good to keep in type
-//     productType: 'Product' | 'Ingredient' | 'Variant';
-// };
-
 // 1. Memoized Table Row Component
 // Move this component OUTSIDE of the StockMovementReportPage component
 const MovementRow = React.memo(({
@@ -517,42 +473,6 @@ export default function StockMovementReportPage() {
                                         colStyles={colStyles}
                                         movementTypeLabels={memoizedMovementTypeLabels}
                                     />
-                                //     {
-                                //     const m = reportData[virtualRow.index];
-                                //     const type = m.productType.toLowerCase() as keyof typeof typeConfig;
-                                //     const { icon: ItemIcon, class: className } = typeConfig[type] || typeConfig.product;
-
-                                //     return (
-                                //         <div
-                                //             key={m.id}
-                                //             className="flex items-center px-6 border-b hover:bg-muted/30 transition-colors text-sm absolute top-0 left-0 w-full"
-                                //             style={{ height: `${virtualRow.size}px`, transform: `translateY(${virtualRow.start}px)` }}
-                                //         >
-                                //             <div className={`${colStyles.waktu} text-[13px]`}>
-                                //                 {format(new Date(m.created_at), 'dd MMM, HH:mm')}
-                                //             </div>
-                                //             <div className={`${colStyles.item} font-medium truncate`}>
-                                //                 {m.product_name_snapshot}
-                                //             </div>
-                                //             <div className={colStyles.type}>
-                                //                 <Badge variant='outline' className={cn('capitalize whitespace-nowrap', className)}>
-                                //                     <ItemIcon className="h-3 w-3 mr-1"/> {itemMapping.get(m.productType)}
-                                //                 </Badge>
-                                //             </div>
-                                //             <div className={colStyles.mutasi}>
-                                //                 <Badge variant="outline" className={cn(movementTypeLabels[m.type]?.color || '')}>
-                                //                     {movementTypeLabels[m.type]?.label || m.type}
-                                //                 </Badge>
-                                //             </div>
-                                //             <div className={`${colStyles.perubahan} font-bold ${m.qty_change > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                //                 {m.qty_change > 0 ? `+${m.qty_change}` : m.qty_change}
-                                //             </div>
-                                //             <div className={`${colStyles.ref} text-xs italic`}>
-                                //                 {m.referenceDisplay}
-                                //             </div>
-                                //         </div>
-                                //     );
-                                // }
                             )
                             ) : (
                                 <div className="p-20 text-center"><PackageSearch className="mx-auto h-8 w-8 text-muted-foreground opacity-20" /><p className="text-sm text-muted-foreground mt-2">Tidak ada mutasi.</p></div>

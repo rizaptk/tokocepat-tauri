@@ -1,0 +1,229 @@
+========================================================================
+TOKO CEPAT - THIRD-PARTY OPEN SOURCE SOFTWARE LICENSES
+========================================================================
+
+This application distributes open-source libraries under various permissive 
+licenses. Below is the required attribution, copyright notices, and full 
+license registries for the software used in TokoCepat.
+
+------------------------------------------------------------------------
+SUMMARY OF DEPENDENCIES AND LICENSES USED
+------------------------------------------------------------------------
+
+1. MIT License:
+   - React, React DOM, React Is (v19.x)
+   - Tailwind CSS & PostCSS (v4.x)
+   - Radix UI Primitives (v1.x)
+   - Zustand (v5.x)
+   - React Hook Form & Resolvers (v7.x / v5.x)
+   - Zod (v4.x)
+   - Date-fns (v4.x)
+   - React Router DOM (v7.x)
+   - Lucide React (v0.x)
+   - Receipt Printer Encoder (v3.x)
+   - Framer Motion / Motion (v12.x)
+   - Embla Carousel React (v8.x)
+   - OverlayScrollbars React (v0.x)
+   - Class Variance Authority, Clsx, Tailwind Merge (v0.x / v2.x / v3.x)
+   - Cmdk (v1.x)
+   - Comlink (v4.x)
+   - Dotenv / Dotenvy (v17.x / v0.15.x)
+   - Patch-package (v8.x)
+   - React Day Picker, React Easy Crop (v9.x / v5.x)
+   - React Window, React Virtualized Auto Sizer (v1.x)
+   - Recharts, Tailwindcss Animate, Tw Animate CSS (v2.x / v1.x)
+   - Tokio, Serde, Serde_json, Log, Uuid, Jsonwebtoken, Chrono, Flate2, 
+     Machine-uid, Jni, Ndk-context (Rust Crates)
+
+2. MIT / Apache 2.0 Dual License:
+   - Tauri Core, CLI & Plugins (v2.x)
+   - Rusb (Rust Crate)
+
+3. Apache License 2.0:
+   - Google GenKit Core & CLI (v1.x)
+   - Google GenKit Gemini Provider (@genkit-ai/google-genai v1.x)
+   - Firebase SDK (v12.x)
+   - Jose (v6.x)
+   - Pdf-lib (v1.x)
+   - Bwip-js (v4.x)
+   - Reqwest (Rust Crate)
+
+4. Mozilla Public License 2.0 (MPL 2.0):
+   - @zxing/library & React ZXing (v0.x / v2.x)
+
+5. GNU Lesser General Public License v3.0 (LGPL 3.0):
+   - Serialport (Rust Crate)
+
+6. Custom / Repository License:
+   - Firelite (github.com/rizaptk/firelite)
+
+------------------------------------------------------------------------
+PART 1: THE MIT LICENSE (MIT)
+------------------------------------------------------------------------
+The MIT License applies to React, Tauri (dual), Tailwind CSS, Radix UI, 
+Zustand, React Hook Form, Zod, Lucide React, Receipt Printer Encoder, 
+and various other packages listed in the summary.
+
+Copyright notices:
+- Copyright (c) Meta Platforms, Inc. and affiliates. (React)
+- Copyright (c) The Tauri Programme (Tauri Framework)
+- Copyright (c) Tailwind Labs Inc. (Tailwind CSS)
+- Copyright (c) WorkOS, Inc. (Radix UI)
+- Copyright (c) 2019-present Paul Henschel (Zustand)
+- Copyright (c) 2019-present Beier (React Hook Form)
+- Copyright (c) 2020 Colin McDonnell (Zod)
+- Copyright (c) 2023 @point-of-sale (Receipt Printer Encoder)
+- Copyright (c) Matt Zabriskie (Lucide Icons)
+- Copyright (c) Tokyo Digital Base (React ZXing Wrapper)
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+------------------------------------------------------------------------
+PART 2: APACHE LICENSE, VERSION 2.0
+------------------------------------------------------------------------
+The Apache License 2.0 applies to Google GenKit, Firebase SDK, Jose, 
+Pdf-lib, Bwip-js, Reqwest, and Tauri (dual).
+
+Copyright notices:
+- Copyright (c) Google LLC (Firebase, GenKit, @genkit-ai/google-genai)
+- Copyright (c) 2019 Filip Skokan (Jose)
+- Copyright (c) 2019 Andrew Dillon (Pdf-lib)
+- Copyright (c) 2011-2024 Mark Warren (Bwip-js)
+- Copyright (c) 2016 Sean McArthur (Reqwest)
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+------------------------------------------------------------------------
+PART 3: MOZILLA PUBLIC LICENSE, VERSION 2.0 (MPL 2.0)
+------------------------------------------------------------------------
+The MPL 2.0 license applies to @zxing/library and react-zxing components.
+
+Copyright notices:
+- Copyright (c) ZXing authors (@zxing/library)
+
+1. Definitions
+1.1. "Contributor" means each individual or legal entity that creates, 
+contributes to the creation of, or owns Covered Software.
+1.2. "Contributor Version" means the combination of the Contributions of 
+others (if any) used by a Contributor and that particular Contributor's 
+Contribution.
+1.3. "Contribution" means Covered Software of a particular Contributor.
+1.4. "Covered Software" means Source Code Form to which the initial 
+Contributor has attached the notice of Exhibit A, the Executable Form of 
+such Source Code Form, and Modifications of such Source Code Form.
+1.5. "Executable Form" means any form of the work other than Source Code Form.
+1.6. "Larger Work" means a work that combines Covered Software with other 
+material, in a separate file or files, that is not Covered Software.
+1.7. "License" means this document.
+1.8. "Licensable" means having the right to grant, to the maximum extent 
+possible, whether at the time of the initial grant or subsequently, 
+any and all of the rights conveyed by this License.
+1.9. "Modifications" means any of the following:
+a. any file in Source Code Form that results from an addition to, deletion 
+from, or modification of the contents of Covered Software; or
+b. any new file in Source Code Form that contains any Covered Software.
+1.10. "Source Code Form" means the form of the work preferred for making 
+modifications, including but not limited to software source code, 
+documentation source, and configuration files.
+
+2. License Grants and Conditions
+2.1. Grants
+Each Contributor hereby grants You a world-wide, royalty-free, 
+non-exclusive license:
+a. under intellectual property rights (other than patent or trademark) 
+Licensable by such Contributor to use, reproduce, make available, modify, 
+display, perform, distribute, and otherwise exploit its Contributions, 
+either on an unmodified basis, with Modifications, or as part of a Larger Work; 
+and
+b. under Patent Claims of such Contributor to make, use, sell, offer for 
+sale, have made, import, and otherwise transfer either its Contributions 
+or its Contributions in combination with the Contributor Version.
+
+2.2. Effective Date
+The licenses granted in Section 2.1 with respect to any Contribution become 
+effective for each Contribution on the date the Contributor first 
+distributes such Contribution.
+
+2.3. Limitations on Grant Scope
+The licenses granted in this Section 2 are the only rights granted under 
+this License. No additional rights or licenses are granted by implication, 
+estoppel, or otherwise.
+
+3. Responsibilities
+3.1. Distribution of Source Form
+All distribution of Covered Software in Source Code Form, including any 
+Modifications that You create or to which You contribute, must be under the 
+terms of this License. You must inform recipients that the Source Code 
+Form of the Covered Software is governed by the terms of this License, 
+and how they can obtain a copy of it. You may not attempt to alter or 
+restrict the recipients' rights in the Source Code Form.
+
+3.2. Distribution of Executable Form
+If You distribute Covered Software in Executable Form then:
+a. such Covered Software must also be made available in Source Code Form, 
+as described in Section 3.1, and You must inform recipients how they can 
+obtain such Source Code Form; and
+b. You may distribute the Executable Form under the terms of this License, 
+or sublicense it under different terms, provided that the Executable Form 
+does not limit or alter the recipients' rights in the Source Code Form.
+
+3.3. Distribution of a Larger Work
+You may create and distribute a Larger Work under terms of Your choice, 
+provided that You also comply with the requirements of this License for the 
+Covered Software. If the Larger Work is a combination of Covered Software 
+with a work governed by one or more Secondary Licenses (such as GPL), 
+the Covered Software remains governed by this License.
+
+------------------------------------------------------------------------
+PART 4: GNU LESSER GENERAL PUBLIC LICENSE, VERSION 3.0 (LGPL 3.0)
+------------------------------------------------------------------------
+The LGPL 3.0 applies to the serialport Rust crate. 
+
+Copyright notices:
+- Copyright (c) 2015-2024 The serialport-rs Developers
+
+TokoCepat dynamically links or interacts with the serialport interface through 
+compiled native code standard bindings provided by Tauri. No internal 
+source code modifications have been made to the serialport library core. 
+The application complies with commercial deployment parameters under 
+LGPL dynamic runtime usage limits.
+
+The official text of the GNU Lesser General Public License Version 3.0 
+can be obtained online at: https://www.gnu.org/licenses/lgpl-3.0.html
+
+------------------------------------------------------------------------
+PART 5: INDEPENDENT REPOSITORY CREDITS
+------------------------------------------------------------------------
+- firelite (github.com/rizaptk/firelite):
+  Copyright (c) Riza Fahmi. Integrated as an embedded local sync 
+  bridge abstraction database handler for cloud endpoints.
+
+========================================================================
+END OF THIRD-PARTY LICENSES TERMINOLOGY - TOKOCEPAT
+========================================================================

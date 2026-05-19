@@ -28,8 +28,13 @@ interface StoreState {
     pendingCarts: PendingCart[];
     stockMovements: StockMovement[];
     customAccess: CustomAccessType | null;
-
+    readNotificationIds: string[];
+    dismissedNotificationIds: string[];
+    
     // Actions
+    markAsRead: (id: string) => void;
+    dismissNotification: (id: string) => void;
+    clearDismissedNotifications: () => void;
     setProducts: (products: Product[]) => void;
     setCategories: (categories: Category[]) => void;
     setModifierGroups: (modifierGroups: ModifierGroup[]) => void;
@@ -38,7 +43,7 @@ interface StoreState {
     setRecipes: (recipes: Recipe[]) => void;
     setTransactions: (transactions: Transaction[]) => void;
     setShiftTransactions: (transactions: Transaction[]) =>void;
-    setShifts: (shifts: Shift[]) => void;
+    setShifts: (shifts: Shift[],device: string|undefined) => void;
     setStoreConfig: (config: StoreConfig) => void;
     setPendingCarts: (carts: PendingCart[]) => void;
     setStockMovements: (movements: StockMovement[]) => void;
@@ -73,7 +78,23 @@ export const useStore = create<StoreState>()(
             pendingCarts: [],
             stockMovements: [],
             customAccess: null,
+            readNotificationIds: [],
+            dismissedNotificationIds: [],
 
+            markAsRead: (id: string) => set((state) => ({
+                // Using Set to prevent duplicates, keeping last 100 to prevent localstorage bloat
+                readNotificationIds: [...new Set([...state.readNotificationIds, id])].slice(-100)
+            })),
+
+            dismissNotification: (id: string) => {
+                set((state) => {
+                    const newDismissed = [...state.dismissedNotificationIds, id];
+                    // Keep only the last 100 entries to prevent local storage bloat
+                    return { dismissedNotificationIds: newDismissed.slice(-100) };
+                });
+            },
+
+            clearDismissedNotifications: () => set({ dismissedNotificationIds: [] }),
             setCustomAccess: (customAccess) => set({ customAccess }),
             setProducts: (products) => set({ products }),
             setCategories: (categories) => set({ categories }),
@@ -83,9 +104,9 @@ export const useStore = create<StoreState>()(
             setRecipes: (recipes) => set({ recipes }),
             setTransactions: (transactions) => set({ transactions: transactions.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()) }),
             setShiftTransactions: (transactions) => set({ transactions: transactions.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()) }),
-            setShifts: (shifts) => {
+            setShifts: (shifts, device) => {
                 const sortedShifts = shifts.sort((a, b) => new Date(b.opened_at).getTime() - new Date(a.opened_at).getTime());
-                const activeShift = sortedShifts.find(s => s.status === 'open') || null;
+                const activeShift = sortedShifts.find(s => device && (s.status === 'open' && s.device === device)) || null;
                 set({ shifts: sortedShifts, activeShift });
             },
             setStoreConfig: (config) => set({ storeConfig: config }),

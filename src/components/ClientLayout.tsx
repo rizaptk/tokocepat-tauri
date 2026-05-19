@@ -7,6 +7,7 @@ import { SideNav } from './SideNav';
 import { useLicense } from '@/hooks/useLicense';
 import { useMemo } from 'react';
 import { ThemeSwitcher } from './ThemeSwitcher';
+import { GlobalShiftSync } from '@/services/shiftService';
 
 export default function ClientLayout({ children }: { children: React.ReactNode }) {
     const location = useLocation();
@@ -36,6 +37,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
                         <SideNav />
                     )
                 }
+                {isLicensed && <GlobalShiftSync />}
             </LicenseProvider>
         </DbProvider>
     );

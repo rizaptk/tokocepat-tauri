@@ -4,7 +4,7 @@ version = 3
 
 [[package]]
 name = "TokoCepat"
-version = "0.2.13"
+version = "0.2.20"
 dependencies = [
  "chrono",
  "dotenvy",
@@ -1406,8 +1406,8 @@ checksum = "5baebc0774151f905a1a2cc41989300b1e6fbb29aff0ceffa1064fdd3088d582"
 
 [[package]]
 name = "firelite"
-version = "0.6.60"
-source = "git+https://github.com/rizaptk/firelite?branch=main#8a84b1a3f3828f22d3ccd39e77c32a0a9844b3c8"
+version = "0.6.63"
+source = "git+https://github.com/rizaptk/firelite?branch=main#1b9ed55f3ef4afc79cbb1c78ff58d508f6a85f9d"
 dependencies = [
  "bincode",
  "cbindgen",

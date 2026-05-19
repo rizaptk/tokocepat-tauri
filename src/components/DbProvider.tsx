@@ -102,7 +102,7 @@ export function DbProvider({ children }: { children: React.ReactNode }) {
                 // Current Shifts
                 subscribe(onSnapshot(collection(db, 'shifts'), (snap: any) => {
                     const shiftList = snap.docs.map((d: any) => d.data() as Shift); 
-                    setShifts(shiftList);
+                    setShifts(shiftList, hwid);
                 }));
 
                 /// Custom Access

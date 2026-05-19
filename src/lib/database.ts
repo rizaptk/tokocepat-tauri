@@ -13,6 +13,7 @@ async function ensureIndexes(firesqlite: any, _db: any) {
             // For transaction history ordering and filtering
             createIndex('transactions', 'created_at'),
             createCompositeIndex('transactions',[{field: 'shift_id', desc: true}, {field: 'created_at', desc: true}]),
+            createCompositeIndex('transactions',[{field: 'shift_id', desc: true}, {field: 'status', desc: true}, {field: 'created_at', desc: true}]),
             
             // For stock movement report filtering
             createIndex('stock_movements', 'created_at'),

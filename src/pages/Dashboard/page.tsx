@@ -24,7 +24,7 @@ import { useLoadTransactions } from "@/hooks/useLoadTransaction";
 export default function DashboardPage() {
   const products = useStore((state) => state.products);
   const productVariants = useStore((state) => state.productVariants);
-  const transactions = useStore((state) => state.transactions);
+  // const transactions = useStore((state) => state.transactions);
   const activeShift = useStore((state) => state.activeShift);
 
   const [date, setDate] = React.useState<DateRange | undefined>({
@@ -32,7 +32,7 @@ export default function DashboardPage() {
     to: endOfDay(new Date()),
   });
 
-  useLoadTransactions(date);
+  const {transactions} = useLoadTransactions(date);
 
   const lowStockItems = useMemo(() => {
     const lowStockProducts = products.filter(
