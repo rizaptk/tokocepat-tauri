@@ -78,6 +78,10 @@ export default function ProductManagementPage() {
         if (filter === 'f&b') {
             return items.filter(p => p.product_type === 'food_and_beverage' && p.is_active);
         }
+        // New Consignment Filter
+        if (filter === 'consignment') {
+            return items.filter(p => p.is_consignment && p.is_active);
+        }
         if (filter === 'variants') {
             return items.filter(p => p.has_variant && p.is_active);
         }
@@ -270,6 +274,8 @@ export default function ProductManagementPage() {
                         <Button variant={filter === 'retail' ? 'secondary' : 'outline'} className="rounded-full px-4 shrink-0" onClick={() => setFilter('retail')}>Retail</Button>
                         <Button variant={filter === 'f&b' ? 'secondary' : 'outline'} className="rounded-full px-4 shrink-0" onClick={() => setFilter('f&b')}>F&B</Button>
                         <Separator orientation="vertical" />
+                        {/* Consignment filter button */}
+                        <Button variant={filter === 'consignment' ? 'secondary' : 'outline'} className="rounded-full px-4 shrink-0" onClick={() => setFilter('consignment')}>Konsinyasi/Titipan</Button>
                         <Button variant={filter === 'variants' ? 'secondary' : 'outline'} className="rounded-full px-4 shrink-0" onClick={() => setFilter('variants')}>Varian</Button>
                         <Button variant={filter === 'modifiers' ? 'secondary' : 'outline'} className="rounded-full px-4 shrink-0" onClick={() => setFilter('modifiers')}>Modifier</Button>
                         <Button variant={filter === 'inactive' ? 'secondary' : 'outline'} className="rounded-full px-4 shrink-0" onClick={() => setFilter('inactive')}>Nonaktif</Button>

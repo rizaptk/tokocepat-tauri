@@ -68,6 +68,11 @@ export interface ProductFormData {
     recipe_items?: RecipeItemFormData[];
     imageUrl?: string;
     imageHint?: string;
+
+    is_consignment?: boolean;
+    consignor_name?: string;
+    consignment_commission_type?: 'percentage' | 'flat';
+    consignment_commission_value?: number;
 }
 
 interface ProductFormProps {
@@ -80,7 +85,12 @@ const initialFormValues: ProductFormData = {
     name: "", product_type: "retail", price: 0, cost_price: 0, stock: 0,
     low_stock_alert: 0, track_stock: true, is_active: true, has_variant: false,
     has_modifier: false, is_composite: false, modifier_group_ids: [], sku: "", barcode: "",
-    variants: [], recipe_items: [], imageUrl: "", imageHint: ""
+    variants: [], recipe_items: [], imageUrl: "", imageHint: "",
+    // Consignment defaults
+    is_consignment: false,
+    consignor_name: "",
+    consignment_commission_type: "percentage",
+    consignment_commission_value: 0
 };
 
 export const ProductForm = ({ productId, onSave, onCancel }: ProductFormProps) => {
@@ -109,6 +119,7 @@ export const ProductForm = ({ productId, onSave, onCancel }: ProductFormProps) =
     const productType = form.watch('product_type');
     const isComposite = form.watch('is_composite');
     const imageUrl = form.watch('imageUrl');
+    const isConsignment = form.watch('is_consignment');
 
     useGlobalNumberInputFix();
 
@@ -128,6 +139,10 @@ export const ProductForm = ({ productId, onSave, onCancel }: ProductFormProps) =
                 recipe_items: recipeForProduct ? (recipeForProduct.items as any) : [],
                 imageUrl: product.imageUrl,
                 imageHint: product.imageHint,
+                is_consignment: product.is_consignment || false,
+                consignor_name: product.consignor_name || "",
+                consignment_commission_type: product.consignment_commission_type || "percentage",
+                consignment_commission_value: product.consignment_commission_value || 0,
             });
         } else {
             form.reset(initialFormValues);
@@ -166,6 +181,9 @@ export const ProductForm = ({ productId, onSave, onCancel }: ProductFormProps) =
 
     async function onSubmit(data: ProductFormData) {
         try {
+            if (data.is_consignment) {
+                data.cost_price = 0;
+            }
             if (isEditing && product) {
                 await updateProduct(product.id, data);
                 toast({ title: "Produk Diperbarui" });
@@ -259,12 +277,122 @@ export const ProductForm = ({ productId, onSave, onCancel }: ProductFormProps) =
                                         rules={{ required: "Price is required", min: { value: 0, message: "Price cannot be negative." } }}
                                         render={({ field }) => (<FormItem><FormLabel>Harga Jual</FormLabel><FormControl><div className="relative"><span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">Rp</span><Input type="number" placeholder="8000" className="pl-10" {...field} onChange={(e) => field.onChange(Number(e.target.value))} /></div></FormControl><FormMessage /></FormItem>)}
                                     />
-                                    <FormField
-                                        control={form.control}
-                                        name="cost_price"
-                                        rules={{ min: { value: 0, message: "Cost price cannot be negative." } }}
-                                        render={({ field }) => (<FormItem><FormLabel>Harga Modal</FormLabel><FormControl><div className="relative"><span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">Rp</span><Input type="number" placeholder="6500" className="pl-10" {...field} onChange={(e) => field.onChange(Number(e.target.value || 0))} /></div></FormControl><FormDescription>Untuk menghitung laba kotor.</FormDescription><FormMessage /></FormItem>)}
-                                    />
+                                    {
+                                        !isConsignment &&
+                                        <FormField
+                                            control={form.control}
+                                            name="cost_price"
+                                            rules={{ min: { value: 0, message: "Cost price cannot be negative." } }}
+                                            render={({ field }) => (<FormItem><FormLabel>Harga Modal</FormLabel><FormControl><div className="relative"><span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">Rp</span><Input type="number" placeholder="6500" className="pl-10" {...field} onChange={(e) => field.onChange(Number(e.target.value || 0))} /></div></FormControl><FormDescription>Untuk menghitung laba kotor.</FormDescription><FormMessage /></FormItem>)}
+                                        />
+                                    }
+                                    <Separator />
+                                    {/* Consignment Switch & Form Fields */}
+                                    <FormField control={form.control} name="is_consignment" render={({ field }) => (
+                                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 bg-muted/20">
+                                            <div className="space-y-0.5">
+                                                <FormLabel>Produk Konsinyasi (Titipan)</FormLabel>
+                                                {
+                                                    !isConsignment ?
+                                                    <FormDescription>Aktifkan jika item dititipkan oleh pihak ketiga.</FormDescription> :
+                                                    <FormDescription>Kontrol Stok Masuk/Penarikan pada inventori.</FormDescription>
+                                                }
+                                            </div>
+                                            <FormControl>
+                                                <Switch 
+                                                    checked={field.value} 
+                                                    onCheckedChange={(val) => {
+                                                        field.onChange(val);
+                                                        if (!val) {
+                                                            form.setValue('consignor_name', '');
+                                                            form.setValue('consignment_commission_type', 'percentage');
+                                                            form.setValue('consignment_commission_value', 0);
+                                                        }
+                                                    }} 
+                                                />
+                                            </FormControl>
+                                        </FormItem>
+                                    )} />
+
+                                    {form.watch('is_consignment') && (
+                                        <>
+                                            <FormField control={form.control} name="consignor_name" rules={{ required: "Nama penitip wajib diisi" }} render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>Nama Penitip (Consignor)</FormLabel>
+                                                    <FormControl>
+                                                        <Input placeholder="Contoh: Ibu Ani" {...field} />
+                                                    </FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )} />
+
+                                            <div className="grid grid-cols-1 gap-4">
+                                                <FormField control={form.control} name="consignment_commission_type" render={({ field }) => (
+                                                    <FormItem className="space-y-3">
+                                                        <FormLabel>Tipe Komisi</FormLabel>
+                                                        <FormControl>
+                                                            <RadioGroup onValueChange={field.onChange} value={field.value} className="flex gap-4">
+                                                                <FormItem className="flex items-center space-x-2 space-y-0">
+                                                                    <FormControl><RadioGroupItem value="percentage" /></FormControl>
+                                                                    <FormLabel className="font-normal cursor-pointer">Persentase (%)</FormLabel>
+                                                                </FormItem>
+                                                                <FormItem className="flex items-center space-x-2 space-y-0">
+                                                                    <FormControl><RadioGroupItem value="flat" /></FormControl>
+                                                                    <FormLabel className="font-normal cursor-pointer">Flat (Rp)</FormLabel>
+                                                                </FormItem>
+                                                            </RadioGroup>
+                                                        </FormControl>
+                                                        <FormMessage />
+                                                    </FormItem>
+                                                )} />
+
+                                                <FormField 
+                                                    control={form.control} 
+                                                    name="consignment_commission_value" 
+                                                    rules={{ 
+                                                        required: "Nilai komisi wajib diisi",
+                                                        min: { value: 0, message: "Komisi tidak boleh kurang dari 0" }, 
+                                                        validate: (value) => {
+                                                            const type = form.getValues('consignment_commission_type');
+                                                            if (type === 'percentage' && (value||0) > 100) {
+                                                                return "Komisi persentase tidak boleh melebihi 100%";
+                                                            }
+                                                            return true;
+                                                        }
+                                                    }} 
+                                                    render={({ field }) => (
+                                                        <FormItem>
+                                                            <FormLabel>Nilai Komisi Toko</FormLabel>
+                                                            <FormControl>
+                                                                <div className="relative">
+                                                                    {form.watch('consignment_commission_type') === 'flat' && (
+                                                                        <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground text-xs">Rp</span>
+                                                                    )}
+                                                                    <Input 
+                                                                        type="text"
+                                                                        inputMode="numeric" 
+                                                                        placeholder={form.watch('consignment_commission_type') === 'flat' ? "5000" : "10"} 
+                                                                        className={form.watch('consignment_commission_type') === 'flat' ? "pl-8" : ""} 
+                                                                        {...field} 
+                                                                        onChange={(e) => field.onChange(Number(e.target.value))} 
+                                                                    />
+                                                                    {form.watch('consignment_commission_type') === 'percentage' && (
+                                                                        <span className="absolute inset-y-0 right-0 flex items-center pr-3 text-muted-foreground text-xs">%</span>
+                                                                    )}
+                                                                </div>
+                                                            </FormControl>
+                                                            <FormDescription>
+                                                                {form.watch('consignment_commission_type') === 'percentage' 
+                                                                    ? "Persentase bagi hasil untuk toko dari total nilai jual."
+                                                                    : "Keuntungan tetap bagi toko per unit item terjual."}
+                                                            </FormDescription>
+                                                            <FormMessage />
+                                                        </FormItem>
+                                                    )} 
+                                                />
+                                            </div>
+                                        </>
+                                    )}
                                     <Separator />
                                     <FormField control={form.control} name="track_stock" render={({ field }) => (<FormItem className={cn("flex flex-row items-center justify-between", (hasVariant || isComposite) && "opacity-50")}><FormLabel>Lacak Stok</FormLabel><FormControl><Switch checked={(hasVariant || isComposite) ? false : field.value} onCheckedChange={field.onChange} disabled={hasVariant || isComposite} /></FormControl></FormItem>)} />
                                     <div className={cn("grid grid-cols-1 md:grid-cols-2 gap-6", (hasVariant || isComposite) && "opacity-50")}>

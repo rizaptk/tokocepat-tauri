@@ -29,6 +29,12 @@ export type ProductFormData = {
     variants?: VariantFormData[];
     imageUrl?: string;
     imageHint?: string;
+
+    // Consignment fields
+    is_consignment?: boolean;
+    consignor_name?: string;
+    consignment_commission_type?: 'percentage' | 'flat';
+    consignment_commission_value?: number;
 }
 
 /**

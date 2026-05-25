@@ -49,6 +49,13 @@ const reportLinks = [
         comingSoon: false,
     },
     {
+        title: 'Laporan Konsinyasi',
+        description: 'Tinjau bagi hasil titipan dan sisa stok harian.',
+        href: '/dashboard/reports/consignments',
+        icon: Landmark, // imported from lucide-react
+        comingSoon: false,
+    },
+    {
         title: 'Audit Bisnis',
         description: 'Rekonsiliasi margin laba dengan selisih kas.',
         href: '/dashboard/reports/profit',

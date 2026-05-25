@@ -76,6 +76,11 @@ export interface Product {
   product_type: ProductType;
   low_stock_alert?: number;
   is_composite?: boolean;
+
+  is_consignment?: boolean;
+  consignor_name?: string;
+  consignment_commission_type?: 'percentage' | 'flat';
+  consignment_commission_value?: number;
 }
 
 export interface SelectedModifier {

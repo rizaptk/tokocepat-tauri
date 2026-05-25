@@ -42,10 +42,12 @@ const reasonOptions: Record<'add' | 'remove' | 'count', { id: string, value: Sto
         { id: 'remove-damaged', value: 'damaged', label: 'Barang Rusak' },
         { id: 'remove-lost', value: 'lost', label: 'Barang Hilang' },
         { id: 'remove-internal', value: 'correction', label: 'Pemakaian Internal' },
+        { id: 'remove-consignor-return', value: 'correction', label: 'Retur Titipan / Konsinyasi' },
         { id: 'remove-other', value: 'correction', label: 'Lainnya' }
     ],
     count: [
         { id: 'count-correction', value: 'correction', label: 'Koreksi Stok Opname' },
+        { id: 'count-consignor', value: 'correction', label: 'Koreksi Retur Konsinyasi' },
         { id: 'count-audit', value: 'correction', label: 'Audit Akhir Bulan' },
         { id: 'count-other', value: 'correction', label: 'Lainnya' }
     ]
@@ -448,6 +450,16 @@ const InventoryListItem = ({ item, isSelected, onItemClick, categories, isEven }
 
     const { icon: ItemIcon, badge: badgeVariant } = typeConfig[item.itemType];
 
+    const isConsignment = item.itemType === 'product' && (item as Product).is_consignment;
+    const consignorName = item.itemType === 'product' && (item as Product).consignor_name;
+    const commissionType = item.itemType === 'product' && (item as Product).consignment_commission_type;
+    const commissionValue = item.itemType === 'product' && (item as Product).consignment_commission_value;
+    const formattedCommission = isConsignment && commissionValue !== undefined
+        ? (commissionType === 'flat' 
+            ? `Rp ${commissionValue.toLocaleString('id-ID')}` 
+            : `${commissionValue}%`)
+        : '';
+
     return (
         <div className="bg-card border-x border-b border-b-border/50 p-0 h-14">
             <div
@@ -460,6 +472,11 @@ const InventoryListItem = ({ item, isSelected, onItemClick, categories, isEven }
             >
                 <div className={ColumnClass.name}>
                     <p className="font-medium truncate">{displayName}</p>
+                    {isConsignment && (
+                        <span className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold truncate">
+                            Titipan: {consignorName} ({formattedCommission})
+                        </span>
+                    )}
                 </div>
                 <div className={ColumnClass.type}>
                     <Badge variant={badgeVariant as any} className="text-[10px] uppercase px-2 py-0.5 border border-border">
@@ -514,6 +531,18 @@ export default function InventoryPage() {
                 break;
             case 'variant':
                  combined = combined.filter(item => item.itemType === 'variant');
+                break;
+            case 'consignment':
+                combined = combined.filter(item => {
+                    if (item.itemType === 'product') {
+                        return (item as Product).is_consignment === true;
+                    }
+                    if (item.itemType === 'variant') {
+                        const parent = products.find(p => p.id === (item as ProductVariant).product_id);
+                        return parent?.is_consignment === true;
+                    }
+                    return false;
+                });
                 break;
             case 'low_stock':
                 combined = combined.filter(item => {
@@ -660,6 +689,8 @@ export default function InventoryPage() {
                         <div className="flex items-center gap-4 overflow-x-auto no-scrollbar">
                             <Button variant={filter === 'all' ? 'secondary' : 'outline'} onClick={() => setFilter('all')} className="rounded-full px-4 shrink-0">All</Button>
                             <Button variant={filter === 'product' ? 'secondary' : 'outline'} onClick={() => setFilter('product')} className="rounded-full px-4 shrink-0">Produk</Button>
+                            {/* Consignment inventory filter */}
+                            <Button variant={filter === 'consignment' ? 'secondary' : 'outline'} onClick={() => setFilter('consignment')} className="rounded-full px-4 shrink-0">Titipan / Konsinyasi</Button>
                             <Button variant={filter === 'ingredient' ? 'secondary' : 'outline'} onClick={() => setFilter('ingredient')} className="rounded-full px-4 shrink-0">Bahan</Button>
                             <Button variant={filter === 'variant' ? 'secondary' : 'outline'} onClick={() => setFilter('variant')} className="rounded-full px-4 shrink-0">Varian</Button>
                             

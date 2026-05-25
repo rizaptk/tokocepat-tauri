@@ -40,8 +40,8 @@ const getTaxRateForItem = (item: CartItem, storeConfig: StoreConfig): number => 
     }
 
     // 2. Check for product type override
-    if (item.product_type === 'food_and_beverage' && typeof tax_settings.product_type_overrides.food_and_beverage === 'number') {
-        return tax_settings.product_type_overrides.food_and_beverage!;
+    if (item.product_type === 'food_and_beverage' && typeof tax_settings.product_type_overrides?.food_and_beverage === 'number') {
+        return tax_settings.product_type_overrides.food_and_beverage;
     }
 
     // 3. Fallback to default rate from new system
@@ -84,28 +84,51 @@ export const createTransaction = async (cart: CartItem[], activeShift: Shift, st
       invoice_number: invoiceNumber,
       shift_id: activeShift.id,
       status: 'paid',
-      items: cart.map(item => ({
-        id: `tx-item-${crypto.randomUUID().slice(0, 8)}`,
-        transaction_id: transactionId,
-        product_snapshot: {
-            id: item.id,
-            name: item.selectedVariant ? `${item.name} (${item.selectedVariant.name})` : item.name,
-            price: item.price,
-            imageUrl: item.imageUrl,
-            imageHint: item.imageHint,
-            category_id: item.category_id,
-            cost_price: item.cost_price,
-            sku: item.selectedVariant ? item.selectedVariant.sku : item.sku,
-            barcode: item.barcode,
-            product_type: item.product_type,
-            is_composite: item.is_composite,
-        },
-        selected_modifiers_snapshot: item.selectedModifiers,
-        price_snapshot: item.price,
-        cost_snapshot: item.cost_price,
-        qty: item.quantity,
-        subtotal: item.price * item.quantity,
-      })),
+      items: cart.map(item => {
+        // --- CONSIGNMENT COST DEDUCTION LOGIC ---
+        let effectiveCost = item.cost_price || 0; // Fallback to standard cost price
+        
+        if (item.is_consignment) {
+            const commType = item.consignment_commission_type;
+            const commVal = item.consignment_commission_value || 0;
+            const sellingPrice = item.price; // Dynamic price (includes variants/modifiers)
+            
+            if (commType === 'percentage') {
+                const storeCommission = sellingPrice * (commVal / 100);
+                effectiveCost = sellingPrice - storeCommission; // Owed portion to consignor (HPP)
+            } else if (commType === 'flat') {
+                effectiveCost = Math.max(0, sellingPrice - commVal); // Owed portion to consignor (HPP)
+            }
+        }
+
+        return {
+            id: `tx-item-${crypto.randomUUID().slice(0, 8)}`,
+            transaction_id: transactionId,
+            product_snapshot: {
+                id: item.id,
+                name: item.selectedVariant ? `${item.name} (${item.selectedVariant.name})` : item.name,
+                price: item.price,
+                imageUrl: item.imageUrl,
+                imageHint: item.imageHint,
+                category_id: item.category_id,
+                cost_price: effectiveCost, // Store computed payout cost
+                sku: item.selectedVariant ? item.selectedVariant.sku : item.sku,
+                barcode: item.barcode,
+                product_type: item.product_type,
+                is_composite: item.is_composite,
+                // Optional: Store consignment metadata for future auditing reports
+                is_consignment: item.is_consignment,
+                consignor_name: item.consignor_name,
+                consignment_commission_type: item.consignment_commission_type,
+                consignment_commission_value: item.consignment_commission_value,
+            },
+            selected_modifiers_snapshot: item.selectedModifiers,
+            price_snapshot: item.price,
+            cost_snapshot: effectiveCost, // Saved as cost_snapshot (HPP)
+            qty: item.quantity,
+            subtotal: item.price * item.quantity,
+        };
+      }),
       subtotal,
       tax_amount,
       total,

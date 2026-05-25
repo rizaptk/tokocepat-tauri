@@ -22,7 +22,7 @@ const getTaxRateForItem = (item: any, storeConfig: StoreConfig): number => {
 
     // Check product type override (using snapshot data)
     if (item.product_snapshot.product_type === 'food_and_beverage' && 
-        tax_settings.product_type_overrides.food_and_beverage !== undefined) {
+        tax_settings.product_type_overrides?.food_and_beverage !== undefined) {
         return tax_settings.product_type_overrides.food_and_beverage;
     }
 

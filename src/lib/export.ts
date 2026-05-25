@@ -38,39 +38,54 @@ async function saveFileNative(data: Uint8Array, defaultFilename: string, extensi
 
 
 // sales export
-export const exportSalesToExcel = async (transactions: Transaction[], dateRange: { from: Date, to: Date }, storeName: string) => {
+// lib/export.ts
 
+export const exportSalesToExcel = async (transactions: Transaction[], dateRange: { from: Date, to: Date }, storeName: string) => {
     const dataForExport = transactions.map(tx => {
-        const txCost = tx.items.reduce((itemSum, item) => itemSum + ((item.cost_snapshot || 0) * item.qty), 0);
-        const txProfit = tx.subtotal - txCost;
+        let stdCost = 0;
+        let consPayout = 0;
+        
+        tx.items.forEach(item => {
+            const costVal = (item.cost_snapshot || 0) * item.qty;
+            if (item.product_snapshot.is_consignment) {
+                consPayout += costVal;
+            } else {
+                stdCost += costVal;
+            }
+        });
+
+        const txProfit = tx.subtotal - stdCost - consPayout;
 
         return {
             'Date': format(new Date(tx.created_at), 'yyyy-MM-dd HH:mm:ss'),
             'Invoice #': tx.invoice_number,
             'Items': tx.items.reduce((sum, item) => sum + item.qty, 0),
             'Subtotal': tx.subtotal,
-            'Cost': txCost,
+            'HPP Standar Toko': stdCost,
+            'Bagi Hasil Titipan': consPayout,
             'Profit': txProfit,
-            'Tax': tx.tax_amount,
+            'Tax (Pajak)': tx.tax_amount, // Preserved Tax Column
             'Total': tx.total,
         };
     });
 
-    // Add summary row
+    // Calculate totals summary row
     const totalRevenue = transactions.reduce((sum, tx) => sum + tx.total, 0);
-    const totalProfit = dataForExport.reduce((sum, row) => sum + row.Profit, 0);
     const totalTax = transactions.reduce((sum, tx) => sum + tx.tax_amount, 0);
     const totalSubtotal = transactions.reduce((sum, tx) => sum + tx.subtotal, 0);
-    const totalCost = dataForExport.reduce((sum, row) => sum + row.Cost, 0);
+    const totalStandardCost = dataForExport.reduce((sum, row) => sum + row['HPP Standar Toko'], 0);
+    const totalConsignmentPayout = dataForExport.reduce((sum, row) => sum + row['Bagi Hasil Titipan'], 0);
+    const totalProfit = dataForExport.reduce((sum, row) => sum + row.Profit, 0);
 
     const summary = {
         'Date': 'TOTAL',
         'Invoice #': '',
         'Items': '',
         'Subtotal': totalSubtotal,
-        'Cost': totalCost,
+        'HPP Standar Toko': totalStandardCost,
+        'Bagi Hasil Titipan': totalConsignmentPayout,
         'Profit': totalProfit,
-        'Tax': totalTax,
+        'Tax (Pajak)': totalTax,
         'Total': totalRevenue,
     };
 
@@ -81,7 +96,6 @@ export const exportSalesToExcel = async (transactions: Transaction[], dateRange:
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Laporan Penjualan');
 
     const range = format(dateRange.from, 'yyyy-MM-dd') + '_to_' + format(dateRange.to, 'yyyy-MM-dd');
-    // XLSX.writeFile(workbook, `sales_report_${storeName.replace(/\s+/g, '_')}_${range}.xlsx`);
     const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
     const uint8Array = new Uint8Array(excelBuffer);
 
@@ -94,13 +108,15 @@ export const exportSalesToPdf = async (transactions: Transaction[], dateRange: {
     const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
     const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
     
-    const fontSize = 10;
-    const bodyFontSize = 8;
-    const margin = 40;
-    const tableHeaders = ['Tanggal', 'Invoice', 'Qty', 'Subtotal', 'Modal', 'Laba', 'Pajak', 'Total'];
-    const colWidths = [85, 80, 25, 65, 65, 65, 55, 70];
+    const fontSize = 9;
+    const bodyFontSize = 7; // Font size slightly reduced to 7pt to comfortably fit all 9 columns
+    const margin = 35;
+    
+    // Printable A4 width is 595 - 70 = 525 units.
+    // Sum of colWidths below is 518 units, ensuring complete alignment without overflow.
+    const tableHeaders = ['Tanggal', 'Invoice', 'Qty', 'Subtotal', 'HPP Toko', 'Titipan', 'Laba', 'Pajak', 'Total'];
+    const colWidths = [72, 78, 18, 57, 57, 57, 57, 50, 72];
 
-    // --- HELPER: Fungsi khusus menggambar header tabel ---
     const drawTableHeader = (page: any, yPos: number) => {
         const { width } = page.getSize();
         let currentX = margin;
@@ -114,68 +130,74 @@ export const exportSalesToPdf = async (transactions: Transaction[], dateRange: {
             end: { x: width - margin, y: lineY },
             thickness: 1,
         });
-        return lineY - 15; // Mengembalikan posisi Y untuk baris pertama data
+        return lineY - 15;
     };
 
-    // --- HALAMAN 1: Setup Awal ---
     let currentPage = pdfDoc.addPage();
     const { height } = currentPage.getSize();
     let y = height - margin;
 
-    // 1. Gambar Judul & Ringkasan Laporan
-    currentPage.drawText(`${storeName} - Laporan Penjualan`, { x: margin, y, font: boldFont, size: 16 });
+    currentPage.drawText(`${storeName} - Laporan Penjualan`, { x: margin, y: y, font: boldFont, size: 16 });
     y -= 25;
-    currentPage.drawText(`Periode: ${format(dateRange.from, 'dd MMM yyyy')} - ${format(dateRange.to, 'dd MMM yyyy')}`, { x: margin, y, font, size: 10 });
+    currentPage.drawText(`Periode: ${format(dateRange.from, 'dd MMM yyyy')} - ${format(dateRange.to, 'dd MMM yyyy')}`, { x: margin, y: y, font: font, size: 10 });
     y -= 30;
 
     const totalRevenue = transactions.reduce((sum, tx) => sum + tx.total, 0);
     const totalTax = transactions.reduce((sum, tx) => sum + tx.tax_amount, 0);
     
-    currentPage.drawText(`Total Omzet: ${formatCurrency(totalRevenue)}`, { x: margin, y, font, size: 9 });
-    currentPage.drawText(`Total Transaksi: ${transactions.length}`, { x: margin + 200, y, font, size: 9 });
+    currentPage.drawText(`Total Omzet: ${formatCurrency(totalRevenue)}`, { x: margin, y: y, font: font, size: 9 });
+    currentPage.drawText(`Total Transaksi: ${transactions.length}`, { x: margin + 200, y: y, font: font, size: 9 });
     y -= 15;
-    currentPage.drawText(`Total Pajak: ${formatCurrency(totalTax)}`, { x: margin, y, font, size: 9 });
+    currentPage.drawText(`Total Pajak: ${formatCurrency(totalTax)}`, { x: margin, y: y, font: font, size: 9 });
     
-    // 2. Gambar Header Tabel di Halaman 1 (Diberi jarak dari ringkasan)
     y -= 40; 
     y = drawTableHeader(currentPage, y);
 
-    // --- LOOP DATA ---
     for (const tx of transactions) {
-        // Cek jika ruang tidak cukup, pindah halaman
         if (y < 50) {
             currentPage = pdfDoc.addPage();
-            y = height - margin; // Mulai dari paling atas di halaman baru
+            y = height - margin;
             y = drawTableHeader(currentPage, y);
         }
 
-        const txCost = tx.items.reduce((itemSum, item) => itemSum + ((item.cost_snapshot || 0) * item.qty), 0);
-        const txProfit = tx.subtotal - txCost;
+        let stdCost = 0;
+        let consPayout = 0;
+        
+        tx.items.forEach(item => {
+            const costVal = (item.cost_snapshot || 0) * item.qty;
+            if (item.product_snapshot.is_consignment) {
+                consPayout += costVal;
+            } else {
+                stdCost += costVal;
+            }
+        });
+
+        const txProfit = tx.subtotal - stdCost - consPayout;
 
         const row = [
             format(new Date(tx.created_at), 'yyyy-MM-dd HH:mm'),
             tx.invoice_number,
             tx.items.reduce((sum, item) => sum + item.qty, 0).toString(),
             formatCurrency(tx.subtotal),
-            formatCurrency(txCost),
+            formatCurrency(stdCost),
+            formatCurrency(consPayout),
             formatCurrency(txProfit),
-            formatCurrency(tx.tax_amount),
+            formatCurrency(tx.tax_amount), // Re-introduced Tax Column
             formatCurrency(tx.total)
         ];
 
         let currentX = margin;
         row.forEach((cell, i) => {
-            currentPage.drawText(cell, { x: currentX, y, font, size: bodyFontSize });
+            currentPage.drawText(cell, { x: currentX, y: y, font: font, size: bodyFontSize });
             currentX += colWidths[i];
         });
 
         y -= 14; 
     }
 
-    // --- SIMPAN ---
     const pdfBytes = await pdfDoc.save();
     const range = format(dateRange.from, 'yyyy-MM-dd') + '_to_' + format(dateRange.to, 'yyyy-MM-dd');
-    const filename = `laporan_penjualan_${storeName.replace(/\s+/g, '_')}_${range}.pdf`;
+    const filename = `sales_report_${storeName.replace(/\s+/g, '_')}_${range}.pdf`;
     await saveFileNative(pdfBytes, filename, [{ name: 'PDF', extensions: ['pdf'] }]);
 };
 
@@ -841,13 +863,38 @@ export const exportAuditReportToExcel = async (auditData: any[], dateRange: { fr
         'Date': format(new Date(row.date), 'yyyy-MM-dd'),
         'Shift ID': row.shiftId,
         'Revenue': row.revenue,
-        'Paper Profit': row.paperProfit,
+        'HPP Standar Toko': row.standardHPP,
+        'Bagi Hasil Titipan': row.consignmentPayout,
+        'Margin Laba (Paper Profit)': row.paperProfit,
         'Cash Variance': row.variance,
         'Net Realized Profit': row.actualProfit,
         'TX Count': row.txCount
     }));
 
+    // Add totals summary row
+    const totalRevenue = auditData.reduce((sum, row) => sum + row.revenue, 0);
+    const totalStandardHPP = auditData.reduce((sum, row) => sum + row.standardHPP, 0);
+    const totalConsignmentPayout = auditData.reduce((sum, row) => sum + row.consignmentPayout, 0);
+    const totalPaperProfit = auditData.reduce((sum, row) => sum + row.paperProfit, 0);
+    const totalVariance = auditData.reduce((sum, row) => sum + row.variance, 0);
+    const totalActualProfit = auditData.reduce((sum, row) => sum + row.actualProfit, 0);
+    const totalTXCount = auditData.reduce((sum, row) => sum + row.txCount, 0);
+
+    const summary = {
+        'Date': 'TOTAL',
+        'Shift ID': '',
+        'Revenue': totalRevenue,
+        'HPP Standar Toko': totalStandardHPP,
+        'Bagi Hasil Titipan': totalConsignmentPayout,
+        'Margin Laba (Paper Profit)': totalPaperProfit,
+        'Cash Variance': totalVariance,
+        'Net Realized Profit': totalActualProfit,
+        'TX Count': totalTXCount
+    };
+
     const worksheet = XLSX.utils.json_to_sheet(dataForExport);
+    XLSX.utils.sheet_add_json(worksheet, [summary], { origin: -1, skipHeader: true });
+
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Audit Report');
 
@@ -863,33 +910,38 @@ export const exportAuditReportToPdf = async (auditData: any[], dateRange: { from
     const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
     const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
     
-    const margin = 50;
-    const tableHeaders = ['Tanggal', 'Omzet', 'Margin', 'Selisih', 'Laba Bersih'];
-    const colWidths = [90, 105, 105, 105, 100];
+    const margin = 35;
+    // Standard A4 printable width is 595 - 70 = 525 unit. 
+    // We adjust table widths and decrease cell sizes to ensure standardHPP and consignmentPayout fit.
+    const tableHeaders = ['Tanggal', 'Omzet', 'HPP Toko', 'Titipan', 'Margin', 'Selisih', 'Laba Riil'];
+    const colWidths = [70, 75, 75, 75, 75, 75, 80];
 
     const drawTableHeader = (page: any, yPos: number) => {
+        const { width } = page.getSize();
         let xPos = margin;
         tableHeaders.forEach((h, i) => {
-            page.drawText(h, { x: xPos, y: yPos, font: boldFont, size: 10 });
+            page.drawText(h, { x: xPos, y: yPos, font: boldFont, size: 8 });
             xPos += colWidths[i];
         });
-        return yPos - 20;
+        const lineY = yPos - 5;
+        page.drawLine({ start: { x: margin, y: lineY }, end: { x: width - margin, y: lineY }, thickness: 1 });
+        return lineY - 15;
     };
 
-    let currentPage = pdfDoc.addPage();
+    let currentPage = pdfDoc.addPage(PageSizes.A4);
     const { height } = currentPage.getSize();
     let y = height - margin;
 
-    currentPage.drawText(`${storeName} - AUDIT BISNIS`, { x: margin, y, font: boldFont, size: 18 });
-    y -= 30;
-    currentPage.drawText(`Periode: ${format(dateRange.from, 'dd MMM yyyy')} - ${format(dateRange.to, 'dd MMM yyyy')}`, { x: margin, y, font, size: 10 });
-    y -= 40;
+    currentPage.drawText(`${storeName.toUpperCase()} - AUDIT BISNIS`, { x: margin, y: y, font: boldFont, size: 16 });
+    y -= 20;
+    currentPage.drawText(`Periode: ${format(dateRange.from, 'dd MMM yyyy')} - ${format(dateRange.to, 'dd MMM yyyy')}`, { x: margin, y: y, font: font, size: 9 });
+    y -= 35;
 
     y = drawTableHeader(currentPage, y);
 
     auditData.forEach(row => {
         if (y < 60) {
-            currentPage = pdfDoc.addPage();
+            currentPage = pdfDoc.addPage(PageSizes.A4);
             y = height - margin;
             y = drawTableHeader(currentPage, y);
         }
@@ -897,6 +949,8 @@ export const exportAuditReportToPdf = async (auditData: any[], dateRange: { from
         const cells = [
             format(new Date(row.date), 'dd/MM/yyyy'),
             formatCurrency(row.revenue),
+            formatCurrency(row.standardHPP),
+            formatCurrency(row.consignmentPayout),
             formatCurrency(row.paperProfit),
             formatCurrency(row.variance),
             formatCurrency(row.actualProfit)
@@ -904,10 +958,16 @@ export const exportAuditReportToPdf = async (auditData: any[], dateRange: { from
 
         let xPos = margin;
         cells.forEach((c, i) => {
-            currentPage.drawText(c, { x: xPos, y, font, size: 9 });
+            currentPage.drawText(c, { 
+                x: xPos, 
+                y: y, 
+                font: i === 6 ? boldFont : font, 
+                size: 7.5,
+                color: i === 5 && row.variance !== 0 ? rgb(0.8, 0, 0) : rgb(0, 0, 0)
+            });
             xPos += colWidths[i];
         });
-        y -= 18;
+        y -= 15;
     });
 
     const pdfBytes = await pdfDoc.save();
@@ -1212,3 +1272,195 @@ export const exportBarcodeStickersToPdf = async (
     await saveFileNative(pdfBytes, filename, [{ name: 'PDF', extensions: ['pdf'] }]);
 
 }
+
+
+export const exportConsignorReportToExcel = async (
+    reportData: any[], 
+    dateRange: { from: Date, to: Date }, 
+    storeName: string
+) => {
+    // Map data for clean Excel columns
+    const dataForExport = reportData.map(item => ({
+        'Nama Penitip': item.consignorName,
+        'Nama Produk': item.productName,
+        'Harga Jual': item.price,
+        'Masuk (Pagi)': item.supplied,
+        'Terjual': item.sold,
+        'Ditarik/Sisa (Sore)': item.returned,
+        'Tipe Komisi': item.commissionType === 'flat' ? 'Flat / Rupiah' : 'Persentase',
+        'Nilai Komisi': item.commissionValue,
+        'Total Komisi Toko': item.storeCommission,
+        'Bagi Hasil Penitip': item.consignorShare,
+    }));
+
+    // Calculate Grand Totals
+    const totalSupplied = reportData.reduce((sum, item) => sum + item.supplied, 0);
+    const totalSold = reportData.reduce((sum, item) => sum + item.sold, 0);
+    const totalReturned = reportData.reduce((sum, item) => sum + item.returned, 0);
+    const totalStoreCommission = reportData.reduce((sum, item) => sum + item.storeCommission, 0);
+    const totalConsignorShare = reportData.reduce((sum, item) => sum + item.consignorShare, 0);
+
+    const summary = {
+        'Nama Penitip': 'TOTAL',
+        'Nama Produk': '',
+        'Harga Jual': '',
+        'Masuk (Pagi)': totalSupplied,
+        'Terjual': totalSold,
+        'Ditarik/Sisa (Sore)': totalReturned,
+        'Tipe Komisi': '',
+        'Nilai Komisi': '',
+        'Total Komisi Toko': totalStoreCommission,
+        'Bagi Hasil Penitip': totalConsignorShare,
+    };
+
+    const worksheet = XLSX.utils.json_to_sheet(dataForExport);
+    XLSX.utils.sheet_add_json(worksheet, [summary], { origin: -1, skipHeader: true });
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Laporan Konsinyasi');
+
+    const range = format(dateRange.from, 'yyyy-MM-dd') + '_to_' + format(dateRange.to, 'yyyy-MM-dd');
+    const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+    const uint8Array = new Uint8Array(excelBuffer);
+
+    const filename = `laporan_payout_konsinyasi_${storeName.replace(/\s+/g, '_')}_${range}.xlsx`;
+    await saveFileNative(uint8Array, filename, [{ name: 'Excel', extensions: ['xlsx'] }]);
+};
+
+export const exportConsignorReportToPdf = async (
+    reportData: any[], 
+    dateRange: { from: Date, to: Date }, 
+    storeName: string
+) => {
+    const pdfDoc = await PDFDocument.create();
+    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+    
+    const margin = 40;
+    const fontSize = 9;
+    const bodyFontSize = 8;
+    
+    // Total column space A4 printable area ~495pt
+    const tableHeaders = ['Produk', 'Harga', 'Masuk', 'Laku', 'Sisa', 'Komisi', 'Bagi Hasil'];
+    const colWidths = [135, 65, 40, 40, 40, 75, 80];
+
+    const drawTableHeader = (page: any, yPos: number) => {
+        const { width } = page.getSize();
+        let xPos = margin;
+        tableHeaders.forEach((h, i) => {
+            page.drawText(h, { x: xPos, y: yPos, font: boldFont, size: fontSize });
+            xPos += colWidths[i];
+        });
+        const lineY = yPos - 5;
+        page.drawLine({ start: { x: margin, y: lineY }, end: { x: width - margin, y: lineY }, thickness: 1 });
+        return lineY - 15;
+    };
+
+    let currentPage = pdfDoc.addPage(PageSizes.A4);
+    const { width, height } = currentPage.getSize();
+    let y = height - margin;
+
+    // --- REPORT TITLE & INFO ---
+    currentPage.drawText(`${storeName.toUpperCase()}`, { x: margin, y: y, font: boldFont, size: 16 });
+    y -= 18;
+    currentPage.drawText(`LAPORAN BAGI HASIL TITIPAN (KONSINYASI)`, { x: margin, y: y, font: boldFont, size: 12, color: rgb(0.3, 0.3, 0.3) });
+    y -= 15;
+    currentPage.drawText(`Periode: ${format(dateRange.from, 'dd MMM yyyy')} - ${format(dateRange.to, 'dd MMM yyyy')}`, { x: margin, y: y, font: font, size: 10 });
+    y -= 30;
+
+    // --- GRAND TOTAL SUMMARY BLOCK ---
+    const totalSupplied = reportData.reduce((sum, item) => sum + item.supplied, 0);
+    const totalSold = reportData.reduce((sum, item) => sum + item.sold, 0);
+    const totalStoreCommission = reportData.reduce((sum, item) => sum + item.storeCommission, 0);
+    const totalPayout = reportData.reduce((sum, item) => sum + item.consignorShare, 0);
+
+    const boxHeight = 75;
+    const boxY = y - boxHeight;
+
+    currentPage.drawRectangle({
+        x: margin,
+        y: boxY,
+        width: width - (margin * 2),
+        height: boxHeight,
+        color: rgb(0.96, 0.96, 0.96),
+    });
+
+    let kpiY = (boxY + boxHeight) - 15;
+    currentPage.drawText(`Total Barang Masuk: ${totalSupplied} unit`, { x: margin + 15, y: kpiY, font: font, size: 8 });
+    currentPage.drawText(`Total Barang Terjual: ${totalSold} unit`, { x: margin + 220, y: kpiY, font: font, size: 8 });
+    
+    kpiY -= 15;
+    currentPage.drawText(`Total Komisi Toko:`, { x: margin + 15, y: kpiY, font: font, size: 9 });
+    currentPage.drawText(formatCurrency(totalStoreCommission), { x: margin + 130, y: kpiY, font: boldFont, size: 9 });
+
+    kpiY -= 20;
+    currentPage.drawText(`TOTAL SIAP BAYAR KE PENITIP:`, { x: margin + 15, y: kpiY, font: boldFont, size: 10 });
+    currentPage.drawText(formatCurrency(totalPayout), { x: margin + 220, y: kpiY, font: boldFont, size: 10, color: rgb(0, 0.5, 0.2) });
+
+    y = boxY - 30;
+    y = drawTableHeader(currentPage, y);
+
+    // --- GROUP BY CONSIGNOR LOGIC ---
+    const groupedByConsignor = reportData.reduce((acc: any, item: any) => {
+        const key = item.consignorName || 'Umum';
+        if (!acc[key]) acc[key] = [];
+        acc[key].push(item);
+        return acc;
+    }, {});
+
+    for (const [consignor, items] of Object.entries(groupedByConsignor)) {
+        if (y < 80) {
+            currentPage = pdfDoc.addPage(PageSizes.A4);
+            y = height - margin;
+            y = drawTableHeader(currentPage, y);
+        }
+
+        currentPage.drawText(`PENITIP: ${consignor.toUpperCase()}`, { x: margin, y: y, font: boldFont, size: 10, color: rgb(0.1, 0.4, 0.7) });
+        y -= 15;
+
+        let consignorTotalPayout = 0;
+
+        for (const item of (items as any[])) {
+            if (y < 50) {
+                currentPage = pdfDoc.addPage(PageSizes.A4);
+                y = height - margin;
+                y = drawTableHeader(currentPage, y);
+            }
+
+            consignorTotalPayout += item.consignorShare;
+
+            const row = [
+                item.productName.length > 25 ? item.productName.substring(0, 22) + "..." : item.productName,
+                formatCurrency(item.price),
+                item.supplied.toString(),
+                item.sold.toString(),
+                item.returned.toString(),
+                formatCurrency(item.storeCommission),
+                formatCurrency(item.consignorShare)
+            ];
+
+            let xPos = margin;
+            row.forEach((cell, i) => {
+                currentPage.drawText(cell, { x: xPos, y: y, font: font, size: bodyFontSize });
+                xPos += colWidths[i];
+            });
+            y -= 13;
+        }
+
+        // Draw subtotal separator line
+        currentPage.drawLine({
+            start: { x: margin, y: y + 5 },
+            end: { x: width - margin, y: y + 5 },
+            thickness: 0.5,
+            color: rgb(0.8, 0.8, 0.8)
+        });
+
+        currentPage.drawText(`Total Bayar (${consignor}):`, { x: margin + 180, y: y, font: boldFont, size: 8 });
+        currentPage.drawText(formatCurrency(consignorTotalPayout), { x: margin + 380, y: y, font: boldFont, size: 8, color: rgb(0, 0.5, 0.2) });
+        y -= 25;
+    }
+
+    const pdfBytes = await pdfDoc.save();
+    const rangeStr = format(dateRange.from, 'yyyyMMdd') + '-' + format(dateRange.to, 'yyyyMMdd');
+    await saveFileNative(pdfBytes, `laporan_payout_titipan_${rangeStr}.pdf`, [{ name: 'PDF', extensions: ['pdf'] }]);
+};

@@ -54,15 +54,31 @@ export default function TaxReportPage() {
                 let rate = storeConfig.tax_settings?.default_rate ?? storeConfig.tax_rate;
                 const catOverride = storeConfig.tax_settings?.category_overrides.find(co => co.category_id === item.product_snapshot.category_id);
                 if (catOverride) rate = catOverride.tax_rate;
-                else if (item.product_snapshot.product_type === 'food_and_beverage' && storeConfig.tax_settings?.product_type_overrides.food_and_beverage !== undefined) {
+                else if (item.product_snapshot.product_type === 'food_and_beverage' && 
+                storeConfig.tax_settings?.product_type_overrides?.food_and_beverage !== undefined) {
                     rate = storeConfig.tax_settings.product_type_overrides.food_and_beverage;
+                }
+
+                // --- CONSIGNMENT TAX BASE ADJUSTMENT ---
+                let taxableBase = item.subtotal;
+                const isConsignment = item.product_snapshot.is_consignment;
+                
+                if (isConsignment) {
+                    const commType = item.product_snapshot.consignment_commission_type;
+                    const commVal = item.product_snapshot.consignment_commission_value || 0;
+                    
+                    if (commType === 'percentage') {
+                        taxableBase = item.subtotal * (commVal / 100); // Tax only on store's % commission
+                    } else { // flat
+                        taxableBase = commVal * item.qty; // Tax only on flat commission rate
+                    }
                 }
 
                 const currentGroup = groups.get(rate) || { rate, taxableAmount: 0, taxAmount: 0 };
                 groups.set(rate, {
                     rate,
-                    taxableAmount: currentGroup.taxableAmount + item.subtotal,
-                    taxAmount: currentGroup.taxAmount + (item.subtotal * rate)
+                    taxableAmount: currentGroup.taxableAmount + taxableBase,
+                    taxAmount: currentGroup.taxAmount + (taxableBase * rate)
                 });
             });
         });

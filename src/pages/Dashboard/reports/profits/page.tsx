@@ -3,7 +3,7 @@ import * as React from 'react';
 import { useState, useMemo, useEffect } from 'react';
 import { DateRange } from 'react-day-picker';
 import { endOfDay, startOfDay, subDays, format } from 'date-fns';
-import { ArrowLeft, ShieldCheck, DollarSign, Calculator, AlertCircle, TrendingUp, Loader2, FileDown } from 'lucide-react';
+import { ArrowLeft, ShieldCheck, DollarSign, TrendingUp, Loader2, FileDown, Package, Wallet } from 'lucide-react';
 import { exportAuditReportToExcel, exportAuditReportToPdf } from '@/lib/export';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
@@ -39,9 +39,14 @@ export default function AuditReportPage() {
         if (!date?.from || !date?.to) return;
         const fetchData = async () => {
             setIsLoading(true);
-            const txData = await getTransactionsByDateRange(date.from!, date.to!);
-            setTransactions(txData);
-            setIsLoading(false);
+            try {
+                const txData = await getTransactionsByDateRange(date.from!, date.to!);
+                setTransactions(txData);
+            } catch (err) {
+                console.error("Gagal mengambil data transaksi:", err);
+            } finally {
+                setIsLoading(false);
+            }
         };
         fetchData();
     }, [date]);
@@ -63,19 +68,35 @@ export default function AuditReportPage() {
             
             const revenue = shiftTx.reduce((sum, tx) => sum + tx.total, 0);
             const subtotal = shiftTx.reduce((sum, tx) => sum + tx.subtotal, 0);
-            const cost = shiftTx.reduce((sum, tx) => {
-                return sum + tx.items.reduce((iSum, i) => iSum + ((i.cost_snapshot || 0) * i.qty), 0);
-            }, 0);
+            
+            // --- SPLIT INVENTORY COGS AND CONSIGNMENT PAYOUTS ---
+            let standardHPP = 0;
+            let consignmentPayout = 0;
 
-            const paperProfit = subtotal - cost;
+            shiftTx.forEach(tx => {
+                tx.items.forEach(i => {
+                    const isCons = i.product_snapshot.is_consignment;
+                    const costVal = (i.cost_snapshot || 0) * i.qty;
+                    if (isCons) {
+                        consignmentPayout += costVal;
+                    } else {
+                        standardHPP += costVal;
+                    }
+                });
+            });
+
+            // Profit = Subtotal (Omzet Netto) - Total Costs (COGS + Payouts)
+            const paperProfit = subtotal - (standardHPP + consignmentPayout);
             const variance = shift.variance || 0;
-            const actualProfit = paperProfit + variance; // Adjust profit by drawer errors
+            const actualProfit = paperProfit + variance; // Adjust profit by cash register variance
 
             return {
                 shiftId: shift.id,
                 date: shift.closed_at!,
                 revenue,
                 paperProfit,
+                standardHPP,
+                consignmentPayout,
                 variance,
                 actualProfit,
                 txCount: shiftTx.length
@@ -85,14 +106,16 @@ export default function AuditReportPage() {
 
     const stats = useMemo(() => {
         const totalRevenue = auditData.reduce((sum, row) => sum + row.revenue, 0);
+        const totalStandardHPP = auditData.reduce((sum, row) => sum + row.standardHPP, 0);
+        const totalConsignmentPayout = auditData.reduce((sum, row) => sum + row.consignmentPayout, 0);
         const totalPaperProfit = auditData.reduce((sum, row) => sum + row.paperProfit, 0);
         const totalVariance = auditData.reduce((sum, row) => sum + row.variance, 0);
         const totalNetProfit = totalPaperProfit + totalVariance;
 
         return [
-            { title: 'Total Omzet', value: formatCurrency(totalRevenue), icon: DollarSign, color: '' },
-            { title: 'Laba Operasional', value: formatCurrency(totalPaperProfit), icon: Calculator, color: '' },
-            { title: 'Selisih Kas', value: formatCurrency(totalVariance), icon: AlertCircle, color: totalVariance < 0 ? 'text-destructive' : 'text-green-600' },
+            { title: 'Total Omzet (Gross)', value: formatCurrency(totalRevenue), icon: DollarSign, color: '' },
+            { title: 'HPP Inventori Toko', value: formatCurrency(totalStandardHPP), icon: Package, color: 'text-muted-foreground' },
+            { title: 'Bagi Hasil Titipan', value: formatCurrency(totalConsignmentPayout), icon: Wallet, color: 'text-amber-600 dark:text-amber-400' },
             { title: 'Laba Bersih Riil', value: formatCurrency(totalNetProfit), icon: TrendingUp, color: 'text-primary' },
         ];
     }, [auditData]);
@@ -117,6 +140,7 @@ export default function AuditReportPage() {
            </header>
 
           <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
+            {/* KPI Cards */}
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                 {stats.map((stat, i) => (
                     <Card key={i}>
@@ -134,17 +158,19 @@ export default function AuditReportPage() {
                     <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                         <div>
                             <CardTitle>Buku Audit</CardTitle>
-                            <CardDescription>Rekonsiliasi margin penjualan dengan selisih kas fisik per sif.</CardDescription>
+                            <CardDescription>Rekonsiliasi margin penjualan, biaya modal, pengeluaran titipan, dan selisih kas fisik per sif.</CardDescription>
                         </div>
                         <DateRangeFilter date={date} setDate={setDate} preset='last30' />
                     </div>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="p-0">
                     <Table>
                         <TableHeader>
                             <TableRow>
                                 <TableHead>Tanggal / Sif</TableHead>
                                 <TableHead className="text-right">Omzet</TableHead>
+                                <TableHead className="text-right">HPP Toko</TableHead>
+                                <TableHead className="text-right">Bagi Hasil Titipan</TableHead>
                                 <TableHead className="text-right">Margin Laba</TableHead>
                                 <TableHead className="text-right">Selisih Kas</TableHead>
                                 <TableHead className="text-right font-bold">Laba Bersih Riil</TableHead>
@@ -152,7 +178,7 @@ export default function AuditReportPage() {
                         </TableHeader>
                         <TableBody>
                             {isLoading ? (
-                                <TableRow><TableCell colSpan={5} className="text-center py-10"><Loader2 className="animate-spin mx-auto"/></TableCell></TableRow>
+                                <TableRow><TableCell colSpan={7} className="text-center py-10"><Loader2 className="animate-spin mx-auto"/></TableCell></TableRow>
                             ) : auditData.map((row, i) => (
                                 <TableRow key={i}>
                                     <TableCell>
@@ -160,7 +186,9 @@ export default function AuditReportPage() {
                                         <div className="text-xs text-muted-foreground font-mono">{row.shiftId.substring(0,8)}</div>
                                     </TableCell>
                                     <TableCell className="text-right">{formatCurrency(row.revenue)}</TableCell>
-                                    <TableCell className="text-right">{formatCurrency(row.paperProfit)}</TableCell>
+                                    <TableCell className="text-right text-muted-foreground">{formatCurrency(row.standardHPP)}</TableCell>
+                                    <TableCell className="text-right text-amber-600 dark:text-amber-400">{formatCurrency(row.consignmentPayout)}</TableCell>
+                                    <TableCell className="text-right font-medium">{formatCurrency(row.paperProfit)}</TableCell>
                                     <TableCell className={`text-right ${row.variance < 0 ? 'text-destructive font-bold' : row.variance > 0 ? 'text-green-600' : ''}`}>
                                         {row.variance > 0 ? '+' : ''}{formatCurrency(row.variance)}
                                     </TableCell>
