@@ -1274,63 +1274,106 @@ export const exportBarcodeStickersToPdf = async (
 }
 
 
+// lib/export.ts
+
 export const exportConsignorReportToExcel = async (
     reportData: any[], 
     dateRange: { from: Date, to: Date }, 
-    storeName: string
+    storeName: string,
+    filterStatus: string = 'unpaid' // --- TAMBAHAN PARAMETER STATUS FILTER ---
 ) => {
-    // Map data for clean Excel columns
-    const dataForExport = reportData.map(item => ({
-        'Nama Penitip': item.consignorName,
-        'Nama Produk': item.productName,
-        'Harga Jual': item.price,
-        'Masuk (Pagi)': item.supplied,
-        'Terjual': item.sold,
-        'Ditarik/Sisa (Sore)': item.returned,
-        'Tipe Komisi': item.commissionType === 'flat' ? 'Flat / Rupiah' : 'Persentase',
-        'Nilai Komisi': item.commissionValue,
-        'Total Komisi Toko': item.storeCommission,
-        'Bagi Hasil Penitip': item.consignorShare,
-    }));
+    let dataForExport: any[] = [];
+    let summary: any = {};
 
-    // Calculate Grand Totals
-    const totalSupplied = reportData.reduce((sum, item) => sum + item.supplied, 0);
-    const totalSold = reportData.reduce((sum, item) => sum + item.sold, 0);
-    const totalReturned = reportData.reduce((sum, item) => sum + item.returned, 0);
-    const totalStoreCommission = reportData.reduce((sum, item) => sum + item.storeCommission, 0);
-    const totalConsignorShare = reportData.reduce((sum, item) => sum + item.consignorShare, 0);
+    const range = format(dateRange.from, 'yyyy-MM-dd') + '_to_' + format(dateRange.to, 'yyyy-MM-dd');
+    const isPaidMode = filterStatus === 'paid';
 
-    const summary = {
-        'Nama Penitip': 'TOTAL',
-        'Nama Produk': '',
-        'Harga Jual': '',
-        'Masuk (Pagi)': totalSupplied,
-        'Terjual': totalSold,
-        'Ditarik/Sisa (Sore)': totalReturned,
-        'Tipe Komisi': '',
-        'Nilai Komisi': '',
-        'Total Komisi Toko': totalStoreCommission,
-        'Bagi Hasil Penitip': totalConsignorShare,
-    };
+    if (isPaidMode) {
+        // --- LAYOUT EXCEL UNTUK RIWAYAT PEMBAYARAN LUNAS (PAID LEDGER) ---
+        dataForExport = reportData.map(item => ({
+            'Tanggal Bayar': format(new Date(item.settledDate), 'yyyy-MM-dd'),
+            'Nama Penitip': item.consignorName,
+            'Nama Produk': item.productName,
+            'Harga Jual': item.price,
+            'Kuantitas Lunas': item.qty,
+            'Tipe Komisi': item.commissionType === 'flat' ? 'Flat / Rupiah' : 'Persentase',
+            'Nilai Komisi': item.commissionValue,
+            'Total Komisi Toko': item.storeCommission,
+            'Total Dibayar (Lunas)': item.consignorShare,
+        }));
+
+        const totalQty = reportData.reduce((sum, item) => sum + item.qty, 0);
+        const totalStoreCommission = reportData.reduce((sum, item) => sum + item.storeCommission, 0);
+        const totalConsignorShare = reportData.reduce((sum, item) => sum + item.consignorShare, 0);
+
+        summary = {
+            'Tanggal Bayar': 'TOTAL',
+            'Nama Penitip': '',
+            'Nama Produk': '',
+            'Harga Jual': '',
+            'Kuantitas Lunas': totalQty,
+            'Tipe Komisi': '',
+            'Nilai Komisi': '',
+            'Total Komisi Toko': totalStoreCommission,
+            'Total Dibayar (Lunas)': totalConsignorShare,
+        };
+    } else {
+        // --- LAYOUT EXCEL STANDAR (BELUM LUNAS / SEMUA AKTIVITAS) ---
+        dataForExport = reportData.map(item => ({
+            'Nama Penitip': item.consignorName,
+            'Nama Produk': item.productName,
+            'Harga Jual': item.price,
+            'Masuk': item.supplied,
+            'Terjual': item.sold,
+            'Ditarik': item.returned,
+            'Tipe Komisi': item.commissionType === 'flat' ? 'Flat / Rupiah' : 'Persentase',
+            'Nilai Komisi': item.commissionValue,
+            'Total Komisi Toko': item.storeCommission,
+            'Bagi Hasil Penitip': item.consignorShare,
+        }));
+
+        const totalSupplied = reportData.reduce((sum, item) => sum + item.supplied, 0);
+        const totalSold = reportData.reduce((sum, item) => sum + item.sold, 0);
+        const totalReturned = reportData.reduce((sum, item) => sum + item.returned, 0);
+        const totalStoreCommission = reportData.reduce((sum, item) => sum + item.storeCommission, 0);
+        const totalConsignorShare = reportData.reduce((sum, item) => sum + item.consignorShare, 0);
+
+        summary = {
+            'Nama Penitip': 'TOTAL',
+            'Nama Produk': '',
+            'Harga Jual': '',
+            'Masuk': totalSupplied,
+            'Terjual': totalSold,
+            'Ditarik': totalReturned,
+            'Tipe Komisi': '',
+            'Nilai Komisi': '',
+            'Total Komisi Toko': totalStoreCommission,
+            'Bagi Hasil Penitip': totalConsignorShare,
+        };
+    }
 
     const worksheet = XLSX.utils.json_to_sheet(dataForExport);
     XLSX.utils.sheet_add_json(worksheet, [summary], { origin: -1, skipHeader: true });
 
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Laporan Konsinyasi');
+    const sheetName = isPaidMode ? 'Riwayat Pembayaran' : 'Laporan Konsinyasi';
+    XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
 
-    const range = format(dateRange.from, 'yyyy-MM-dd') + '_to_' + format(dateRange.to, 'yyyy-MM-dd');
     const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
     const uint8Array = new Uint8Array(excelBuffer);
 
-    const filename = `laporan_payout_konsinyasi_${storeName.replace(/\s+/g, '_')}_${range}.xlsx`;
+    const filename = isPaidMode 
+        ? `riwayat_pembayaran_titipan_${storeName.replace(/\s+/g, '_')}_${range}.xlsx`
+        : `laporan_payout_konsinyasi_${storeName.replace(/\s+/g, '_')}_${range}.xlsx`;
+
     await saveFileNative(uint8Array, filename, [{ name: 'Excel', extensions: ['xlsx'] }]);
 };
 
 export const exportConsignorReportToPdf = async (
     reportData: any[], 
     dateRange: { from: Date, to: Date }, 
-    storeName: string
+    storeName: string,
+    filterStatus: string = 'unpaid' // --- TAMBAHAN PARAMETER STATUS FILTER ---
 ) => {
     const pdfDoc = await PDFDocument.create();
     const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
@@ -1339,10 +1382,16 @@ export const exportConsignorReportToPdf = async (
     const margin = 40;
     const fontSize = 9;
     const bodyFontSize = 8;
-    
-    // Total column space A4 printable area ~495pt
-    const tableHeaders = ['Produk', 'Harga', 'Masuk', 'Laku', 'Sisa', 'Komisi', 'Bagi Hasil'];
-    const colWidths = [135, 65, 40, 40, 40, 75, 80];
+    const isPaidMode = filterStatus === 'paid';
+
+    // --- SETUP COLS & HEADER DYNAMICALLY ---
+    const tableHeaders = isPaidMode 
+        ? ['Tanggal Bayar', 'Produk', 'Harga', 'Qty Lunas', 'Komisi', 'Total Dibayar']
+        : ['Produk', 'Harga', 'Masuk', 'Laku', 'Sisa', 'Komisi', 'Bagi Hasil'];
+        
+    const colWidths = isPaidMode
+        ? [75, 150, 65, 45, 75, 80] // Total: 490pt
+        : [135, 65, 40, 40, 40, 75, 80]; // Total: 475pt
 
     const drawTableHeader = (page: any, yPos: number) => {
         const { width } = page.getSize();
@@ -1360,17 +1409,23 @@ export const exportConsignorReportToPdf = async (
     const { width, height } = currentPage.getSize();
     let y = height - margin;
 
-    // --- REPORT TITLE & INFO ---
+    // --- HEADER DETAILS ---
     currentPage.drawText(`${storeName.toUpperCase()}`, { x: margin, y: y, font: boldFont, size: 16 });
     y -= 18;
-    currentPage.drawText(`LAPORAN BAGI HASIL TITIPAN (KONSINYASI)`, { x: margin, y: y, font: boldFont, size: 12, color: rgb(0.3, 0.3, 0.3) });
+    
+    const subtitle = isPaidMode 
+        ? 'BUKU RIWAYAT PEMBAYARAN KONSINYASI (PAID LEDGER)'
+        : 'LAPORAN BAGI HASIL TITIPAN (KONSINYASI)';
+    currentPage.drawText(subtitle, { x: margin, y: y, font: boldFont, size: 11, color: rgb(0.3, 0.3, 0.3) });
     y -= 15;
     currentPage.drawText(`Periode: ${format(dateRange.from, 'dd MMM yyyy')} - ${format(dateRange.to, 'dd MMM yyyy')}`, { x: margin, y: y, font: font, size: 10 });
     y -= 30;
 
-    // --- GRAND TOTAL SUMMARY BLOCK ---
-    const totalSupplied = reportData.reduce((sum, item) => sum + item.supplied, 0);
-    const totalSold = reportData.reduce((sum, item) => sum + item.sold, 0);
+    // --- GRAND TOTAL BOX SUMMARY ---
+    const totalSupplied = isPaidMode ? 0 : reportData.reduce((sum, item) => sum + item.supplied, 0);
+    const totalSold = isPaidMode 
+        ? reportData.reduce((sum, item) => sum + item.qty, 0)
+        : reportData.reduce((sum, item) => sum + item.sold, 0);
     const totalStoreCommission = reportData.reduce((sum, item) => sum + item.storeCommission, 0);
     const totalPayout = reportData.reduce((sum, item) => sum + item.consignorShare, 0);
 
@@ -1386,15 +1441,21 @@ export const exportConsignorReportToPdf = async (
     });
 
     let kpiY = (boxY + boxHeight) - 15;
-    currentPage.drawText(`Total Barang Masuk: ${totalSupplied} unit`, { x: margin + 15, y: kpiY, font: font, size: 8 });
-    currentPage.drawText(`Total Barang Terjual: ${totalSold} unit`, { x: margin + 220, y: kpiY, font: font, size: 8 });
+    if (isPaidMode) {
+        currentPage.drawText(`Total Kuantitas Lunas: ${totalSold} unit`, { x: margin + 15, y: kpiY, font: font, size: 8 });
+        currentPage.drawText(`Total Transaksi Payout: ${reportData.length} kali`, { x: margin + 220, y: kpiY, font: font, size: 8 });
+    } else {
+        currentPage.drawText(`Total Barang Masuk: ${totalSupplied} unit`, { x: margin + 15, y: kpiY, font: font, size: 8 });
+        currentPage.drawText(`Total Barang Terjual: ${totalSold} unit`, { x: margin + 220, y: kpiY, font: font, size: 8 });
+    }
     
     kpiY -= 15;
     currentPage.drawText(`Total Komisi Toko:`, { x: margin + 15, y: kpiY, font: font, size: 9 });
     currentPage.drawText(formatCurrency(totalStoreCommission), { x: margin + 130, y: kpiY, font: boldFont, size: 9 });
 
     kpiY -= 20;
-    currentPage.drawText(`TOTAL SIAP BAYAR KE PENITIP:`, { x: margin + 15, y: kpiY, font: boldFont, size: 10 });
+    const greenLabel = isPaidMode ? 'TOTAL TELAH DIBAYARKAN:' : 'TOTAL SIAP BAYAR KE PENITIP:';
+    currentPage.drawText(greenLabel, { x: margin + 15, y: kpiY, font: boldFont, size: 10 });
     currentPage.drawText(formatCurrency(totalPayout), { x: margin + 220, y: kpiY, font: boldFont, size: 10, color: rgb(0, 0.5, 0.2) });
 
     y = boxY - 30;
@@ -1429,15 +1490,24 @@ export const exportConsignorReportToPdf = async (
 
             consignorTotalPayout += item.consignorShare;
 
-            const row = [
-                item.productName.length > 25 ? item.productName.substring(0, 22) + "..." : item.productName,
-                formatCurrency(item.price),
-                item.supplied.toString(),
-                item.sold.toString(),
-                item.returned.toString(),
-                formatCurrency(item.storeCommission),
-                formatCurrency(item.consignorShare)
-            ];
+            const row = isPaidMode 
+                ? [
+                    format(new Date(item.settledDate), 'dd/MM/yyyy'),
+                    item.productName.length > 28 ? item.productName.substring(0, 25) + "..." : item.productName,
+                    formatCurrency(item.price),
+                    `${item.qty} unit`,
+                    formatCurrency(item.storeCommission),
+                    formatCurrency(item.consignorShare)
+                  ]
+                : [
+                    item.productName.length > 25 ? item.productName.substring(0, 22) + "..." : item.productName,
+                    formatCurrency(item.price),
+                    item.supplied.toString(),
+                    item.sold.toString(),
+                    item.returned.toString(),
+                    formatCurrency(item.storeCommission),
+                    formatCurrency(item.consignorShare)
+                  ];
 
             let xPos = margin;
             row.forEach((cell, i) => {
@@ -1455,12 +1525,17 @@ export const exportConsignorReportToPdf = async (
             color: rgb(0.8, 0.8, 0.8)
         });
 
-        currentPage.drawText(`Total Bayar (${consignor}):`, { x: margin + 180, y: y, font: boldFont, size: 8 });
+        const payoutLabel = isPaidMode ? `Total Terbayar (${consignor}):` : `Total Bayar (${consignor}):`;
+        currentPage.drawText(payoutLabel, { x: margin + 180, y: y, font: boldFont, size: 8 });
         currentPage.drawText(formatCurrency(consignorTotalPayout), { x: margin + 380, y: y, font: boldFont, size: 8, color: rgb(0, 0.5, 0.2) });
         y -= 25;
     }
 
     const pdfBytes = await pdfDoc.save();
     const rangeStr = format(dateRange.from, 'yyyyMMdd') + '-' + format(dateRange.to, 'yyyyMMdd');
-    await saveFileNative(pdfBytes, `laporan_payout_titipan_${rangeStr}.pdf`, [{ name: 'PDF', extensions: ['pdf'] }]);
+    const filename = isPaidMode 
+        ? `riwayat_pembayaran_titipan_${rangeStr}.pdf`
+        : `laporan_payout_titipan_${rangeStr}.pdf`;
+
+    await saveFileNative(pdfBytes, filename, [{ name: 'PDF', extensions: ['pdf'] }]);
 };

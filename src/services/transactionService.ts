@@ -127,6 +127,7 @@ export const createTransaction = async (cart: CartItem[], activeShift: Shift, st
             cost_snapshot: effectiveCost, // Saved as cost_snapshot (HPP)
             qty: item.quantity,
             subtotal: item.price * item.quantity,
+            is_consignment_settled: item.is_consignment ? false : undefined,
         };
       }),
       subtotal,

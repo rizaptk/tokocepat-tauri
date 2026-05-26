@@ -115,6 +115,8 @@ export interface TransactionItem {
     cost_snapshot?: number;
     qty: number;
     subtotal: number;
+    is_consignment_settled?: boolean; // true jika sudah dilunasi ke vendor, false jika belum
+    consignment_settled_at?: string;  // timestamp kapan pelunasan dilakukan
 }
 
 export interface Transaction {
@@ -156,6 +158,7 @@ export interface Shift {
     variance?: number;
     status: 'open' | 'closed';
     device?: string;
+    total_cash_out?: number;
 }
 
 export interface RawIngredient {

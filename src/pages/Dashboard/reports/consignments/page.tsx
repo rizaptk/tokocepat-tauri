@@ -1,15 +1,20 @@
+// reports/consignments/page.tsx
+
 import { Link, useNavigate } from 'react-router-dom';
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useTransition } from 'react';
 import { DateRange } from 'react-day-picker';
-import { startOfDay, endOfDay } from 'date-fns';
+import { startOfDay, endOfDay, format } from 'date-fns';
 import { 
     ArrowLeft, Landmark, Loader2, FileDown, FileText, 
-    Search, Users, Package, DollarSign, Wallet 
+    Search, Users, Package, DollarSign, Wallet, CheckCircle,
+    AlertTriangle // --- IMPORTED WARNING ICON ---
 } from 'lucide-react';
 import { useStore } from '@/lib/store';
 import { getStockMovementsByDateRange } from '@/services/stockService';
+import { settleConsignment } from '@/services/consignmentService';
 import { StockMovement } from '@/lib/types';
 import { exportConsignorReportToExcel, exportConsignorReportToPdf } from '@/lib/export';
+import { useToast } from '@/hooks/use-toast';
 
 // UI Components
 import { Button } from '@/components/ui/button';
@@ -21,6 +26,8 @@ import { NotificationBell } from '@/components/NotificationBell';
 import { ThemeToggle } from '@/components/ThemeButtons';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useLoadTransactions } from '@/hooks/useLoadTransaction';
+import { cn } from '@/lib/utils';
 
 const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('id-ID', {
@@ -31,38 +38,45 @@ const formatCurrency = (amount: number) => {
 };
 
 export default function ConsignmentReportPage() {
-    const { products, storeConfig } = useStore();
+    const { products, storeConfig, activeShift } = useStore();
+    const { toast } = useToast();
     const nav = useNavigate();
+    const [isSettling, startSettleTransition] = useTransition();
 
-    // Default to today's date range (convenient for daily-basis consignment)
     const [date, setDate] = useState<DateRange | undefined>({
         from: startOfDay(new Date()),
         to: endOfDay(new Date()),
     });
 
     const [stockMovements, setStockMovements] = useState<StockMovement[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
+    const [isMovementsLoading, setIsMovementsLoading] = useState(true);
     const [filterConsignor, setFilterConsignor] = useState<string>('all');
+    const [filterStatus, setFilterStatus] = useState<string>('unpaid');
     const [searchTerm, setSearchTerm] = useState('');
 
-    // Fetch movements for the active date range
-    useEffect(() => {
-        if (!date?.from || !date?.to) return;
-        const fetchMovements = async () => {
-            setIsLoading(true);
-            try {
-                const data = await getStockMovementsByDateRange(date.from!, date.to!);
-                setStockMovements(data);
-            } catch (err) {
-                console.error("Gagal memuat mutasi stok:", err);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-        fetchMovements();
-    }, [date]);
+    // --- LOAD TRANSACTIONS REALTIME DARI DATABASE BERDASARKAN FILTER TANGGAL ---
+    const { transactions, isLoading: isTxLoading } = useLoadTransactions(date);
 
-    // Unique Consignor/Penitip list for the filter select dropdown
+    // Fetch movements for the active date range
+    const fetchMovements = async () => {
+        if (!date?.from || !date?.to) return;
+        setIsMovementsLoading(true);
+        try {
+            const data = await getStockMovementsByDateRange(date.from!, date.to!);
+            setStockMovements(data);
+        } catch (err) {
+            console.error("Gagal memuat mutasi stok:", err);
+        } finally {
+            setIsMovementsLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchMovements();
+    }, [date, transactions]); // Refetch when transactions change to show instant paid updates
+
+    const isLoading = isMovementsLoading || isTxLoading;
+
     const consignorsList = useMemo(() => {
         const names = products
             .filter(p => p.is_consignment && p.consignor_name)
@@ -74,36 +88,129 @@ export default function ConsignmentReportPage() {
     const calculatedReportData = useMemo(() => {
         const consignmentProducts = products.filter(p => p.is_consignment);
 
+        // --- SCENARIO A: CHRONOLOGICAL PAYOUT HISTORY LEDGER ---
+        if (filterStatus === 'paid') {
+            const paidItemsMap = new Map<string, any>(); // key: dateStr_consignor_productId
+
+            transactions.forEach(tx => {
+                if (tx.status === 'paid') {
+                    tx.items.forEach(item => {
+                        const isCons = item.product_snapshot.is_consignment;
+                        const isSettled = item.is_consignment_settled === true;
+                        const settleDate = item.consignment_settled_at;
+
+                        if (isCons && isSettled && settleDate) {
+                            const dateObj = new Date(settleDate);
+                            
+                            // Filter by selected range
+                            const isInRange = date?.from && date?.to && dateObj >= date.from && dateObj <= date.to;
+
+                            if (isInRange) {
+                                const consignor = item.product_snapshot.consignor_name || 'Tanpa Nama';
+                                
+                                // Consignor filter check
+                                if (filterConsignor !== 'all' && consignor !== filterConsignor) return;
+
+                                // Search term query check
+                                const name = item.product_snapshot.name;
+                                const matchesSearch = name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                                                      consignor.toLowerCase().includes(searchTerm.toLowerCase());
+                                if (!matchesSearch) return;
+
+                                const pId = item.product_snapshot.id;
+                                const dateKey = settleDate.split('T')[0]; // Group by day of payment
+                                const key = `${dateKey}_${consignor}_${pId}`;
+
+                                const price = item.price_snapshot;
+                                const qty = item.qty;
+
+                                const commType = item.product_snapshot.consignment_commission_type;
+                                const commVal = item.product_snapshot.consignment_commission_value || 0;
+
+                                let storeCommission = 0;
+                                if (commType === 'percentage') {
+                                    storeCommission = (price * qty) * (commVal / 100);
+                                } else {
+                                    storeCommission = commVal * qty;
+                                }
+                                const consignorShare = (price * qty) - storeCommission;
+
+                                const existing = paidItemsMap.get(key);
+                                if (existing) {
+                                    existing.qty += qty;
+                                    existing.storeCommission += storeCommission;
+                                    existing.consignorShare += consignorShare;
+                                } else {
+                                    paidItemsMap.set(key, {
+                                        key,
+                                        settledDate: dateKey,
+                                        consignorName: consignor,
+                                        productName: name,
+                                        price,
+                                        qty,
+                                        commissionType: commType || 'percentage',
+                                        commissionValue: commVal,
+                                        storeCommission,
+                                        consignorShare
+                                    });
+                                }
+                            }
+                        }
+                    });
+                }
+            });
+
+            return Array.from(paidItemsMap.values()).sort((a, b) => b.settledDate.localeCompare(a.settledDate));
+        }
+
+        // --- SCENARIO B: ACTIVE UNPAID / ALL AGGREGATED PRODUCT VIEW ---
         const mapped = consignmentProducts.map(p => {
             const movementsInPeriod = stockMovements.filter(m => m.product_id === p.id);
 
-            // 1. Morning Supplied (restock / initial balance)
             const supplied = movementsInPeriod
                 .filter(m => m.type === 'restock' || m.type === 'initial_balance')
                 .reduce((sum, m) => sum + m.qty_change, 0);
 
-            // 2. Units Sold during period
-            const sold = Math.abs(movementsInPeriod
-                .filter(m => m.type === 'sale')
-                .reduce((sum, m) => sum + m.qty_change, 0));
-
-            // 3. Leftovers returned/pulled in afternoon (negative adjustments)
             const returned = Math.abs(movementsInPeriod
                 .filter(m => ['correction', 'lost', 'damaged'].includes(m.type) && m.qty_change < 0)
                 .reduce((sum, m) => sum + m.qty_change, 0));
 
-            // 4. Commission Splits
+            let unpaidSold = 0;
+            let paidSold = 0;
+
+            transactions.forEach(tx => {
+                if (tx.status === 'paid') {
+                    const txDate = new Date(tx.created_at);
+                    const isInRange = date?.from && date?.to && txDate >= date.from && txDate <= date.to;
+
+                    if (isInRange) {
+                        tx.items.forEach(item => {
+                            if (item.product_snapshot.id === p.id) {
+                                if (item.is_consignment_settled === true) {
+                                    paidSold += item.qty;
+                                } else {
+                                    unpaidSold += item.qty;
+                                }
+                            }
+                        });
+                    }
+                }
+            });
+
+            let activeSold = unpaidSold;
+            if (filterStatus === 'all') activeSold = unpaidSold + paidSold;
+
             const commType = p.consignment_commission_type;
             const commVal = p.consignment_commission_value || 0;
 
             let storeCommission = 0;
             if (commType === 'percentage') {
-                storeCommission = (p.price * sold) * (commVal / 100);
-            } else { // 'flat'
-                storeCommission = commVal * sold;
+                storeCommission = (p.price * activeSold) * (commVal / 100);
+            } else {
+                storeCommission = commVal * activeSold;
             }
 
-            const consignorShare = (p.price * sold) - storeCommission;
+            const consignorShare = (p.price * activeSold) - storeCommission;
 
             return {
                 id: p.id,
@@ -111,32 +218,35 @@ export default function ConsignmentReportPage() {
                 productName: p.name,
                 price: p.price,
                 supplied,
-                sold,
+                sold: activeSold,
+                unpaidSold,
+                paidSold,
                 returned,
                 commissionType: commType || 'percentage',
                 commissionValue: commVal,
                 storeCommission,
-                consignorShare
+                consignorShare,
+                rawProduct: p
             };
         });
 
-        // Apply filters (Consignor name & Search query)
         return mapped.filter(item => {
             const matchesConsignor = filterConsignor === 'all' || item.consignorName === filterConsignor;
             const matchesSearch = item.productName.toLowerCase().includes(searchTerm.toLowerCase()) || 
                                   item.consignorName.toLowerCase().includes(searchTerm.toLowerCase());
             
-            // Only list items that had some activity or were supplied in the period
-            const hasActivity = item.supplied > 0 || item.sold > 0 || item.returned > 0;
+            const hasActivity = item.supplied > 0 || item.unpaidSold > 0 || item.paidSold > 0 || item.returned > 0;
 
             return matchesConsignor && matchesSearch && hasActivity;
         });
-    }, [products, stockMovements, filterConsignor, searchTerm]);
+    }, [products, stockMovements, filterConsignor, filterStatus, searchTerm, date, transactions]);
 
     // KPI Summary Calculations
     const kpis = useMemo(() => {
-        const totalIn = calculatedReportData.reduce((sum, item) => sum + item.supplied, 0);
-        const totalOut = calculatedReportData.reduce((sum, item) => sum + item.sold, 0);
+        const totalIn = filterStatus === 'paid' ? 0 : calculatedReportData.reduce((sum, item) => sum + item.supplied, 0);
+        const totalOut = filterStatus === 'paid' 
+            ? calculatedReportData.reduce((sum, item) => sum + item.qty, 0)
+            : calculatedReportData.reduce((sum, item) => sum + item.sold, 0);
         const totalComm = calculatedReportData.reduce((sum, item) => sum + item.storeCommission, 0);
         const totalPayout = calculatedReportData.reduce((sum, item) => sum + item.consignorShare, 0);
 
@@ -146,17 +256,45 @@ export default function ConsignmentReportPage() {
             totalComm,
             totalPayout
         };
-    }, [calculatedReportData]);
+    }, [calculatedReportData, filterStatus]);
+
+    const handleSettleConsignment = () => {
+        if (!activeShift || filterConsignor === 'all' || !date?.from || !date?.to) return;
+
+        startSettleTransition(async () => {
+            try {
+                const payoutAmount = await settleConsignment(
+                    filterConsignor,
+                    { from: date.from!, to: date.to! },
+                    calculatedReportData
+                );
+
+                toast({
+                    title: "Bagi Hasil Sukses",
+                    description: `Data pembayaran dan retur "${filterConsignor}" senilai ${formatCurrency(payoutAmount)} berhasil dilunasi secara aman.`
+                });
+
+                await fetchMovements();
+
+            } catch (err: any) {
+                toast({
+                    variant: "destructive",
+                    title: "Gagal Pelunasan",
+                    description: err.message || "Gagal memproses pelunasan."
+                });
+            }
+        });
+    };
 
     const handleExcelExport = async () => {
         if (storeConfig && date?.from && date?.to) {
-            await exportConsignorReportToExcel(calculatedReportData, { from: date.from, to: date.to }, storeConfig.store_name);
+            await exportConsignorReportToExcel(calculatedReportData, { from: date.from, to: date.to }, storeConfig.store_name, filterStatus);
         }
     };
 
     const handlePdfExport = async () => {
         if (storeConfig && date?.from && date?.to) {
-            await exportConsignorReportToPdf(calculatedReportData, { from: date.from, to: date.to }, storeConfig.store_name);
+            await exportConsignorReportToPdf(calculatedReportData, { from: date.from, to: date.to }, storeConfig.store_name, filterStatus);
         }
     };
 
@@ -198,25 +336,86 @@ export default function ConsignmentReportPage() {
 
             {/* Main Content Area */}
             <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
+                {/* Real-time Settlement Action Card */}
+                {filterConsignor !== 'all' && filterStatus === 'unpaid' && (
+                    <div className="space-y-3">
+                        {!activeShift && (
+                            <div className="flex items-center gap-3 p-4 rounded-lg border border-amber-500/30 bg-amber-500/10 text-amber-800 dark:text-amber-400 animate-pulse">
+                                <AlertTriangle className="h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" />
+                                <div className="text-sm font-medium">
+                                    Sif kasir belum aktif. Silakan buka sif kasir terlebih dahulu untuk dapat memproses pelunasan dana ke penitip.
+                                </div>
+                            </div>
+                        )}
+                        <Card className={cn(
+                            'border-amber-500/20 bg-amber-500/5 shadow-sm transition-all duration-300',
+                            !activeShift ? 'opacity-50 pointer-events-none' : ''
+                        )}>
+                            <CardHeader className="pb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                                <div>
+                                    <CardTitle className="text-base font-bold text-amber-800 dark:text-amber-400 flex items-center gap-2">
+                                        <CheckCircle className="h-5 w-5 text-amber-600" />
+                                        Proses Pelunasan: {filterConsignor}
+                                    </CardTitle>
+                                    <CardDescription className="text-amber-800/80 dark:text-amber-400/80">
+                                        Tombol ini akan melunasi seluruh bagi hasil penjualan belum lunas pada rentang tanggal, menarik sisa stok, dan memotong ekspektasi kas sif kasir.
+                                    </CardDescription>
+                                </div>
+                                <Button 
+                                    onClick={handleSettleConsignment} 
+                                    disabled={isSettling || kpis.totalPayout === 0 || !activeShift}
+                                    className="bg-amber-600 hover:bg-amber-700 text-white font-bold h-11 px-6 shadow-sm"
+                                >
+                                    {isSettling ? (
+                                        <>
+                                            <Loader2 className="animate-spin mr-2 h-4 w-4" /> Memproses...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Wallet className="mr-2 h-4 w-4" /> Lunasi Bagi Hasil ({formatCurrency(kpis.totalPayout)})
+                                        </>
+                                    )}
+                                </Button>
+                            </CardHeader>
+                        </Card>
+                    </div>
+                )}
+
                 {/* KPI Summary Row */}
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                     <Card>
                         <CardHeader className="flex flex-row items-center justify-between pb-2">
-                            <CardTitle className="text-sm font-medium">Barang Masuk</CardTitle>
+                            <CardTitle className="text-sm font-medium">
+                                {filterStatus === 'paid' ? 'Kuantitas Lunas' : 'Barang Masuk'}
+                            </CardTitle>
                             <Package className="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold">{kpis.totalIn.toLocaleString()} <span className="text-xs text-muted-foreground font-normal">unit</span></div>
+                            <div className="text-2xl font-bold">
+                                {filterStatus === 'paid' 
+                                    ? kpis.totalOut.toLocaleString() 
+                                    : kpis.totalIn.toLocaleString()
+                                } <span className="text-xs text-muted-foreground font-normal">unit</span>
+                            </div>
                         </CardContent>
                     </Card>
 
                     <Card>
                         <CardHeader className="flex flex-row items-center justify-between pb-2">
-                            <CardTitle className="text-sm font-medium">Barang Terjual</CardTitle>
+                            <CardTitle className="text-sm font-medium">
+                                {filterStatus === 'paid' ? 'Total Transaksi Selesai' : `Barang Terjual (${filterStatus === 'unpaid' ? 'Belum Lunas' : 'Semua'})`}
+                            </CardTitle>
                             <Users className="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold">{kpis.totalOut.toLocaleString()} <span className="text-xs text-muted-foreground font-normal">unit</span></div>
+                            <div className="text-2xl font-bold">
+                                {filterStatus === 'paid'
+                                    ? calculatedReportData.length.toLocaleString()
+                                    : kpis.totalOut.toLocaleString()
+                                } <span className="text-xs text-muted-foreground font-normal">
+                                    {filterStatus === 'paid' ? 'kali' : 'unit'}
+                                </span>
+                            </div>
                         </CardContent>
                     </Card>
 
@@ -232,7 +431,9 @@ export default function ConsignmentReportPage() {
 
                     <Card className="border-green-500/30 bg-green-500/5">
                         <CardHeader className="flex flex-row items-center justify-between pb-2">
-                            <CardTitle className="text-sm font-medium text-green-700 dark:text-green-400">Siap Bayar ke Penitip</CardTitle>
+                            <CardTitle className="text-sm font-medium text-green-700 dark:text-green-400">
+                                {filterStatus === 'paid' ? 'Total Terbayar Lunas' : 'Siap Bayar ke Penitip'}
+                            </CardTitle>
                             <Wallet className="h-4 w-4 text-green-600" />
                         </CardHeader>
                         <CardContent>
@@ -246,13 +447,30 @@ export default function ConsignmentReportPage() {
                     <CardHeader>
                         <div className="flex flex-col gap-4">
                             <div>
-                                <CardTitle>Buku Pembagian Hasil Konsinyasi</CardTitle>
-                                <CardDescription>Daftar bagi hasil titipan barang berdasarkan mutasi stok dan penjualan real-time.</CardDescription>
+                                <CardTitle>
+                                    {filterStatus === 'paid' ? 'Buku Riwayat Pembayaran Konsinyasi' : 'Buku Pembagian Hasil Konsinyasi'}
+                                </CardTitle>
+                                <CardDescription>
+                                    {filterStatus === 'paid' 
+                                        ? 'Daftar audit penyerahan dana bagi hasil yang telah lunas dibayarkan kepada mitra penitip.' 
+                                        : 'Daftar bagi hasil titipan barang berdasarkan mutasi stok dan penjualan real-time.'}
+                                </CardDescription>
                             </div>
 
                             {/* Filters Bar */}
                             <div className="flex flex-col sm:flex-row items-center gap-2">
                                 <DateRangeFilter date={date} setDate={setDate} />
+
+                                <Select value={filterStatus} onValueChange={setFilterStatus}>
+                                    <SelectTrigger className="w-full sm:w-40">
+                                        <SelectValue placeholder="Status Bayar" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="unpaid">Belum Lunas</SelectItem>
+                                        <SelectItem value="paid">Sudah Lunas</SelectItem>
+                                        <SelectItem value="all">Semua Status</SelectItem>
+                                    </SelectContent>
+                                </Select>
                                 
                                 <Select value={filterConsignor} onValueChange={setFilterConsignor}>
                                     <SelectTrigger className="w-full sm:w-48">
@@ -281,58 +499,113 @@ export default function ConsignmentReportPage() {
                     </CardHeader>
 
                     <CardContent className="p-0">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Nama Penitip</TableHead>
-                                    <TableHead>Nama Produk</TableHead>
-                                    <TableHead className="text-right">Harga Jual</TableHead>
-                                    <TableHead className="text-center">Masuk</TableHead>
-                                    <TableHead className="text-center">Terjual</TableHead>
-                                    <TableHead className="text-center">Ditarik</TableHead>
-                                    <TableHead className="text-center">Tipe Komisi</TableHead>
-                                    <TableHead className="text-right">Komisi Toko</TableHead>
-                                    <TableHead className="text-right font-bold text-green-600 dark:text-green-400">Hak Penitip</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {isLoading ? (
+                        {filterStatus === 'paid' ? (
+                            // --- RENDER PAID PAYMENT LEDGER (PER DATE OF PAID) ---
+                            <Table>
+                                <TableHeader>
                                     <TableRow>
-                                        <TableCell colSpan={9} className="text-center py-10">
-                                            <Loader2 className="animate-spin mx-auto text-muted-foreground h-6 w-6" />
-                                        </TableCell>
+                                        <TableHead>Tanggal Bayar</TableHead>
+                                        <TableHead>Nama Penitip</TableHead>
+                                        <TableHead>Nama Produk</TableHead>
+                                        <TableHead className="text-right">Harga Jual</TableHead>
+                                        <TableHead className="text-center">Kuantitas Lunas</TableHead>
+                                        <TableHead className="text-center">Tipe Komisi</TableHead>
+                                        <TableHead className="text-right">Komisi Toko</TableHead>
+                                        <TableHead className="text-right font-bold text-green-600 dark:text-green-400 bg-green-500/5">Total Dibayar</TableHead>
                                     </TableRow>
-                                ) : calculatedReportData.length > 0 ? (
-                                    calculatedReportData.map((row) => (
-                                        <TableRow key={row.id}>
-                                            <TableCell className="font-semibold">{row.consignorName}</TableCell>
-                                            <TableCell>{row.productName}</TableCell>
-                                            <TableCell className="text-right">{formatCurrency(row.price)}</TableCell>
-                                            <TableCell className="text-center">{row.supplied}</TableCell>
-                                            <TableCell className="text-center font-bold text-primary">{row.sold}</TableCell>
-                                            <TableCell className="text-center text-muted-foreground">{row.returned}</TableCell>
-                                            <TableCell className="text-center text-xs">
-                                                {row.commissionType === 'flat' ? (
-                                                    <span className="bg-muted px-2 py-1 rounded">Rp {row.commissionValue.toLocaleString()} (Flat)</span>
-                                                ) : (
-                                                    <span className="bg-muted px-2 py-1 rounded">{row.commissionValue}% (Pct)</span>
-                                                )}
-                                            </TableCell>
-                                            <TableCell className="text-right text-muted-foreground">{formatCurrency(row.storeCommission)}</TableCell>
-                                            <TableCell className="text-right font-bold text-green-600 dark:text-green-400 bg-green-500/5">
-                                                {formatCurrency(row.consignorShare)}
+                                </TableHeader>
+                                <TableBody>
+                                    {isLoading ? (
+                                        <TableRow>
+                                            <TableCell colSpan={8} className="text-center py-10">
+                                                <Loader2 className="animate-spin mx-auto text-muted-foreground h-6 w-6" />
                                             </TableCell>
                                         </TableRow>
-                                    ))
-                                ) : (
+                                    ) : calculatedReportData.length > 0 ? (
+                                        calculatedReportData.map((row) => (
+                                            <TableRow key={row.key}>
+                                                <TableCell className="font-semibold">{format(new Date(row.settledDate), 'dd MMM yyyy')}</TableCell>
+                                                <TableCell>{row.consignorName}</TableCell>
+                                                <TableCell>{row.productName}</TableCell>
+                                                <TableCell className="text-right">{formatCurrency(row.price)}</TableCell>
+                                                <TableCell className="text-center font-bold text-green-600">{row.qty} unit</TableCell>
+                                                <TableCell className="text-center text-xs">
+                                                    {row.commissionType === 'flat' ? (
+                                                        <span className="bg-muted px-2 py-1 rounded">Rp {row.commissionValue.toLocaleString()} (Flat)</span>
+                                                    ) : (
+                                                        <span className="bg-muted px-2 py-1 rounded">{row.commissionValue}% (Pct)</span>
+                                                    )}
+                                                </TableCell>
+                                                <TableCell className="text-right text-muted-foreground">{formatCurrency(row.storeCommission)}</TableCell>
+                                                <TableCell className="text-right font-bold text-green-600 dark:text-green-400 bg-green-500/5">
+                                                    {formatCurrency(row.consignorShare)}
+                                                </TableCell>
+                                            </TableRow>
+                                        ))
+                                    ) : (
+                                        <TableRow>
+                                            <TableCell colSpan={8} className="h-24 text-center text-muted-foreground">
+                                                Tidak ada riwayat pembayaran lunas pada periode ini.
+                                            </TableCell>
+                                        </TableRow>
+                                    )}
+                                </TableBody>
+                            </Table>
+                        ) : (
+                            // --- RENDER STANDARD UNPAID / ALL PRODUCT STOCK LEDGER ---
+                            <Table>
+                                <TableHeader>
                                     <TableRow>
-                                        <TableCell colSpan={9} className="h-24 text-center text-muted-foreground">
-                                            Tidak ada aktivitas produk konsinyasi pada periode ini.
-                                        </TableCell>
+                                        <TableHead>Nama Penitip</TableHead>
+                                        <TableHead>Nama Produk</TableHead>
+                                        <TableHead className="text-right">Harga Jual</TableHead>
+                                        <TableHead className="text-center">Masuk</TableHead>
+                                        <TableHead className="text-center">Terjual</TableHead>
+                                        <TableHead className="text-center">Ditarik</TableHead>
+                                        <TableHead className="text-center">Tipe Komisi</TableHead>
+                                        <TableHead className="text-right">Komisi Toko</TableHead>
+                                        <TableHead className="text-right font-bold text-green-600 dark:text-green-400">Hak Penitip</TableHead>
                                     </TableRow>
-                                )}
-                            </TableBody>
-                        </Table>
+                                </TableHeader>
+                                <TableBody>
+                                    {isLoading ? (
+                                        <TableRow>
+                                            <TableCell colSpan={9} className="text-center py-10">
+                                                <Loader2 className="animate-spin mx-auto text-muted-foreground h-6 w-6" />
+                                            </TableCell>
+                                        </TableRow>
+                                    ) : calculatedReportData.length > 0 ? (
+                                        calculatedReportData.map((row) => (
+                                            <TableRow key={row.id}>
+                                                <TableCell className="font-semibold">{row.consignorName}</TableCell>
+                                                <TableCell>{row.productName}</TableCell>
+                                                <TableCell className="text-right">{formatCurrency(row.price)}</TableCell>
+                                                <TableCell className="text-center">{row.supplied}</TableCell>
+                                                <TableCell className="text-center font-bold text-primary">{row.sold}</TableCell>
+                                                <TableCell className="text-center text-muted-foreground">{row.returned}</TableCell>
+                                                <TableCell className="text-center text-xs">
+                                                    {row.commissionType === 'flat' ? (
+                                                        <span className="bg-muted px-2 py-1 rounded">Rp {row.commissionValue.toLocaleString()} (Flat)</span>
+                                                    ) : (
+                                                        <span className="bg-muted px-2 py-1 rounded">{row.commissionValue}% (Pct)</span>
+                                                    )}
+                                                </TableCell>
+                                                <TableCell className="text-right text-muted-foreground">{formatCurrency(row.storeCommission)}</TableCell>
+                                                <TableCell className="text-right font-bold text-green-600 dark:text-green-400 bg-green-500/5">
+                                                    {formatCurrency(row.consignorShare)}
+                                                </TableCell>
+                                            </TableRow>
+                                        ))
+                                    ) : (
+                                        <TableRow>
+                                            <TableCell colSpan={9} className="h-24 text-center text-muted-foreground">
+                                                Tidak ada aktivitas produk konsinyasi pada periode ini.
+                                            </TableCell>
+                                        </TableRow>
+                                    )}
+                                </TableBody>
+                            </Table>
+                        )}
                     </CardContent>
                 </Card>
             </main>

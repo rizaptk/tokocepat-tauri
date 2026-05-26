@@ -38,7 +38,8 @@ export const closeShift = async (activeShift: Shift, _transactions: Transaction[
         )
     , 'total');
 
-    const system_cash = Number(tmp.data().value) + activeShift.opening_cash;
+    // const system_cash = Number(tmp.data().value) + activeShift.opening_cash;
+    const system_cash = (Number(tmp.data().value) + activeShift.opening_cash) - (activeShift.total_cash_out || 0);
 
     const updatedShift: Partial<Shift> = {
         closed_at: new Date().toISOString(),
@@ -50,23 +51,6 @@ export const closeShift = async (activeShift: Shift, _transactions: Transaction[
 
     await updateDoc(doc(db, 'shifts', activeShift.id), updatedShift);
 };
-
-// export const reloadShift = async (shift: string) => {
-//     const { db, firesqlite } = useDbStore.getState();
-//     if (!db || !firesqlite) throw new Error("Database not initialized");
-//     const { getDocs, collection, where, query, orderBy } = firesqlite;
-//     const store = useStore.getState();
-
-//     const data = await getDocs(
-//         query(
-//             collection(db, 'transactions'), 
-//             where('shift_id' ,'eq' , shift),
-//             orderBy('created_at', 'desc')
-//         )
-//     )
-//     const transactions = data.docs.map(d => d.data() as Transaction);
-//     store.setTransactions(transactions);
-// }
 
 // Removed async so it synchronously returns the unsubscribe function
 export const reloadShift = (shift: string): (() => void) => {
