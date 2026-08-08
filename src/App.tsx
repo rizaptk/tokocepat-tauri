@@ -9,7 +9,6 @@ import InventoryPage from './pages/InventoryPage'
 import DashboardHome from './pages/Dashboard/page'
 import DashboardReports from './pages/Dashboard/reports/page'
 import DashboardReportsSales from './pages/Dashboard/reports/sales/page'
-// import DashboardReportsInventory from './pages/Dashboard/reports/inventory/page'
 import DashboardReportsShifts from './pages/Dashboard/reports/shifts/page'
 import DashboardReportsStockMovement from './pages/Dashboard/reports/stock-movement/page'
 import DashboardReportsConsumption from './pages/Dashboard/reports/consumption/page'
@@ -43,7 +42,6 @@ function App() {
           <Route path="dashboard" element={<DashboardHome />} />
           <Route path="dashboard/reports" element={<DashboardReports />} />
           <Route path="dashboard/reports/sales" element={<DashboardReportsSales />} />
-          {/* <Route path="dashboard/reports/inventory" element={<DashboardReportsInventory />} /> */}
           <Route path="dashboard/reports/shifts" element={<DashboardReportsShifts />} />
           <Route path="dashboard/reports/stock-movement" element={<DashboardReportsStockMovement />} />
           <Route path="dashboard/reports/consumption" element={<DashboardReportsConsumption />} />

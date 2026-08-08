@@ -2,7 +2,6 @@
 import { listen } from "@tauri-apps/api/event";
 import { useSyncStore } from "@/lib/sync-store";
 import { useDbStore } from "@/lib/db-store";
-import { CustomAccessType } from "@/lib/types";
 
 export const initializeSyncService = async () => {
     const store = useSyncStore.getState();
@@ -45,11 +44,4 @@ export const SetSync = async () => {
 
     const {setDoc, doc} = firesqlite;
     await setDoc(doc(db, 'app_state', 'sync_prefs'), {enable: true});
-}
-
-export const SaveAccess = async (hwid: string, access: Partial<CustomAccessType>) => {
-    const {db, firesqlite} = useDbStore.getState();
-    if (!db || !firesqlite) throw new Error("Database not initialized");
-    const {doc, setDoc} = firesqlite;
-    await setDoc(doc(db,'__firelite_access', hwid), access, {merge: true});
 }

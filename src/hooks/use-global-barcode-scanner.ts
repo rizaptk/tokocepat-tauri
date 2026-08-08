@@ -10,7 +10,7 @@ interface UseGlobalBarcodeScannerProps {
 
 export function useGlobalBarcodeScanner({ onScan, enabled = true }: UseGlobalBarcodeScannerProps) {
     const bufferRef = useRef<string>('');
-    const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const handleKeyDown = useCallback((e: KeyboardEvent) => {
         if (!enabled) return;

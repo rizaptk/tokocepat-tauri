@@ -30,7 +30,6 @@ import { RecipeItem as CompositeItem } from './RecipeItem';
 import { useToast } from "@/hooks/use-toast";
 import { useGlobalNumberInputFix } from "@/hooks/useGlobalNumberInputFix";
 import { resizeImageWorker } from "@/lib/imageWorker"
-// import { ImagePicker } from "@/components/ImagePicker";
 
 // Types (Replacing Zod Schema)
 export interface VariantFormData {

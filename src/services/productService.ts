@@ -187,30 +187,3 @@ export const updateProduct = async (id: string, productData: ProductFormData): P
         await setRecipeForProduct(id, []);
     }
 };
-
-export async function searchProducts(term: string): Promise<Product[]> {
-    const { db, firesqlite } = useDbStore.getState();
-    if (!db || !firesqlite || !term.trim()) {
-        return [];
-    }
-
-    const { collection, query, where, getDocs } = firesqlite;
-    
-    const productsRef = collection(db, 'products');
-    const q = query(
-        productsRef, 
-        where('is_active', 'ne', false), 
-        where('name', 'contains', term)
-    );
-    
-    try {
-        const snapshot = await getDocs(q);
-        return snapshot.docs.map((doc: any) => doc.data() as Product);
-    } catch (e: any) {
-        console.error("Product search failed with 'like' operator, falling back to client search:", e);
-        // Fallback for older versions or if the operator isn't ready
-        const allProductsSnapshot = await getDocs(collection(db, 'products'));
-        const allProducts = allProductsSnapshot.docs.map((d:any) => d.data() as Product);
-        return allProducts.filter((p:any) => p.is_active && p.name.toLowerCase().includes(term.toLowerCase()));
-    }
-}

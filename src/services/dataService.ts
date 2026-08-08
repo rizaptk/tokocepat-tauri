@@ -88,11 +88,3 @@ export const getLicenseData = async (): Promise<LicenseDbData | null> => {
     }
     return null;
 };
-
-export const deleteLicenseData = async (): Promise<void> => {
-    const { db, firesqlite } = useDbStore.getState();
-    if (!db || !firesqlite) throw new Error("Database not initialized");
-    const { doc, deleteDoc } = firesqlite;
-    
-    await deleteDoc(doc(db, 'app_state', 'license'));
-};

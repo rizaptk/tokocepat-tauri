@@ -334,30 +334,3 @@ export const voidTransaction = async (transactionId: string, reason: string): Pr
         }
     }
 };
-
-export const listenTransaction = async (shift: string) => {
-    const store = useStore();
-    const {db, firesqlite} = useDbStore();
-    if (!db || !firesqlite) return;
-
-    const { collection, query, where, orderBy, onSnapshot } = firesqlite;
-
-    // Set up the initial query
-    const transactionsRef = collection(db, 'transactions');
-    const q = query(
-        transactionsRef,
-        where('shift_id', 'eq', shift),
-            orderBy('created_at', 'desc')
-    );
-
-    // Set up the real-time listener
-    onSnapshot(q, (snapshot) => {
-        const transactions: Transaction[] = [];
-        snapshot.forEach((doc) => {
-            transactions.push(doc.data() as Transaction);
-        });
-
-        // Update the store with the new transactions
-        store.setTransactions(transactions);
-    });
-}
