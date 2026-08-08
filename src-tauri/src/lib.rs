@@ -16,6 +16,7 @@ mod printmon;
 mod sync;
 mod theme;
 mod android;
+mod cloud_sync;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -64,7 +65,13 @@ pub fn run() {
             }
 
             let mut cfg = FireLiteConfig::default();
-            cfg.encryption_key = Some("e172dd95f4feb21412a692e73929961e".to_string());
+            cfg.encryption_key = std::env::var("FIRELITE_ENCRYPTION_KEY")
+                .ok()
+                .filter(|k| !k.is_empty())
+                .or_else(|| {
+                    eprintln!("FIRELITE_ENCRYPTION_KEY not set in environment, using legacy fallback key");
+                    Some("e172dd95f4feb21412a692e73929961e".to_string())
+                });
             cfg.encrypted_cols = Some(
                 ["app_state", "__firelite_security"]
                     .into_iter()
@@ -84,6 +91,13 @@ pub fn run() {
             };
 
             app.manage(sync_state);
+
+            let cloud_sync_state = cloud_sync::CloudSyncState {
+                syncer: std::sync::Arc::new(tokio::sync::Mutex::new(None)),
+                app_handle: app.handle().clone(),
+            };
+
+            app.manage(cloud_sync_state);
 
             printmon::start_monitor(app.handle().clone());
 
@@ -131,6 +145,10 @@ pub fn run() {
             sync::check_sync_security_exists,
             sync::list_network_peers,
             sync::bootstrap_sync,
+
+            cloud_sync::toggle_cloud_sync,
+            cloud_sync::get_cloud_sync_status,
+            cloud_sync::bootstrap_cloud_sync,
 
             theme::set_theme,
         ])

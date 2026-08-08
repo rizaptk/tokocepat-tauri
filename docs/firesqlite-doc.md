@@ -1,5 +1,7 @@
 ## firesqlite
 
+> **Note:** This document describes the **legacy browser-based** `firesqlite`/`wa-sqlite`/OPFS implementation, which is no longer used. The shipped application stores data in a native, encrypted single-file database (`tokocepat.db`) managed by the **FireLite Rust engine** (in `src-tauri`) and accessed from the frontend through the `firelite_exec` command bridge (`src/db/tauri.ts`). Keep it for historical reference only.
+
 `firesqlite` provides a small Firestore-like API backed by `wa-sqlite` and OPFS.
 It exposes a familiar surface (initialize, `collection`/`doc`, queries, and
 `onSnapshot`) so you can prototype Firestore-style code that persistence in the

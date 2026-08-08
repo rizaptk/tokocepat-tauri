@@ -114,7 +114,7 @@ function ActivationComponent() {
                     <p className="mb-4">Lisensi yang diberikan bersifat non-eksklusif dan tidak dapat dipindahtangankan. Lisensi ini hanya berlaku untuk jumlah perangkat yang telah ditentukan dalam paket langganan Anda. Dilarang keras menyalin, mendistribusikan, atau merekayasa balik perangkat lunak ini.</p>
                     
                     <h3 className="font-bold mb-2">2. KEAMANAN DATA</h3>
-                    <p className="mb-4">Aplikasi ini beroperasi secara offline-first. Semua data transaksional Anda (penjualan, produk, shift) disimpan secara lokal di perangkat Anda menggunakan Origin Private File System (OPFS). Kami tidak memiliki akses ke data operasional Anda. Anda bertanggung jawab penuh untuk melakukan pencadangan (backup) data secara berkala menggunakan fitur yang telah disediakan.</p>
+                    <p className="mb-4">Aplikasi ini beroperasi secara offline-first. Semua data transaksional Anda (penjualan, produk, shift) disimpan secara lokal di perangkat Anda dalam basis data terenkripsi. Kami tidak memiliki akses ke data operasional Anda. Anda bertanggung jawab penuh untuk melakukan pencadangan (backup) data secara berkala menggunakan fitur yang telah disediakan.</p>
                     
                     <h3 className="font-bold mb-2">3. PEMBARUAN & DUKUNGAN</h3>
                     <p className="mb-4">Selama lisensi Anda aktif, Anda berhak menerima pembaruan perangkat lunak dan perbaikan bug. Dukungan teknis disediakan sesuai dengan paket langganan yang Anda pilih.</p>

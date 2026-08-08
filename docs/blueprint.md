@@ -12,15 +12,19 @@ This document outlines the architectural blueprint for the TokoCepat application
 
 ## 2. Technology Stack
 
+> **Note:** Earlier versions of this document described a web-app stack (Next.js/Capacitor + browser SQLite/OPFS). The shipped application is a **Tauri 2 desktop + Android app** with a Rust backend and a React frontend, using **FireLite** for storage.
+
 | Layer              | Technology                        | Purpose                                 |
 | ------------------ | --------------------------------- | --------------------------------------- |
-| **UI/Frontend**    | React (Next.js) / Capacitor       | Cross-platform user interface           |
+| **UI/Frontend**    | React 19 + Vite 7 (Tauri 2)        | Cross-platform user interface           |
+| **Backend**        | Rust (Tauri commands)              | DB access, license, printer, sync       |
 | **State Mgt**      | Zustand                           | Lightweight, centralized state control  |
-| **Local Database** | `firesqlite` or similar           | Robust offline data persistence         |
+| **Local Database** | **FireLite v0.7.0** (embedded)    | Encrypted single-file storage (`tokocepat.db`) |
 | **UI Components**  | ShadCN UI & Tailwind CSS          | Modern and consistent design system     |
 - **Charts:** Recharts
 - **PDF/Excel Export:** `pdf-lib`, `SheetJS`
-- **Hardware Integration:** ESC/POS for printers, Camera for barcode scanning
+- **Hardware Integration:** ESC/POS (USB/serial/Bluetooth) via Rust, Camera/`@zxing` for barcode scanning
+- **Replication:** FireLite `net-sync` (LAN) and `cloud-sync` (WebSocket) features
 
 ## 3. Key Modules & Features
 

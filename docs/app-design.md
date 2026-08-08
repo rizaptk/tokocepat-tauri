@@ -1,4 +1,6 @@
-Berikut adalah rancangan arsitektur dan desain sistem untuk aplikasi kasir mobile multi-toko (kafe hingga retail store) berbasis **client-side React (React Native / React + Capacitor)** dengan pendekatan **single-device, offline-first, high financial integrity**.
+> **Note:** This document was written when the app was planned as a web/mobile app (React Native/Capacitor). The shipped application is a **Tauri 2 desktop + Android app** (React 19 + Vite frontend, Rust backend) with **FireLite** as the embedded encrypted database. The architectural concepts (offline-first, immutable ledger, shift control, snapshot model) remain accurate.
+
+Berikut adalah rancangan arsitektur dan desain sistem untuk aplikasi kasir mobile multi-toko (kafe hingga retail store) berbasis **client-side React** dengan pendekatan **single-device, offline-first, high financial integrity**.
 
 ---
 
