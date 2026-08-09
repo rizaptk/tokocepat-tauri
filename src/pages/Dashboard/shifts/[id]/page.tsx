@@ -3,7 +3,6 @@ import { useStore } from '@/lib/store';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { TokoCepatLogo } from '@/components/TokoCepatLogo';
 import { ArrowLeft } from 'lucide-react';
 import { parseISO, isValid } from 'date-fns';
 import { Separator } from '@/components/ui/separator';
@@ -79,10 +78,14 @@ export default function ShiftDetailsPage() {
     if (!shift) {
         return (
              <div className="flex min-h-screen w-full flex-col bg-muted/40">
-                <header className="sticky top-0 flex h-16 items-center gap-4 border-b bg-background px-4 md:px-6">
-                    <Link to="#" onClick={() => nav(-1)}>
-                        <TokoCepatLogo />
-                    </Link>
+                <header className="sticky top-0 flex h-12 items-center gap-4 border-b border-border/60 bg-background/80 px-4 backdrop-blur-md z-10">
+                    <Button variant="outline" size="icon" className="shrink-0" asChild>
+                        <Link to="#" onClick={() => nav(-1)}>
+                            <ArrowLeft className="h-4 w-4" />
+                            <span className="sr-only">Kembali</span>
+                        </Link>
+                    </Button>
+                    <h1 className="text-lg font-semibold tracking-tight flex-1">Detail Sif</h1>
                 </header>
                 <main className="flex flex-1 items-center justify-center">
                     <Card className="w-full max-w-md">
@@ -113,13 +116,14 @@ export default function ShiftDetailsPage() {
     
     return (
          <div className="flex min-h-screen w-full flex-col bg-muted/40">
-           <header className="sticky top-0 flex h-16 items-center gap-4 border-b bg-background px-4 md:px-6 z-10">
-                <Button variant="outline" size="icon" asChild>
+           <header className="sticky top-0 flex h-12 items-center gap-4 border-b border-border/60 bg-background/80 px-4 backdrop-blur-md z-10">
+                <Button variant="outline" size="icon" className="shrink-0" asChild>
                     <Link to="#" onClick={() => nav(-1)}>
-                        <ArrowLeft />
+                        <ArrowLeft className="h-4 w-4" />
+                        <span className="sr-only">Kembali</span>
                     </Link>
                 </Button>
-              <TokoCepatLogo />
+                <h1 className="text-lg font-semibold tracking-tight flex-1">Detail Sif</h1>
            </header>
           <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8 items-center">
             <div className="w-full max-w-4xl space-y-8">

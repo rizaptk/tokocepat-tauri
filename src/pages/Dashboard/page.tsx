@@ -164,7 +164,7 @@ export default function DashboardPage() {
 
   return (
     <div className="flex h-screen w-full flex-col bg-muted/40">
-      <header className="sticky top-0 flex h-16 items-center gap-4 border-b bg-background px-4 md:px-6 z-10 justify-between shrink-0">
+      <header className="sticky top-0 flex h-12 items-center gap-4 border-b border-border/60 bg-background/80 px-4 z-10 justify-between shrink-0 backdrop-blur-md">
         <Link to="/">
           <TokoCepatLogo />
         </Link>
@@ -181,50 +181,50 @@ export default function DashboardPage() {
 
         <section className="lg:w-2/5 border-b lg:border-b-0 lg:border-r bg-background p-8 flex flex-col justify-between">
 
-          <div className="space-y-8">
+          <div className="space-y-6">
 
-            <div className="space-y-3">
+            <div className="space-y-1">
               <h2 className="text-3xl font-bold tracking-tight">
                 Ringkasan Bisnis
               </h2>
-              <p className="text-muted-foreground">
+              <p className="text-sm text-muted-foreground">
                 Pantau performa penjualan, stok, dan shift secara real-time.
               </p>
             </div>
 
             {/* KPI Summary */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-3">
               <Card>
-                <div className="p-4">
+                <div className="p-3.5">
                   <p className="text-xs text-muted-foreground">Total Omzet</p>
-                  <p className="text-2xl font-bold">
+                  <p className="text-xl font-bold">
                     {formatCurrency(totalRevenue)}
                   </p>
                 </div>
               </Card>
 
               <Card>
-                <div className="p-4">
+                <div className="p-3.5">
                   <p className="text-xs text-muted-foreground">Laba Kotor</p>
-                  <p className="text-2xl font-bold text-success-foreground">
+                  <p className="text-xl font-bold text-success-foreground">
                     {formatCurrency(totalProfit)}
                   </p>
                 </div>
               </Card>
 
               <Card>
-                <div className="p-4">
+                <div className="p-3.5">
                   <p className="text-xs text-muted-foreground">Transaksi</p>
-                  <p className="text-2xl font-bold">
+                  <p className="text-xl font-bold">
                     {totalTransactions}
                   </p>
                 </div>
               </Card>
 
               <Card>
-                <div className="p-4">
+                <div className="p-3.5">
                   <p className="text-xs text-muted-foreground">Stok Tipis</p>
-                  <p className="text-2xl font-bold text-destructive">
+                  <p className="text-xl font-bold text-destructive">
                     {lowStockItems.length}
                   </p>
                 </div>
@@ -233,15 +233,15 @@ export default function DashboardPage() {
 
             {/* Active Shift Block */}
             {activeShift && (
-              <div className="rounded-xl border p-6 space-y-3 bg-muted/40">
+              <div className="rounded-lg border p-4 space-y-3 bg-muted/40">
                 <div>
-                  <p className="text-sm text-muted-foreground">Sif Aktif</p>
+                  <p className="text-xs text-muted-foreground">Sif Aktif</p>
                   <p className="font-semibold">
                     Mulai {new Date(activeShift.opened_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </p>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4 pt-3">
+                <div className="grid grid-cols-2 gap-4 pt-2">
                   <div>
                     <p className="text-xs text-muted-foreground">Modal Awal</p>
                     <p className="font-semibold">{formatCurrency(activeShift.opening_cash)}</p>
@@ -252,7 +252,7 @@ export default function DashboardPage() {
                   </div>
                 </div>
 
-                <Button className="w-full mt-4" asChild>
+                <Button className="w-full" asChild>
                   <Link to="/cashier">
                     Buka Kasir <ArrowRight className="ml-2 h-4 w-4" />
                   </Link>
@@ -270,7 +270,7 @@ export default function DashboardPage() {
 
         <section className="flex-1 min-h-0">
           <ScrollArea className="h-full">
-            <div className="p-8 space-y-8">
+            <div className="p-8 space-y-6">
               {/* Sales Chart */}
               <Card>
                 <CardHeader>
@@ -303,7 +303,7 @@ export default function DashboardPage() {
                         <XAxis dataKey="name" tickLine={false} axisLine={false} tickMargin={8} />
                         <YAxis tickLine={false} axisLine={false} tickMargin={8} tickFormatter={(value) => `Rp${Number(value) / 1000}k`} />
                         <ChartTooltip content={<ChartTooltipContent indicator="dot" />} />
-                        <Bar dataKey="sales" fill="var(--color-sales)" radius={4} barSize={20} />
+                        <Bar dataKey="sales" fill="var(--color-sales)" radius={3} barSize={18} />
                         <Area type="monotone" dataKey="profit" stroke="var(--color-profit)" fill="url(#fillProfit)" strokeWidth={2} />
                       </ComposedChart>
                     </ChartContainer>

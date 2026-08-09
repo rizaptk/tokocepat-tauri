@@ -1,15 +1,19 @@
 import { useLicense } from "@/hooks/useLicense"
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
-import { AlertTriangle, CheckCircle, Clock, Loader2, ShieldOff, XCircle } from "lucide-react";
+import { AlertTriangle, CheckCircle, Clock, Loader2, ShieldOff, XCircle, CreditCard, Zap } from "lucide-react";
 import { Badge } from "./ui/badge";
 import { Card, CardContent } from "./ui/card";
 import { Button } from "./ui/button";
 import { Link } from "react-router-dom";
 import { formatDistanceToNowShort } from "@/lib/utils";
+import { invoke } from '@tauri-apps/api/core';
+
+const PRICING_URL = 'https://tokocepat-pos.web.app/harga.html';
 
 export const LicenseInfo = () => {
 
     const { status, licenseDetails } =  useLicense();
+    const isTrial = licenseDetails?.isTrial === true;
 
     if (status === 'LOADING') return (
         <div className="flex items-center justify-center p-4">
@@ -18,8 +22,9 @@ export const LicenseInfo = () => {
     ) 
 
     if (status === 'VALID' || status === 'EXPIRES_SOON') {
-        const expireAt = new Date(licenseDetails.expiresAt);
-        const remaining = formatDistanceToNowShort(expireAt);
+        const isLifetime = licenseDetails?.expiresAt === 'Never';
+        const expireAt = isLifetime ? null : new Date(licenseDetails.expiresAt);
+        const remaining = expireAt ? formatDistanceToNowShort(expireAt) : null;
         return (
              <div className="space-y-4">
                   {status === 'EXPIRES_SOON' && licenseDetails?.daysRemaining != null && (
@@ -34,8 +39,11 @@ export const LicenseInfo = () => {
                   <Card>
                     <CardContent className="flex flex-col gap-2 pt-6">
                         <div className="flex items-center gap-2">
-                            <CheckCircle className="h-5 w-5 text-green-600" />
-                            <p className="font-semibold text-green-600">Lisensi Aktif</p>
+                            {isTrial ? <Zap className="h-5 w-5 text-primary" /> : <CheckCircle className="h-5 w-5 text-green-600" />}
+                            <p className={`font-semibold ${isTrial ? 'text-primary' : 'text-green-600'}`}>
+                                {isTrial ? 'Masa Trial Aktif' : 'Lisensi Aktif'}
+                            </p>
+                            {isTrial && <Badge variant="secondary" className="ml-auto">Trial</Badge>}
                             <Link to="/license" className="ms-auto text-sm font-medium text-primary hover:underline">
                                 Kelola &rarr;
                             </Link>
@@ -44,6 +52,11 @@ export const LicenseInfo = () => {
                             <p>Paket: <Badge variant="secondary">{licenseDetails.plan}</Badge></p>
                             <p>Berakhir: <span className="font-medium">{licenseDetails.expiresAt === 'Never' ? 'Selamanya' : new Date(licenseDetails.expiresAt).toLocaleDateString()}</span></p>
                         </div>
+                        {isTrial && (
+                            <Button size="sm" className="mt-1 w-full" onClick={() => invoke('open_pricing')}>
+                                <CreditCard className="mr-2 h-4 w-4" /> Upgrade ke Lisensi Penuh
+                            </Button>
+                        )}
                     </CardContent>
                   </Card>
               </div>
@@ -94,6 +107,9 @@ export const LicenseInfo = () => {
                     </AlertDescription>
                 </Alert>
             )}
+            <a href={PRICING_URL} target="_blank" rel="noopener noreferrer" className="text-xs font-medium text-primary hover:underline inline-flex items-center gap-1">
+                <CreditCard className="h-3.5 w-3.5" /> Beli / Upgrade Lisensi
+            </a>
         </div>
         </>
     )

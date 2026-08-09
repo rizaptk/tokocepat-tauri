@@ -35,12 +35,7 @@ const getTaxRateForItem = (item: CartItem, storeConfig: StoreConfig): number => 
         }
     }
 
-    // 2. Check for product type override
-    if (item.product_type === 'food_and_beverage' && typeof tax_settings.product_type_overrides.food_and_beverage === 'number') {
-        return tax_settings.product_type_overrides.food_and_beverage!;
-    }
-
-    // 3. Fallback to default rate from new system
+    // 2. Fallback to default rate from new system
     return tax_settings.default_rate;
 };
 
@@ -124,9 +119,7 @@ export function CartDisplay({ onEditItem }: CartDisplayProps) {
         cartItemId: txItem.id, // Use the unique transaction item ID
         quantity: txItem.qty,
         price: txItem.price_snapshot,
-        selectedModifiers: txItem.selected_modifiers_snapshot || [],
-        has_variant: false, 
-        has_modifier: (txItem.selected_modifiers_snapshot || []).length > 0,
+        has_variant: false,
         track_stock: false,
         is_active: true,
         stock: 0,
@@ -180,7 +173,7 @@ export function CartDisplay({ onEditItem }: CartDisplayProps) {
 
   return (
     <div ref={cartDisplayRef} className="flex flex-col flex-1 h-full min-h-0">
-      <header className="hidden md:flex h-16 items-center justify-between px-6 shrink-0 gap-2">
+      <header className="hidden md:flex h-11 items-center justify-between px-3 shrink-0 gap-1.5">
         <Button variant={view === 'cart' ? 'secondary' : 'ghost'} onClick={() => setView('cart')} className="flex-1">
             <ShoppingCart className="mr-2 h-4 w-4" />
             Keranjang

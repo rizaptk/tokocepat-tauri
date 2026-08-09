@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, memo, useRef, useTransition } from "react";
 import { useStore } from "@/lib/store";
-import { Product, StockMovementType, RawIngredient, Category, ProductVariant, StockMovement } from "@/lib/types";
-import { adjustStock, adjustIngredientStock, adjustVariantStock, getStockMovementsByProducts } from "@/services/stockService";
+import { Product, StockMovementType, Category, ProductVariant, StockMovement } from "@/lib/types";
+import { adjustStock, adjustVariantStock, getStockMovementsByProducts } from "@/services/stockService";
 import { useToast } from "@/hooks/use-toast";
 import { FixedSizeList as List } from 'react-window';
 import AutoSizer from 'react-virtualized-auto-sizer';
@@ -29,6 +29,7 @@ import { TokoCepatLogo } from "@/components/TokoCepatLogo";
 import { NotificationBell } from "@/components/NotificationBell";
 import { ThemeToggle } from "@/components/ThemeButtons";
 import { itemMapping } from "@/lib/utils"; 
+import { motion, AnimatePresence } from "framer-motion"; 
 
 
 const reasonOptions: Record<'add' | 'remove' | 'count', { id: string, value: StockMovementType, label: string }[]> = {
@@ -54,12 +55,11 @@ const reasonOptions: Record<'add' | 'remove' | 'count', { id: string, value: Sto
 };
 
 type InventoryItemType = (Product & { itemType: 'product', stock: number }) 
-    | (RawIngredient & { itemType: 'ingredient', stock: number })
     | (ProductVariant & { itemType: 'variant', stock: number, parentName: string });
 
 
-const StockHistoryCards = memo(({selectedItem}: {selectedItem: { id: string, type: 'product' | 'ingredient' | 'variant' }[]}) => {
-    const { products, rawIngredients, productVariants } = useStore();
+const StockHistoryCards = memo(({selectedItem}: {selectedItem: { id: string, type: 'product' | 'variant' }[]}) => {
+    const { products, productVariants } = useStore();
     const [histories, setHistory] = useState<StockMovement[]>([]);
     const [loading, setTransition] = useTransition();
 
@@ -110,11 +110,11 @@ const StockHistoryCards = memo(({selectedItem}: {selectedItem: { id: string, typ
             </h4>
             {mapedByIds.map((group) => {
                 const firstHistory = group[0];
-                const item = [...products, ...rawIngredients, ...productVariants].find(i => i.id === firstHistory.product_id);
+                const item = [...products, ...productVariants].find(i => i.id === firstHistory.product_id);
                 const over50 = group.length >= 50;
                 return (
                     <Card key={firstHistory.product_id} className="overflow-hidden">
-                        <CardHeader className="px-6 pb-4 pt-6 border-b flex flex-row justify-between items-center">
+                        <CardHeader className="px-4 pb-3 pt-4 border-b flex flex-row justify-between items-center">
                             <CardTitle className="text-sm font-bold">{item?.name || 'Unknown Item'} {group.length > 1 && <Badge variant="success" className="ms-2 py-0.5 px-2 leading-none font-mono">{` ${group.length} ${over50 ? '+' : ''}`}</Badge>}</CardTitle>
                             <Button variant="ghost" size="sm">
                                 <Link to="/dashboard/reports/stock-movement" className="flex items-center gap-2">
@@ -130,7 +130,7 @@ const StockHistoryCards = memo(({selectedItem}: {selectedItem: { id: string, typ
                                     const hisType = (mapped??history.type).toUpperCase();
                                     const isPositive = history.qty_change > 0;
                                     return (
-                                        <div key={history.id} className={cn("px-6 py-4 text-sm hover:bg-muted/30 transition-colors flex gap-3 items-start", index % 2 === 0 ? "bg-muted/40" : "bg-transparent")}>
+                                        <div key={history.id} className={cn("px-4 py-3 text-sm hover:bg-muted/30 transition-colors flex gap-3 items-start", index % 2 === 0 ? "bg-muted/40" : "bg-transparent")}>
                                             <div className={cn(
                                                 "mt-1 p-1.5 rounded-full shrink-0",
                                                 isPositive ? "bg-success/30 text-success-foreground" : "bg-destructive/15 text-destructive"
@@ -167,14 +167,14 @@ const StockHistoryCards = memo(({selectedItem}: {selectedItem: { id: string, typ
     )
 })
 
-const StockAdjustmentPanel = memo(({ selectedItem, onSave, onCancel }: { selectedItem: { id: string, type: 'product' | 'ingredient' | 'variant' } | null; onSave: () => void; onCancel: () => void; }) => {
+const StockAdjustmentPanel = memo(({ selectedItem, onSave, onCancel }: { selectedItem: { id: string, type: 'product' | 'variant' } | null; onSave: () => void; onCancel: () => void; }) => {
     const [mode, setMode] = useState<'add' | 'remove' | 'count' | null>(null);
     const [quantity, setQuantity] = useState('');
     const [actualCount, setActualCount] = useState('');
     const [reason, setReason] = useState('');
     const [note, setNote] = useState('');
 
-    const { products, rawIngredients, productVariants } = useStore();
+    const { products, productVariants } = useStore();
     const { toast } = useToast();
 
     const scrollRef = useRef<ScrollAreaHandle>(null);
@@ -185,16 +185,13 @@ const StockAdjustmentPanel = memo(({ selectedItem, onSave, onCancel }: { selecte
         if (selectedItem.type === 'product') {
             const product = products.find(p => p.id === selectedItem.id);
             return product ? { ...product, itemType: 'product', stock: product.stock } : null;
-        } else if (selectedItem.type === 'ingredient') {
-            const ingredient = rawIngredients.find(i => i.id === selectedItem.id);
-            return ingredient ? { ...ingredient, itemType: 'ingredient', stock: ingredient.stock_qty } : null;
         } else { // variant
             const variant = productVariants.find(v => v.id === selectedItem.id);
             if (!variant) return null;
             const parent = products.find(p => p.id === variant.product_id);
             return { ...variant, itemType: 'variant', stock: variant.stock, parentName: parent?.name || 'Unknown' };
         }
-    }, [selectedItem, products, rawIngredients, productVariants]);
+    }, [selectedItem, products, productVariants]);
 
     // Reset form state when product changes
     useEffect(() => {
@@ -265,8 +262,6 @@ const StockAdjustmentPanel = memo(({ selectedItem, onSave, onCancel }: { selecte
                     qty_change: change,
                     reason: adjustmentReason,
                 });
-            } else if (item.itemType === 'ingredient') {
-                await adjustIngredientStock(item.id, selectedOption.value, change, adjustmentReason);
             } else if (item.itemType === 'variant') {
                 await adjustVariantStock(item.id, selectedOption.value, change, adjustmentReason);
             }
@@ -282,14 +277,14 @@ const StockAdjustmentPanel = memo(({ selectedItem, onSave, onCancel }: { selecte
 
     return (
         <div className="flex flex-col h-full min-h-0">
-            <div className="pt-6 pb-2 px-4 flex items-center justify-between">
-                <h3 className="font-semibold text-lg">Penyesuaian Stok</h3>
-                <WarehouseIcon className="size-5" />
+            <div className="pt-2 pb-1 px-4 flex items-center justify-between">
+                <h3 className="font-semibold text-base">Penyesuaian Stok</h3>
+                <WarehouseIcon className="size-4" />
             </div>
             <div className="flex-1 min-h-0 flex flex-col relative">
                 <ScrollShadow scrollRef={scrollRef} side="both" />
                 <ScrollArea ref={scrollRef} className="flex-1 min-h-0 [&>[data-radix-scroll-area-viewport]>div]:block! [&>[data-radix-scroll-area-viewport]>div]:h-full!">
-                    <div className="p-4 space-y-6 h-full">
+                    <div className="p-4 space-y-4 h-full">
                         {!item ? (
                             <Card className="h-full">
                                 <div className="flex flex-col items-center justify-center text-center text-muted-foreground h-full p-8">
@@ -300,13 +295,12 @@ const StockAdjustmentPanel = memo(({ selectedItem, onSave, onCancel }: { selecte
                         ) : (
                             <>
                                 <Card>
-                                    <CardHeader>
-                                        <CardTitle>{item.itemType === 'variant' ? `${item.parentName} (${item.name})` : item.name}</CardTitle>
+                                    <CardHeader className="pb-2">
+                                        <CardTitle className="text-base">{item.itemType === 'variant' ? `${item.parentName} (${item.name})` : item.name}</CardTitle>
                                         <div className="flex justify-between items-center">
                                             <CardDescription>Stok Tersedia: <span className="font-bold text-foreground">{item.stock}</span></CardDescription>
                                             <Badge variant={badgeVariant as any} className="border border-border capitalize">
                                                 <ItemIcon className="h-3 w-3 mr-1.5" />
-                                                {/* {item.itemType === 'product' ? 'Product' : item.itemType === 'ingredient' ? 'Ingredient' : 'Variant'} */}
                                                 {itemMapping.get(item.itemType)}
                                             </Badge>
                                         </div>
@@ -316,33 +310,33 @@ const StockAdjustmentPanel = memo(({ selectedItem, onSave, onCancel }: { selecte
                                         <div>
                                             <Label>Aksi?</Label>
                                             <ButtonGroup className="w-full mt-2">
-                                                <Button variant={mode === 'add' ? 'success' : 'outline'} onClick={() => setMode('add')} className="flex-1 flex-col h-16">
-                                                    <Plus className="w-5 h-5 mb-1" />
+                                                <Button variant={mode === 'add' ? 'success' : 'outline'} onClick={() => setMode('add')} className="flex-1 h-10">
+                                                    <Plus className="w-4 h-4" />
                                                     <span className="text-xs">Tambah</span>
                                                 </Button>
-                                                <Button variant={mode === 'remove' ? 'destructive' : 'outline'} onClick={() => setMode('remove')} className="flex-1 flex-col h-16">
-                                                    <Minus className="w-5 h-5 mb-1" />
+                                                <Button variant={mode === 'remove' ? 'destructive' : 'outline'} onClick={() => setMode('remove')} className="flex-1 h-10">
+                                                    <Minus className="w-4 h-4" />
                                                     <span className="text-xs">Kurang</span>
                                                 </Button>
-                                                <Button variant={mode === 'count' ? 'default' : 'outline'} onClick={() => setMode('count')} className="flex-1 flex-col h-16">
-                                                    <Calculator className="w-5 h-5 mb-1" />
+                                                <Button variant={mode === 'count' ? 'default' : 'outline'} onClick={() => setMode('count')} className="flex-1 h-10">
+                                                    <Calculator className="w-4 h-4" />
                                                     <span className="text-xs">Koreksi</span>
                                                 </Button>
                                             </ButtonGroup>
                                         </div>
 
                                         {mode && (
-                                            <div className="space-y-4 pt-4">
+                                            <div className="space-y-3 pt-2">
                                                 {mode === 'add' || mode === 'remove' ? (
-                                                    <div className="space-y-4">
+                                                    <div className="grid grid-cols-2 gap-3">
                                                         <div className="space-y-2">
                                                             <Label htmlFor="quantity">Jumlah</Label>
-                                                            <Input id="quantity" type="number" placeholder="Masukkan angka" value={quantity} onChange={(e) => setQuantity(e.target.value)} min="1" />
+                                                            <Input id="quantity" type="number" placeholder="Angka" value={quantity} onChange={(e) => setQuantity(e.target.value)} min="1" />
                                                         </div>
                                                         <div className="space-y-2">
                                                             <Label htmlFor="reason-select">Alasan</Label>
                                                             <Select value={reason} onValueChange={setReason}>
-                                                                <SelectTrigger><SelectValue placeholder="Tentukan alasan" /></SelectTrigger>
+                                                                <SelectTrigger><SelectValue placeholder="Pilih" /></SelectTrigger>
                                                                 <SelectContent>
                                                                     {reasonOptions[mode].map(opt => <SelectItem key={opt.id} value={opt.id}>{opt.label}</SelectItem>)}
                                                                 </SelectContent>
@@ -350,7 +344,7 @@ const StockAdjustmentPanel = memo(({ selectedItem, onSave, onCancel }: { selecte
                                                         </div>
                                                     </div>
                                                 ) : (
-                                                    <div className="space-y-4">
+                                                    <div className="grid grid-cols-2 gap-3">
                                                         <div className="space-y-2">
                                                             <Label htmlFor="actual-count">Stok Rill (Fisik)</Label>
                                                             <Input id="actual-count" type="number" placeholder="cth. 142" value={actualCount} onChange={(e) => setActualCount(e.target.value)} />
@@ -461,12 +455,12 @@ const InventoryListItem = ({ item, isSelected, onItemClick, categories, isEven }
         : '';
 
     return (
-        <div className="bg-card border-x border-b border-b-border/50 p-0 h-14">
+        <div className="bg-card border-x border-b border-b-border/50 p-0 h-12">
             <div
                 data-item
                 onClick={() => onItemClick(item)}
                 className={cn(
-                    "flex items-center px-4 transition-colors cursor-pointer  hover:bg-accent h-14",
+                    "group flex items-center px-4 transition-colors cursor-pointer  hover:bg-accent h-12",
                     isSelected ? "bg-success/20 text-success-foreground" : isEven ? 'bg-border/10' : ''
                 )}
             >
@@ -488,8 +482,8 @@ const InventoryListItem = ({ item, isSelected, onItemClick, categories, isEven }
                 <div className={ColumnClass.category}>
                     <span className="truncate">{categoryName}</span>
                 </div>
-                <div className={ColumnClass.stock}>
-                    <p className="font-bold text-base">{item.stock}</p>
+                <div className={ColumnClass.stock} title="Klik untuk menyesuaikan stok" onClick={() => onItemClick(item)} role="button" tabIndex={-1}>
+                    <p className="font-bold text-base group-hover:text-primary transition-colors">{item.stock}</p>
                 </div>
             </div>
         </div>
@@ -498,9 +492,9 @@ const InventoryListItem = ({ item, isSelected, onItemClick, categories, isEven }
 
 
 export default function InventoryPage() {
-    const { products, rawIngredients, categories, productVariants } = useStore();
+    const { products, categories, productVariants } = useStore();
     const { toast } = useToast();
-    const [selectedItem, setSelectedItem] = useState<{ id: string; type: 'product' | 'ingredient' | 'variant' } | null>(null);
+    const [selectedItem, setSelectedItem] = useState<{ id: string; type: 'product' | 'variant' } | null>(null);
     const [isSheetOpen, setIsSheetOpen] = useState(false);
     const [filter, setFilter] = useState('all');
 
@@ -508,26 +502,23 @@ export default function InventoryPage() {
     const thumbRef = useRef<HTMLDivElement>(null);
     const trackRef = useRef<HTMLDivElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
+    const listRef = useRef<List>(null);
     const [isScrolling, setIsCrolling] = useState(false);
 
     const { query } = useProductSearch();
 
     const inventoryItems: InventoryItemType[] = useMemo(() => {
         const stockTrackedProducts = products.filter(p => p.track_stock).map(p => ({ ...p, itemType: 'product' as const, stock: p.stock }));
-        const ingredients = rawIngredients.map(i => ({ ...i, itemType: 'ingredient' as const, stock: i.stock_qty }));
         const variants = productVariants.filter(v => v.track_stock).map(v => {
             const parent = products.find(p => p.id === v.product_id);
             return { ...v, itemType: 'variant' as const, stock: v.stock, parentName: parent?.name || 'Unknown' };
         });
 
-        let combined: InventoryItemType[] = [...stockTrackedProducts, ...ingredients, ...variants];
+        let combined: InventoryItemType[] = [...stockTrackedProducts, ...variants];
         
         switch(filter) {
             case 'product':
                 combined = combined.filter(item => item.itemType === 'product');
-                break;
-            case 'ingredient':
-                combined = combined.filter(item => item.itemType === 'ingredient');
                 break;
             case 'variant':
                  combined = combined.filter(item => item.itemType === 'variant');
@@ -572,7 +563,7 @@ export default function InventoryPage() {
             const nameToSearch = p.itemType === 'variant' ? `${(p as any).parentName} ${p.name}` : p.name;
             return nameToSearch.toLowerCase().includes(query.toLowerCase());
         });
-    }, [products, rawIngredients, productVariants, query, filter]);
+    }, [products, productVariants, query, filter]);
 
     const handleBarcodeScan = (barcode: string) => {
         const product = products.find(p => p.barcode === barcode);
@@ -621,6 +612,27 @@ export default function InventoryPage() {
         }
     };
 
+    const handleKeyNav = (e: React.KeyboardEvent) => {
+        if (inventoryItems.length === 0) return;
+        const currentIndex = selectedItem
+            ? inventoryItems.findIndex(i => i.id === selectedItem.id)
+            : -1;
+        let next = currentIndex;
+        if (e.key === 'ArrowDown') next = Math.min(currentIndex + 1, inventoryItems.length - 1);
+        else if (e.key === 'ArrowUp') next = Math.max(currentIndex - 1, 0);
+        else if ((e.key === 'Enter' || e.key === ' ') && currentIndex >= 0) {
+            handleItemSelect(inventoryItems[currentIndex]);
+            return;
+        } else return;
+
+        e.preventDefault();
+        if (next >= 0 && next !== currentIndex) {
+            const item = inventoryItems[next];
+            handleItemSelect(item);
+            listRef.current?.scrollToItem(next);
+        }
+    };
+
     const handleOpenAdjustmentSheet = () => {
         setSelectedItem(null);
         setIsSheetOpen(true);
@@ -662,7 +674,7 @@ export default function InventoryPage() {
 
     return (
         <div className="flex flex-col h-full min-h-0">
-            <header className="sticky top-0 z-20 flex h-16 items-center gap-4 px-4 md:px-6 justify-between">
+            <header className="sticky top-0 z-20 flex h-12 items-center gap-4 px-4 justify-between border-b border-border/60 bg-background/80 backdrop-blur-md">
                 <Link to="/">
                     <TokoCepatLogo />
                 </Link>
@@ -671,7 +683,7 @@ export default function InventoryPage() {
                     <ThemeToggle />
                 </div>
             </header>
-            <div className="w-full h-[calc(100vh-4rem)] md:grid md:grid-cols-10 min-h-0">
+            <div className="w-full h-[calc(100vh-3rem)] md:grid md:grid-cols-10 min-h-0">
                 <div className="col-span-10 md:col-span-6 lg:col-span-6 h-full flex flex-col min-h-0">
                     <div className="flex flex-col gap-4 p-4">
                         <div className="flex items-center gap-2 ">
@@ -687,24 +699,23 @@ export default function InventoryPage() {
                             </div>
                         </div>
                         <div className="flex items-center gap-4 overflow-x-auto no-scrollbar">
-                            <Button variant={filter === 'all' ? 'secondary' : 'outline'} onClick={() => setFilter('all')} className="rounded-full px-4 shrink-0">All</Button>
-                            <Button variant={filter === 'product' ? 'secondary' : 'outline'} onClick={() => setFilter('product')} className="rounded-full px-4 shrink-0">Produk</Button>
+                            <Button variant={filter === 'all' ? 'secondary' : 'outline'} onClick={() => setFilter('all')} className="rounded-md px-3 shrink-0">All</Button>
+                            <Button variant={filter === 'product' ? 'secondary' : 'outline'} onClick={() => setFilter('product')} className="rounded-md px-3 shrink-0">Produk</Button>
                             {/* Consignment inventory filter */}
-                            <Button variant={filter === 'consignment' ? 'secondary' : 'outline'} onClick={() => setFilter('consignment')} className="rounded-full px-4 shrink-0">Titipan / Konsinyasi</Button>
-                            <Button variant={filter === 'ingredient' ? 'secondary' : 'outline'} onClick={() => setFilter('ingredient')} className="rounded-full px-4 shrink-0">Bahan</Button>
-                            <Button variant={filter === 'variant' ? 'secondary' : 'outline'} onClick={() => setFilter('variant')} className="rounded-full px-4 shrink-0">Varian</Button>
+                            <Button variant={filter === 'consignment' ? 'secondary' : 'outline'} onClick={() => setFilter('consignment')} className="rounded-md px-3 shrink-0">Titipan / Konsinyasi</Button>
+                            <Button variant={filter === 'variant' ? 'secondary' : 'outline'} onClick={() => setFilter('variant')} className="rounded-md px-3 shrink-0">Varian</Button>
                             
                             <Separator orientation="vertical" />
 
-                            <Button variant={filter === 'low_stock' ? 'secondary' : 'outline'} onClick={() => setFilter('low_stock')} className="rounded-full px-4 shrink-0">Stok Tipis</Button>
-                            <Button variant={filter === 'out_of_stock' ? 'secondary' : 'outline'} onClick={() => setFilter('out_of_stock')} className="rounded-full px-4 shrink-0">Habis</Button>
+                            <Button variant={filter === 'low_stock' ? 'secondary' : 'outline'} onClick={() => setFilter('low_stock')} className="rounded-md px-3 shrink-0">Stok Tipis</Button>
+                            <Button variant={filter === 'out_of_stock' ? 'secondary' : 'outline'} onClick={() => setFilter('out_of_stock')} className="rounded-md px-3 shrink-0">Habis</Button>
                         </div>
                     </div>
                     <div className="flex-1 bg-background h-full min-h-0 flex flex-col">
                         {inventoryItems.length > 0 ? (
                             <>
                                 <div className="px-4 w-full">
-                                    <div className="rounded-t-lg h-12 w-full border bg-card flex items-center px-4">
+                                    <div className="rounded-t-lg h-10 w-full border bg-card flex items-center px-4">
                                         <div className={ColumnClass.name}>
                                             <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Nama Item</span>
                                         </div>
@@ -719,18 +730,19 @@ export default function InventoryPage() {
                                         </div>
                                     </div>
                                 </div>
-                                <div className="flex-1 min-h-0 relative overflow-hidden" ref={containerRef}>
+                                <div className="flex-1 min-h-0 relative overflow-hidden outline-none" ref={containerRef} tabIndex={0} onKeyDown={handleKeyNav}>
                                     <div className={`absolute -top-px h-0 transition-opacity duration-150 pointer-events-none shadow border-b left-3 right-3 z-10 ${isScrolling ? 'opacity-100' : 'opacity-0'}`}></div>
                                     <AutoSizer>
                                         {({ height, width }) => (
                                             <List
+                                                ref={listRef as any}
                                                 itemKey={(index) => inventoryItems[index].id}
                                                 className='no-scrollbar'
                                                 outerRef={outerRef}
                                                 height={height}
                                                 width={width}
                                                 itemCount={inventoryItems.length}
-                                                itemSize={56}
+                                                itemSize={48}
                                             >
                                                 {Row}
                                             </List>
@@ -752,7 +764,18 @@ export default function InventoryPage() {
                 </div>
 
                 <aside className="hidden md:block col-span-4 lg:col-span-4 h-full min-h-0">
-                    <StockAdjustmentPanel onSave={handleSave} onCancel={handleCancel} selectedItem={selectedItem} />
+                    <AnimatePresence mode="wait" initial={false}>
+                        <motion.div
+                            key={selectedItem ? `${selectedItem.type}-${selectedItem.id}` : 'none'}
+                            initial={{ opacity: 0, x: 24 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: 24 }}
+                            transition={{ duration: 0.18, ease: 'easeOut' }}
+                            className="h-full min-h-0"
+                        >
+                            <StockAdjustmentPanel onSave={handleSave} onCancel={handleCancel} selectedItem={selectedItem} />
+                        </motion.div>
+                    </AnimatePresence>
                 </aside>
 
                 <Sheet open={isSheetOpen} onOpenChange={handleSheetOpenChange}>
@@ -760,7 +783,18 @@ export default function InventoryPage() {
                         <SheetHeader className="sr-only">
                             <SheetTitle>Penyesuaian Stok</SheetTitle>
                         </SheetHeader>
-                        <StockAdjustmentPanel onSave={handleSave} onCancel={handleCancel} selectedItem={selectedItem} />
+                        <AnimatePresence mode="wait" initial={false}>
+                            <motion.div
+                                key={selectedItem ? `${selectedItem.type}-${selectedItem.id}` : 'none'}
+                                initial={{ opacity: 0, x: 40 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                exit={{ opacity: 0, x: 40 }}
+                                transition={{ duration: 0.2, ease: 'easeOut' }}
+                                className="h-full min-h-0"
+                            >
+                                <StockAdjustmentPanel onSave={handleSave} onCancel={handleCancel} selectedItem={selectedItem} />
+                            </motion.div>
+                        </AnimatePresence>
                     </SheetContent>
                 </Sheet>
             </div>

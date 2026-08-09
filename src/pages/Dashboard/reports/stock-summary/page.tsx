@@ -2,7 +2,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useStore } from '@/lib/store';
 import React, { useState, useMemo, useEffect } from 'react';
 import { DateRange } from 'react-day-picker';
-import { ArrowLeft, Warehouse, Loader2, Package, Beaker, Layers2, FileDown, FileText } from 'lucide-react';
+import { ArrowLeft, Warehouse, Loader2, Package, Layers2, FileDown, FileText } from 'lucide-react';
 import { format, startOfDay, endOfDay } from 'date-fns';
 import { exportStockSummaryToExcel, exportStockSummaryToPdf } from '@/lib/export';
 import { useToast } from '@/hooks/use-toast';
@@ -20,7 +20,7 @@ import { NotificationBell } from '@/components/NotificationBell';
 import { ThemeToggle } from '@/components/ThemeButtons';
 
 export default function StockSummaryReportPage() {
-    const { rawIngredients, products, productVariants, storeConfig } = useStore();
+    const { products, productVariants, storeConfig } = useStore();
     const { toast } = useToast();
     const [date, setDate] = React.useState<DateRange | undefined>({
       from: startOfDay(new Date()),
@@ -28,7 +28,7 @@ export default function StockSummaryReportPage() {
     });
     const [stockMovements, setStockMovements] = useState<StockMovement[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [filterType, setFilterType] = useState<'all' | 'product' | 'ingredient' | 'variant'>('all');
+    const [filterType, setFilterType] = useState<'all' | 'product' | 'variant'>('all');
     const nav = useNavigate();
 
     useEffect(() => {
@@ -59,11 +59,9 @@ export default function StockSummaryReportPage() {
                     itemType: 'variant' as const,
                 };
             });
-        
-        const stockableIngredients = rawIngredients.map(i => ({ ...i, name: i.name, stock: i.stock_qty, itemType: 'ingredient' as const }));
 
-        return [...stockableProducts, ...stockableVariants, ...stockableIngredients];
-    }, [products, productVariants, rawIngredients]);
+        return [...stockableProducts, ...stockableVariants];
+    }, [products, productVariants]);
 
     const reportData = useMemo(() => {
         const filteredItems = allStockableItems.filter(item => {
@@ -121,7 +119,7 @@ export default function StockSummaryReportPage() {
 
     return (
         <div className="flex min-h-screen w-full flex-col bg-muted/40">
-           <header className="sticky top-0 flex h-16 items-center gap-2 border-b bg-background px-4 md:px-6 z-10">
+           <header className="sticky top-0 flex h-12 items-center gap-4 border-b border-border/60 bg-background/80 px-4 backdrop-blur-md z-10">
                 <Button variant="outline" size="icon" className="shrink-0" asChild>
                     <Link to="#" onClick={() => nav(-1)}>
                         <ArrowLeft className="h-4 w-4" />
@@ -176,7 +174,6 @@ export default function StockSummaryReportPage() {
                                     <SelectItem value="all">Semua Item</SelectItem>
                                     <SelectItem value="product">Produk</SelectItem>
                                     <SelectItem value="variant">Varian Produk</SelectItem>
-                                    <SelectItem value="ingredient">Bahan Baku</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
@@ -205,11 +202,10 @@ export default function StockSummaryReportPage() {
                                         <TableCell>
                                             <Badge variant="outline" className={
                                                 item.type === 'product' ? 'border-indigo-500 bg-primary/5 text-primary' : 
-                                                item.type === 'variant' ? 'border-warning bg-warning/5 text-warning' :
-                                                'border-green-500 bg-success/5 text-success-foreground'
+                                                'border-warning bg-warning/5 text-warning'
                                             }>
-                                                {item.type === 'product' ? <Package className="h-3 w-3 mr-1.5" /> : item.type === 'variant' ? <Layers2 className="h-3 w-3 mr-1.5" /> : <Beaker className="h-3 w-3 mr-1.5" />}
-                                                {item.type === 'product' ? 'Produk' : item.type === 'variant' ? 'Varian' : 'Bahan'}
+                                                {item.type === 'product' ? <Package className="h-3 w-3 mr-1.5" /> : <Layers2 className="h-3 w-3 mr-1.5" />}
+                                                {item.type === 'product' ? 'Produk' : 'Varian'}
                                             </Badge>
                                         </TableCell>
                                         <TableCell className="text-right">{item.openingStock.toLocaleString()}</TableCell>

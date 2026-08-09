@@ -1,11 +1,10 @@
 'use client';
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Package, Library, SlidersHorizontal, Beaker } from "lucide-react";
+import { Package, Library } from "lucide-react";
 import { ProductForm } from './ProductForm';
 import { CategoryManager } from './managers/CategoryManager';
-import { ModifierManager } from './managers/ModifierManager';
-import { IngredientManager } from './managers/IngredientManager';
+import type { CatalogProduct } from "@/lib/types";
 
 interface ProductEditorProps {
     selectedProductId: string | null;
@@ -13,32 +12,23 @@ interface ProductEditorProps {
     onClose: () => void;
     activeTab: string;
     onTabChange: (tab: string) => void;
+    catalogPrefill?: CatalogProduct | null;
 }
 
-export const ProductEditor = ({ selectedProductId, onProductUpdate, onClose, activeTab, onTabChange }: ProductEditorProps) => {
+export const ProductEditor = ({ selectedProductId, onProductUpdate, onClose, activeTab, onTabChange, catalogPrefill }: ProductEditorProps) => {
     return (
         <Tabs value={activeTab} onValueChange={onTabChange} className="h-full flex flex-col min-h-0">
-            <div className="px-4 py-4 grid grid-cols-1">
-                <div className="grid grid-cols-1 w-full overflow-x-auto no-scrollbar shrink-0">
-                    <TabsList className="grid w-full grid-cols-4 min-w-122">
-                        <TabsTrigger value="product"><Package className="w-4 h-4 mr-2 text-primary" />Produk</TabsTrigger>
-                        <TabsTrigger value="categories"><Library className="w-4 h-4 mr-2 text-destructive" />Kategori</TabsTrigger>
-                        <TabsTrigger value="modifiers"><SlidersHorizontal className="w-4 h-4 mr-2 text-purple-500" />Modifier</TabsTrigger>
-                        <TabsTrigger value="ingredients"><Beaker className="w-4 h-4 mr-2 text-green-600" />Bahan</TabsTrigger>
-                    </TabsList>
-                </div>
+            <div className="px-3 py-2 grid grid-cols-1 shrink-0 border-b border-border/60">
+                <TabsList className="grid w-full grid-cols-2 min-w-96">
+                    <TabsTrigger value="product"><Package className="w-3.5 h-3.5 mr-2 text-primary" />Produk</TabsTrigger>
+                    <TabsTrigger value="categories"><Library className="w-3.5 h-3.5 mr-2 text-destructive" />Kategori</TabsTrigger>
+                </TabsList>
             </div>
             <TabsContent value="product" className="grid grid-cols-1 w-full mt-0 overflow-x-auto min-h-0">
-                <ProductForm productId={selectedProductId} onSave={onProductUpdate} onCancel={onClose} />
+                <ProductForm productId={selectedProductId} onSave={onProductUpdate} onCancel={onClose} catalogPrefill={catalogPrefill} />
             </TabsContent>
             <TabsContent value="categories" className="grid grid-cols-1 w-full mt-0 overflow-x-auto min-h-0">
                 <CategoryManager />
-            </TabsContent>
-            <TabsContent value="modifiers" className="grid grid-cols-1 w-full mt-0 overflow-x-auto min-h-0">
-                <ModifierManager />
-            </TabsContent>
-            <TabsContent value="ingredients" className="grid grid-cols-1 w-full mt-0 overflow-x-auto min-h-0">
-                <IngredientManager />
             </TabsContent>
         </Tabs>
     );

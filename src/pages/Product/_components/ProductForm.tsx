@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from "react";
+import React, { useMemo, useEffect, useRef } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { useStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
@@ -12,21 +12,18 @@ import { Switch } from "@/components/ui/switch";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea, ScrollAreaHandle } from "@/components/ui/scroll-area";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
 // Icons
-import { PlusCircle, Scan, Zap, Upload } from "lucide-react";
+import { PlusCircle, Zap, Upload } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { ScrollShadow } from "@/components/ui/scrollshadow";
 
 // Services
 import { addProduct, updateProduct } from "@/services/productService";
+import type { CatalogProduct } from "@/lib/types";
 
 // Sub-components
-import { BarcodeScanner } from './BarcodeScanner';
 import { VariantItem } from './VariantItem';
-import { RecipeItem as CompositeItem } from './RecipeItem';
 import { useToast } from "@/hooks/use-toast";
 import { useGlobalNumberInputFix } from "@/hooks/useGlobalNumberInputFix";
 import { resizeImageWorker } from "@/lib/imageWorker"
@@ -42,14 +39,8 @@ export interface VariantFormData {
     low_stock_alert?: number;
 }
 
-export interface RecipeItemFormData {
-    ingredient_id: string;
-    quantity: number;
-}
-
 export interface ProductFormData {
     name: string;
-    product_type: "retail" | "food_and_beverage";
     category_id?: string;
     sku?: string;
     barcode?: string;
@@ -60,11 +51,7 @@ export interface ProductFormData {
     track_stock: boolean;
     is_active: boolean;
     has_variant: boolean;
-    has_modifier: boolean;
-    is_composite: boolean;
-    modifier_group_ids?: string[];
     variants?: VariantFormData[];
-    recipe_items?: RecipeItemFormData[];
     imageUrl?: string;
     imageHint?: string;
 
@@ -78,13 +65,15 @@ interface ProductFormProps {
     productId: string | null;
     onSave: () => void;
     onCancel: () => void;
+    /** Catalog row used to prefill a NEW product form (promote-on-save). */
+    catalogPrefill?: CatalogProduct | null;
 }
 
 const initialFormValues: ProductFormData = {
-    name: "", product_type: "retail", price: 0, cost_price: 0, stock: 0,
+    name: "", price: 0, cost_price: 0, stock: 0,
     low_stock_alert: 0, track_stock: true, is_active: true, has_variant: false,
-    has_modifier: false, is_composite: false, modifier_group_ids: [], sku: "", barcode: "",
-    variants: [], recipe_items: [], imageUrl: "", imageHint: "",
+    sku: "", barcode: "",
+    variants: [], imageUrl: "", imageHint: "",
     // Consignment defaults
     is_consignment: false,
     consignor_name: "",
@@ -92,12 +81,11 @@ const initialFormValues: ProductFormData = {
     consignment_commission_value: 0
 };
 
-export const ProductForm = ({ productId, onSave, onCancel }: ProductFormProps) => {
-    const { products, categories, modifierGroups, productVariants, rawIngredients, recipes } = useStore();
+export const ProductForm = ({ productId, onSave, onCancel, catalogPrefill }: ProductFormProps) => {
+    const { products, categories, productVariants } = useStore();
     const { toast } = useToast();
     const isEditing = !!productId;
     const product = useMemo(() => productId === null ? undefined : products.find(p => p.id === productId), [productId, products]);
-    const [isScannerOpen, setIsScannerOpen] = useState(false);
     const imageInputRef = useRef<HTMLInputElement>(null);
     const scrollRef = useRef<ScrollAreaHandle>(null);
 
@@ -110,13 +98,7 @@ export const ProductForm = ({ productId, onSave, onCancel }: ProductFormProps) =
         control: form.control, name: "variants",
     });
 
-    const { fields: recipeFields, append: appendRecipeItem, remove: removeRecipeItem } = useFieldArray({
-        control: form.control, name: "recipe_items",
-    });
-
     const hasVariant = form.watch('has_variant');
-    const productType = form.watch('product_type');
-    const isComposite = form.watch('is_composite');
     const imageUrl = form.watch('imageUrl');
     const isConsignment = form.watch('is_consignment');
 
@@ -125,17 +107,13 @@ export const ProductForm = ({ productId, onSave, onCancel }: ProductFormProps) =
     useEffect(() => {
         if (product) {
             const variantsForProduct = productVariants.filter(v => v.product_id === product.id);
-            const recipeForProduct = recipes.find(r => r.product_id === product.id);
             form.reset({
-                name: product.name, product_type: product.product_type as any, category_id: product.category_id,
+                name: product.name, category_id: product.category_id,
                 sku: product.sku, barcode: product.barcode,
                 price: product.price, cost_price: product.cost_price, stock: product.stock,
                 low_stock_alert: product.low_stock_alert, track_stock: product.track_stock,
-                is_active: product.is_active, has_variant: product.has_variant, has_modifier: product.has_modifier,
-                is_composite: product.is_composite || false,
-                modifier_group_ids: product.modifier_group_ids || [],
+                is_active: product.is_active, has_variant: product.has_variant,
                 variants: variantsForProduct as any,
-                recipe_items: recipeForProduct ? (recipeForProduct.items as any) : [],
                 imageUrl: product.imageUrl,
                 imageHint: product.imageHint,
                 is_consignment: product.is_consignment || false,
@@ -143,15 +121,34 @@ export const ProductForm = ({ productId, onSave, onCancel }: ProductFormProps) =
                 consignment_commission_type: product.consignment_commission_type || "percentage",
                 consignment_commission_value: product.consignment_commission_value || 0,
             });
+        } else if (catalogPrefill) {
+            const matchedCategory = categories.find(c =>
+                c.name.toLowerCase() === (catalogPrefill.category_name || '').toLowerCase()
+            );
+            form.reset({
+                name: catalogPrefill.name,
+                category_id: matchedCategory?.id,
+                sku: "",
+                barcode: catalogPrefill.barcode,
+                price: catalogPrefill.price,
+                cost_price: catalogPrefill.cost_price,
+                stock: catalogPrefill.stock,
+                low_stock_alert: catalogPrefill.low_stock_alert,
+                track_stock: true,
+                is_active: true,
+                has_variant: false,
+                variants: [],
+                imageUrl: catalogPrefill.image_url || "",
+                imageHint: catalogPrefill.brand || "",
+                is_consignment: false,
+                consignor_name: "",
+                consignment_commission_type: "percentage",
+                consignment_commission_value: 0,
+            });
         } else {
             form.reset(initialFormValues);
         }
-    }, [product, form, productVariants, recipes]);
-
-    const handleScanSuccess = (barcode: string) => {
-        form.setValue('barcode', barcode, { shouldValidate: true });
-        setIsScannerOpen(false);
-    };
+    }, [product, form, productVariants, catalogPrefill, categories]);
 
     const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0]
@@ -203,12 +200,12 @@ export const ProductForm = ({ productId, onSave, onCancel }: ProductFormProps) =
                 <div className="flex-1 min-h-0 relative overflow-hidden">
                     <ScrollShadow scrollRef={scrollRef} side="both" />
                     <ScrollArea className="px-1 h-full" ref={scrollRef}>
-                        <div className="space-y-6 p-4">
-                            <Card>
-                                <CardHeader><CardTitle>Detail Produk</CardTitle></CardHeader>
-                                <CardContent className="space-y-6">
-                                    <div className="flex items-stretch w-full gap-6">
-                                        <div onClick={() => imageInputRef.current?.click()} role="button" tabIndex={0} onKeyDown={(e) => e.key === "Enter" && imageInputRef.current?.click()} className="group relative w-48 h-48 rounded-xl overflow-hidden border bg-muted cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary">
+                        <div className="space-y-3 p-3">
+                            <Card className="border-border/60">
+                                <CardHeader className="px-3 py-2 border-b border-border/60"><CardTitle className="text-sm">Detail Produk</CardTitle></CardHeader>
+                                <CardContent className="space-y-3 px-3 py-3">
+                                    <div className="flex items-stretch w-full gap-4">
+                                        <div onClick={() => imageInputRef.current?.click()} role="button" tabIndex={0} onKeyDown={(e) => e.key === "Enter" && imageInputRef.current?.click()} className="group relative w-32 h-32 shrink-0 rounded-lg overflow-hidden border bg-muted cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary">
                                             <img
                                                 src={imageUrl || "/images/placeholder.svg"}
                                                 alt={form.getValues("name") || "Product image"}
@@ -216,75 +213,68 @@ export const ProductForm = ({ productId, onSave, onCancel }: ProductFormProps) =
                                                 className="object-cover transition-transform duration-300 group-hover:scale-105"
                                             />
                                             <div className="absolute inset-0 bg-black/0 group-hover:bg-black/50 transition-colors duration-300 flex items-center justify-center">
-                                                <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 text-white text-sm font-medium flex flex-col items-center gap-2">
-                                                    <Upload className="h-6 w-6" />
+                                                <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 text-white text-xs font-medium flex flex-col items-center gap-1">
+                                                    <Upload className="h-5 w-5" />
                                                     {imageUrl ? "Ubah Foto" : "Unggah Foto"}
                                                 </div>
                                             </div>
                                         </div>
                                         <input type="file" ref={imageInputRef} hidden accept="image/*" onChange={handleImageSelect} />
-                                        <div className="flex flex-col grow gap-6">
-                                            <FormField
-                                                control={form.control}
-                                                name="product_type"
-                                                rules={{ required: "You need to select a product type." }}
-                                                render={({ field }) => (
-                                                    <FormItem className="space-y-3"><FormLabel>Tipe Produk</FormLabel>
-                                                        <FormControl><RadioGroup onValueChange={field.onChange} value={field.value} className="flex flex-col space-y-1">
-                                                            <FormItem className="flex items-center space-x-3 space-y-0"><FormControl><RadioGroupItem value="retail" /></FormControl><FormLabel className="font-normal">Retail / Barang</FormLabel></FormItem>
-                                                            <FormItem className="flex items-center space-x-3 space-y-0"><FormControl><RadioGroupItem value="food_and_beverage" /></FormControl><FormLabel className="font-normal">F&B / Makanan</FormLabel></FormItem>
-                                                        </RadioGroup></FormControl><FormMessage />
-                                                    </FormItem>
-                                                )} />
+                                        <div className="flex flex-col grow gap-3">
                                             <div className="grow"></div>
                                             <FormField control={form.control} name="is_active" render={({ field }) => (<FormItem className="flex flex-row items-center justify-between"><FormLabel>Status Aktif</FormLabel><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem>)} />
                                         </div>
                                     </div>
-                                    <FormField control={form.control} name="barcode" render={({ field }) => (
-                                        <FormItem><FormLabel>Barcode</FormLabel><FormControl>
-                                            <Input 
-                                                placeholder="Scan atau ketik barcode" 
-                                                {...field} 
-                                                onKeyDown={(e) => {
-                                                    (field as any).onKeyDown?.(e); // preserve existing behavior (optional)
-                                                    if (e.key === "Enter") {
-                                                    e.preventDefault();
-                                                    }
-                                                }}
-                                            /></FormControl>
-                                            <div className="flex gap-2 pt-2">
-                                                <Dialog open={isScannerOpen} onOpenChange={setIsScannerOpen}><DialogTrigger asChild><Button type="button" variant="outline" className="w-full"><Scan className="h-4 w-4" /> Kamera</Button></DialogTrigger>
-                                                    <DialogContent><DialogHeader><DialogTitle>Scan Barcode</DialogTitle></DialogHeader><BarcodeScanner onScanSuccess={handleScanSuccess} /></DialogContent>
-                                                </Dialog>
-                                                <Button type="button" variant="outline" className="w-full" onClick={() => { form.setValue('barcode', Math.floor(1000000000000 + Math.random() * 9000000000000).toString(), { shouldValidate: true }); }}><Zap className="h-4 w-4" /> Acak</Button>
-                                            </div><FormMessage />
-                                        </FormItem>
-                                    )} />
-                                    <FormField control={form.control} name="sku" render={({ field }) => (<FormItem><FormLabel>SKU / Kode Produk</FormLabel><FormControl><Input placeholder="cth. F-DRK-001" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                                    <FormField
-                                        control={form.control}
-                                        name="name"
-                                        rules={{ required: "Product name is required.", minLength: { value: 2, message: "Product name must be at least 2 characters." } }}
-                                        render={({ field }) => (<FormItem><FormLabel>Nama Produk</FormLabel><FormControl><Input placeholder="cth. Cokelat Batang" {...field} /></FormControl><FormMessage /></FormItem>)}
-                                    />
-                                    <FormField control={form.control} name="category_id" render={({ field }) => (
-                                        <FormItem><FormLabel>Kategori</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Pilih kategori" /></SelectTrigger></FormControl><SelectContent>{categories.map(cat => (<SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>))}</SelectContent></Select><FormMessage /></FormItem>
-                                    )} />
-                                    <FormField
-                                        control={form.control}
-                                        name="price"
-                                        rules={{ required: "Price is required", min: { value: 0, message: "Price cannot be negative." } }}
-                                        render={({ field }) => (<FormItem><FormLabel>Harga Jual</FormLabel><FormControl><div className="relative"><span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">Rp</span><Input type="number" placeholder="8000" className="pl-10" {...field} onChange={(e) => field.onChange(Number(e.target.value))} /></div></FormControl><FormMessage /></FormItem>)}
-                                    />
-                                    {
-                                        !isConsignment &&
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-3 gap-y-3">
+                                        <FormField control={form.control} name="barcode" render={({ field }) => (
+                                                <FormItem><FormLabel>Barcode</FormLabel><FormControl>
+                                                    <div className="flex items-center gap-2">
+                                                        <Input 
+                                                            placeholder="Scan (hardware) atau ketik barcode" 
+                                                            {...field} 
+                                                            className="flex-1"
+                                                            onKeyDown={(e) => {
+                                                                (field as any).onKeyDown?.(e); // preserve existing behavior (optional)
+                                                                if (e.key === "Enter") {
+                                                                e.preventDefault();
+                                                                }
+                                                            }}
+                                                        />
+                                                        <Button type="button" variant="outline" className="shrink-0" onClick={() => { form.setValue('barcode', Math.floor(1000000000000 + Math.random() * 9000000000000).toString(), { shouldValidate: true }); }}><Zap className="h-3.5 w-3.5" /> Acak</Button>
+                                                    </div>
+                                                </FormControl><FormMessage />
+                                            </FormItem>
+                                        )} />
+                                        <FormField control={form.control} name="sku" render={({ field }) => (<FormItem><FormLabel>SKU / Kode Produk</FormLabel><FormControl><Input placeholder="cth. F-DRK-001" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                                    </div>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-3 gap-y-3">
                                         <FormField
                                             control={form.control}
-                                            name="cost_price"
-                                            rules={{ min: { value: 0, message: "Cost price cannot be negative." } }}
-                                            render={({ field }) => (<FormItem><FormLabel>Harga Modal</FormLabel><FormControl><div className="relative"><span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">Rp</span><Input type="number" placeholder="6500" className="pl-10" {...field} onChange={(e) => field.onChange(Number(e.target.value || 0))} /></div></FormControl><FormDescription>Untuk menghitung laba kotor.</FormDescription><FormMessage /></FormItem>)}
+                                            name="name"
+                                            rules={{ required: "Product name is required.", minLength: { value: 2, message: "Product name must be at least 2 characters." } }}
+                                            render={({ field }) => (<FormItem><FormLabel>Nama Produk</FormLabel><FormControl><Input placeholder="cth. Cokelat Batang" {...field} /></FormControl><FormMessage /></FormItem>)}
                                         />
-                                    }
+                                        <FormField control={form.control} name="category_id" render={({ field }) => (
+                                            <FormItem><FormLabel>Kategori</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Pilih kategori" /></SelectTrigger></FormControl><SelectContent>{categories.map(cat => (<SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>))}</SelectContent></Select><FormMessage /></FormItem>
+                                        )} />
+                                    </div>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-3 gap-y-3">
+                                        <FormField
+                                            control={form.control}
+                                            name="price"
+                                            rules={{ required: "Price is required", min: { value: 0, message: "Price cannot be negative." } }}
+                                            render={({ field }) => (<FormItem><FormLabel>Harga Jual</FormLabel><FormControl><div className="relative"><span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">Rp</span><Input type="number" placeholder="8000" className="pl-10" {...field} onChange={(e) => field.onChange(Number(e.target.value))} /></div></FormControl><FormMessage /></FormItem>)}
+                                        />
+                                        {
+                                            !isConsignment &&
+                                            <FormField
+                                                control={form.control}
+                                                name="cost_price"
+                                                rules={{ min: { value: 0, message: "Cost price cannot be negative." } }}
+                                                render={({ field }) => (<FormItem><FormLabel>Harga Modal</FormLabel><FormControl><div className="relative"><span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">Rp</span><Input type="number" placeholder="6500" className="pl-10" {...field} onChange={(e) => field.onChange(Number(e.target.value || 0))} /></div></FormControl><FormDescription>Untuk menghitung laba kotor.</FormDescription><FormMessage /></FormItem>)}
+                                            />
+                                        }
+                                    </div>
                                     <Separator />
                                     {/* Consignment Switch & Form Fields */}
                                     <FormField control={form.control} name="is_consignment" render={({ field }) => (
@@ -393,32 +383,24 @@ export const ProductForm = ({ productId, onSave, onCancel }: ProductFormProps) =
                                         </>
                                     )}
                                     <Separator />
-                                    <FormField control={form.control} name="track_stock" render={({ field }) => (<FormItem className={cn("flex flex-row items-center justify-between", (hasVariant || isComposite) && "opacity-50")}><FormLabel>Lacak Stok</FormLabel><FormControl><Switch checked={(hasVariant || isComposite) ? false : field.value} onCheckedChange={field.onChange} disabled={hasVariant || isComposite} /></FormControl></FormItem>)} />
-                                    <div className={cn("grid grid-cols-1 md:grid-cols-2 gap-6", (hasVariant || isComposite) && "opacity-50")}>
+                                    <FormField control={form.control} name="track_stock" render={({ field }) => (<FormItem className={cn("flex flex-row items-center justify-between", hasVariant && "opacity-50")}><FormLabel>Lacak Stok</FormLabel><FormControl><Switch checked={hasVariant ? false : field.value} onCheckedChange={field.onChange} disabled={hasVariant} /></FormControl></FormItem>)} />
+                                    <div className={cn("grid grid-cols-1 md:grid-cols-2 gap-x-3 gap-y-3", hasVariant && "opacity-50")}>
                                         <FormField
                                             control={form.control}
                                             name="stock"
                                             rules={{ min: { value: 0, message: "Stock cannot be negative." } }}
-                                            render={({ field }) => (<FormItem><FormLabel>Stok Awal</FormLabel><FormControl><Input type="number" placeholder="50" {...field} disabled={isEditing || hasVariant || isComposite || !form.watch('track_stock')} onChange={(e) => field.onChange(Number(e.target.value))} /></FormControl><FormDescription>Hanya bisa diisi saat buat baru.</FormDescription><FormMessage /></FormItem>)}
+                                            render={({ field }) => (<FormItem><FormLabel>Stok Awal</FormLabel><FormControl><Input type="number" placeholder="50" {...field} disabled={isEditing || hasVariant || !form.watch('track_stock')} onChange={(e) => field.onChange(Number(e.target.value))} /></FormControl><FormDescription>Hanya bisa diisi saat buat baru.</FormDescription><FormMessage /></FormItem>)}
                                         />
                                         <FormField
                                             control={form.control}
                                             name="low_stock_alert"
                                             rules={{ min: { value: 0, message: "Low stock alert cannot be negative." } }}
-                                            render={({ field }) => (<FormItem><FormLabel>Batas Stok Minimum</FormLabel><FormControl><Input type="number" placeholder="10" {...field} disabled={hasVariant || isComposite || !form.watch('track_stock')} onChange={(e) => field.onChange(Number(e.target.value))} /></FormControl><FormMessage /></FormItem>)}
+                                            render={({ field }) => (<FormItem><FormLabel>Batas Stok Minimum</FormLabel><FormControl><Input type="number" placeholder="10" {...field} disabled={hasVariant || !form.watch('track_stock')} onChange={(e) => field.onChange(Number(e.target.value))} /></FormControl><FormMessage /></FormItem>)}
                                         />
                                     </div>
                                     <Separator />
                                     <FormField control={form.control} name="has_variant" render={({ field }) => (<FormItem className="flex flex-row items-center justify-between"><FormLabel>Gunakan Varian</FormLabel><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem>)} />
                                     {hasVariant && (<div className="space-y-4">{variantFields.map((field, index) => (<VariantItem key={field.id} index={index} field={field} form={form} removeVariant={removeVariant} isEditing={isEditing} />))}<Button type="button" variant="outline" size="sm" onClick={() => appendVariant({ name: '', additional_price: 0, stock: 0, sku: '', track_stock: true, low_stock_alert: 0 })}><PlusCircle className="mr-2 h-4 w-4" /> Tambah Varian</Button></div>)}
-                                    {productType === 'food_and_beverage' && (<>
-                                        <Separator />
-                                        <FormField control={form.control} name="has_modifier" render={({ field }) => (<FormItem className="flex flex-row items-center justify-between"><FormLabel>Gunakan Modifier</FormLabel><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem>)} />
-                                        {form.watch('has_modifier') && productType === 'food_and_beverage' && (<FormField control={form.control} name="modifier_group_ids" render={() => (<FormItem className="grid grid-cols-2 space-y-0">{modifierGroups.map((group) => (<FormField key={group.id} control={form.control} name="modifier_group_ids" render={({ field }) => (<FormItem key={group.id} className="flex flex-row items-start space-x-3 space-y-0 py-2"><FormControl><Checkbox checked={field.value?.includes(group.id)} onCheckedChange={(checked) => checked ? field.onChange([...(field.value || []), group.id]) : field.onChange(field.value?.filter((value) => value !== group.id))} /></FormControl><FormLabel className="font-normal">{group.name}</FormLabel></FormItem>)} />))}<FormMessage /></FormItem>)} />)}
-                                        <Separator />
-                                        <FormField control={form.control} name="is_composite" render={({ field }) => (<FormItem className="flex flex-row items-center justify-between"><FormLabel>Produk Komposit / Resep</FormLabel><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} disabled={productType !== 'food_and_beverage'} /></FormControl></FormItem>)} />
-                                        {isComposite && productType === 'food_and_beverage' && (<div className="space-y-4 pt-4">{recipeFields.map((field, index) => (<CompositeItem key={field.id} rawIngredients={rawIngredients} index={index} field={field} form={form} removeRecipeItem={removeRecipeItem} />))}<Button type="button" variant="outline" size="sm" onClick={() => appendRecipeItem({ ingredient_id: '', quantity: 0 })}><PlusCircle className="mr-2 h-4 w-4" /> Tambah Bahan</Button></div>)}
-                                    </>)}
                                     <Separator />
                                 </CardContent>
                             </Card>

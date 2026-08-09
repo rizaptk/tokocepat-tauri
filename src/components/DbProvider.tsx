@@ -2,11 +2,11 @@ import { useDbStore } from "@/lib/db-store";
 import { useStore } from "@/lib/store";
 import { seedDatabase } from "@/lib/database";
 import { useEffect, useState } from "react";
+import { invoke } from '@tauri-apps/api/core';
 import { 
-    Product, ProductVariant, ModifierGroup, 
+    Product, ProductVariant, 
     Shift, StoreConfig, Category, PendingCart, 
-    RawIngredient, Recipe, 
-    CustomAccessType
+    CustomAccessType, CatalogProduct
 } from '@/lib/types';
 import { TokoCepatLogo } from "./TokoCepatLogo";
 import { generateDeviceFingerprint } from "@/lib/security";
@@ -14,9 +14,9 @@ import { generateDeviceFingerprint } from "@/lib/security";
 export function DbProvider({ children }: { children: React.ReactNode }) {
     const { isInitialized, db, firesqlite } = useDbStore();
     const { 
-        setProducts, setProductVariants, setModifierGroups, 
+        setProducts, setProductVariants, 
         setShifts, setStoreConfig, setCustomAccess,
-        setCategories, setPendingCarts, setRawIngredients, setRecipes 
+        setCategories, setPendingCarts, setCatalog
     } = useStore();
     
     const [isDataLoaded, setIsDataLoaded] = useState(false);
@@ -66,20 +66,6 @@ export function DbProvider({ children }: { children: React.ReactNode }) {
                     setProductVariants(snap.docs.map((d: any) => d.data() as ProductVariant));
                 }));
 
-                // Modifiers
-                subscribe(onSnapshot(collection(db, 'modifier_groups'), (snap: any) => {
-                    setModifierGroups(snap.docs.map((d: any) => d.data() as ModifierGroup));
-                }));
-
-                // Ingredients & Recipes
-                subscribe(onSnapshot(collection(db, 'raw_ingredients'), (snap: any) => {
-                    setRawIngredients(snap.docs.map((d: any) => d.data() as RawIngredient));
-                }));
-
-                subscribe(onSnapshot(collection(db, 'recipes'), (snap: any) => {
-                    setRecipes(snap.docs.map((d: any) => d.data() as Recipe));
-                }));
-
                 // PRODUCTS: The "Anchor" for Tier 1
                 subscribe(onSnapshot(collection(db, 'products'), (snap: any) => {
                     const productList = snap.docs.map((d: any) => d.data() as Product);
@@ -91,6 +77,16 @@ export function DbProvider({ children }: { children: React.ReactNode }) {
                         setIsDataLoaded(true); 
                     }
                 }));
+
+                // CATALOG: bundled reference data (local, excluded from sync).
+                subscribe(onSnapshot(collection(db, 'catalog'), (snap: any) => {
+                    setCatalog(snap.docs.map((d: any) => d.data() as CatalogProduct));
+                }));
+
+                // Kick off the backend import (idempotent; Rust stamps completion marker).
+                invoke<number>('import_catalog').catch((err) => {
+                    console.warn('Catalog import skipped:', err);
+                });
 
                 // --- TIER 2: SESSION & HISTORY (Background Sync) ---
 

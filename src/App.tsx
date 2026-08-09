@@ -11,7 +11,6 @@ import DashboardReports from './pages/Dashboard/reports/page'
 import DashboardReportsSales from './pages/Dashboard/reports/sales/page'
 import DashboardReportsShifts from './pages/Dashboard/reports/shifts/page'
 import DashboardReportsStockMovement from './pages/Dashboard/reports/stock-movement/page'
-import DashboardReportsConsumption from './pages/Dashboard/reports/consumption/page'
 import DashboardReportsStockSummary from './pages/Dashboard/reports/stock-summary/page'
 import DashboardReportsVoid from './pages/Dashboard/reports/void/page'
 import DashboardSettings from './pages/Dashboard/settings/page'
@@ -44,7 +43,6 @@ function App() {
           <Route path="dashboard/reports/sales" element={<DashboardReportsSales />} />
           <Route path="dashboard/reports/shifts" element={<DashboardReportsShifts />} />
           <Route path="dashboard/reports/stock-movement" element={<DashboardReportsStockMovement />} />
-          <Route path="dashboard/reports/consumption" element={<DashboardReportsConsumption />} />
           <Route path="dashboard/reports/stock-summary" element={<DashboardReportsStockSummary />} />
           <Route path="dashboard/reports/void" element={<DashboardReportsVoid />} />
           <Route path="dashboard/reports/profit" element={<AuditReportPage />} />

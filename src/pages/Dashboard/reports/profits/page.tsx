@@ -122,7 +122,7 @@ export default function AuditReportPage() {
 
     return (
         <div className="flex min-h-screen w-full flex-col bg-muted/40">
-           <header className="sticky top-0 flex h-16 items-center gap-4 border-b bg-background px-4 md:px-6 z-10">
+           <header className="sticky top-0 flex h-12 items-center gap-4 border-b border-border/60 bg-background/80 px-4 backdrop-blur-md z-10">
                 <Button variant="outline" size="icon" asChild><Link to="/dashboard/reports"><ArrowLeft className="h-4 w-4" /></Link></Button>
                 <div className="flex-1"><h1 className="text-lg font-semibold flex items-center gap-2"><ShieldCheck className="h-5 w-5" /> Audit Laba & Kas</h1></div>
                 <div className="flex items-center gap-2">

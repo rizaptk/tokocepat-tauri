@@ -2,7 +2,7 @@ import { Product } from '@/lib/types';
 import { useStore } from '@/lib/store';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Layers2, ShoppingCart, SlidersHorizontal, TriangleAlert } from 'lucide-react';
+import { Layers2, ShoppingCart, TriangleAlert } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useMemo, useEffect, useRef } from 'react';
 import { Checkbox } from './ui/checkbox';
@@ -28,6 +28,14 @@ export function ProductCard({ product, onItemClick, isSelected, context = 'cashi
     if (!product.has_variant) return 0;
     return variants.reduce((sum, v) => sum + v.stock, 0);
   }, [variants, product.has_variant]);
+
+  // Images are optional and only shown in the product form; lists/cards use a
+  // lightweight letter tile so rendering stays fast with large catalogs.
+  const tint = useMemo(() => {
+    let h = 0;
+    for (let i = 0; i < product.name.length; i++) h = (h * 31 + product.name.charCodeAt(i)) % 360;
+    return h;
+  }, [product.name]);
 
 
   const { activeId, navigationSource, clearNavigationSource } = useActiveProduct();
@@ -88,14 +96,14 @@ export function ProductCard({ product, onItemClick, isSelected, context = 'cashi
 
         <CardHeader className="p-0 relative">
           <div className="relative sm:aspect-5/3 aspect-4/3 w-full bg-muted">
-            <img
-              src={product.imageUrl}
-              alt={product.name}
-              style={{ position: 'absolute', height: '100%', width: '100%', inset: 0, color: 'transparent' }}
-              sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"
-              className={cn("object-cover", isOutOfStock && "grayscale", !is_active && "grayscale")}
-              data-ai-hint={product.imageHint}
-            />
+            <div
+              className="absolute inset-0 flex items-center justify-center"
+              style={{ background: `linear-gradient(135deg, hsl(${tint} 60% 92%), hsl(${tint} 55% 84%))` }}
+            >
+              <span className="text-5xl font-black text-primary/70 select-none">
+                {product.name.trim().charAt(0).toUpperCase()}
+              </span>
+            </div>
             {
               !is_active && (
                 <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
@@ -109,20 +117,12 @@ export function ProductCard({ product, onItemClick, isSelected, context = 'cashi
               </div>
             )}
             
-            {(product.has_variant || product.has_modifier) && (
+            {product.has_variant && (
               <div className='absolute left-1 top-2 flex flex-col gap-1'>
-                {product.has_variant && (
-                  <Badge variant="secondary" className='bg-background/70 hover:bg-background backdrop-blur-md text-[10px] h-5 px-1.5 border-none shadow-sm flex gap-1 w-fit' title={'Varian'}>
-                    <Layers2 className="h-3 w-3 text-primary" />
-                    <span>{variants?.length} Varian</span>
-                  </Badge>
-                )}
-                {product.has_modifier && (
-                  <Badge variant="secondary" className='bg-background/70 hover:bg-background backdrop-blur-md text-[10px] h-5 px-1.5 border-none shadow-sm flex gap-1 w-fit' title={'Modifier'}>
-                    <SlidersHorizontal className="h-3 w-3 text-orange-500" />
-                    <span>Custom</span>
-                  </Badge>
-                )}
+                <Badge variant="secondary" className='bg-background/70 hover:bg-background backdrop-blur-md text-[10px] h-5 px-1.5 border-none shadow-sm flex gap-1 w-fit' title={'Varian'}>
+                  <Layers2 className="h-3 w-3 text-primary" />
+                  <span>{variants?.length} Varian</span>
+                </Badge>
               </div>
             )}
 

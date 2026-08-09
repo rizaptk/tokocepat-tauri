@@ -174,28 +174,34 @@ pub async fn bootstrap_cloud_sync(
         if enabled {
             let mode = doc
                 .get("mode")
-                .and_then(|v| v.to_json().as_str())
+                .map(|v| v.to_json()).as_ref()
+                .and_then(|v| v.as_str())
                 .unwrap_or("client")
                 .to_string();
             let server_url = doc
                 .get("server_url")
-                .and_then(|v| v.to_json().as_str())
+                .map(|v| v.to_json()).as_ref()
+                .and_then(|v| v.as_str())
                 .map(|s| s.to_string());
             let bind_addr = doc
                 .get("bind_addr")
-                .and_then(|v| v.to_json().as_str())
+                .map(|v| v.to_json()).as_ref()
+                .and_then(|v| v.as_str())
                 .map(|s| s.to_string());
             let room_name = doc
                 .get("room_name")
-                .and_then(|v| v.to_json().as_str())
+                .map(|v| v.to_json()).as_ref()
+                .and_then(|v| v.as_str())
                 .map(|s| s.to_string());
             let room_key = doc
                 .get("room_key")
-                .and_then(|v| v.to_json().as_str())
+                .map(|v| v.to_json()).as_ref()
+                .and_then(|v| v.as_str())
                 .map(|s| s.to_string());
             let auth_token = doc
                 .get("auth_token")
-                .and_then(|v| v.to_json().as_str())
+                .map(|v| v.to_json()).as_ref()
+                .and_then(|v| v.as_str())
                 .unwrap_or_default()
                 .to_string();
 

@@ -60,12 +60,12 @@ export function Header() {
 
   return (
     <>
-    <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center justify-between gap-4 bg-transparent px-4 md:px-6">
+    <header className="sticky top-0 z-30 flex h-12 shrink-0 items-center justify-between gap-4 border-b border-border/60 bg-background/80 px-4 backdrop-blur-md md:px-4">
       <Link to="/">
         <TokoCepatLogo />
       </Link>
       
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1.5">
         
          {pendingCarts.length > 0 && (
             <Button variant="outline" size="sm" onClick={() => setIsPendingCartDialogOpen(true)}>

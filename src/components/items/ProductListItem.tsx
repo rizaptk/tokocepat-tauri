@@ -1,7 +1,7 @@
 import { Product } from "@/lib/types";
 import { useStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
-import { SlidersHorizontal, TriangleAlert } from "lucide-react";
+import { TriangleAlert } from "lucide-react";
 import { useMemo, useRef, useEffect, useCallback } from "react";
 import React from "react";
 import { Badge } from "../ui/badge";
@@ -19,11 +19,11 @@ type ProductListItemProps = {
 };
 
 const columnClass = {
-  checkbox: "flex items-center justify-center w-9 h-[54px]",
-  name: "flex items-center gap-2 flex-1 min-w-0 h-[54px]",
-  category: "hidden md:flex items-center text-sm opacity-70 truncate max-w-[160px] w-[160px] px-2 border-l border-l-border/50 h-[54px]",
-  stock: "hidden sm:flex items-center justify-end gap-1 text-sm tabular-nums shrink-0 w-20 border-l border-l-border/50 px-2 text-right h-[54px]",
-  price: "flex items-center justify-end shrink-0 text-right tabular-nums whitespace-nowrap w-36 border-l border-l-border/50 h-[54px]"
+  checkbox: "flex items-center justify-center w-9 h-10",
+  name: "flex items-center gap-2 flex-1 min-w-0 h-10",
+  category: "hidden md:flex items-center text-sm opacity-70 truncate max-w-[160px] w-[160px] px-2 border-l border-l-border/50 h-10",
+  stock: "hidden sm:flex items-center justify-end gap-1 text-sm tabular-nums shrink-0 w-20 border-l border-l-border/50 px-2 text-right h-10",
+  price: "flex items-center justify-end shrink-0 text-right tabular-nums whitespace-nowrap w-28 border-l border-l-border/50 h-10"
 }
 
 export function ProductListItem({
@@ -88,7 +88,7 @@ export function ProductListItem({
 
 
   return (
-      <div className={cn('bg-card h-13.5')} ref={itemRef}>
+      <div className={cn('bg-card h-10')} ref={itemRef}>
         <div
           style={style}
           onClick={handleSelect}
@@ -96,7 +96,7 @@ export function ProductListItem({
           tabIndex={not_allowed ? -1 : 0}
           aria-disabled={not_allowed}
           className={cn(
-            "flex items-center px-4 gap-0 h-13.5 border-b-border border-x",
+            "flex items-center px-3 gap-0 h-10 border-b-border border-x",
             "transition-colors",
             "hover:bg-accent",
             "active:ring-1 active:ring-inset active:ring-primary",
@@ -123,10 +123,6 @@ export function ProductListItem({
             <span className="font-medium truncate">
               {product.name}
             </span>
-
-            {product.has_modifier && context === "product" && (
-              <SlidersHorizontal className="h-3.5 w-3.5 text-primary shrink-0 ml-2" />
-            )}
           </div>
 
           {

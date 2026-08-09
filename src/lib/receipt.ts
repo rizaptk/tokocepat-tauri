@@ -20,12 +20,6 @@ const getTaxRateForItem = (item: any, storeConfig: StoreConfig): number => {
         if (categoryOverride) return categoryOverride.tax_rate;
     }
 
-    // Check product type override (using snapshot data)
-    if (item.product_snapshot.product_type === 'food_and_beverage' && 
-        tax_settings.product_type_overrides?.food_and_beverage !== undefined) {
-        return tax_settings.product_type_overrides.food_and_beverage;
-    }
-
     return tax_settings.default_rate;
 };
 
@@ -100,13 +94,6 @@ export function generateReceiptBinary(transaction: Transaction, storeConfig: Sto
     transaction.items.forEach(item => {
         // Product Name (Bold for clarity)
         encoder.line(item.product_snapshot.name);
-        
-        // Modifiers
-        if (item.selected_modifiers_snapshot && item.selected_modifiers_snapshot.length > 0) {
-            item.selected_modifiers_snapshot.forEach(mod => {
-                encoder.line(`  + ${mod.item.name}`);
-            });
-        }
 
         // Price details
         // Format: "1 x 10.000             10.000"

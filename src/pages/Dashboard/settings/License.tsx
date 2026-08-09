@@ -1,18 +1,22 @@
 import { Link } from 'react-router-dom';
 import { LicenseManager } from '@/components/LicenseManager';
-import { SubscriptionManager } from './_components/SubscriptionManager';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Shield, CreditCard } from 'lucide-react';
 import { TokoCepatLogo } from '@/components/TokoCepatLogo';
 import { ThemeToggle } from '@/components/ThemeButtons';
 import { NotificationBell } from '@/components/NotificationBell';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Button } from '@/components/ui/button';
+import { invoke } from '@tauri-apps/api/core';
 
 export default function LicensePage() {
+  const handleOpenPricing = () => {
+    invoke('open_pricing');
+  };
+
   return (
     <div className="flex h-screen w-full flex-col bg-muted/40">
-        <header className="sticky shrink-0 top-0 z-20 flex h-16 items-center gap-4 border-b bg-background px-4 md:px-6 justify-between">
+        <header className="sticky shrink-0 top-0 z-20 flex h-12 items-center gap-4 border-b border-border/60 bg-background/80 px-4 backdrop-blur-md justify-between">
             <Link to="/dashboard/settings">
                 <TokoCepatLogo />
             </Link>
@@ -26,10 +30,10 @@ export default function LicensePage() {
                 <div className="space-y-8">
                     <div className="space-y-3">
                         <h1 className="text-3xl font-bold tracking-tight">
-                            Lisensi & Langganan
+                            Lisensi
                         </h1>
                         <p className="text-muted-foreground">
-                            Kelola lisensi produk, aktivasi, dan detail penagihan Anda.
+                            Kelola lisensi produk, aktivasi, dan langganan Anda.
                         </p>
                     </div>
 
@@ -47,8 +51,8 @@ export default function LicensePage() {
                             <div className="flex items-center gap-3">
                                 <CreditCard className="h-5 w-5 text-primary" />
                                 <div>
-                                    <p className="text-sm font-medium">Langganan</p>
-                                    <p className="text-xs text-muted-foreground">Tagihan & paket</p>
+                                    <p className="text-sm font-medium">Beli / Upgrade</p>
+                                    <p className="text-xs text-muted-foreground">Lihat paket harga layanan di web</p>
                                 </div>
                             </div>
                         </div>
@@ -63,29 +67,23 @@ export default function LicensePage() {
 
             <section className="flex-1 min-h-0">
                 <ScrollArea className="h-full">
-                    <div className='p-8'>
-                        <Tabs defaultValue="license" className="w-full" layoutId='lisensi'>
-                            <TabsList defaultValue="license" className="w-full mb-8 justify-start">
-                                <TabsTrigger value="license"><Shield className="mr-2 h-4 w-4" />Lisensi</TabsTrigger>
-                                <TabsTrigger value="subscription"><CreditCard className="mr-2 h-4 w-4" />Langganan</TabsTrigger>
-                            </TabsList>
-                            
-                            <TabsContent value="license">
-                                <Card>
-                                    <CardHeader>
-                                        <CardTitle>Status Lisensi</CardTitle>
-                                        <CardDescription>Kelola lisensi aplikasi dan aktivasi perangkat.</CardDescription>
-                                    </CardHeader>
-                                    <CardContent>
-                                        <LicenseManager />
-                                    </CardContent>
-                                </Card>
-                            </TabsContent>
-                            
-                            <TabsContent value="subscription">
-                                <SubscriptionManager />
-                            </TabsContent>
-                        </Tabs>
+                    <div className='p-8 space-y-6'>
+                        <Button
+                            variant="outline"
+                            className="w-full sm:w-auto"
+                            onClick={handleOpenPricing}
+                        >
+                            <CreditCard className="mr-2 h-4 w-4" /> Beli / Upgrade Lisensi
+                        </Button>
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Status Lisensi</CardTitle>
+                                <CardDescription>Kelola lisensi aplikasi dan aktivasi perangkat.</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <LicenseManager />
+                            </CardContent>
+                        </Card>
                     </div>
                 </ScrollArea>
             </section>

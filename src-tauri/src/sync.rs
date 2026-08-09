@@ -59,7 +59,9 @@ pub async fn toggle_net_sync(
         
         let self_id = crate::hwid::get_license_hwid();
         let db = Arc::clone(&gateway.db);
-        let excluded = vec!["app_state".to_string()];
+        // `catalog` is bundled reference data (identical on every machine); excluding it
+        // avoids needless full-collection replication churn between peers.
+        let excluded = vec!["app_state".to_string(), "catalog".to_string()];
 
         let new_syncer = NetSyncer::new(db, &self_id, "tokocepat", excluded);
         new_syncer.start(port).await.map_err(|e| e.to_string())?;

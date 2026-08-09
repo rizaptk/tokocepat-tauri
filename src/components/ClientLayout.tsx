@@ -28,7 +28,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
         <DbProvider>
             <ThemeSwitcher />
             <LicenseProvider>
-                <div className={!isMobile && isLicensed ? 'pl-16' : ''}>{children}</div>
+                <div className={!isMobile && isLicensed ? 'pl-12' : ''}>{children}</div>
                 {
                     isLicensed &&
                     (

@@ -17,6 +17,7 @@ mod sync;
 mod theme;
 mod android;
 mod cloud_sync;
+mod catalog;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -46,6 +47,7 @@ pub fn run() {
                 .app_data_dir()
                 .expect("Failed to resolve app data dir");
             std::fs::create_dir_all(&app_dir).ok();
+            license::set_app_data_dir(app_dir.clone());
             let db_path = app_dir.join("tokocepat.db");
 
             // restore pending flag
@@ -134,10 +136,10 @@ pub fn run() {
             tauri_gateway::firelite_exec,
             hwid::get_license_hwid,
             license::check_license,
-            license::activate_trial,
             license::claim_license,
             license::activate_manual_license,
             license::deactivate_license,
+            license::open_pricing,
             maintenance::native_backup,
             
             sync::toggle_net_sync,
@@ -149,6 +151,8 @@ pub fn run() {
             cloud_sync::toggle_cloud_sync,
             cloud_sync::get_cloud_sync_status,
             cloud_sync::bootstrap_cloud_sync,
+
+            catalog::import_catalog,
 
             theme::set_theme,
         ])

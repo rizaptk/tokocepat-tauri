@@ -15,10 +15,10 @@ import { useActiveProduct } from '@/lib/product-active-store';
 type ViewMode = 'card' | 'thumbnail' | 'list';
 
 const columnClass = {
-  name: "flex items-center gap-2 flex-1 min-w-0 h-[54px]",
-  category: "hidden md:flex items-center text-sm text-muted-foreground truncate max-w-[160px] w-[160px] px-2 border-l border-l-border/50 h-[54px]",
-  stock: "hidden sm:flex items-center justify-end gap-1 text-sm tabular-nums shrink-0 w-20 border-l border-l-border/50 px-2 text-right h-[54px]",
-  price: "flex items-center justify-end shrink-0 text-right tabular-nums whitespace-nowrap w-36 border-l border-l-border/50 h-[54px]"
+  name: "flex items-center gap-2 flex-1 min-w-0 h-9",
+  category: "hidden md:flex items-center text-sm text-muted-foreground truncate max-w-[160px] w-[160px] px-2 border-l border-l-border/50 h-9",
+  stock: "hidden sm:flex items-center justify-end gap-1 text-sm tabular-nums shrink-0 w-20 border-l border-l-border/50 px-2 text-right h-9",
+  price: "flex items-center justify-end shrink-0 text-right tabular-nums whitespace-nowrap w-28 border-l border-l-border/50 h-9"
 }
 
 type ProductListProps = {
@@ -33,9 +33,9 @@ type ProductListProps = {
 
 // Constants for layout calculation
 const CARD_MIN_WIDTH = 210;
-const CARD_ROW_HEIGHT = 280;
-const THUMBNAIL_ROW_HEIGHT = 86;
-const LIST_ROW_HEIGHT = 56;
+const CARD_ROW_HEIGHT = 260;
+const THUMBNAIL_ROW_HEIGHT = 72;
+const LIST_ROW_HEIGHT = 44;
 
 // --- Components for Card Grid View ---
 
@@ -206,10 +206,10 @@ export function ProductList({ products, viewMode, isLoading, onItemClick, select
     }
   }
 
-  useGlobalKeydown({ key: 'ArrowDown', handler: () => handleNavigate('down'), enabled: context === 'cashier', bindTo: containerRef });
-  useGlobalKeydown({ key: 'ArrowUp', handler: () => handleNavigate('up'), enabled: context === 'cashier', bindTo: containerRef });
-  useGlobalKeydown({ key: 'ArrowRight', handler: () => handleNavigate('right'), enabled: context === 'cashier', bindTo: containerRef });
-  useGlobalKeydown({ key: 'ArrowLeft', handler: () => handleNavigate('left'), enabled: context === 'cashier', bindTo: containerRef });
+  useGlobalKeydown({ key: 'ArrowDown', handler: () => handleNavigate('down'), enabled: context === 'cashier' || context === 'product', bindTo: containerRef });
+  useGlobalKeydown({ key: 'ArrowUp', handler: () => handleNavigate('up'), enabled: context === 'cashier' || context === 'product', bindTo: containerRef });
+  useGlobalKeydown({ key: 'ArrowRight', handler: () => handleNavigate('right'), enabled: context === 'cashier' || context === 'product', bindTo: containerRef });
+  useGlobalKeydown({ key: 'ArrowLeft', handler: () => handleNavigate('left'), enabled: context === 'cashier' || context === 'product', bindTo: containerRef });
 
   const handleActionKey = () => {
     if (activeId === null) return;
@@ -219,8 +219,8 @@ export function ProductList({ products, viewMode, isLoading, onItemClick, select
       clearActive();
     }
   }
-  useGlobalKeydown({ key: 'Enter', handler: handleActionKey, enabled: context === 'cashier', bindTo: containerRef });
-  useGlobalKeydown({ key: 'Space', handler: handleActionKey, enabled: context === 'cashier', bindTo: containerRef });
+  useGlobalKeydown({ key: 'Enter', handler: handleActionKey, enabled: context === 'cashier' || context === 'product', bindTo: containerRef });
+  useGlobalKeydown({ key: 'Space', handler: handleActionKey, enabled: context === 'cashier' || context === 'product', bindTo: containerRef });
   // --- End Keyboard Navigation ---
 
 
@@ -260,22 +260,22 @@ export function ProductList({ products, viewMode, isLoading, onItemClick, select
     <div className="w-full h-full flex flex-col relative">
       {
         viewMode === 'list' &&
-        <div className='px-4'>
-          <div className='flex w-full items-center h-13.5 border bg-card rounded-t-lg px-4'>
+        <div className='px-3'>
+          <div className='flex w-full items-center h-8 border bg-card rounded-t border-b-0 px-3'>
             <div className={columnClass.name}>
-              <span className="font-medium shrink text-base">Nama</span>
+              <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Nama</span>
             </div>
             <div className={columnClass.category}>
-              <span className="text-base font-medium">Kategori</span>
+              <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Kategori</span>
             </div>
             {
               context !== 'cashier' &&
               <div className={columnClass.stock}>
-                <span className="text-base font-medium">Stok</span>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Stok</span>
               </div>
             }
             <div className={columnClass.price}>
-              <span className="text-base font-medium">Harga</span>
+              <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Harga</span>
             </div>
           </div>
         </div>

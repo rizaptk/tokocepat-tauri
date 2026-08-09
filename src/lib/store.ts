@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { Product, CartItem, Transaction, Category, ModifierGroup, ProductVariant, Shift, StoreConfig, SelectedModifier, PendingCart, RawIngredient, Recipe, StockMovement, CustomAccessType } from '@/lib/types';
+import { Product, CartItem, Transaction, Category, ProductVariant, Shift, StoreConfig, PendingCart, StockMovement, CustomAccessType, CatalogProduct } from '@/lib/types';
 import { toast } from '@/hooks/use-toast';
 import { openShift as openShiftService, closeShift as closeShiftService } from '@/services/shiftService';
 import { createTransaction } from '@/services/transactionService';
@@ -15,10 +15,8 @@ type ItemWithVariant = Product & { _selectedVariant: ProductVariant };
 interface StoreState {
     products: Product[];
     categories: Category[];
-    modifierGroups: ModifierGroup[];
     productVariants: ProductVariant[];
-    rawIngredients: RawIngredient[];
-    recipes: Recipe[];
+    catalog: CatalogProduct[];
     cart: CartItem[];
     transactions: Transaction[];
     shiftTransactions: Transaction[];
@@ -37,17 +35,14 @@ interface StoreState {
     clearDismissedNotifications: () => void;
     setProducts: (products: Product[]) => void;
     setCategories: (categories: Category[]) => void;
-    setModifierGroups: (modifierGroups: ModifierGroup[]) => void;
     setProductVariants: (productVariants: ProductVariant[]) => void;
-    setRawIngredients: (ingredients: RawIngredient[]) => void;
-    setRecipes: (recipes: Recipe[]) => void;
     setTransactions: (transactions: Transaction[]) => void;
     setShiftTransactions: (transactions: Transaction[]) =>void;
     setShifts: (shifts: Shift[],device: string|undefined) => void;
     setStoreConfig: (config: StoreConfig) => void;
     setPendingCarts: (carts: PendingCart[]) => void;
     setStockMovements: (movements: StockMovement[]) => void;
-    saveItemToCart: (itemData: Product | CartItem | ItemWithVariant, selectedModifiers?: SelectedModifier[], selectedVariant?: ProductVariant) => void;
+    saveItemToCart: (itemData: Product | CartItem | ItemWithVariant, selectedVariant?: ProductVariant) => void;
     removeFromCart: (cartItemId: string) => void;
     updateQuantity: (cartItemId: string, quantity: number) => void;
     clearCart: () => void;
@@ -58,6 +53,7 @@ interface StoreState {
     resumeCart: (cartId: string) => Promise<void>;
     deletePendingCart: (cartId: string) => Promise<void>;
     setCustomAccess: (customAccess: CustomAccessType) => void;
+    setCatalog: (catalog: CatalogProduct[]) => void;
 }
 
 export const useStore = create<StoreState>()(
@@ -65,10 +61,8 @@ export const useStore = create<StoreState>()(
         (set, get) => ({
             products: [],
             categories: [],
-            modifierGroups: [],
             productVariants: [],
-            rawIngredients: [],
-            recipes: [],
+            catalog: [],
             cart: [],
             transactions: [],
             shiftTransactions: [],
@@ -98,10 +92,8 @@ export const useStore = create<StoreState>()(
             setCustomAccess: (customAccess) => set({ customAccess }),
             setProducts: (products) => set({ products }),
             setCategories: (categories) => set({ categories }),
-            setModifierGroups: (modifierGroups) => set({ modifierGroups }),
             setProductVariants: (productVariants) => set({ productVariants }),
-            setRawIngredients: (ingredients) => set({ rawIngredients: ingredients.sort((a, b) => a.name.localeCompare(b.name)) }),
-            setRecipes: (recipes) => set({ recipes }),
+            setCatalog: (catalog) => set({ catalog }),
             setTransactions: (transactions) => set({ transactions: transactions.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()) }),
             setShiftTransactions: (transactions) => set({ transactions: transactions.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()) }),
             setShifts: (shifts, device) => {
@@ -113,7 +105,7 @@ export const useStore = create<StoreState>()(
             setPendingCarts: (carts) => set({ pendingCarts: carts.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()) }),
             setStockMovements: (movements) => set({ stockMovements: movements.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()) }),
 
-            saveItemToCart: (itemData: Product | CartItem | ItemWithVariant, selectedModifiers: SelectedModifier[] = [], selectedVariant?: ProductVariant) => {
+            saveItemToCart: (itemData: Product | CartItem | ItemWithVariant, selectedVariant?: ProductVariant) => {
                 const { products, cart, activeShift } = get();
                 const { showToast } = useSettingsStore.getState();
 
@@ -129,10 +121,10 @@ export const useStore = create<StoreState>()(
                 const isEditing = 'cartItemId' in itemData;
                 const finalVariant = selectedVariant || (isEditing ? (itemData as CartItem).selectedVariant : undefined);
 
-                // For simple products (no modifiers/variants), check if it already exists and stack it.
-                const isModified = selectedModifiers.length > 0 || !!finalVariant;
+                // For simple products (no variants), check if it already exists and stack it.
+                const isModified = !!finalVariant;
                 if (!isModified && !isEditing) {
-                    const existingItem = cart.find(item => item.id === itemData.id && !item.selectedVariant && (!item.selectedModifiers || item.selectedModifiers.length === 0));
+                    const existingItem = cart.find(item => item.id === itemData.id && !item.selectedVariant);
                     if (existingItem) {
                         get().updateQuantity(existingItem.cartItemId, existingItem.quantity + 1);
                         if (showToast.saveCart)
@@ -149,21 +141,19 @@ export const useStore = create<StoreState>()(
                     const originalProduct = products.find(p => p.id === itemData.id);
                     finalPrice = originalProduct?.price || itemData.price;
 
-                    // Recalculate price based on variant and modifiers
+                    // Recalculate price based on variant
                     if (finalVariant) finalPrice += finalVariant.additional_price;
-                    finalPrice += selectedModifiers.reduce((sum, mod) => sum + mod.item.additional_price, 0);
 
                 } else {
-                    // Price is already calculated with variant in cashier page, now add modifiers
+                    // Price is already calculated with variant in cashier page
                     finalPrice = itemData.price;
-                    finalPrice += selectedModifiers.reduce((sum, mod) => sum + mod.item.additional_price, 0);
                 }
 
                 if (isEditing) {
                     set(state => ({
                         cart: state.cart.map(item =>
                             item.cartItemId === (itemData as CartItem).cartItemId
-                                ? { ...item, selectedModifiers, price: finalPrice, selectedVariant: finalVariant }
+                                ? { ...item, price: finalPrice, selectedVariant: finalVariant }
                                 : item
                         ),
                     }));
@@ -193,7 +183,6 @@ export const useStore = create<StoreState>()(
                         quantity: 1,
                         price: finalPrice,
                         selectedVariant: finalVariant,
-                        selectedModifiers: selectedModifiers,
                     };
                     set({ cart: [...cart, newCartItem] });
                     if (showToast.saveCart)
@@ -352,7 +341,7 @@ export const useStore = create<StoreState>()(
             name: 'tokoc-storage',
             partialize: (state) =>
                 Object.fromEntries(
-                    Object.entries(state).filter(([key]) => !['products', 'transactions', 'modifierGroups', 'productVariants', 'categories', 'shifts', 'activeShift', 'storeConfig', 'pendingCarts', 'rawIngredients', 'recipes', 'stockMovements'].includes(key))
+                    Object.entries(state).filter(([key]) => !['products', 'transactions', 'productVariants', 'categories', 'shifts', 'activeShift', 'storeConfig', 'pendingCarts', 'stockMovements'].includes(key))
                 ),
         }
     )

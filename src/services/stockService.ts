@@ -114,39 +114,3 @@ export const adjustVariantStock = async (variantId: string, type: StockMovementT
     await setDoc(doc(db, 'stock_movements', movementId), stockMovement);
     await updateDoc(doc(db, 'product_variants', variantId), { stock: newStock });
 };
-
-
-export const adjustIngredientStock = async (ingredientId: string, type: StockMovementType, qty_change: number, reason: string): Promise<void> => {
-    const { db, firesqlite } = useDbStore.getState();
-    const { rawIngredients } = useStore.getState();
-
-    if (!db || !firesqlite) throw new Error("Database not initialized");
-
-    const { doc, setDoc, updateDoc } = firesqlite;
-
-    const ingredient = rawIngredients.find(i => i.id === ingredientId);
-    if (!ingredient) throw new Error("Bahan baku tidak ditemukan");
-
-    const now = new Date().toISOString();
-    const movementId = `sm-ing-${crypto.randomUUID().slice(0, 8)}`;
-    
-    const newStock = ingredient.stock_qty + qty_change;
-
-    const stockMovement: StockMovement = {
-        id: movementId,
-        product_id: ingredient.id, // Using product_id to store ingredient ID
-        product_name_snapshot: ingredient.name,
-        type: type,
-        qty_change: qty_change,
-        reason: reason,
-        reference_id: `manual-bahan-${movementId}`,
-        created_at: now,
-    };
-    
-    // 1. Create stock movement record
-    await setDoc(doc(db, 'stock_movements', movementId), stockMovement);
-
-    // 2. Update ingredient stock level
-    const ingredientRef = doc(db, 'raw_ingredients', ingredient.id);
-    await updateDoc(ingredientRef, { stock_qty: newStock });
-}

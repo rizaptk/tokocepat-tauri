@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { Header } from '@/components/Header';
 import { CartDisplay } from '@/components/CartDisplay';
 import { useStore } from '@/lib/store';
-import { Product, CartItem, ProductVariant } from '@/lib/types';
+import { Product, ProductVariant } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -11,10 +11,8 @@ import { LogIn } from 'lucide-react';
 import { ProductSearchBar } from '@/components/ProductSearchBar';
 import { ProductList } from '@/components/ProductList';
 import { useToast } from '@/hooks/use-toast';
-import { ModifierPanel } from '@/components/ModifierPanel';
 import { VariantPanel } from '@/components/VariantPanel';
 import { cn } from '@/lib/utils';
-import { SelectedModifier } from '@/lib/types';
 import { useIsMobile } from '@/lib/ismobile-store';
 import { useGlobalBarcodeScanner } from '@/hooks/use-global-barcode-scanner';
 import { useSettingsStore } from '@/lib/settings';
@@ -34,7 +32,6 @@ export default function DefaultCashierPage() {
 
     const [openingCash, setOpeningCash] = useState(0);
     const [itemToSelectVariant, setItemToSelectVariant] = useState<Product | null>(null);
-    const [itemToModify, setItemToModify] = useState<Product | CartItem | ItemWithVariant | null>(null);
 
     const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
     const [scrollTop, setScrollTop] = useState(0);
@@ -78,8 +75,6 @@ export default function DefaultCashierPage() {
 
         if (product.has_variant) {
             setItemToSelectVariant(product);
-        } else if (product.has_modifier) {
-            setItemToModify(product);
         } else {
             saveItemToCart(product);
         }
@@ -98,13 +93,7 @@ export default function DefaultCashierPage() {
             _selectedVariant: selectedVariant,
         };
 
-        if (item.has_modifier) {
-            // Pass this composite item to the modifier panel
-            setItemToModify(compositeItem);
-        } else {
-            // No modifiers, save directly to cart
-            saveItemToCart(compositeItem, [], selectedVariant);
-        }
+        saveItemToCart(compositeItem, selectedVariant);
     };
 
     const handleBarcodeScan = (barcode: string) => {
@@ -123,36 +112,12 @@ export default function DefaultCashierPage() {
     // Setup global scanner
     useGlobalBarcodeScanner({ onScan: handleBarcodeScan });
 
-    const handleModifierConfirm = (selectedModifiers: SelectedModifier[]) => {
-        if (!itemToModify) return;
-
-        const item = itemToModify;
-        const selectedVariant = '_selectedVariant' in item ? (item as ItemWithVariant)._selectedVariant : undefined;
-
-        saveItemToCart(item, selectedModifiers, selectedVariant);
-        setItemToModify(null);
-    };
-
-    const cleanModifier = (chart: CartItem) => {
-        const items = {...chart};
-        const { selectedModifiers } = items;
-        const modifierPrices = selectedModifiers.reduce((a,b) => b.item.additional_price + a ,0);
-        items.price = items.price - modifierPrices;
-        setItemToModify(items);
-    }
-
-    const handleEditCartItem = (item: CartItem) => {
-        // For now, only allow editing modifiers. Variant editing can be added later.
-        if (item.has_modifier) {
-            cleanModifier(item);
-            // setItemToModify(item);
-        } else {
-            showToast.noModifier &&
-                toast({
-                    title: "Tidak ada opsi tambahan",
-                    description: "Item ini tidak memiliki varian atau modifier untuk diubah."
-                })
-        }
+    const handleEditCartItem = () => {
+        showToast.noModifier &&
+            toast({
+                title: "Tidak ada opsi tambahan",
+                description: "Item ini tidak memiliki varian untuk diubah."
+            })
     }
 
     // This check is now handled by DbProvider, but we need to wait for activeShift to be determined.
@@ -214,7 +179,7 @@ export default function DefaultCashierPage() {
                                 <Button
                                     variant={selectedCategoryId === null ? 'secondary' : 'outline'}
                                     size="sm"
-                                    className="rounded-full px-4 shrink-0"
+                                    className="rounded-md px-3 shrink-0"
                                     onClick={() => setSelectedCategoryId(null)}
                                 >
                                     Semua
@@ -225,7 +190,7 @@ export default function DefaultCashierPage() {
                                             key={category.id}
                                             variant={selectedCategoryId === category.id ? 'secondary' : 'outline'}
                                             size="sm"
-                                            className="rounded-full px-4 shrink-0"
+                                            className="rounded-md px-3 shrink-0"
                                             onClick={() => setSelectedCategoryId(category.id)}
                                         >
                                             {category.name}
@@ -280,15 +245,6 @@ export default function DefaultCashierPage() {
                     }
                 }}
                 onConfirm={handleVariantConfirm}
-            />
-            <ModifierPanel
-                item={itemToModify}
-                onOpenChange={(isOpen) => {
-                    if (!isOpen) {
-                        setItemToModify(null);
-                    }
-                }}
-                onConfirm={handleModifierConfirm}
             />
         </div>
     );

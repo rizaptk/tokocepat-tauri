@@ -2,7 +2,7 @@ import { Product } from "@/lib/types";
 import { useStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
 import { Badge } from "../ui/badge";
-import { SlidersHorizontal, TriangleAlert } from "lucide-react";
+import { TriangleAlert } from "lucide-react";
 import { useMemo, useRef, useEffect } from "react";
 import React from "react";
 import { Checkbox } from "../ui/checkbox";
@@ -43,6 +43,14 @@ export function ProductThumbnailItem({
     [categories, product.category_id]
   );
 
+  // Images are optional and only shown in the product form; list/card views use
+  // a lightweight letter tile so rendering stays fast with large catalogs.
+  const tint = useMemo(() => {
+    let h = 0;
+    for (let i = 0; i < product.name.length; i++) h = (h * 31 + product.name.charCodeAt(i)) % 360;
+    return h;
+  }, [product.name]);
+
   const formatCurrency = (amount: number) =>
     new Intl.NumberFormat("id-ID", {
       style: "currency",
@@ -75,7 +83,7 @@ export function ProductThumbnailItem({
       tabIndex={not_allowed ? -1 : 0}
       aria-disabled={not_allowed}
       className={cn(
-        "group flex items-center gap-3 p-3 transition-colors duration-100 border border-border bg-card h-[78px] rounded-md",
+        "group flex items-center gap-3 px-3 py-1.5 transition-colors duration-100 border border-border bg-card h-16 rounded-md",
         "hover:shadow-md",
         "active:ring-1 active:ring-inset active:ring-primary",
         isSelected && "bg-background",
@@ -92,23 +100,25 @@ export function ProductThumbnailItem({
       )}
 
       {/* Thumbnail */}
-      <div className="relative w-14 h-14 shrink-0 rounded-lg overflow-hidden border bg-muted">
-        <img
-          src={product.imageUrl}
-          alt={product.name}
-          className={cn("w-full h-full object-cover", isOutOfStock && "grayscale", !is_active && "grayscale")}
-          loading="lazy"
-        />
-      
+      <div className="relative w-10 h-10 shrink-0 rounded-md overflow-hidden border bg-muted">
+        <div
+          className="w-full h-full grid place-items-center"
+          style={{ background: `linear-gradient(135deg, hsl(${tint} 60% 92%), hsl(${tint} 55% 84%))` }}
+        >
+          <span className="text-base font-black text-primary/70 select-none">
+            {product.name.trim().charAt(0).toUpperCase()}
+          </span>
+        </div>
+
         {isOutOfStock && (
-          <div className="absolute inset-0 bg-black/60 grid place-items-center text-sm font-semibold text-white text-center">
+          <div className="absolute inset-0 bg-black/60 grid place-items-center text-[10px] font-semibold text-white text-center">
             Habis
           </div>
         )}
 
         {isLowStock && (
           <div className="absolute top-1 right-1">
-            <TriangleAlert className="h-4 w-4 text-yellow-500 drop-shadow fill-yellow-500" />
+            <TriangleAlert className="h-3.5 w-3.5 text-yellow-500 drop-shadow fill-yellow-500" />
           </div>
         )}
       </div>
@@ -124,31 +134,28 @@ export function ProductThumbnailItem({
       {/* Middle Content */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
-          <p className="font-semibold text-base truncate">
+          <p className="font-medium text-sm truncate">
             {product.name}
           </p>
-          {product.has_modifier && context === "product" && (
-            <SlidersHorizontal className="h-3.5 w-3.5 text-muted-foreground" />
-          )}
         </div>
 
         {category && (
-          <p className="text-sm text-muted-foreground/80 mt-0.5 truncate">
+          <p className="text-xs text-muted-foreground/80 mt-0.5 truncate">
             {category.name}
           </p>
         )}
       </div>
 
       {/* Right Side (Price + Stock) */}
-      <div className="flex flex-col items-end text-right">
-        <p className="font-semibold text-base tabular-nums">
+      <div className="flex flex-col items-end text-right shrink-0">
+        <p className="font-semibold text-sm tabular-nums">
           {formatCurrency(product.price)}
         </p>
 
         {context !== "cashier" && product.track_stock && (
           <p
             className={cn(
-              "text-sm tabular-nums mt-0.5",
+              "text-xs tabular-nums mt-0.5",
               isLowStock || isOutOfStock
                 ? "text-destructive font-medium"
                 : "text-muted-foreground"

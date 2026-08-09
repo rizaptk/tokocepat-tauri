@@ -54,10 +54,6 @@ export default function TaxReportPage() {
                 let rate = storeConfig.tax_settings?.default_rate ?? storeConfig.tax_rate;
                 const catOverride = storeConfig.tax_settings?.category_overrides.find(co => co.category_id === item.product_snapshot.category_id);
                 if (catOverride) rate = catOverride.tax_rate;
-                else if (item.product_snapshot.product_type === 'food_and_beverage' && 
-                storeConfig.tax_settings?.product_type_overrides?.food_and_beverage !== undefined) {
-                    rate = storeConfig.tax_settings.product_type_overrides.food_and_beverage;
-                }
 
                 // --- CONSIGNMENT TAX BASE ADJUSTMENT ---
                 let taxableBase = item.subtotal;
@@ -125,7 +121,7 @@ export default function TaxReportPage() {
 
     return (
         <div className="flex min-h-screen w-full flex-col bg-muted/40">
-            <header className="sticky top-0 flex h-16 items-center gap-4 border-b bg-background px-4 md:px-6 z-10">
+            <header className="sticky top-0 flex h-12 items-center gap-4 border-b border-border/60 bg-background/80 px-4 backdrop-blur-md z-10">
                 <Button variant="outline" size="icon" asChild><Link to="#" onClick={() => nav(-1)}><ArrowLeft className="h-4 w-4" /></Link></Button>
                 <div className="flex-1">
                     <h1 className="text-lg font-semibold flex items-center gap-2"><Landmark className="h-5 w-5" /> Audit Kewajiban Pajak</h1>

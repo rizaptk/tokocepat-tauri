@@ -59,18 +59,18 @@ export function SideNav() {
     }
 
     return (
-        <aside className="fixed left-0 top-0 z-40 flex h-full w-16 flex-col bg-sidebar border-r">
+<aside className="fixed left-0 top-0 z-40 flex h-full w-12 flex-col border-r border-sidebar-border bg-sidebar bg-opacity-95 backdrop-blur-xl">
             <nav className="flex h-full flex-col items-center justify-center">
                 <TooltipProvider>
-                    <div className="flex flex-col items-center gap-4 px-2 py-5">
+                    <div className="flex flex-col items-center gap-1.5 px-1.5 py-3">
                         {filteredNav.map((item) => (
                             <Tooltip key={item.href}>
                                 <TooltipTrigger asChild>
                                     <Link
                                         to={item.href}
                                         className={cn(
-                                            "group relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl",
-                                            "transition-colors duration-200",
+                                            "group relative flex h-9 w-9 shrink-0 items-center justify-center rounded-lg",
+                                            "transition-colors duration-150",
                                             isActive(item.href)
                                                 ? "text-sidebar-active-foreground"
                                                 : "text-sidebar-muted hover:bg-sidebar-hover hover:text-sidebar-foreground"
@@ -79,13 +79,13 @@ export function SideNav() {
                                         {isActive(item.href) && (
                                             <motion.div
                                                 layoutId="active-nav-bg"
-                                                className="absolute inset-0 rounded-xl bg-sidebar-active"
+                                                className="absolute inset-0 rounded-lg bg-sidebar-active"
                                                 transition={{ type: "spring", stiffness: 400, damping: 30 }}
                                             />
                                         )}
 
                                         <item.icon
-                                            className="relative z-10 h-5 w-5 transition-colors duration-200"
+                                            className="relative z-10 h-4.5 w-4.5 transition-colors duration-150"
                                         />
 
                                         <span className="sr-only">{item.label}</span>
@@ -102,18 +102,18 @@ export function SideNav() {
                             <Tooltip key="license">
                                 <TooltipTrigger asChild>
                                     <Link to="/license" className={cn(
-                                            "group relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl",
-                                            "transition-colors duration-200",
-                                            "text-sidebar-active-foreground"
+                                            "group relative flex h-9 w-9 shrink-0 items-center justify-center rounded-lg",
+                                            "transition-colors duration-150",
+                                            "text-sidebar-muted hover:bg-sidebar-hover hover:text-sidebar-foreground"
                                         )}>
                                             {isActive('/license') && (
                                                 <motion.div
                                                     layoutId="active-nav-bg"
-                                                    className="absolute inset-0 rounded-xl bg-sidebar-active"
+                                                    className="absolute inset-0 rounded-lg bg-sidebar-active"
                                                     transition={{ type: "spring", stiffness: 400, damping: 30 }}
                                                 />
                                             )}
-                                            <ShieldAlert className="relative z-10 h-5 w-5 transition-colors duration-200" />
+                                            <ShieldAlert className="relative z-10 h-4.5 w-4.5 transition-colors duration-150" />
                                     </Link>
                                 </TooltipTrigger>
                             </Tooltip>

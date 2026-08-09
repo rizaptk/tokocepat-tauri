@@ -37,7 +37,7 @@ type ReportRow = StockMovement & {
     referenceDisplay: string;
     openingStock: number;
     resultingStock: number;
-    productType: 'Product' | 'Ingredient' | 'Variant';
+    productType: 'Product' | 'Variant';
 };
 
 // 1. Memoized Table Row Component
@@ -92,7 +92,7 @@ const MovementRow = React.memo(({
 MovementRow.displayName = "MovementRow";
 
 export default function StockMovementReportPage() {
-    const { products, rawIngredients, transactions, storeConfig, productVariants } = useStore();
+    const { products, transactions, storeConfig, productVariants } = useStore();
     const { toast } = useToast();
      const [date, setDate] = React.useState<DateRange | undefined>({
       from: startOfDay(new Date()),
@@ -118,14 +118,13 @@ export default function StockMovementReportPage() {
     
 
      const itemsLookup = useMemo(() => {
-        const map = new Map<string, 'Product' | 'Variant' | 'Ingredient'>();
+        const map = new Map<string, 'Product' | 'Variant'>();
         
         products.forEach(p => { if(!p.has_variant) map.set(p.id, 'Product') });
         productVariants.forEach(v => map.set(v.id, 'Variant'));
-        rawIngredients.forEach(i => map.set(i.id, 'Ingredient'));
         
         return map;
-    }, [products, productVariants, rawIngredients]);
+    }, [products, productVariants]);
 
     const allStockableItems = useMemo(() => {
         const simpleProducts = products
@@ -142,10 +141,8 @@ export default function StockMovementReportPage() {
                 };
             });
         
-        const allIngredients = rawIngredients.map(i => ({ id: i.id, name: i.name, itemType: 'Ingredient' as const }));
-        
-        return [...simpleProducts, ...allVariants, ...allIngredients];
-    }, [products, productVariants, rawIngredients]);
+        return [...simpleProducts, ...allVariants];
+    }, [products, productVariants]);
 
     const txIdToInvoiceMap = useMemo(() =>
         new Map(transactions.map(tx => [tx.id, tx.invoice_number])),
@@ -247,7 +244,7 @@ export default function StockMovementReportPage() {
     }), []); 
 
     const selectedProductName = useMemo(() => {
-        if (!filterProductId) return "Semua Produk & Bahan";
+        if (!filterProductId) return "Semua Produk & Varian";
         return allStockableItems.find(p => p.id === filterProductId)?.name || "Tidak Diketahui";
     }, [filterProductId, allStockableItems]);
     
@@ -275,7 +272,7 @@ export default function StockMovementReportPage() {
 
     return (
         <div className="flex min-h-screen w-full flex-col bg-muted/40">
-           <header className="sticky top-0 flex h-16 items-center gap-2 border-b bg-background px-4 md:px-6 z-10">
+           <header className="sticky top-0 flex h-12 items-center gap-4 border-b border-border/60 bg-background/80 px-4 backdrop-blur-md z-10">
                 <Button variant="outline" size="icon" className="shrink-0" asChild>
                     <Link to="#" onClick={() => nav(-1)}>
                         <ArrowLeft className="h-4 w-4" />
@@ -332,7 +329,7 @@ export default function StockMovementReportPage() {
                                                 <CommandEmpty>Item tidak ditemukan.</CommandEmpty>
                                                 <CommandGroup>
                                                     <CommandItem onSelect={() => setFilterProductId(null)}>
-                                                        Semua Produk & Bahan
+                                                        Semua Produk & Varian
                                                     </CommandItem>
                                                     {allStockableItems.map(p => (
                                                         <CommandItem key={p.id} onSelect={() => setFilterProductId(p.id)}>

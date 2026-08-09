@@ -4,7 +4,6 @@ import { BarChartIcon, LayoutGrid, Package, Settings, ShoppingCart, Warehouse, S
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { generateDeviceFingerprint } from "@/lib/security";
@@ -16,7 +15,6 @@ export const CustomizeAccess = () => {
     const { toast } = useToast();
     const [saving, setSaving] = useState(false);
     const [access, setAccess] = useState<string[]>([]);
-    const [layout, setLayout] = useState('classic');
 
     const navItems = [
         { menu: 'dashboard', label: 'Dashboard', icon: LayoutGrid },
@@ -27,14 +25,8 @@ export const CustomizeAccess = () => {
         { menu: 'pengaturan', label: 'Pengaturan', icon: Settings },
     ];
 
-    const cashierLayout = [
-        { name: 'default', label: 'Default', description: 'Layout dengan fokus pada visual produk.' },
-        { name: 'classic', label: 'Klasik', description: 'Layout kasir klasik.' }
-    ];
-
     useEffect(() => {
         setAccess(customAccess?.access||navItems.map(m => m.menu));
-        setLayout(customAccess?.cashier_layout||'default');
     }, [customAccess]);
 
     const handleSave = async () => {
@@ -45,8 +37,7 @@ export const CustomizeAccess = () => {
         try {
             await setDoc(doc(db, '__firelite_security', hwid), 
                 {
-                    access,
-                    cashier_layout: layout
+                    access
                 },
                 { merge: true }
             );
@@ -83,30 +74,6 @@ export const CustomizeAccess = () => {
                             </Label>
                         </div>
                     ))}
-                </CardContent>
-            </Card>
-
-            <Card>
-                <CardHeader>
-                    <CardTitle>Layout Kasir</CardTitle>
-                    <CardDescription>Pilih tampilan antarmuka kasir yang paling nyaman untuk Anda.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <RadioGroup value={layout} onValueChange={setLayout} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {cashierLayout.map((l) => (
-                            <Label
-                                key={l.name}
-                                htmlFor={`layout-${l.name}`}
-                                className={ `flex flex-col gap-2 p-4 border-2 rounded-xl cursor-pointer transition-all ${layout === l.name ? 'border-primary bg-primary/5' : 'hover:border-muted-foreground/20'}`}
-                            >
-                                <div className="flex items-center justify-between">
-                                    <span className="font-bold">{l.label}</span>
-                                    <RadioGroupItem value={l.name} id={`layout-${l.name}`} />
-                                </div>
-                                <span className="text-xs text-muted-foreground">{l.description}</span>
-                            </Label>
-                        ))}
-                    </RadioGroup>
                 </CardContent>
             </Card>
 

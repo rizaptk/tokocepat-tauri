@@ -102,13 +102,6 @@ function TransactionDetailDialog({ transaction, onOpenChange }: TransactionDetai
                                     <div key={`${item.id}-${index}`} className="flex justify-between items-start p-3 border-b last:border-none">
                                         <div className="flex-1">
                                             <p className="font-medium text-sm">{item.product_snapshot.name}</p>
-                                            {item.selected_modifiers_snapshot && item.selected_modifiers_snapshot.length > 0 && (
-                                                    <ul className="text-xs text-muted-foreground pl-4">
-                                                        {item.selected_modifiers_snapshot.map(mod => (
-                                                            <li key={`${mod.groupId}-${mod.item.id}`}>- {mod.item.name}</li>
-                                                        ))}
-                                                    </ul>
-                                                )}
                                             <p className="text-xs text-muted-foreground">{item.qty} x {formatCurrency(item.price_snapshot)}</p>
                                         </div>
                                         <p className="font-medium text-sm">{formatCurrency(item.subtotal)}</p>

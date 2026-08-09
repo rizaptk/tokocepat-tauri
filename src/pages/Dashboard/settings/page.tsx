@@ -96,7 +96,7 @@ export default function SettingsPage() {
 
     return (
         <div className="flex h-screen min-h-0 w-full flex-col bg-muted/40">
-            <header className="sticky shrink-0 top-0 z-20 flex h-16 items-center gap-4 border-b bg-background px-4 md:px-6 justify-between">
+            <header className="sticky shrink-0 top-0 z-20 flex h-12 items-center gap-4 border-b border-border/60 bg-background/80 px-4 backdrop-blur-md justify-between">
                 <Link to="#" onClick={() => nav(-1)}><TokoCepatLogo /></Link>
                 <div className="flex items-center gap-2">
                     <NotificationBell />

@@ -1,4 +1,4 @@
-import { CartItem, Transaction, Shift, StoreConfig, StockMovement, RawIngredient } from '@/lib/types';
+import { CartItem, Transaction, Shift, StoreConfig, StockMovement } from '@/lib/types';
 import { useDbStore } from '@/lib/db-store';
 import { useStore } from '@/lib/store';
 import { toast } from '@/hooks/use-toast';
@@ -39,18 +39,12 @@ const getTaxRateForItem = (item: CartItem, storeConfig: StoreConfig): number => 
         }
     }
 
-    // 2. Check for product type override
-    if (item.product_type === 'food_and_beverage' && typeof tax_settings.product_type_overrides?.food_and_beverage === 'number') {
-        return tax_settings.product_type_overrides.food_and_beverage;
-    }
-
-    // 3. Fallback to default rate from new system
+    // 2. Fallback to default rate from new system
     return tax_settings.default_rate;
 };
 
 export const createTransaction = async (cart: CartItem[], activeShift: Shift, storeConfig: StoreConfig, cashReceived: number): Promise<Transaction | null> => {
     const { db, firesqlite } = useDbStore.getState();
-    const { recipes } = useStore.getState();
 
     if (!activeShift) {
         toast({ variant: 'destructive', title: 'Shift Tertutup', description: 'Buka shift untuk memproses transaksi.' });
@@ -91,7 +85,7 @@ export const createTransaction = async (cart: CartItem[], activeShift: Shift, st
         if (item.is_consignment) {
             const commType = item.consignment_commission_type;
             const commVal = item.consignment_commission_value || 0;
-            const sellingPrice = item.price; // Dynamic price (includes variants/modifiers)
+            const sellingPrice = item.price; // Dynamic price (includes variants)
             
             if (commType === 'percentage') {
                 const storeCommission = sellingPrice * (commVal / 100);
@@ -114,15 +108,12 @@ export const createTransaction = async (cart: CartItem[], activeShift: Shift, st
                 cost_price: effectiveCost, // Store computed payout cost
                 sku: item.selectedVariant ? item.selectedVariant.sku : item.sku,
                 barcode: item.barcode,
-                product_type: item.product_type,
-                is_composite: item.is_composite,
                 // Optional: Store consignment metadata for future auditing reports
                 is_consignment: item.is_consignment,
                 consignor_name: item.consignor_name,
                 consignment_commission_type: item.consignment_commission_type,
                 consignment_commission_value: item.consignment_commission_value,
             },
-            selected_modifiers_snapshot: item.selectedModifiers,
             price_snapshot: item.price,
             cost_snapshot: effectiveCost, // Saved as cost_snapshot (HPP)
             qty: item.quantity,
@@ -145,33 +136,7 @@ export const createTransaction = async (cart: CartItem[], activeShift: Shift, st
 
     // 2. Update stock and create stock movements
     for (const cartItem of cart) {
-        if (cartItem.is_composite) {
-            const recipe = recipes.find(r => r.product_id === cartItem.id);
-            if (recipe) {
-                for (const recipeItem of recipe.items) {
-                    const ingredientRef = doc(db, 'raw_ingredients', recipeItem.ingredient_id);
-                    const ingredientSnap = await getDoc(ingredientRef);
-                    if (ingredientSnap.exists()) {
-                        const ingredient = ingredientSnap.data();
-                        const quantityToDeduct = recipeItem.quantity * cartItem.quantity;
-                        await updateDoc(ingredientRef, { stock_qty: ingredient?.stock_qty - quantityToDeduct });
-
-                        const movementId = `sm-${transactionId}-${ingredient?.id}`;
-                        const stockMovement: StockMovement = {
-                            id: movementId,
-                            product_id: ingredient?.id, // Using product_id to store ingredient_id
-                            product_name_snapshot: ingredient?.name,
-                            type: 'sale',
-                            qty_change: -quantityToDeduct,
-                            reason: `Penjualan komposit: ${cartItem.name}`,
-                            reference_id: transactionId,
-                            created_at: createdAt,
-                        };
-                        await setDoc(doc(db, 'stock_movements', movementId), stockMovement);
-                    }
-                }
-            }
-        } else if (cartItem.selectedVariant) {
+        if (cartItem.selectedVariant) {
             // Deduct stock from the specific variant if it tracks stock
             if (cartItem.selectedVariant.track_stock) {
                 const variantRef = doc(db, 'product_variants', cartItem.selectedVariant.id);
@@ -222,7 +187,7 @@ export const createTransaction = async (cart: CartItem[], activeShift: Shift, st
 
 export const voidTransaction = async (transactionId: string, reason: string): Promise<void> => {
     const { db, firesqlite } = useDbStore.getState();
-    const { recipes, products, productVariants } = useStore.getState();
+    const { products, productVariants } = useStore.getState();
     if (!db || !firesqlite) throw new Error("Database belum diinisialisasi");
 
     const { doc, getDoc, updateDoc, setDoc } = firesqlite;
@@ -251,34 +216,7 @@ export const voidTransaction = async (transactionId: string, reason: string): Pr
     for (const item of transaction.items) {
         const originalProduct = products.find(p => p.id === item.product_snapshot.id);
         
-        if (item.product_snapshot.is_composite) {
-             const recipe = recipes.find(r => r.product_id === item.product_snapshot.id);
-             if (recipe) {
-                for (const recipeItem of recipe.items) {
-                    const ingredientRef = doc(db, 'raw_ingredients', recipeItem.ingredient_id);
-                    const ingredientSnap = await getDoc(ingredientRef);
-                    if (ingredientSnap.exists()) {
-                        const ingredient = ingredientSnap.data() as RawIngredient;
-                        const quantityToReturn = recipeItem.quantity * item.qty;
-
-                        await updateDoc(ingredientRef, { stock_qty: ingredient.stock_qty + quantityToReturn });
-
-                        const movementId = `sm-void-${transaction.id}-${ingredient.id}`;
-                        const stockMovement: StockMovement = {
-                            id: movementId,
-                            product_id: ingredient.id,
-                            product_name_snapshot: ingredient.name,
-                            type: 'correction',
-                            qty_change: quantityToReturn,
-                            reason: `Void INV: ${transaction.invoice_number}`,
-                            reference_id: transaction.id,
-                            created_at: now,
-                        };
-                        await setDoc(doc(db, 'stock_movements', movementId), stockMovement);
-                    }
-                }
-             }
-        } else if (originalProduct?.has_variant) {
+        if (originalProduct?.has_variant) {
             // Find the variant based on the snapshot name.
             const match = item.product_snapshot.name.match(/(.*) \((.*)\)/);
             if (match) {

@@ -44,9 +44,6 @@ type CategoryOverride = {
 
 type TaxSettingsFormValues = {
   default_rate: number;
-  product_type_overrides: {
-    food_and_beverage?: number;
-  };
   category_overrides: CategoryOverride[];
 };
 
@@ -58,9 +55,6 @@ export function TaxSettingsForm() {
   const form = useForm<TaxSettingsFormValues>({
     defaultValues: {
       default_rate: 0.11,
-      product_type_overrides: {
-        food_and_beverage: undefined
-      },
       category_overrides: []
     }
   });
@@ -75,10 +69,6 @@ export function TaxSettingsForm() {
       form.reset({
         default_rate:
           storeConfig.tax_settings?.default_rate ?? storeConfig.tax_rate,
-        product_type_overrides: {
-          food_and_beverage:
-            storeConfig.tax_settings?.product_type_overrides?.food_and_beverage
-        },
         category_overrides:
           storeConfig.tax_settings?.category_overrides || []
       });
@@ -160,46 +150,6 @@ export function TaxSettingsForm() {
             />
 
             <Separator />
-
-            <div>
-              <h4 className="font-semibold mb-4">Tarif Khusus Tipe</h4>
-
-              <FormField
-                control={form.control}
-                name="product_type_overrides.food_and_beverage"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Tarif F&B (Makanan/Minuman)</FormLabel>
-
-                    <FormControl>
-                      <div className="relative">
-                        <Input
-                          type="number"
-                          step="0.01"
-                          placeholder="e.g. 0.10"
-                          value={field.value ?? ""}
-                          onChange={(e) =>
-                            field.onChange(
-                              e.target.value === ""
-                                ? undefined
-                                : parseFloat(e.target.value)
-                            )
-                          }
-                        />
-
-                        <Percent className="absolute right-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                      </div>
-                    </FormControl>
-
-                    <FormDescription>
-                      Mengganti tarif standar khusus untuk produk tipe F&B.
-                    </FormDescription>
-
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
 
             <div>
               <h4 className="font-semibold mb-4">Tarif Khusus Kategori</h4>

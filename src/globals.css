@@ -9,10 +9,10 @@
 @import "tw-animate-css";
 
 @theme {
-  /* --- Font Families --- */
-  --font-body: "Plus Jakarta Sans", sans-serif;
-  --font-headline: "Plus Jakarta Sans", sans-serif;
-  --font-code: monospace;
+  /* --- Font Families (SF Pro-style system stack) --- */
+  --font-body: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", "Segoe UI", system-ui, sans-serif;
+  --font-headline: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", system-ui, sans-serif;
+  --font-code: ui-monospace, "SF Mono", Menlo, monospace;
 
   /* --- Colors --- */
   /* Basic */
@@ -97,124 +97,124 @@
 @layer base {
   :root {
     /* ========== SURFACE ========== */
-    --background: 240 40% 97%;      /* blueberry milk */
-    --foreground: 235 25% 22%;
+    --background: 220 20% 98%;      /* light window grey */
+    --foreground: 220 10% 16%;
 
     --card: 0 0% 100%;
-    --card-foreground: 235 25% 22%;
+    --card-foreground: 220 10% 16%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 235 25% 22%;
+    --popover-foreground: 220 10% 16%;
 
-    /* ========== BRAND ========== */
-    --primary: 238 45% 48%;         /* soft candy indigo */
-    --primary-foreground: 210 40% 98%;
+    /* ========== BRAND (Apple Accent Blue) ========== */
+    --primary: 211 100% 50%;        /* #007AFF */
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 260 35% 92%;       /* lavender cream */
-    --secondary-foreground: 250 30% 30%;
+    --secondary: 220 12% 90%;
+    --secondary-foreground: 220 12% 28%;
 
-    --muted: 240 30% 94%;           /* soft periwinkle mist */
-    --muted-foreground: 235 18% 48%;
+    --muted: 220 12% 92%;
+    --muted-foreground: 220 8% 46%;
 
-    --accent: 165 45% 88%;          /* mint candy */
-    --accent-foreground: 165 40% 28%;
+    --accent: 220 14% 88%;
+    --accent-foreground: 220 12% 22%;
 
-    --destructive: 350 70% 68%;     /* strawberry candy */
+    --destructive: 0 72% 51%;       /* Apple Red */
     --destructive-foreground: 0 0% 100%;
 
     /* ========== UI ========== */
-    --border: 240 25% 88%;
-    --input: 240 25% 88%;
-    --ring: 238 45% 48%;
+    --border: 220 10% 86%;
+    --input: 220 10% 86%;
+    --ring: 211 95% 50%;
 
-    --radius: 0.75rem;
+    --radius: 0.5rem;
 
-    /* SUCCESS — Pistachio Cream */
-    --success: 145 40% 70%;
-    --success-foreground: 145 35% 25%;
+    /* SUCCESS — Apple Green */
+    --success: 142 65% 43%;
+    --success-foreground: 0 0% 100%;
 
-    /* WARNING — Mango Cream */
-    --warning: 35 70% 75%;
-    --warning-foreground: 30 60% 28%;
+    /* WARNING — Apple Orange */
+    --warning: 28 90% 52%;
+    --warning-foreground: 0 0% 100%;
 
-    /* INFO — Blueberry Milk */
-    --info: 205 55% 75%;
-    --info-foreground: 210 45% 30%;
+    /* INFO — Apple Blue-Grey */
+    --info: 199 89% 48%;
+    --info-foreground: 0 0% 100%;
 
-    --sidebar: 240 22% 14%;
-    --sidebar-foreground: 220 25% 92%;
-    --sidebar-muted: 240 15% 65%;
-    --sidebar-hover: 240 20% 22%;
-    --sidebar-active: 240 30% 96%;
-    --sidebar-active-foreground: 235 25% 22%;
-    --sidebar-border: 240 18% 24%;
+    --sidebar: 220 16% 14%;
+    --sidebar-foreground: 220 15% 92%;
+    --sidebar-muted: 220 10% 62%;
+    --sidebar-hover: 220 14% 22%;
+    --sidebar-active: 211 95% 55%;
+    --sidebar-active-foreground: 0 0% 100%;
+    --sidebar-border: 220 14% 22%;
 
-    /* ========== CHART COLORS (Soft Candy Set) ========== */
-    --chart-1: 238 55% 58%;  /* indigo */
-    --chart-2: 165 55% 60%;  /* mint */
-    --chart-3: 25 85% 70%;   /* peach */
-    --chart-4: 330 70% 72%;  /* cotton candy pink */
-    --chart-5: 280 60% 70%;  /* soft grape */
+    /* ========== CHART COLORS (macOS palette) ========== */
+    --chart-1: 211 100% 50%;  /* blue */
+    --chart-2: 280 60% 60%;   /* purple */
+    --chart-3: 160 60% 45%;   /* teal */
+    --chart-4: 28 90% 52%;    /* orange */
+    --chart-5: 2 70% 55%;     /* red */
   }
 
   .dark {
     /* ========== SURFACE ========== */
-    --background: 240 28% 10%;      /* dark blueberry */
-    --foreground: 210 30% 94%;
+    --background: 220 10% 10%;      /* dark window grey */
+    --foreground: 220 12% 94%;
 
-    --card: 240 24% 14%;
-    --card-foreground: 210 30% 94%;
+    --card: 220 10% 14%;
+    --card-foreground: 220 12% 94%;
 
-    --popover: 240 24% 14%;
-    --popover-foreground: 210 30% 94%;
+    --popover: 220 10% 16%;
+    --popover-foreground: 220 12% 94%;
 
     /* ========== BRAND ========== */
-    --primary: 238 70% 72%;         /* glowing soft indigo */
-    --primary-foreground: 240 28% 10%;
+    --primary: 211 100% 55%;        /* #0A84FF */
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 260 30% 22%;
-    --secondary-foreground: 210 30% 94%;
+    --secondary: 220 10% 22%;
+    --secondary-foreground: 220 12% 94%;
 
-    --muted: 240 22% 20%;
-    --muted-foreground: 220 18% 70%;
+    --muted: 220 10% 19%;
+    --muted-foreground: 220 10% 64%;
 
-    --accent: 165 28% 26%;
-    --accent-foreground: 165 35% 88%;
+    --accent: 220 12% 24%;
+    --accent-foreground: 220 12% 94%;
 
-    --destructive: 350 65% 60%;
-    --destructive-foreground: 210 30% 94%;
+    --destructive: 0 72% 58%;
+    --destructive-foreground: 0 0% 100%;
 
     /* ========== UI ========== */
-    --border: 240 22% 22%;
-    --input: 240 22% 22%;
-    --ring: 238 70% 72%;
+    --border: 220 10% 24%;
+    --input: 220 10% 24%;
+    --ring: 211 100% 55%;
 
-    /* SUCCESS — Dark Pistachio Tint */
-    --success: 145 30% 32%;
-    --success-foreground: 145 35% 88%;
+    /* SUCCESS — Dark Apple Green Tint */
+    --success: 142 55% 48%;
+    --success-foreground: 0 0% 100%;
 
-    /* WARNING — Dark Mango Tint */
-    --warning: 35 55% 38%;
-    --warning-foreground: 35 70% 92%;
+    /* WARNING — Dark Apple Orange Tint */
+    --warning: 28 88% 55%;
+    --warning-foreground: 0 0% 100%;
 
-    /* INFO — Dark Blueberry Tint */
-    --info: 210 40% 40%;
-    --info-foreground: 210 60% 94%;
+    /* INFO — Dark Apple Blue Tint */
+    --info: 199 60% 50%;
+    --info-foreground: 0 0% 100%;
 
-    --sidebar: 240 22% 14%;
-    --sidebar-foreground: 220 25% 94%;
-    --sidebar-muted: 240 12% 60%;
-    --sidebar-hover: 240 18% 20%;
-    --sidebar-active: 240 25% 24%;
-    --sidebar-active-foreground: 220 25% 94%;
-    --sidebar-border: 240 18% 26%;
+    --sidebar: 220 12% 10%;
+    --sidebar-foreground: 220 15% 92%;
+    --sidebar-muted: 220 10% 58%;
+    --sidebar-hover: 220 12% 18%;
+    --sidebar-active: 211 100% 48%;
+    --sidebar-active-foreground: 0 0% 100%;
+    --sidebar-border: 220 12% 20%;
 
-    /* ========== CHART COLORS (Dark Candy Set) ========== */
-    --chart-1: 238 75% 72%;
-    --chart-2: 165 60% 60%;
-    --chart-3: 25 85% 65%;
-    --chart-4: 330 75% 68%;
-    --chart-5: 280 65% 68%;
+    /* ========== CHART COLORS (Dark Apple Set) ========== */
+    --chart-1: 211 100% 60%;
+    --chart-2: 280 65% 65%;
+    --chart-3: 160 58% 50%;
+    --chart-4: 28 90% 58%;
+    --chart-5: 2 75% 60%;
   }
 }
 
@@ -239,7 +239,9 @@
 
   body {
     @apply bg-background text-foreground;
-    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", "Segoe UI", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
   button:not([disabled]), [role="button"]:not([disabled]) {

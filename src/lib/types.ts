@@ -13,9 +13,6 @@ export interface CategoryTaxOverride {
 
 export interface TaxSettings {
   default_rate: number;
-  product_type_overrides: {
-    food_and_beverage?: number;
-  };
   category_overrides: CategoryTaxOverride[];
 }
 
@@ -29,21 +26,6 @@ export interface StoreConfig {
     receipt_footer?: string;
 }
 
-export interface ModifierItem {
-    id: string;
-    name: string;
-    additional_price: number;
-}
-
-export interface ModifierGroup {
-    id: string;
-    name: string;
-    min_select: number;
-    max_select: number;
-    required: boolean;
-    items: ModifierItem[];
-}
-
 export interface ProductVariant {
     id: string;
     product_id: string;
@@ -54,8 +36,6 @@ export interface ProductVariant {
     track_stock: boolean;
     low_stock_alert?: number;
 }
-
-export type ProductType = 'retail' | 'food_and_beverage';
 
 export interface Product {
   id: string;
@@ -68,14 +48,10 @@ export interface Product {
   stock: number;
   track_stock: boolean;
   has_variant: boolean;
-  has_modifier: boolean;
-  modifier_group_ids?: string[];
   imageUrl: string;
   imageHint: string;
   is_active: boolean;
-  product_type: ProductType;
   low_stock_alert?: number;
-  is_composite?: boolean;
 
   is_consignment?: boolean;
   consignor_name?: string;
@@ -83,18 +59,35 @@ export interface Product {
   consignment_commission_value?: number;
 }
 
-export interface SelectedModifier {
-    groupId: string;
-    groupName: string;
-    item: ModifierItem;
-}
-
 export interface CartItem extends Product {
   cartItemId: string; // A unique ID for this specific instance in the cart
   quantity: number;
-  // `price` in a CartItem will now represent the final calculated price including modifiers
+  // `price` in a CartItem will now represent the final calculated price including variants
   selectedVariant?: ProductVariant;
-  selectedModifiers: SelectedModifier[];
+}
+
+/**
+ * Read-only reference catalog item (bundled resource, imported into the local
+ * `catalog` collection, excluded from net-sync). Used as a search fallback on
+ * the Produk page; a real `products` doc is only created when the user saves
+ * the promoted product form.
+ */
+export interface CatalogProduct {
+  id: string;
+  barcode: string;
+  name: string;
+  brand?: string;
+  generic_name?: string;
+  category_id: string;
+  category_name: string;
+  price: number;
+  cost_price: number;
+  stock: number;
+  low_stock_alert: number;
+  track_stock: boolean;
+  is_active: boolean;
+  has_variant: boolean;
+  image_url?: string;
 }
 
 export interface PendingCart {
@@ -109,8 +102,7 @@ export interface PendingCart {
 export interface TransactionItem {
     id: string;
     transaction_id: string;
-    product_snapshot: Omit<Product, 'stock' | 'track_stock' | 'has_variant' | 'has_modifier' | 'is_active' | 'low_stock_alert' | 'modifier_group_ids'>;
-    selected_modifiers_snapshot?: SelectedModifier[];
+    product_snapshot: Omit<Product, 'stock' | 'track_stock' | 'has_variant' | 'is_active' | 'low_stock_alert'>;
     price_snapshot: number;
     cost_snapshot?: number;
     qty: number;
@@ -161,24 +153,6 @@ export interface Shift {
     total_cash_out?: number;
 }
 
-export interface RawIngredient {
-    id: string;
-    name: string;
-    unit_type: 'gram' | 'ml' | 'pcs';
-    stock_qty: number;
-    cost_per_unit: number;
-}
-
-export interface RecipeItem {
-    ingredient_id: string;
-    quantity: number;
-}
-
-export interface Recipe {
-    product_id: string; // The composite product this recipe is for
-    items: RecipeItem[];
-}
-
 export type PaymentPlan = 'PRO_MONTHLY' | 'PRO_YEARLY' | 'LIFETIME';
 
 export interface PaymentTicket {
@@ -223,7 +197,6 @@ export interface CustomAccessType {
     name?: string;
     description?: string;
     access?: string[], 
-    cashier_layout?: string ,
     peer_mode?: 'master'|'slave',
     room?: string,
     key?: string,

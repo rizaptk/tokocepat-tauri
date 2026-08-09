@@ -40,6 +40,9 @@ next-env.d.ts
 *.db-journal
 package-lock.json
 
+# untracked working notes / suggestions (kept out of VCS)
+/firelite_suggestion_update.md
+
 /src-tauri/target
 /src-tauri/gen
 /dist

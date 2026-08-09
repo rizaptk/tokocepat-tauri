@@ -58,19 +58,12 @@ export const CartItemRow = ({ item, onEditItem, isReadOnly = false }: CartItemRo
                 }}
                 className={cn(
                     "flex items-start gap-3 p-4 relative z-10",
-                    onEditItem && (item.has_modifier || item.has_variant) && !isReadOnly && "cursor-pointer hover:bg-accent"
+                    onEditItem && item.has_variant && !isReadOnly && "cursor-pointer hover:bg-accent"
                 )}
                 onClick={() => onEditItem && !isReadOnly && onEditItem(item)}
             >
                 <div className="flex-1 space-y-1">
                     <p className="font-medium leading-tight mt-1">{item.name} {item.selectedVariant ? `(${item.selectedVariant.name})` : ''}</p>
-                    {item.selectedModifiers && item.selectedModifiers.length > 0 && (
-                        <ul className="text-xs text-muted-foreground pl-4">
-                            {item.selectedModifiers.map(mod => (
-                                <li key={`${mod.groupId}-${mod.item.id}`}>- {mod.item.name} {mod.item.additional_price > 0 ? `(+${formatCurrency(mod.item.additional_price)})` : ''}</li>
-                            ))}
-                        </ul>
-                    )}
                     <p className="text-sm text-muted-foreground md:hidden">
                         {item.quantity} x {formatCurrency(item.price)}
                     </p>

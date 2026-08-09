@@ -24,10 +24,10 @@ const inputVariants = cva(
         "2": "border-2",
       },
       size: {
-        default: "h-10 px-3 py-2",
-        base: "h-10 px-3 py-2 text-base!",
-        sm: "h-8 px-2 py-1 text-sm!",
-        lg: "h-12 px-4 py-3 text-lg!",
+        default: "h-8 px-2.5 py-1",
+        base: "h-9 px-3 py-1.5 text-base!",
+        sm: "h-7 px-2 py-1 text-sm!",
+        lg: "h-10 px-3.5 py-2 text-lg!",
       },
     },
     defaultVariants: {

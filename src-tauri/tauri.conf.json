@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "tokocepat",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "identifier": "com.tokocepat.desktop",
   "build": {
     "frontendDist": "../dist",
@@ -37,7 +37,8 @@
       "icons/icon.ico"
     ],
     "resources": [
-      "resources/third-party-licenses.txt"
+      "resources/third-party-licenses.txt",
+      "resources/indonesian-catalog.json"
     ]
   }
 }

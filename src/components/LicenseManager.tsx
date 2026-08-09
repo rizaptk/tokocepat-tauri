@@ -4,17 +4,25 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Skeleton } from './ui/skeleton';
 import { Badge } from './ui/badge';
-import { CheckCircle, XCircle, Clock, ShieldOff, Loader2, AlertTriangle } from 'lucide-react';
+import { CheckCircle, XCircle, Clock, ShieldOff, Loader2, AlertTriangle, CreditCard, Zap } from 'lucide-react';
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 import { invoke } from '@tauri-apps/api/core';
+
+const PRICING_URL = 'https://tokocepat-pos.web.app/harga.html';
 
 export function LicenseManager() {
     const { status, licenseDetails, deactivate } = useLicense();
     const [licenseKey, setLicenseKey] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const { toast } = useToast();
+
+    const isTrial = licenseDetails?.isTrial === true;
+
+    const handleOpenPricing = () => {
+        invoke('open_pricing');
+    };
 
     // LicenseManager.tsx snippet
     const handleActivate = async () => {
@@ -74,17 +82,27 @@ export function LicenseManager() {
                     </Alert>
                   )}
                   <div className="flex items-center gap-2">
-                    <CheckCircle className="h-5 w-5 text-green-600" />
-                    <p className="font-semibold text-green-600">Lisensi Aktif</p>
+                    {isTrial ? <Zap className="h-5 w-5 text-primary" /> : <CheckCircle className="h-5 w-5 text-green-600" />}
+                    <p className={`font-semibold ${isTrial ? 'text-primary' : 'text-green-600'}`}>
+                        {isTrial ? 'Masa Trial Aktif' : 'Lisensi Aktif'}
+                    </p>
+                    {isTrial && <Badge variant="secondary" className="ml-auto">Trial</Badge>}
                   </div>
                   <div className="text-sm space-y-1">
                     <p>Paket: <Badge variant="secondary">{licenseDetails.plan}</Badge></p>
                     <p>Berakhir: <span className="font-medium">{licenseDetails.expiresAt === 'Never' ? 'Selamanya' : new Date(licenseDetails.expiresAt).toLocaleDateString()}</span></p>
                     <p className="text-xs text-muted-foreground pt-1 break-all">Device ID: {licenseDetails.deviceId}</p>
                   </div>
-                  <Button variant="outline" className="w-full" onClick={handleDeactivate} disabled={isLoading}>
-                    {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin"/> Memproses...</> : 'Deaktivasi Perangkat Ini'}
-                  </Button>
+                  <div className="flex flex-col gap-2">
+                    <Button onClick={handleOpenPricing} variant={isTrial ? 'default' : 'outline'} className="w-full">
+                        <CreditCard className="mr-2 h-4 w-4" /> {isTrial ? 'Upgrade ke Lisensi Penuh' : 'Beli / Perpanjang Lisensi'}
+                    </Button>
+                    {!isTrial && (
+                        <Button variant="outline" className="w-full" onClick={handleDeactivate} disabled={isLoading}>
+                            {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin"/> Memproses...</> : 'Deaktivasi Perangkat Ini'}
+                        </Button>
+                    )}
+                  </div>
               </div>
         )
     }
@@ -124,6 +142,11 @@ export function LicenseManager() {
             <Button className="w-full" onClick={handleActivate} disabled={isLoading}>
                 {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin"/> Mengaktifkan...</> : 'Aktivasi'}
             </Button>
+            <div className="pt-2">
+                <a href={PRICING_URL} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-primary hover:underline inline-flex items-center gap-1">
+                    <CreditCard className="h-4 w-4" /> Beli / Upgrade Lisensi
+                </a>
+            </div>
         </div>
     )
 }
