@@ -17,6 +17,7 @@ import { useIsMobile } from '@/lib/ismobile-store';
 import { useGlobalBarcodeScanner } from '@/hooks/use-global-barcode-scanner';
 import { useSettingsStore } from '@/lib/settings';
 import { useProductSearch } from '@/lib/useProductSearch';
+import { useCurrencyFormat } from '@/hooks/useCurrencyFormat';
 
 export type ViewMode = 'card' | 'thumbnail' | 'list';
 
@@ -29,8 +30,8 @@ export default function DefaultCashierPage() {
     const { toast } = useToast();
     const { isMobile } = useIsMobile();
     const { query } = useProductSearch();
+    const openingCash = useCurrencyFormat();
 
-    const [openingCash, setOpeningCash] = useState(0);
     const [itemToSelectVariant, setItemToSelectVariant] = useState<Product | null>(null);
 
     const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
@@ -59,8 +60,8 @@ export default function DefaultCashierPage() {
     }, [products, selectedCategoryId]);
 
     const handleOpenShift = () => {
-        openShift(openingCash);
-        setOpeningCash(0);
+        openShift(parseInt(openingCash.raw, 10) || 0);
+        openingCash.setRaw('0');
     }
 
     const handleProductSelect = (product: Product) => {
@@ -141,17 +142,18 @@ export default function DefaultCashierPage() {
                                 <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">Rp</span>
                                 <Input
                                     id="opening-cash"
-                                    type="number"
-                                    placeholder="Masukkan jumlah kas awal"
-                                    value={openingCash || ''}
-                                    onChange={(e) => setOpeningCash(Number(e.target.value))}
+                                    type="text"
+                                    inputMode="numeric"
+                                    placeholder="Rp 0"
+                                    value={openingCash.value}
+                                    onChange={openingCash.onChange}
                                     className="pl-10 text-lg"
                                     autoFocus
                                     onKeyDown={(e) => e.code === 'Enter' && handleOpenShift()}
                                 />
                             </div>
                         </div>
-                        <Button onClick={handleOpenShift} className="w-full sm:w-auto" disabled={openingCash <= 0}>
+                        <Button onClick={handleOpenShift} className="w-full sm:w-auto" disabled={(parseInt(openingCash.raw, 10) || 0) <= 0}>
                             <LogIn className="mr-2 h-4 w-4" /> Mulai
                         </Button>
                     </CardContent>

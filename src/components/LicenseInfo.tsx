@@ -8,7 +8,9 @@ import { Link } from "react-router-dom";
 import { formatDistanceToNowShort } from "@/lib/utils";
 import { invoke } from '@tauri-apps/api/core';
 
-const PRICING_URL = 'https://tokocepat-pos.web.app/harga.html';
+const handleOpenPricing = () => {
+    invoke('open_pricing');
+};
 
 export const LicenseInfo = () => {
 
@@ -98,7 +100,7 @@ export const LicenseInfo = () => {
             {!errorContent && status === 'NOT_FOUND' && (
                 <Alert variant="destructive">
                     <ShieldOff className="h-4 w-4" />
-                    <AlertTitle>Belum Ada Lisensi</AlertTitle>
+                    <AlertTitle>Belum Aktivasi</AlertTitle>
                     <AlertDescription className="flex flex-col gap-3">
                         <p>Aplikasi belum diaktivasi. Beberapa fitur mungkin dibatasi.</p>
                         <Link to="/license">
@@ -107,9 +109,9 @@ export const LicenseInfo = () => {
                     </AlertDescription>
                 </Alert>
             )}
-            <a href={PRICING_URL} target="_blank" rel="noopener noreferrer" className="text-xs font-medium text-primary hover:underline inline-flex items-center gap-1">
+            <button type="button" onClick={handleOpenPricing} className="text-xs font-medium text-primary hover:underline inline-flex items-center gap-1 cursor-pointer bg-transparent border-0 p-0">
                 <CreditCard className="h-3.5 w-3.5" /> Beli / Upgrade Lisensi
-            </a>
+            </button>
         </div>
         </>
     )

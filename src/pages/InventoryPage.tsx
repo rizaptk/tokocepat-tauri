@@ -29,7 +29,9 @@ import { TokoCepatLogo } from "@/components/TokoCepatLogo";
 import { NotificationBell } from "@/components/NotificationBell";
 import { ThemeToggle } from "@/components/ThemeButtons";
 import { itemMapping } from "@/lib/utils"; 
-import { motion, AnimatePresence } from "framer-motion"; 
+import { motion, AnimatePresence } from "framer-motion";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ProductForm } from "@/pages/Product/_components/ProductForm"; 
 
 
 const reasonOptions: Record<'add' | 'remove' | 'count', { id: string, value: StockMovementType, label: string }[]> = {
@@ -427,7 +429,7 @@ const ColumnClass = {
     stock: "flex flex-col items-end justify-center shrink-0 text-right tabular-nums whitespace-nowrap w-24 border-l border-l-border/50 h-full px-2"
 }
 
-const InventoryListItem = ({ item, isSelected, onItemClick, categories, isEven }: { item: InventoryItemType; isSelected: boolean; onItemClick: (item: InventoryItemType) => void; categories: Category[], isEven: boolean}) => {
+const InventoryListItem = ({ item, isSelected, onItemClick, onShowDetail, categories, isEven }: { item: InventoryItemType; isSelected: boolean; onItemClick: (item: InventoryItemType) => void; onShowDetail: (item: InventoryItemType) => void; categories: Category[], isEven: boolean}) => {
     
     let categoryName = 'N/A';
     if (item.itemType === 'product') {
@@ -442,7 +444,7 @@ const InventoryListItem = ({ item, isSelected, onItemClick, categories, isEven }
         displayName = `${item.parentName} (${item.name})`;
     }
 
-    const { icon: ItemIcon, badge: badgeVariant } = typeConfig[item.itemType];
+    const { icon: ItemIcon } = typeConfig[item.itemType];
 
     const isConsignment = item.itemType === 'product' && (item as Product).is_consignment;
     const consignorName = item.itemType === 'product' && (item as Product).consignor_name;
@@ -459,9 +461,10 @@ const InventoryListItem = ({ item, isSelected, onItemClick, categories, isEven }
             <div
                 data-item
                 onClick={() => onItemClick(item)}
+                onDoubleClick={() => onShowDetail(item)}
                 className={cn(
                     "group flex items-center px-4 transition-colors cursor-pointer  hover:bg-accent h-12",
-                    isSelected ? "bg-success/20 text-success-foreground" : isEven ? 'bg-border/10' : ''
+                    isSelected ? "bg-primary/10 text-primary ring-1 ring-inset ring-primary" : isEven ? 'bg-border/10' : ''
                 )}
             >
                 <div className={ColumnClass.name}>
@@ -473,11 +476,10 @@ const InventoryListItem = ({ item, isSelected, onItemClick, categories, isEven }
                     )}
                 </div>
                 <div className={ColumnClass.type}>
-                    <Badge variant={badgeVariant as any} className="text-[10px] uppercase px-2 py-0.5 border border-border">
-                        <ItemIcon className="h-3 w-3 mr-1" />
-                        {/* {item.itemType} */}
+                    <span className={cn("inline-flex items-center gap-1 border rounded px-1.5 py-0.5 text-[10px] uppercase tracking-wide font-medium", typeConfig[item.itemType].class)}>
+                        <ItemIcon className="h-3 w-3" />
                         {itemMapping.get(item.itemType)}
-                    </Badge>
+                    </span>
                 </div>
                 <div className={ColumnClass.category}>
                     <span className="truncate">{categoryName}</span>
@@ -495,6 +497,8 @@ export default function InventoryPage() {
     const { products, categories, productVariants } = useStore();
     const { toast } = useToast();
     const [selectedItem, setSelectedItem] = useState<{ id: string; type: 'product' | 'variant' } | null>(null);
+    const [detailProductId, setDetailProductId] = useState<string | null>(null);
+    const [isDetailOpen, setIsDetailOpen] = useState(false);
     const [isSheetOpen, setIsSheetOpen] = useState(false);
     const [filter, setFilter] = useState('all');
 
@@ -612,6 +616,13 @@ export default function InventoryPage() {
         }
     };
 
+    const openProductDetail = (item: InventoryItemType) => {
+        const productId = item.itemType === 'variant' ? (item as ProductVariant).product_id : item.id;
+        if (!productId) return;
+        setDetailProductId(productId);
+        setIsDetailOpen(true);
+    };
+
     const handleKeyNav = (e: React.KeyboardEvent) => {
         if (inventoryItems.length === 0) return;
         const currentIndex = selectedItem
@@ -620,6 +631,10 @@ export default function InventoryPage() {
         let next = currentIndex;
         if (e.key === 'ArrowDown') next = Math.min(currentIndex + 1, inventoryItems.length - 1);
         else if (e.key === 'ArrowUp') next = Math.max(currentIndex - 1, 0);
+        else if (e.key === 'F2' && currentIndex >= 0) {
+            openProductDetail(inventoryItems[currentIndex]);
+            return;
+        }
         else if ((e.key === 'Enter' || e.key === ' ') && currentIndex >= 0) {
             handleItemSelect(inventoryItems[currentIndex]);
             return;
@@ -665,6 +680,7 @@ export default function InventoryPage() {
                     item={inventoryItems[index]}
                     isSelected={selectedItem?.id === inventoryItems[index].id}
                     onItemClick={handleItemSelect}
+                    onShowDetail={openProductDetail}
                     categories={categories}
                     isEven={isEven}
                 />
@@ -797,6 +813,21 @@ export default function InventoryPage() {
                         </AnimatePresence>
                     </SheetContent>
                 </Sheet>
+
+                <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
+                    <DialogContent className="max-h-[90vh] overflow-y-auto">
+                        <DialogHeader>
+                            <DialogTitle>Detail Produk</DialogTitle>
+                        </DialogHeader>
+                        {detailProductId && (
+                            <ProductForm
+                                productId={detailProductId}
+                                onSave={() => setIsDetailOpen(false)}
+                                onCancel={() => setIsDetailOpen(false)}
+                            />
+                        )}
+                    </DialogContent>
+                </Dialog>
             </div>
         </div>
     );

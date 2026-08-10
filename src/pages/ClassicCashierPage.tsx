@@ -64,12 +64,12 @@ export default function ClassicCashierPage() {
     const { addToQueue } = usePrintStore();
     const { query, setQuery } = useProductSearch();
     const curr = useCurrencyFormat();
+    const openingCash = useCurrencyFormat();
     
     // Refs for keyboard focus
     const cashInputRef = useRef<HTMLInputElement>(null);
     const searchInputRef = useRef<HTMLInputElement>(null);
-    
-    const [openingCash, setOpeningCash] = useState(0);
+
     const [successData, setSuccessData] = useState<{ change: number, invoice: string } | null>(null);
     const [itemToSelectVariant, setItemToSelectVariant] = useState<Product | null>(null);
     const [searchIndex, setSearchIndex] = useState(-1);
@@ -280,13 +280,13 @@ export default function ClassicCashierPage() {
                             <div className="relative">
                                 <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">Rp</span>
                                 <Input 
-                                    type="number" value={openingCash || ''} 
-                                    onChange={(e) => setOpeningCash(Number(e.target.value))}
+                                    type="text" inputMode="numeric" value={openingCash.value} 
+                                    onChange={openingCash.onChange}
                                     className="pl-10 h-12 text-lg tabular-nums" autoFocus
-                                    onKeyDown={(e) => e.key === 'Enter' && openShift(openingCash)}
+                                    onKeyDown={(e) => e.key === 'Enter' && openShift(parseInt(openingCash.raw, 10) || 0)}
                                 />
                             </div>
-                            <Button onClick={() => openShift(openingCash)} className="w-full h-12" disabled={openingCash < 0}>
+                            <Button onClick={() => openShift(parseInt(openingCash.raw, 10) || 0)} className="w-full h-12" disabled={(parseInt(openingCash.raw, 10) || 0) < 0}>
                                 <LogIn className="mr-2 h-4 w-4" /> Mulai Sif
                             </Button>
                         </div>

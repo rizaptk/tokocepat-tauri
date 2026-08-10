@@ -10,8 +10,6 @@ import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 import { invoke } from '@tauri-apps/api/core';
 
-const PRICING_URL = 'https://tokocepat-pos.web.app/harga.html';
-
 export function LicenseManager() {
     const { status, licenseDetails, deactivate } = useLicense();
     const [licenseKey, setLicenseKey] = useState('');
@@ -143,9 +141,9 @@ export function LicenseManager() {
                 {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin"/> Mengaktifkan...</> : 'Aktivasi'}
             </Button>
             <div className="pt-2">
-                <a href={PRICING_URL} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-primary hover:underline inline-flex items-center gap-1">
+                <button type="button" onClick={handleOpenPricing} className="text-sm font-medium text-primary hover:underline inline-flex items-center gap-1 bg-transparent border-0 p-0 cursor-pointer">
                     <CreditCard className="h-4 w-4" /> Beli / Upgrade Lisensi
-                </a>
+                </button>
             </div>
         </div>
     )

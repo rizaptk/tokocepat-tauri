@@ -10,25 +10,11 @@ use std::time::Duration;
 use tauri::{AppHandle, Emitter, Manager, Runtime};
 
 use std::env;
-use std::path::PathBuf;
-use std::sync::OnceLock;
 
 use hmac::{Hmac, Mac};
 use sha2::Sha256;
 
 type HmacSha256 = Hmac<Sha256>;
-
-static APP_DATA_DIR: OnceLock<PathBuf> = OnceLock::new();
-
-/// Stores the app-data directory (called from lib.rs setup) so the trial anchor
-/// survives outside the resettable DB.
-pub fn set_app_data_dir(dir: PathBuf) {
-    let _ = APP_DATA_DIR.set(dir);
-}
-
-fn app_data_dir() -> Option<&'static PathBuf> {
-    APP_DATA_DIR.get()
-}
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
@@ -40,6 +26,9 @@ pub enum LicenseStatus {
     NotFound,
     Tampered,
     Cloned,
+    /// Device is eligible for a trial but the user has not yet accepted the
+    /// terms of use. The trial is NOT applied until `start_trial` is called.
+    TrialPending,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -77,11 +66,102 @@ pub struct TrialDbData {
     pub last_known_time: String,
     pub synced_at: Option<String>,
     pub device_id: String,
+    /// True once the server has confirmed this exact install owns the trial
+    /// (we hold the matching `verification_token`). Bound to the server record.
+    #[serde(default)]
+    pub server_verified: bool,
+    /// One-time token issued by `POST /api/license/trial-verify`. Proves a
+    /// recheck/reboot belongs to the same install that originally registered.
+    #[serde(default)]
+    pub verification_token: Option<String>,
+}
+
+/// Result of a server contact during trial start / heartbeat reconciliation.
+enum TrialServerOutcome {
+    /// Fresh one-shot registration. `expires_at` is authoritative (server clock).
+    Granted {
+        activated_at: DateTime<Utc>,
+        expires_at: DateTime<Utc>,
+        token: String,
+    },
+    /// The record exists and we proved ownership with our verifier: re-sync times.
+    Verified {
+        activated_at: DateTime<Utc>,
+        expires_at: DateTime<Utc>,
+    },
+    /// The device already used its trial (legacy record or foreign install).
+    AlreadyUsed,
+    /// Network/server failure -> caller falls back to the offline path.
+    Unreachable,
+}
+
+/// Contacts `POST /api/license/trial-verify` and interprets the reply.
+async fn trial_server_verify(device_id: &str, verifier: Option<&str>) -> TrialServerOutcome {
+    let client = reqwest::Client::new();
+    let mut body = serde_json::json!({ "deviceId": device_id });
+    if let Some(v) = verifier {
+        body["verifier"] = serde_json::json!(v);
+    }
+    let url = get_api_url("/api/license/trial-verify");
+
+    let Ok(res) = client
+        .post(url)
+        .json(&body)
+        .timeout(Duration::from_secs(6))
+        .send()
+        .await
+    else {
+        return TrialServerOutcome::Unreachable;
+    };
+    if !res.status().is_success() {
+        return TrialServerOutcome::Unreachable;
+    }
+    let Ok(parsed) = res.json::<serde_json::Value>().await else {
+        return TrialServerOutcome::Unreachable;
+    };
+
+    match parsed["status"].as_str() {
+        Some("granted") => {
+            match (
+                parsed["activatedAt"].as_str().and_then(parse_rfc3339),
+                parsed["expiresAt"].as_str().and_then(parse_rfc3339),
+                parsed["verificationToken"].as_str().map(|s| s.to_string()),
+            ) {
+                (Some(a), Some(e), Some(t)) => TrialServerOutcome::Granted {
+                    activated_at: a,
+                    expires_at: e,
+                    token: t,
+                },
+                _ => TrialServerOutcome::Unreachable,
+            }
+        }
+        Some("verified") => {
+            match (
+                parsed["activatedAt"].as_str().and_then(parse_rfc3339),
+                parsed["expiresAt"].as_str().and_then(parse_rfc3339),
+            ) {
+                (Some(a), Some(e)) => TrialServerOutcome::Verified {
+                    activated_at: a,
+                    expires_at: e,
+                },
+                _ => TrialServerOutcome::Unreachable,
+            }
+        }
+        Some("already_used") => TrialServerOutcome::AlreadyUsed,
+        _ => TrialServerOutcome::Unreachable,
+    }
+}
+
+/// Earliest of several optional timestamps (used to clamp local state against the
+/// server's authoritative times so the trial can never be stretched beyond 30 days).
+fn earliest<'a>(values: impl IntoIterator<Item = &'a str>) -> Option<DateTime<Utc>> {
+    values
+        .into_iter()
+        .filter_map(parse_rfc3339)
+        .min()
 }
 
 // --- LOCAL CONVERSION HELPERS ---
-
-/// Helper to get the API URL from environment variables or default
 fn get_api_url(path: &str) -> String {
     // 1. Try to get from system environment (set during build or in .env)
     // 2. Fallback to a hardcoded production URL if nothing is found
@@ -125,7 +205,7 @@ pub fn save_license_db(gateway: &FireLiteGateway, data: LicenseDbData) -> Result
         .db
         .put("app_state", "license", &doc)
         .map_err(|e| e.to_string())?;
-    persist_licensed_ever();
+    persist_licensed_ever(gateway);
     Ok(())
 }
 
@@ -206,7 +286,7 @@ async fn server_trust_now() -> DateTime<Utc> {
 }
 
 /// Signed, DB-independent anchor so a wiped/replaced DB file cannot grant a fresh
-/// trial. Resides in the app-data dir and is keyed by the device id.
+/// trial. Stored inside the encrypted `app_state` collection and keyed by device id.
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct TrialAnchor {
@@ -217,6 +297,7 @@ pub struct TrialAnchor {
 
 /// Signed marker proving a license was ever activated on this device. It survives
 /// DB wipes so that after someone buys + deactivates, they don't get a fresh trial.
+/// Stored in the encrypted `app_state` collection.
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct LicensedEverMarker {
@@ -242,26 +323,34 @@ fn hex_encode(bytes: &[u8]) -> String {
     s
 }
 
-fn anchor_path() -> Option<PathBuf> {
-    app_data_dir().map(|dir| dir.join("trial_anchor.json"))
-}
-
-fn read_anchor() -> Option<TrialAnchor> {
-    let path = anchor_path()?;
-    let contents = std::fs::read_to_string(path).ok()?;
-    let anchor: TrialAnchor = serde_json::from_str(&contents).ok()?;
+fn read_anchor(gateway: &FireLiteGateway) -> Option<TrialAnchor> {
+    let doc = gateway.db.get("app_state", "trial_anchor").ok().flatten()?;
+    let mut map = serde_json::Map::new();
+    for (k, v) in &doc.fields {
+        map.insert(k.to_string(), v.to_json());
+    }
+    let anchor: TrialAnchor = serde_json::from_value(serde_json::Value::Object(map)).ok()?;
     if sign_anchor(&anchor) != anchor.sig {
         return None;
     }
     Some(anchor)
 }
 
-fn write_anchor(anchor: &TrialAnchor) {
-    if let Some(path) = anchor_path() {
-        if let Ok(json) = serde_json::to_string(anchor) {
-            let _ = std::fs::write(path, json);
-        }
+fn write_anchor(gateway: &FireLiteGateway, anchor: &TrialAnchor) {
+    let Ok(json) = serde_json::to_value(anchor) else {
+        return;
+    };
+    let Some(obj) = json.as_object() else {
+        return;
+    };
+    let mut doc = FireLiteDoc::default();
+    for (k, v) in obj {
+        let Ok(val) = Value::from_json(v.clone()) else {
+            continue;
+        };
+        doc.insert(k.clone(), val);
     }
+    let _ = gateway.db.put("app_state", "trial_anchor", &doc);
 }
 
 fn sign_licensed_ever(marker: &LicensedEverMarker) -> String {
@@ -271,32 +360,39 @@ fn sign_licensed_ever(marker: &LicensedEverMarker) -> String {
     hex_encode(&mac.finalize().into_bytes())
 }
 
-fn licensed_ever_path() -> Option<PathBuf> {
-    app_data_dir().map(|dir| dir.join("licensed_ever.json"))
-}
-
-fn persist_licensed_ever() {
+fn persist_licensed_ever(gateway: &FireLiteGateway) {
     let device_id = hwid::get_license_hwid();
     let mut marker = LicensedEverMarker {
         device_id: device_id.clone(),
         sig: String::new(),
     };
     marker.sig = sign_licensed_ever(&marker);
-    if let Some(path) = licensed_ever_path() {
-        if let Ok(json) = serde_json::to_string(&marker) {
-            let _ = std::fs::write(path, json);
-        }
+    let Ok(json) = serde_json::to_value(&marker) else {
+        return;
+    };
+    let Some(obj) = json.as_object() else {
+        return;
+    };
+    let mut doc = FireLiteDoc::default();
+    for (k, v) in obj {
+        let Ok(val) = Value::from_json(v.clone()) else {
+            continue;
+        };
+        doc.insert(k.clone(), val);
     }
+    let _ = gateway.db.put("app_state", "licensed_ever", &doc);
 }
 
-fn read_licensed_ever() -> bool {
-    let Some(path) = licensed_ever_path() else {
+fn read_licensed_ever(gateway: &FireLiteGateway) -> bool {
+    let Ok(Some(doc)) = gateway.db.get("app_state", "licensed_ever") else {
         return false;
     };
-    let Ok(contents) = std::fs::read_to_string(path) else {
-        return false;
-    };
-    let Ok(marker) = serde_json::from_str::<LicensedEverMarker>(&contents) else {
+    let mut map = serde_json::Map::new();
+    for (k, v) in &doc.fields {
+        map.insert(k.to_string(), v.to_json());
+    }
+    let Ok(marker) = serde_json::from_value::<LicensedEverMarker>(serde_json::Value::Object(map))
+    else {
         return false;
     };
     if sign_licensed_ever(&marker) != marker.sig {
@@ -305,31 +401,165 @@ fn read_licensed_ever() -> bool {
     marker.device_id == hwid::get_license_hwid()
 }
 
-/// Resolves the effective trial start (earliest of DB, sidecar anchor, or now),
+/// Signed marker recording that the server refused a trial on this device
+/// (`already_used`). Kept locally so an offline boot does not re-offer the trial
+/// consent after the server has permanently denied this device.
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct TrialUsedMarker {
+    pub device_id: String,
+    pub sig: String,
+}
+
+const TRIAL_USED_SALT: &str = "tokcepat.trial-used.v1";
+
+fn sign_trial_used(marker: &TrialUsedMarker) -> String {
+    let payload = format!("{}|{}", TRIAL_USED_SALT, marker.device_id);
+    let mut mac = HmacSha256::new_from_slice(b"tokcused".repeat(8).as_ref()).expect("hmac key");
+    mac.update(payload.as_bytes());
+    hex_encode(&mac.finalize().into_bytes())
+}
+
+fn persist_trial_used(gateway: &FireLiteGateway) {
+    let device_id = hwid::get_license_hwid();
+    let mut marker = TrialUsedMarker {
+        device_id: device_id.clone(),
+        sig: String::new(),
+    };
+    marker.sig = sign_trial_used(&marker);
+    let Ok(json) = serde_json::to_value(&marker) else {
+        return;
+    };
+    let Some(obj) = json.as_object() else {
+        return;
+    };
+    let mut doc = FireLiteDoc::default();
+    for (k, v) in obj {
+        let Ok(val) = Value::from_json(v.clone()) else {
+            continue;
+        };
+        doc.insert(k.clone(), val);
+    }
+    let _ = gateway.db.put("app_state", "trial_used", &doc);
+}
+
+fn read_trial_used(gateway: &FireLiteGateway) -> bool {
+    let Ok(Some(doc)) = gateway.db.get("app_state", "trial_used") else {
+        return false;
+    };
+    let mut map = serde_json::Map::new();
+    for (k, v) in &doc.fields {
+        map.insert(k.to_string(), v.to_json());
+    }
+    let Ok(marker) = serde_json::from_value::<TrialUsedMarker>(serde_json::Value::Object(map))
+    else {
+        return false;
+    };
+    if sign_trial_used(&marker) != marker.sig {
+        return false;
+    }
+    marker.device_id == hwid::get_license_hwid()
+}
+
+/// Resolves the effective trial start (earliest of DB, stored anchor, or now),
 /// so deleting/reinstalling the DB cannot re-seed a longer trial.
-fn resolve_trial_start(device_id: &str, db_start: Option<DateTime<Utc>>) -> DateTime<Utc> {
-    let anchor_start = read_anchor()
+fn resolve_trial_start(
+    gateway: &FireLiteGateway,
+    device_id: &str,
+    db_start: Option<DateTime<Utc>>,
+) -> DateTime<Utc> {
+    let anchor_start = read_anchor(gateway)
         .filter(|a| &a.device_id == device_id)
         .and_then(|a| parse_rfc3339(&a.started_at));
     let candidates = db_start.into_iter().chain(anchor_start);
     candidates.min().unwrap_or_else(Utc::now)
 }
 
-fn persist_trial_anchor(trial: &TrialDbData) {
+fn persist_trial_anchor(gateway: &FireLiteGateway, trial: &TrialDbData) {
     let mut signed = TrialAnchor {
         started_at: trial.started_at.clone(),
         device_id: trial.device_id.clone(),
         sig: String::new(),
     };
     signed.sig = sign_anchor(&signed);
-    write_anchor(&signed);
+    write_anchor(gateway, &signed);
+}
+
+/// Creates a local trial record for an eligible device — used only on the
+/// OFFLINE path (server unreachable), or when the server grants fresh. Persists
+/// both the DB record and the signed anchor; the trial stays *unverified* until a
+/// heartbeat can confirm it against the server.
+async fn create_trial(
+    gateway: &FireLiteGateway,
+    device_id: &str,
+) -> Result<TrialDbData, String> {
+    // Users who have ever held a real license must not be re-granted a fresh
+    // trial by deactivating (or by wiping the DB after buying).
+    if read_licensed_ever(gateway) {
+        return Err("Trial is not available on this device".into());
+    }
+    if read_trial_used(gateway) {
+        return Err("Trial has already been used on this device".into());
+    }
+    if get_trial_db(gateway).is_some() {
+        return Err("A trial already exists on this device".into());
+    }
+
+    // Server time is the most trustworthy anchor for first-run so a pre-tampered
+    // clock (rewound before first launch) cannot backdate the trial start.
+    let server_now = server_trust_now().await;
+    // Any earlier start pinned on disk wins -> wiping the DB can't re-seed.
+    let start = resolve_trial_start(gateway, device_id, None).min(server_now);
+    let expires = start + chrono::Duration::days(TRIAL_DAYS);
+    let created = TrialDbData {
+        started_at: start.to_rfc3339(),
+        expires_at: expires.to_rfc3339(),
+        last_known_time: server_now.to_rfc3339(),
+        synced_at: Some(server_now.to_rfc3339()),
+        device_id: device_id.to_string(),
+        server_verified: false,
+        verification_token: None,
+    };
+    save_trial_db(gateway, &created)?;
+    persist_trial_anchor(gateway, &created);
+    Ok(created)
+}
+
+/// Persists a trial issued from a fresh server grant, adopting the server's
+/// authoritative expiry (never later than the server's own `expires_at`).
+fn persist_granted_trial(
+    gateway: &FireLiteGateway,
+    device_id: &str,
+    activated_at: DateTime<Utc>,
+    server_expires: DateTime<Utc>,
+    token: String,
+) -> Result<TrialDbData, String> {
+    // Start is the earliest of server activation and any previously pinned anchor
+    // (wiping the DB can't re-seed), but never later than server now.
+    let start = resolve_trial_start(gateway, device_id, None).min(activated_at);
+    // Server expiry is authoritative; clamp so a rewound clock can't extend it.
+    let expires = server_expires;
+    let created = TrialDbData {
+        started_at: start.to_rfc3339(),
+        expires_at: expires.to_rfc3339(),
+        last_known_time: activated_at.to_rfc3339(),
+        synced_at: Some(activated_at.to_rfc3339()),
+        device_id: device_id.to_string(),
+        server_verified: true,
+        verification_token: Some(token),
+    };
+    save_trial_db(gateway, &created)?;
+    persist_trial_anchor(gateway, &created);
+    Ok(created)
 }
 
 /// Resolves the local trial:
-/// - Grants a fixed 7-day trial on first launch (so trial is the default for a new user).
+/// - If the device is eligible but no trial has been applied yet, returns
+///   `TrialPending` (the UI presents the terms of use and then calls
+///   `start_trial` to actually apply the trial).
 /// - Enforces a monotonic trusted clock (local or server) so the trial cannot be
 ///   extended by rewinding the PC clock or editing the stored expiry.
-/// - Pins the trial start to a signed sidecar anchor so wiping the DB can't re-grant.
+/// - Pins the trial start to a signed anchor so wiping the DB can't re-grant.
 async fn check_trial(
     gateway: &FireLiteGateway,
 ) -> Result<(LicenseStatus, Option<serde_json::Value>), String> {
@@ -340,25 +570,22 @@ async fn check_trial(
         None => {
             // Users who have ever held a real license must not be re-granted a fresh
             // trial by deactivating (or by wiping the DB after buying).
-            if read_licensed_ever() {
+            if read_licensed_ever(gateway) || read_trial_used(gateway) {
                 return Ok((LicenseStatus::NotFound, None));
             }
-            // Server time is the most trustworthy anchor for first-run so a pre-tampered
-            // clock (rewound before first launch) cannot backdate the trial start.
-            let server_now = server_trust_now().await;
-            // Any earlier start pinned on disk wins -> wiping the DB can't re-seed.
-            let start = resolve_trial_start(&device_id, None).min(server_now);
-            let expires = start + chrono::Duration::days(TRIAL_DAYS);
-            let created = TrialDbData {
-                started_at: start.to_rfc3339(),
-                expires_at: expires.to_rfc3339(),
-                last_known_time: server_now.to_rfc3339(),
-                synced_at: Some(server_now.to_rfc3339()),
-                device_id: device_id.clone(),
-            };
-            save_trial_db(gateway, &created)?;
-            persist_trial_anchor(&created);
-            created
+            // Eligible but not yet accepted the terms of use -> trial NOT applied.
+            return Ok((
+                LicenseStatus::TrialPending,
+                Some(serde_json::json!({
+                    "isTrial": true,
+                    "trialAvailable": true,
+                    "plan": "Trial",
+                    "daysRemaining": TRIAL_DAYS,
+                    "deviceId": hwid::get_license_hwid(),
+                    "isSyncAvailable": false,
+                    "maxSeats": 1,
+                })),
+            ));
         }
     };
 
@@ -401,17 +628,111 @@ async fn check_trial(
     Ok((status, Some(ui_details)))
 }
 
+/// Applies the trial for an eligible device. Only called after the user has
+/// accepted the terms of use in the UI (see `check_license` -> `TrialPending`).
+///
+/// Online: registers the one-shot trial server-side (`trial-verify`) and adopts
+/// the server's authoritative expiry + verifier token. A legacy trial record (or a
+/// DB wipe/reinstall) returns `already_used` which permanently blocks this device.
+///
+/// Offline: falls back to a local trial marked `server_verified=false`; the next
+/// successful heartbeat reconciles it with the server (and may revoke it).
+#[tauri::command]
+pub async fn start_trial(
+    state: tauri::State<'_, FireLiteGateway>,
+) -> Result<serde_json::Value, String> {
+    let gateway = state.inner();
+    let device_id = hwid::get_license_hwid();
+
+    if get_license_db(gateway).is_some() {
+        return Err("A license is already active on this device".into());
+    }
+    // A real license was once held here -> no fresh trial.
+    if read_licensed_ever(gateway) {
+        return Err("Trial is not available on this device".into());
+    }
+    if read_trial_used(gateway) {
+        return Err("Trial has already been used on this device".into());
+    }
+
+    // Prefer the server: it is the single source of truth for one-trial-per-device.
+    let created = match trial_server_verify(&device_id, None).await {
+        TrialServerOutcome::Granted {
+            activated_at,
+            expires_at,
+            token,
+        } => persist_granted_trial(gateway, &device_id, activated_at, expires_at, token)?,
+        TrialServerOutcome::AlreadyUsed => {
+            persist_trial_used(gateway);
+            return Err(
+                "Trial telah digunakan pada perangkat ini sebelumnya / Trial was already used on this device"
+                    .into(),
+            );
+        }
+        TrialServerOutcome::Verified { .. } | TrialServerOutcome::Unreachable => {
+            // Offline (or unexpected response): issue a local, unverified trial.
+            create_trial(gateway, &device_id).await?
+        }
+    };
+
+    Ok(trial_ui_details(
+        &parse_rfc3339(&created.expires_at).ok_or("INVALID_TRIAL_EXPIRY")?,
+        &Utc::now(),
+    ))
+}
+
 #[tauri::command]
 pub fn open_pricing() -> Result<(), String> {
     open::that(PRICING_URL).map_err(|e| e.to_string())
 }
 
+/// Human-readable license status label appended to the window title.
+fn status_title_label(status: &LicenseStatus, details: &Option<serde_json::Value>) -> &'static str {
+    let is_trial = details
+        .as_ref()
+        .and_then(|d| d.get("isTrial"))
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
+    match status {
+        LicenseStatus::Valid if is_trial => "Masa Trial",
+        LicenseStatus::Valid => "Lisensi Aktif",
+        LicenseStatus::ExpiresSoon => "Lisensi Segera Berakhir",
+        LicenseStatus::NotFound => "Belum Aktivasi",
+        LicenseStatus::Invalid => "Lisensi Tidak Valid",
+        LicenseStatus::Expired => "Lisensi Kedaluwarsa",
+        LicenseStatus::Tampered => "Jam Sistem Salah",
+        LicenseStatus::Cloned => "Perangkat Berbeda",
+        LicenseStatus::TrialPending => "Persetujuan Uji Coba",
+    }
+}
+
+/// Updates the main window title to `TokoCepat v{version} — {status}`.
+fn apply_status_title<R: Runtime>(app: &AppHandle<R>, status: &LicenseStatus, details: &Option<serde_json::Value>) {
+    #[cfg(desktop)]
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.set_title(&format!(
+            "TokoCepat v{} — {}",
+            env!("CARGO_PKG_VERSION"),
+            status_title_label(status, details)
+        ));
+    }
+}
+
 #[tauri::command]
 pub async fn check_license(
+    app: AppHandle,
     state: tauri::State<'_, FireLiteGateway>,
 ) -> Result<(LicenseStatus, Option<serde_json::Value>), String> {
-    let gateway = state.inner();
+    let result = check_license_inner(state.inner()).await;
+    if let Ok((status, details)) = &result {
+        apply_status_title(&app, status, details);
+    }
+    result
+}
 
+async fn check_license_inner(
+    gateway: &FireLiteGateway,
+) -> Result<(LicenseStatus, Option<serde_json::Value>), String> {
     let license_data = match get_license_db(gateway) {
         Some(data) => data,
         None => return check_trial(gateway).await,
@@ -514,6 +835,81 @@ pub async fn check_license(
     Ok((LicenseStatus::Valid, Some(ui_details)))
 }
 
+/// Reconciles a local trial with the server. Ran periodically by the heartbeat so
+/// an offline-started trial gets confirmed (or revoked) the moment the device is
+/// back online. Adopts the server's authoritative times (clamped to earliest) and
+/// persists the verifier token so future boots re-verify as the same install.
+async fn reconcile_trial(gateway: &FireLiteGateway) {
+    let device_id = hwid::get_license_hwid();
+
+    let trial = match get_trial_db(gateway) {
+        Some(t) => t,
+        None => return,
+    };
+
+    let verifier = trial.verification_token.as_deref();
+    let outcome = trial_server_verify(&device_id, verifier).await;
+
+    match outcome {
+        TrialServerOutcome::Granted {
+            activated_at,
+            expires_at,
+            token,
+        } => {
+            // Client started offline, server had never seen this device before:
+            // persist the fresh grant with its verifier token.
+            let act_str = activated_at.to_rfc3339();
+            let exp_str = expires_at.to_rfc3339();
+            let start =
+                earliest([trial.started_at.as_str(), act_str.as_str()]).unwrap_or(activated_at);
+            let expires =
+                earliest([trial.expires_at.as_str(), exp_str.as_str()]).unwrap_or(expires_at);
+            let updated = TrialDbData {
+                started_at: start.to_rfc3339(),
+                expires_at: expires.to_rfc3339(),
+                last_known_time: activated_at.to_rfc3339(),
+                synced_at: Some(activated_at.to_rfc3339()),
+                device_id: device_id.clone(),
+                server_verified: true,
+                verification_token: Some(token),
+            };
+            let _ = save_trial_db(gateway, &updated);
+            persist_trial_anchor(gateway, &updated);
+        }
+        TrialServerOutcome::Verified {
+            activated_at,
+            expires_at,
+        } => {
+            // Same install re-syncing: adopt authoritative times (clamp to earliest).
+            let act_str = activated_at.to_rfc3339();
+            let exp_str = expires_at.to_rfc3339();
+            let start =
+                earliest([trial.started_at.as_str(), act_str.as_str()]).unwrap_or(activated_at);
+            let expires =
+                earliest([trial.expires_at.as_str(), exp_str.as_str()]).unwrap_or(expires_at);
+            let updated = TrialDbData {
+                started_at: start.to_rfc3339(),
+                expires_at: expires.to_rfc3339(),
+                last_known_time: activated_at.to_rfc3339(),
+                synced_at: Some(activated_at.to_rfc3339()),
+                device_id: device_id.clone(),
+                server_verified: true,
+                verification_token: verifier.map(|s| s.to_string()),
+            };
+            let _ = save_trial_db(gateway, &updated);
+        }
+        TrialServerOutcome::AlreadyUsed => {
+            // The server says this device already used its trial (legacy or wiped
+            // DB). Permanently block the trial and clear the local record.
+            persist_trial_used(gateway);
+            let _ = gateway.db.delete("app_state", "trial");
+        }
+        TrialServerOutcome::Unreachable => {
+            // Stay offline; try again on the next heartbeat.
+        }
+    }
+}
+
 pub async fn run_heartbeat<R: Runtime>(app: AppHandle<R>) {
     let client = reqwest::Client::new();
     loop {
@@ -539,6 +935,10 @@ pub async fn run_heartbeat<R: Runtime>(app: AppHandle<R>) {
                         }
                     }
                 }
+            } else {
+                // No active license: reconcile any trial with the server so an
+                // offline-started trial is confirmed (or revoked) when online.
+                reconcile_trial(&gateway).await;
             }
         }
     }
@@ -671,4 +1071,57 @@ pub async fn deactivate_license(
     let _ = gateway.db.delete("app_state", "trial");
 
     Ok("Deactivated".to_string())
+}
+
+/// Migrates the legacy on-disk anchors (`trial_anchor.json`, `licensed_ever.json`)
+/// into the encrypted `app_state` collection, then removes the files. Called once
+/// at startup so pre-existing installs keep their trial/license history intact while
+/// moving trial status out of readable plaintext files.
+pub fn migrate_legacy_anchors(gateway: &FireLiteGateway, app_data_dir: &std::path::Path) {
+    let trial_file = app_data_dir.join("trial_anchor.json");
+    if trial_file.exists() {
+        let was_valid = std::fs::read_to_string(&trial_file)
+            .ok()
+            .and_then(|s| serde_json::from_str::<TrialAnchor>(&s).ok())
+            .filter(|a| sign_anchor(a) == a.sig)
+            .is_some();
+        if was_valid {
+            if gateway.db.get("app_state", "trial_anchor").ok().flatten().is_none() {
+                let mut anchor = std::fs::read_to_string(&trial_file)
+                    .ok()
+                    .and_then(|s| serde_json::from_str::<TrialAnchor>(&s).ok());
+                if let Some(mut a) = anchor.take() {
+                    if sign_anchor(&a) != a.sig {
+                        a.sig = sign_anchor(&a);
+                    }
+                    write_anchor(gateway, &a);
+                }
+            }
+        }
+        let _ = std::fs::remove_file(&trial_file);
+    }
+
+    let ever_file = app_data_dir.join("licensed_ever.json");
+    if ever_file.exists() {
+        let marker = std::fs::read_to_string(&ever_file)
+            .ok()
+            .and_then(|s| serde_json::from_str::<LicensedEverMarker>(&s).ok());
+        if let Some(m) = marker {
+            if sign_licensed_ever(&m) == m.sig && m.device_id == hwid::get_license_hwid() {
+                if gateway.db.get("app_state", "licensed_ever").ok().flatten().is_none() {
+                    let mut doc = FireLiteDoc::default();
+                    let Ok(v) = Value::from_json(serde_json::json!(m.device_id)) else {
+                        return;
+                    };
+                    doc.insert("device_id".to_string(), v);
+                    let Ok(v) = Value::from_json(serde_json::json!(m.sig)) else {
+                        return;
+                    };
+                    doc.insert("sig".to_string(), v);
+                    let _ = gateway.db.put("app_state", "licensed_ever", &doc);
+                }
+            }
+        }
+        let _ = std::fs::remove_file(&ever_file);
+    }
 }

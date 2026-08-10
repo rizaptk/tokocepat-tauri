@@ -190,22 +190,27 @@ export default function ProductManagementPage() {
     const displayedProducts = useMemo(() => {
         let items = [...products];
         if (filter === 'all') {
-            return items.filter(p => p.is_active);
+            items = items.filter(p => p.is_active);
         }
-        if (filter === 'retail') {
-            return items.filter(p => p.is_active);
+        else if (filter === 'retail') {
+            items = items.filter(p => p.is_active);
         }
-        if (filter === 'consignment') {
-            return items.filter(p => p.is_consignment && p.is_active);
+        else if (filter === 'consignment') {
+            items = items.filter(p => p.is_consignment && p.is_active);
         }
-        if (filter === 'variants') {
-            return items.filter(p => p.has_variant && p.is_active);
+        else if (filter === 'variants') {
+            items = items.filter(p => p.has_variant && p.is_active);
         }
-        if (filter === 'inactive') {
-            return items.filter(p => !p.is_active);
+        else if (filter === 'inactive') {
+            items = items.filter(p => !p.is_active);
+        }
+
+        const q = query.trim().toLowerCase();
+        if (q) {
+            items = items.filter(p => p.name.toLowerCase().includes(q) || p.barcode?.toLowerCase().includes(q));
         }
         return items;
-    }, [products, filter]);
+    }, [products, filter, query]);
 
     const dlgTrigger = (
         <Button variant="outline" size="sm" className="hidden md:flex relative rounded-md h-8 shrink-0" disabled={selectedProductIds.size === 0}>
@@ -440,6 +445,7 @@ const formatIDR = (amt: number) => new Intl.NumberFormat('id-ID', {
 }).format(amt);
 
 function CatalogHitRow({ item, onSelect }: { item: CatalogProduct; onSelect: () => void }) {
+    const brandLabel = item.brand || item.generic_name;
     return (
         <div
             role="button"
@@ -448,11 +454,26 @@ function CatalogHitRow({ item, onSelect }: { item: CatalogProduct; onSelect: () 
             onKeyDown={(e) => e.key === 'Enter' && onSelect()}
             className="flex items-center gap-3 px-3 py-2.5 cursor-pointer hover:bg-accent transition-colors"
         >
+            {item.image_url ? (
+                <img
+                    src={item.image_url}
+                    alt={item.name}
+                    className="h-10 w-10 shrink-0 rounded-md border border-border/60 object-cover"
+                    loading="lazy"
+                />
+            ) : (
+                <div className="grid h-10 w-10 shrink-0 place-items-center rounded-md border border-border/60 bg-muted/40 text-muted-foreground">
+                    <Package className="h-4 w-4" />
+                </div>
+            )}
             <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium">{item.name}</p>
-                <p className="truncate text-[11px] text-muted-foreground font-mono">{item.barcode}</p>
+                {brandLabel && (
+                    <p className="truncate text-[11px] text-muted-foreground">{brandLabel}</p>
+                )}
+                <p className="truncate text-[10px] text-muted-foreground/70 font-mono">{item.barcode}</p>
             </div>
-            <span className="hidden sm:block shrink-0 max-w-[120px] truncate text-[11px] text-muted-foreground">{item.category_name}</span>
+            <span className="hidden shrink-0 max-w-[120px] truncate text-[11px] text-muted-foreground sm:block">{item.category_name}</span>
             <Badge variant="outline" className="shrink-0 h-4 px-1.5 text-[10px]">Katalog</Badge>
             <span className="shrink-0 text-sm font-semibold tabular-nums w-20 text-right">{formatIDR(item.price)}</span>
         </div>

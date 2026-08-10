@@ -20,6 +20,7 @@ import { DateRange } from "react-day-picker";
 import { isSameDay, differenceInDays, addDays, startOfDay, endOfDay, format } from 'date-fns';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useLoadTransactions } from "@/hooks/useLoadTransaction";
+import { LicenseBadge } from "@/components/LicenseBadge";
 
 export default function DashboardPage() {
   const products = useStore((state) => state.products);
@@ -190,6 +191,9 @@ export default function DashboardPage() {
               <p className="text-sm text-muted-foreground">
                 Pantau performa penjualan, stok, dan shift secara real-time.
               </p>
+              <div className="pt-2">
+                <LicenseBadge size="full" />
+              </div>
             </div>
 
             {/* KPI Summary */}

@@ -7,6 +7,7 @@ import { initializeSyncService } from '@/services/syncService';
 import { useSyncStore } from '@/lib/sync-store';
 import { invoke } from '@tauri-apps/api/core';
 import { useDbStore } from '@/lib/db-store';
+import { TrialConsent } from './TrialConsent';
 
 const statusMessages: Record<string, string> = {
     INVALID: "Data lisensi tidak valid. Silakan aktivasi ulang.",
@@ -87,6 +88,12 @@ export function LicenseProvider({ children }: { children: React.ReactNode }) {
                 </div>
             </div>
         )
+    }
+
+    // Eligible device that hasn't accepted the terms of use yet: show the
+    // agreement. Accepting applies the trial; declining shows the welcome view.
+    if (status === 'TRIAL_PENDING') {
+        return <TrialConsent />;
     }
     
     const isAllowedUnlicensedPage = typeof window !== 'undefined' && 

@@ -11,7 +11,8 @@ export type LicenseStatus =
     | 'NOT_FOUND'   // No license token found locally
     | 'LOADING'     // Initial state
     | 'TAMPERED'    // Clock has been moved backwards
-    | 'CLONED';     // Device ID does not match the one in the token
+    | 'CLONED'      // Device ID does not match the one in the token
+    | 'TRIAL_PENDING'; // Eligible device, trial not yet applied (awaiting terms acceptance)
 
 export function useLicense() {
     const { isInitialized } = useDbStore();

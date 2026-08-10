@@ -47,7 +47,6 @@ pub fn run() {
                 .app_data_dir()
                 .expect("Failed to resolve app data dir");
             std::fs::create_dir_all(&app_dir).ok();
-            license::set_app_data_dir(app_dir.clone());
             let db_path = app_dir.join("tokocepat.db");
 
             // restore pending flag
@@ -84,6 +83,8 @@ pub fn run() {
             let db = FireLite::open(db_path, cfg).expect("Failed to init FireLite");
 
             let gateway = FireLiteGateway::new(db);
+
+            license::migrate_legacy_anchors(&gateway, &app_dir);
 
             app.manage(gateway.clone());
 
@@ -135,8 +136,9 @@ pub fn run() {
             printer_commands::print_receipt,
             tauri_gateway::firelite_exec,
             hwid::get_license_hwid,
-            license::check_license,
-            license::claim_license,
+license::check_license,
+    license::start_trial,
+    license::claim_license,
             license::activate_manual_license,
             license::deactivate_license,
             license::open_pricing,

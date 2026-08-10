@@ -21,6 +21,7 @@ import { PendingCartsDialog } from "./PendingCartsDialog";
 import { ThemeToggle } from "./ThemeButtons";
 import { NotificationBell } from "./NotificationBell";
 import { useCurrencyFormat } from "@/hooks/useCurrencyFormat";
+import { getVersion } from "@tauri-apps/api/app";
 
 export function Header() {
   const navigate = useNavigate();
@@ -46,6 +47,11 @@ export function Header() {
     return { shiftRevenue: revenue, expectedCash: activeShift ? activeShift.opening_cash + revenue : 0 };
   }, [activeShift, transactions]);
   
+  const [appVersion, setAppVersion] = useState<string | null>(null);
+  useEffect(() => {
+    getVersion().then(setAppVersion).catch(() => {});
+  }, []);
+  
   useEffect(() => {
     setDeclaredCash(parseInt(cash.raw));
   }, [cash.raw])
@@ -61,9 +67,16 @@ export function Header() {
   return (
     <>
     <header className="sticky top-0 z-30 flex h-12 shrink-0 items-center justify-between gap-4 border-b border-border/60 bg-background/80 px-4 backdrop-blur-md md:px-4">
-      <Link to="/">
-        <TokoCepatLogo />
-      </Link>
+      <div className="flex items-center gap-2">
+        <Link to="/">
+          <TokoCepatLogo />
+        </Link>
+        {appVersion && (
+          <span className="hidden text-[10px] font-medium text-muted-foreground sm:inline">
+            v{appVersion}
+          </span>
+        )}
+      </div>
       
       <div className="flex items-center gap-1.5">
         
