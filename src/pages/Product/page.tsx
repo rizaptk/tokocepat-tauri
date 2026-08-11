@@ -185,6 +185,12 @@ export default function ProductManagementPage() {
     // the store at boot; this keeps first page load fast.
     const { hits: catalogHits, loading: catalogLoading } = useCatalogSearch(query);
 
+    // Never suggest a catalog item that is already a product (same barcode).
+    const filteredCatalogHits = useMemo(() => {
+        const productBarcodes = new Set(products.map(p => p.barcode).filter(Boolean));
+        return catalogHits.filter(item => !productBarcodes.has(item.barcode));
+    }, [catalogHits, products]);
+
     const displayedProducts = useMemo(() => {
         let items = [...products];
         if (filter === 'all') {
@@ -381,7 +387,7 @@ export default function ProductManagementPage() {
                                     <Loader2 className="size-3.5 animate-spin" />
                                     Memuat katalog referensi...
                                 </div>
-                            ) : catalogHits.length > 0 ? (
+                            ) : filteredCatalogHits.length > 0 ? (
                                 <div
                                     className={cn(
                                         "min-h-0 overflow-auto no-scrollbar",
@@ -390,17 +396,17 @@ export default function ProductManagementPage() {
                                 >
                                     <div className="px-3 pt-2 pb-1 flex items-center gap-2 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
                                         <PackageSearch className="size-3.5" />
-                                        Katalog Referensi ({catalogHits.length}) — pilih lalu simpan untuk menjadikannya produk
+                                        Katalog Referensi ({filteredCatalogHits.length}) — pilih lalu simpan untuk menjadikannya produk
                                     </div>
                                     <div className="divide-y divide-border/50">
-                                        {catalogHits.map(item => (
+                                        {filteredCatalogHits.map(item => (
                                             <CatalogHitRow key={item.id} item={item} onSelect={() => handleCatalogSelect(item)} />
                                         ))}
                                     </div>
                                 </div>
                             ) : null}
 
-                            {displayedProducts.length === 0 && !catalogLoading && catalogHits.length === 0 && (
+                            {displayedProducts.length === 0 && !catalogLoading && filteredCatalogHits.length === 0 && (
                                 <div className="flex-1 flex items-center justify-center text-center">
                                     <div>
                                         <h2 className="text-xl font-semibold">Tidak Ditemukan</h2>
