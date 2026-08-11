@@ -424,7 +424,6 @@ const StockAdjustmentPanel = memo(({ selectedItem, onSave, onCancel }: { selecte
 
 const ColumnClass = {
     name: "flex items-center gap-2 flex-1 min-w-0 h-full",
-    type: "hidden sm:flex items-center w-28 px-2 border-l border-l-border/50 h-full",
     category: "hidden md:flex items-center text-sm text-muted-foreground truncate max-w-[160px] w-[160px] px-2 border-l border-l-border/50 h-full",
     stock: "flex flex-col items-end justify-center shrink-0 text-right tabular-nums whitespace-nowrap w-24 border-l border-l-border/50 h-full px-2"
 }
@@ -443,8 +442,6 @@ const InventoryListItem = ({ item, isSelected, onItemClick, onShowDetail, catego
     if (item.itemType === 'variant') {
         displayName = `${item.parentName} (${item.name})`;
     }
-
-    const { icon: ItemIcon } = typeConfig[item.itemType];
 
     const isConsignment = item.itemType === 'product' && (item as Product).is_consignment;
     const consignorName = item.itemType === 'product' && (item as Product).consignor_name;
@@ -474,12 +471,6 @@ const InventoryListItem = ({ item, isSelected, onItemClick, onShowDetail, catego
                             Titipan: {consignorName} ({formattedCommission})
                         </span>
                     )}
-                </div>
-                <div className={ColumnClass.type}>
-                    <span className={cn("inline-flex items-center gap-1 border rounded px-1.5 py-0.5 text-[10px] uppercase tracking-wide font-medium", typeConfig[item.itemType].class)}>
-                        <ItemIcon className="h-3 w-3" />
-                        {itemMapping.get(item.itemType)}
-                    </span>
                 </div>
                 <div className={ColumnClass.category}>
                     <span className="truncate">{categoryName}</span>
@@ -734,9 +725,6 @@ export default function InventoryPage() {
                                     <div className="rounded-t-lg h-10 w-full border bg-card flex items-center px-4">
                                         <div className={ColumnClass.name}>
                                             <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Nama Item</span>
-                                        </div>
-                                        <div className={ColumnClass.type}>
-                                            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Tipe</span>
                                         </div>
                                         <div className={ColumnClass.category}>
                                             <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Kategori</span>

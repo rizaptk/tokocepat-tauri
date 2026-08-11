@@ -121,6 +121,61 @@ fn ensure_catalog_fts(gateway: &FireLiteGateway) -> Result<(), String> {
     Ok(())
 }
 
+/// Persists the distinct categories found in the bundled catalog into the
+/// `categories` collection so they can be picked in product forms. Idempotent:
+/// a category is only added when no existing category shares its name, so
+/// user-created or user-renamed categories are never overwritten. The catalog's
+/// category ids (`cat-<slug>`) double as the doc ids.
+fn ensure_catalog_categories(
+    gateway: &FireLiteGateway,
+    bundle: &CatalogBundle,
+) -> Result<usize, String> {
+    let mut distinct: Vec<(&str, &str)> = Vec::new();
+    for product in &bundle.products {
+        if product.category_id.is_empty() || product.category_name.is_empty() {
+            continue;
+        }
+        if distinct
+            .iter()
+            .any(|(_, name)| *name == product.category_name.as_str())
+        {
+            continue;
+        }
+        distinct.push((product.category_id.as_str(), product.category_name.as_str()));
+    }
+
+    let mut existing_names: Vec<String> = Vec::new();
+    let keys = gateway
+        .db
+        .list_storage_keys("categories")
+        .map_err(|e| e.to_string())?;
+    for id in keys {
+        if let Ok(Some(doc)) = gateway.db.get("categories", &id) {
+            if let Some(Value::String(name)) = doc.get("name") {
+                existing_names.push(name.clone());
+            }
+        }
+    }
+
+    let mut added = 0;
+    for (id, name) in distinct {
+        if existing_names.iter().any(|n| n == name) {
+            continue;
+        }
+        let mut cat = FireLiteDoc::default();
+        cat.insert("id", Value::String(id.to_string()));
+        cat.insert("name", Value::String(name.to_string()));
+        cat.insert("is_active", Value::Bool(true));
+        gateway
+            .db
+            .put("categories", id, &cat)
+            .map_err(|e| e.to_string())?;
+        existing_names.push(name.to_string());
+        added += 1;
+    }
+    Ok(added)
+}
+
 #[tauri::command]
 pub async fn import_catalog(
     app: AppHandle,
@@ -132,6 +187,16 @@ pub async fn import_catalog(
     let bytes = std::fs::read(&path).map_err(|e| e.to_string())?;
     let bundle: CatalogBundle = serde_json::from_slice(&bytes).map_err(|e| e.to_string())?;
     let total = bundle.products.len();
+
+    // First run: make the catalog's distinct categories selectable in the app.
+    // Idempotent, so it is safe on every boot (fast path included).
+    let categories_added = ensure_catalog_categories(&gateway, &bundle)?;
+    if categories_added > 0 {
+        let _ = app.emit(
+            "catalog://categories",
+            serde_json::json!({ "added": categories_added }),
+        );
+    }
 
     // Fast path: same version already imported.
     if let Ok(Some(marker)) = gateway.db.get("app_state", MARKER_DOC) {

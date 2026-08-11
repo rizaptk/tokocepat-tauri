@@ -10,7 +10,6 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea, ScrollAreaHandle } from "@/components/ui/scroll-area";
 
 // Icons
@@ -24,6 +23,7 @@ import type { CatalogProduct } from "@/lib/types";
 
 // Sub-components
 import { VariantItem } from './VariantItem';
+import { CategoryCombobox } from './CategoryCombobox';
 import { useToast } from "@/hooks/use-toast";
 import { useGlobalNumberInputFix } from "@/hooks/useGlobalNumberInputFix";
 import { resizeImageWorker } from "@/lib/imageWorker"
@@ -125,10 +125,20 @@ export const ProductForm = ({ productId, onSave, onCancel, catalogPrefill }: Pro
             const matchedCategory = categories.find(c =>
                 c.name.toLowerCase() === (catalogPrefill.category_name || '').toLowerCase()
             );
+
+            // SKU auto-suggestion: category initial + zero-padded order number
+            // within the category. Left empty when the catalog row has no category.
+            const categoryName = (catalogPrefill.category_name || '').trim();
+            let suggestedSku = "";
+            if (categoryName && matchedCategory) {
+                const countInCategory = products.filter(p => p.category_id === matchedCategory.id).length;
+                suggestedSku = `${categoryName.charAt(0).toUpperCase()}${String(countInCategory + 1).padStart(3, '0')}`;
+            }
+
             form.reset({
                 name: catalogPrefill.name,
                 category_id: matchedCategory?.id,
-                sku: "",
+                sku: suggestedSku,
                 barcode: catalogPrefill.barcode,
                 price: catalogPrefill.price,
                 cost_price: catalogPrefill.cost_price,
@@ -148,7 +158,7 @@ export const ProductForm = ({ productId, onSave, onCancel, catalogPrefill }: Pro
         } else {
             form.reset(initialFormValues);
         }
-    }, [product, form, productVariants, catalogPrefill, categories]);
+    }, [product, form, productVariants, products, catalogPrefill, categories]);
 
     const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0]
@@ -255,7 +265,7 @@ export const ProductForm = ({ productId, onSave, onCancel, catalogPrefill }: Pro
                                             render={({ field }) => (<FormItem><FormLabel>Nama Produk</FormLabel><FormControl><Input placeholder="cth. Cokelat Batang" {...field} /></FormControl><FormMessage /></FormItem>)}
                                         />
                                         <FormField control={form.control} name="category_id" render={({ field }) => (
-                                            <FormItem><FormLabel>Kategori</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Pilih kategori" /></SelectTrigger></FormControl><SelectContent>{categories.map(cat => (<SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>))}</SelectContent></Select><FormMessage /></FormItem>
+                                            <FormItem className="flex flex-col gap-2"><FormLabel>Kategori</FormLabel><FormControl><CategoryCombobox categories={categories} value={field.value} onChange={field.onChange} /></FormControl><FormMessage /></FormItem>
                                         )} />
                                     </div>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-x-3 gap-y-3">

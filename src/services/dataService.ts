@@ -42,8 +42,6 @@ export const resetApplicationData = async (): Promise<{ success: boolean, messag
         });
 
         await Promise.all(toDelete);
-        localStorage.setItem('tokoc_db_version','0');
-        localStorage.setItem('tokoc_reset_flag', 'true');
 
         return { success: true };
 

@@ -6,13 +6,11 @@ import { invoke } from '@tauri-apps/api/core';
 import { useToast } from '@/hooks/use-toast';
 import { useSyncStore } from '@/lib/sync-store'; // Import store
 import { Input } from '@/components/ui/input';
-import { SyncIden, SetSync } from '@/services/syncService';
+import { SyncIden } from '@/services/syncService';
 import { Button } from '@/components/ui/button';
 import { PencilIcon, X } from 'lucide-react';
 import { generateDeviceFingerprint } from '@/lib/security';
 import { useStore } from '@/lib/store';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { resetApplicationData } from '@/services/dataService';
 
 export function SyncManager() {
     const store = useSyncStore();
@@ -22,8 +20,6 @@ export function SyncManager() {
     const [device, setDevice] = useState('');
     const [isLoaded, setIsloaded] = useState(false);
     const { customAccess } = useStore();
-
-    const [showReset, setShowReset] = useState(false);
 
     const { toast } = useToast();
 
@@ -68,29 +64,9 @@ export function SyncManager() {
 
     // 2. Handle Toggle via Store
     const handleToggle = async (val: boolean) => {
-        if (val) {
-            const isSeeding = localStorage.getItem('on_seeding') == 'true';
-            if (isSeeding) {
-                setShowReset(true);
-                return;
-            }
-        }
         setIsBusy(true);
         trySync(val, () => setTimeout(() => setIsBusy(false), 800));
     };
-
-    const resetDemo = async () => {
-        const reset = await resetApplicationData();
-        if (reset.success) {
-            await SetSync();
-            trySync(true, () => {
-                toast({ title: 'Demo dihapus', description: 'Data demo berhasil dihapus.' });
-                // setTimeout(() => window.location.reload(), 1500);
-            });
-        }else {
-            throw new Error(reset.message);
-        }
-    }
 
     // Use store helper to check license permission
     // if (!licenseDetails?.isSyncAvailable) return null;
@@ -152,23 +128,6 @@ export function SyncManager() {
                     </div>
                 </CardContent>
             </Card>
-
-            <AlertDialog open={showReset} onOpenChange={setShowReset}>
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle>Konfirmasi Reset?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            Mengaktifkan Sync akan menghapus data demo, lanjutkan?
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel>Batal</AlertDialogCancel>
-                        <AlertDialogAction onClick={resetDemo} className="bg-destructive hover:bg-destructive/90 text-white">
-                            Ya, Hapus demo
-                        </AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
         </>
     );
 }

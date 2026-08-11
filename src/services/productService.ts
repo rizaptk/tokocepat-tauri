@@ -1,11 +1,10 @@
 
 
-import { Product } from '@/lib/types';
+import { Product, StockMovement } from '@/lib/types';
 import { useDbStore } from '@/lib/db-store';
 import { useStore } from '@/lib/store';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { setProductVariants, type VariantFormData } from './variantService';
-import { adjustStock } from './stockService';
 
 // This type should match the Zod schema in the form dialog
 export type ProductFormData = {
@@ -92,7 +91,7 @@ export const addProduct = async (productData: ProductFormData): Promise<Product 
         throw new Error(duplicateError);
     }
     
-    const { doc, setDoc } = firesqlite;
+    const { doc, setDoc, updateDoc } = firesqlite;
     const { variants, ...restOfProductData } = productData;
     const initialStock = restOfProductData.stock; // Capture initial stock
     const hasVariant = !!(variants && variants.length > 0);
@@ -112,14 +111,27 @@ export const addProduct = async (productData: ProductFormData): Promise<Product 
     // 1. Create the product with 0 stock
     await setDoc(doc(db, 'products', newProduct.id), newProduct);
 
-    // 2. If initial stock was provided, create an auditable movement record
+    // 2. If initial stock was provided, create an auditable movement record.
+    //    Written inline (not via adjustStock) because the freshly created product
+    //    is not yet present in the zustand snapshot, so a store lookup would throw
+    //    "Produk tidak ditemukan" after the product was already saved.
     if (newProduct.track_stock && initialStock > 0) {
-        await adjustStock({
-            product_id: newId,
+        const now = new Date().toISOString();
+        const movementId = `sm-${crypto.randomUUID().slice(0, 8)}`;
+
+        const stockMovement: StockMovement = {
+            id: movementId,
+            product_id: newProduct.id,
+            product_name_snapshot: newProduct.name,
             type: 'initial_balance',
             qty_change: initialStock,
             reason: 'Initial stock on product creation',
-        });
+            reference_id: `manual-${movementId}`,
+            created_at: now,
+        };
+
+        await setDoc(doc(db, 'stock_movements', movementId), stockMovement);
+        await updateDoc(doc(db, 'products', newProduct.id), { stock: initialStock });
     }
 
     if (hasVariant && variants) {
