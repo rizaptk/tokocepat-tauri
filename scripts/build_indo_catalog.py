@@ -2,26 +2,14 @@
 """
 build_indo_catalog.py
 
-Python equivalent of scripts/build_indo_catalog.mjs: transforms the offline
-Open Food Facts Indonesian CSV export into a compact bundled JSON used as
-start-data for the read-only `catalog` collection.
+Transforms the offline Open Food Facts Indonesian retail CSV export into a
+compact bundled JSON used as start-data for the read-only `catalog` collection.
 
 Filters:
-  - valid 13-digit EAN-13 barcode
-  - non-empty product name
-Maps OFF leaf categories -> a curated handful of Indonesian shelf categories
-using simple keyword matching (fallback "Lainnya"). Images prefer
-image_small_url.
-
-Output matches the exact schema the Rust `import_catalog` command and the
-frontend `CatalogProduct` type expect, so both run unchanged:
-
-  src-tauri/resources/indonesian-catalog.json  (bundled via tauri.conf.json)
-
-Usage:
-  python scripts/build_indo_catalog.py [path/to/indonesia_products_complete.csv]
-
-Only standard-library modules are used (csv/json), no extra dependencies.
+  - Non-empty, numeric barcode (8–14 digits; EAN-8/12/13/14 and shorter retail codes)
+  - Every row with a valid barcode is kept; the name falls back through
+    name -> generic_name -> product_name -> brand -> brand_owner -> barcode
+    so as much of the dataset as possible lands in the catalog.
 """
 
 from __future__ import annotations
@@ -36,12 +24,12 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
 
-DEFAULT_CSV = Path(r"C:\Dev\msys64\home\Atin Nayiroh\Dev\indonesia_products_complete.csv")
+DEFAULT_CSV = Path(r"C:\Dev\msys64\home\Atin Nayiroh\Dev\indonesia_products_retail_complete.csv")
 OUT_PATH = ROOT / "src-tauri" / "resources" / "indonesian-catalog.json"
 
 CATALOG_DEFAULT_PRICE = 1000
+CATALOG_VERSION = 2
 
-# Curated retail categories (id, label, keywords — matched against lowercased leaf tags + name/brand)
 CATEGORIES: list[dict] = [
     {"id": "cat-makanan-instan", "label": "Makanan Instan", "keywords": ["instan", "mie instan", "mi instan", "indomie", "supramen", "cup noodles", "ramen", "instant noodle", "soup"]},
     {"id": "cat-makanan-ringan", "label": "Makanan Ringan", "keywords": ["keripik", "kripik", "snack", "chips", "cracker", "popcorn", "kacang", "peanut", "semangkuk", "singkong"]},
@@ -59,7 +47,9 @@ CATEGORIES: list[dict] = [
 ]
 FALLBACK_CAT = CATEGORIES[-1]
 
-EAN13_RE = re.compile(r"^\d{13}$")
+# Matches numeric barcodes between 8 and 14 digits (EAN-8/12/13, ITF-14, and
+# shorter retail codes). Longer concatenated delivery-service codes are skipped.
+BARCODE_RE = re.compile(r"^\d{8,14}$")
 
 
 def classify(text: str) -> dict:
@@ -70,6 +60,10 @@ def classify(text: str) -> dict:
     return FALLBACK_CAT
 
 
+def get(row: dict, key: str) -> str:
+    return (row.get(key) or "").strip()
+
+
 def build(csv_path: Path) -> None:
     with open(csv_path, "r", encoding="utf-8", newline="") as f:
         reader = csv.DictReader(f)
@@ -77,33 +71,62 @@ def build(csv_path: Path) -> None:
     if not rows:
         raise SystemExit("CSV has no data rows")
 
-    required = {"barcode", "name", "generic_name", "brand", "categories", "image_small_url", "image_url"}
+    # Minimum required headers to execute
+    required = {"barcode"}
     missing = required - set(reader.fieldnames or [])
     if missing:
         raise SystemExit(f"Missing column(s): {', '.join(sorted(missing))}")
 
     seen: set[str] = set()
     products: list[dict] = []
-    skipped = {"invalid_barcode": 0, "no_name": 0, "duplicate": 0}
+    skipped = {"invalid_barcode": 0, "duplicate": 0}
 
     for row in rows:
-        barcode = (row.get("barcode") or "").strip()
-        name = (row.get("name") or "").strip()
+        barcode = get(row, "barcode")
 
-        if not EAN13_RE.match(barcode):
+        if not BARCODE_RE.match(barcode):
             skipped["invalid_barcode"] += 1
-            continue
-        if not name:
-            skipped["no_name"] += 1
             continue
         if barcode in seen:
             skipped["duplicate"] += 1
             continue
         seen.add(barcode)
 
-        cat = classify(f"{name} {row.get('generic_name') or ''} {row.get('categories') or ''} {row.get('brand') or ''}")
-        small = (row.get("image_small_url") or "").strip()
-        large = (row.get("image_url") or "").strip()
+        # Expanded fields (best effort; emitted only when non-empty)
+        brand = get(row, "brand")
+        brand_owner = get(row, "brand_owner")
+        brand_tags = get(row, "brand_tags")
+        generic = get(row, "generic_name")
+        categories = get(row, "categories")
+        category_tags = get(row, "category_tags")
+        labels = get(row, "labels")
+        countries = get(row, "countries")
+        origins = get(row, "origins")
+        quantity = get(row, "quantity")
+        net_weight_value = get(row, "net_weight_value")
+        net_weight_unit = get(row, "net_weight_unit")
+        packaging = get(row, "packaging")
+        serving_size = get(row, "serving_size")
+        ingredients_text = get(row, "ingredients_text")
+        allergens = get(row, "allergens")
+        small = get(row, "image_small_url")
+        large = get(row, "image_url")
+
+        net_weight = " ".join(x for x in (net_weight_value, net_weight_unit) if x)
+
+        # Name fallback hierarchy — keeps every valid-barcode row in the catalog.
+        name = get(row, "name") or generic or get(row, "product_name")
+        if not name and brand:
+            name = f"Produk {brand}"
+        if not name and brand_owner:
+            name = f"Produk {brand_owner}"
+        if not name:
+            name = barcode
+
+        cat = classify(
+            f"{name} {generic} {categories} {category_tags} {brand} {brand_owner} {labels}"
+        )
+        image = small or large
 
         product: dict = {
             "id": barcode,
@@ -119,20 +142,34 @@ def build(csv_path: Path) -> None:
             "is_active": True,
             "has_variant": False,
         }
-        brand = (row.get("brand") or "").strip()
-        generic = (row.get("generic_name") or "").strip()
-        image = small or large
-        if brand:
-            product["brand"] = brand
-        if generic:
-            product["generic_name"] = generic
-        if image:
-            product["image_url"] = image
+
+        optional_fields = {
+            "brand": brand,
+            "brand_owner": brand_owner,
+            "brand_tags": brand_tags,
+            "generic_name": generic,
+            "categories": categories,
+            "category_tags": category_tags,
+            "labels": labels,
+            "countries": countries,
+            "origins": origins,
+            "quantity": quantity,
+            "net_weight": net_weight,
+            "packaging": packaging,
+            "serving_size": serving_size,
+            "ingredients_text": ingredients_text,
+            "allergens": allergens,
+            "image_url": image,
+            "image_small_url": small,
+        }
+        for key, value in optional_fields.items():
+            if value:
+                product[key] = value
 
         products.append(product)
 
     out = {
-        "version": 1,
+        "version": CATALOG_VERSION,
         "generated": datetime.now(timezone.utc).isoformat(),
         "count": len(products),
         "default_price": CATALOG_DEFAULT_PRICE,
@@ -140,10 +177,13 @@ def build(csv_path: Path) -> None:
         "products": products,
     }
 
+    # Ensure output directory exists before writing
+    OUT_PATH.parent.mkdir(parents=True, exist_ok=True)
     OUT_PATH.write_text(json.dumps(out, separators=(",", ":")), encoding="utf-8")
+
     print(f"Wrote {OUT_PATH}")
     print(f"Products: {len(products)}")
-    print(f"Skipped: invalid-barcode={skipped['invalid_barcode']} no-name={skipped['no_name']} duplicate={skipped['duplicate']}")
+    print(f"Skipped: invalid-barcode={skipped['invalid_barcode']} duplicate={skipped['duplicate']}")
 
 
 def main() -> None:

@@ -183,7 +183,13 @@ export default function ProductManagementPage() {
         const q = query.trim().toLowerCase();
         if (!q) return [];
         return catalog
-            .filter(p => p.name.toLowerCase().includes(q) || p.barcode?.includes(q))
+            .filter(p =>
+                p.name.toLowerCase().includes(q)
+                || p.barcode?.includes(q)
+                || p.brand?.toLowerCase().includes(q)
+                || p.brand_owner?.toLowerCase().includes(q)
+                || p.generic_name?.toLowerCase().includes(q)
+            )
             .slice(0, 40);
     }, [catalog, query]);
 

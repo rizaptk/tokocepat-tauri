@@ -29,6 +29,8 @@ struct CatalogProduct {
     barcode: String,
     name: String,
     brand: Option<String>,
+    brand_owner: Option<String>,
+    brand_tags: Option<String>,
     generic_name: Option<String>,
     category_id: String,
     category_name: String,
@@ -40,6 +42,18 @@ struct CatalogProduct {
     is_active: bool,
     has_variant: bool,
     image_url: Option<String>,
+    image_small_url: Option<String>,
+    categories: Option<String>,
+    category_tags: Option<String>,
+    labels: Option<String>,
+    countries: Option<String>,
+    origins: Option<String>,
+    quantity: Option<String>,
+    net_weight: Option<String>,
+    packaging: Option<String>,
+    serving_size: Option<String>,
+    ingredients_text: Option<String>,
+    allergens: Option<String>,
 }
 
 fn json_to_doc(json: &serde_json::Value) -> Result<FireLiteDoc, String> {
@@ -86,11 +100,34 @@ fn docs_equal(existing: &FireLiteDoc, target: &FireLiteDoc) -> bool {
 /// collection. Idempotent: skips rows that already exist unchanged, and once a
 /// whole bundle version is imported it will not run again until the JSON version
 /// bumps. Emits progress/done events so the UI can show non-blocking status.
+/// Ensures an FTS index exists on `catalog.name` so `MatchPrefix` queries can
+/// resolve to the prefix scan instead of a full collection scan. Idempotent:
+/// only creates the index when the definition is absent. The catalog is
+/// bundled reference data (identical on every machine), so a local FTS index
+/// costs nothing extra across peers.
+fn ensure_catalog_fts(gateway: &FireLiteGateway) -> Result<(), String> {
+    let existing = gateway.db.list_indexes(Some(COLLECTION));
+    let has_name = existing
+        .fts
+        .get(COLLECTION)
+        .map(|fields| fields.iter().any(|f| f == "name"))
+        .unwrap_or(false);
+    if !has_name {
+        gateway
+            .db
+            .create_fts_index(COLLECTION, "name")
+            .map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
 #[tauri::command]
 pub async fn import_catalog(
     app: AppHandle,
     gateway: State<'_, FireLiteGateway>,
 ) -> Result<usize, String> {
+    ensure_catalog_fts(&gateway)?;
+
     let path = catalog_path(&app)?;
     let bytes = std::fs::read(&path).map_err(|e| e.to_string())?;
     let bundle: CatalogBundle = serde_json::from_slice(&bytes).map_err(|e| e.to_string())?;

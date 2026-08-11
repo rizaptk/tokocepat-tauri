@@ -77,6 +77,8 @@ export interface CatalogProduct {
   barcode: string;
   name: string;
   brand?: string;
+  brand_owner?: string;
+  brand_tags?: string;
   generic_name?: string;
   category_id: string;
   category_name: string;
@@ -88,6 +90,18 @@ export interface CatalogProduct {
   is_active: boolean;
   has_variant: boolean;
   image_url?: string;
+  image_small_url?: string;
+  categories?: string;
+  category_tags?: string;
+  labels?: string;
+  countries?: string;
+  origins?: string;
+  quantity?: string;
+  net_weight?: string;
+  packaging?: string;
+  serving_size?: string;
+  ingredients_text?: string;
+  allergens?: string;
 }
 
 export interface PendingCart {
