@@ -4,12 +4,13 @@ import { cva, type VariantProps } from "class-variance-authority"
 
 const inputVariants = cva(
   // Base classes (removed h-10, px-3, border from here to avoid conflicts with variants)
-  "flex w-full bg-background text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm transition-colors",
+  "flex w-full text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm transition-colors",
   {
     variants: {
       variant: {
-        default: "border-input bg-background text-foreground",
-        destructive: "border-destructive text-destructive focus-visible:ring-destructive",
+        // Slightly darker than the card surface so fields stand out from the form.
+        default: "border-input bg-field text-foreground",
+        destructive: "border-destructive bg-background text-destructive focus-visible:ring-destructive",
         secondary: "bg-secondary border-secondary text-secondary-foreground",
       },
       shape: {

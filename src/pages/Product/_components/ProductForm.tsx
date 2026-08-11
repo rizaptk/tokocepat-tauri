@@ -126,13 +126,15 @@ export const ProductForm = ({ productId, onSave, onCancel, catalogPrefill }: Pro
                 c.name.toLowerCase() === (catalogPrefill.category_name || '').toLowerCase()
             );
 
-            // SKU auto-suggestion: category initial + zero-padded order number
-            // within the category. Left empty when the catalog row has no category.
+            // SKU auto-suggestion: first 3 letters of the category name + a
+            // 4-digit zero-padded order number within the category, e.g. KAT-0022.
+            // Left empty when the catalog row has no category.
             const categoryName = (catalogPrefill.category_name || '').trim();
             let suggestedSku = "";
             if (categoryName && matchedCategory) {
                 const countInCategory = products.filter(p => p.category_id === matchedCategory.id).length;
-                suggestedSku = `${categoryName.charAt(0).toUpperCase()}${String(countInCategory + 1).padStart(3, '0')}`;
+                const initials = categoryName.slice(0, 3).toUpperCase();
+                suggestedSku = `${initials}-${String(countInCategory + 1).padStart(4, '0')}`;
             }
 
             form.reset({
@@ -250,7 +252,7 @@ export const ProductForm = ({ productId, onSave, onCancel, catalogPrefill }: Pro
                                                                 }
                                                             }}
                                                         />
-                                                        <Button type="button" variant="outline" className="shrink-0" onClick={() => { form.setValue('barcode', Math.floor(1000000000000 + Math.random() * 9000000000000).toString(), { shouldValidate: true }); }}><Zap className="h-3.5 w-3.5" /> Acak</Button>
+                                                        <Button type="button" variant="outline" className="shrink-0 border-primary/50 bg-primary/10 text-primary hover:bg-primary/20 hover:text-primary" onClick={() => { form.setValue('barcode', Math.floor(1000000000000 + Math.random() * 9000000000000).toString(), { shouldValidate: true }); }}><Zap className="h-3.5 w-3.5" /> Acak</Button>
                                                     </div>
                                                 </FormControl><FormMessage />
                                             </FormItem>

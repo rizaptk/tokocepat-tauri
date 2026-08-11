@@ -38,11 +38,12 @@ import { useGlobalBarcodeScanner } from "@/hooks/use-global-barcode-scanner";
 import { ProductEditor } from "./_components/ProductEditor";
 import { useSelectedProduct } from "@/lib/product-select-store";
 import { useProductSearch } from "@/lib/useProductSearch";
+import { useCatalogSearch, getCatalogItemByBarcode } from "@/lib/useCatalogSearch";
 import { PackageSearch } from "lucide-react";
 
 
 export default function ProductManagementPage() {
-    const { products, catalog } = useStore();
+    const { products } = useStore();
     const { toast } = useToast();
     const [viewMode, setViewMode] = useState<"card" | "thumbnail" | "list">('list');
     const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
@@ -114,14 +115,14 @@ export default function ProductManagementPage() {
     };
 
 
-    const handleBarcodeScan = (barcode: string) => {
+    const handleBarcodeScan = async (barcode: string) => {
         const product = products.find(p => p.barcode === barcode || p.sku === barcode);
         if (product) {
             handleSelectProduct(product);
             return;
         }
-        // Fall back to the bundled catalog for reference.
-        const catalogItem = catalog.find(p => p.barcode === barcode);
+        // Fall back to the bundled catalog for reference (lazy, cached).
+        const catalogItem = await getCatalogItemByBarcode(barcode);
         if (catalogItem) {
             handleCatalogSelect(catalogItem);
             return;
@@ -179,19 +180,9 @@ export default function ProductManagementPage() {
     const [filter, setFilter] = useState('all');
 
     // Catalog fallback: only surfaced when the query finds nothing in `products`.
-    const catalogHits = useMemo(() => {
-        const q = query.trim().toLowerCase();
-        if (!q) return [];
-        return catalog
-            .filter(p =>
-                p.name.toLowerCase().includes(q)
-                || p.barcode?.includes(q)
-                || p.brand?.toLowerCase().includes(q)
-                || p.brand_owner?.toLowerCase().includes(q)
-                || p.generic_name?.toLowerCase().includes(q)
-            )
-            .slice(0, 40);
-    }, [catalog, query]);
+    // Loaded lazily (cached per session) instead of snapshoting ~11k rows into
+    // the store at boot; this keeps first page load fast.
+    const catalogHits = useCatalogSearch(query);
 
     const displayedProducts = useMemo(() => {
         let items = [...products];

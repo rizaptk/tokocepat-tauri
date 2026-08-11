@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { Product, CartItem, Transaction, Category, ProductVariant, Shift, StoreConfig, PendingCart, StockMovement, CustomAccessType, CatalogProduct } from '@/lib/types';
+import { Product, CartItem, Transaction, Category, ProductVariant, Shift, StoreConfig, PendingCart, StockMovement, CustomAccessType } from '@/lib/types';
 import { toast } from '@/hooks/use-toast';
 import { openShift as openShiftService, closeShift as closeShiftService } from '@/services/shiftService';
 import { createTransaction } from '@/services/transactionService';
@@ -16,7 +16,6 @@ interface StoreState {
     products: Product[];
     categories: Category[];
     productVariants: ProductVariant[];
-    catalog: CatalogProduct[];
     cart: CartItem[];
     transactions: Transaction[];
     shiftTransactions: Transaction[];
@@ -53,7 +52,6 @@ interface StoreState {
     resumeCart: (cartId: string) => Promise<void>;
     deletePendingCart: (cartId: string) => Promise<void>;
     setCustomAccess: (customAccess: CustomAccessType) => void;
-    setCatalog: (catalog: CatalogProduct[]) => void;
 }
 
 export const useStore = create<StoreState>()(
@@ -62,7 +60,6 @@ export const useStore = create<StoreState>()(
             products: [],
             categories: [],
             productVariants: [],
-            catalog: [],
             cart: [],
             transactions: [],
             shiftTransactions: [],
@@ -93,7 +90,6 @@ export const useStore = create<StoreState>()(
             setProducts: (products) => set({ products }),
             setCategories: (categories) => set({ categories }),
             setProductVariants: (productVariants) => set({ productVariants }),
-            setCatalog: (catalog) => set({ catalog }),
             setTransactions: (transactions) => set({ transactions: transactions.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()) }),
             setShiftTransactions: (transactions) => set({ transactions: transactions.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()) }),
             setShifts: (shifts, device) => {
@@ -339,6 +335,16 @@ export const useStore = create<StoreState>()(
         }),
         {
             name: 'tokoc-storage',
+            version: 2,
+            // The catalog used to be persisted here (11k+ docs rehydrated from
+            // localStorage on every boot). It is now loaded lazily; strip any
+            // stale persisted copy so it is not parsed back into memory.
+            migrate: (persistedState: any) => {
+                if (persistedState && 'catalog' in persistedState) {
+                    delete persistedState.catalog;
+                }
+                return persistedState;
+            },
             partialize: (state) =>
                 Object.fromEntries(
                     Object.entries(state).filter(([key]) => !['products', 'transactions', 'productVariants', 'categories', 'shifts', 'activeShift', 'storeConfig', 'pendingCarts', 'stockMovements'].includes(key))

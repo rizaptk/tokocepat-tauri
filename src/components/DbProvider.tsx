@@ -6,7 +6,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { 
     Product, ProductVariant, 
     Shift, StoreConfig, Category, PendingCart, 
-    CustomAccessType, CatalogProduct
+    CustomAccessType
 } from '@/lib/types';
 import { TokoCepatLogo } from "./TokoCepatLogo";
 import { generateDeviceFingerprint } from "@/lib/security";
@@ -16,7 +16,7 @@ export function DbProvider({ children }: { children: React.ReactNode }) {
     const { 
         setProducts, setProductVariants, 
         setShifts, setStoreConfig, setCustomAccess,
-        setCategories, setPendingCarts, setCatalog
+        setCategories, setPendingCarts
     } = useStore();
     
     const [isDataLoaded, setIsDataLoaded] = useState(false);
@@ -78,12 +78,9 @@ export function DbProvider({ children }: { children: React.ReactNode }) {
                     }
                 }));
 
-                // CATALOG: bundled reference data (local, excluded from sync).
-                subscribe(onSnapshot(collection(db, 'catalog'), (snap: any) => {
-                    setCatalog(snap.docs.map((d: any) => d.data() as CatalogProduct));
-                }));
-
-                // Kick off the backend import (idempotent; Rust stamps completion marker).
+                // CATALOG: bundled reference data is loaded lazily on the Produk
+                // page (see useCatalogSearch) instead of snapshoting ~11k rows
+                // into the store on every boot. The Rust import stays idempotent.
                 invoke<number>('import_catalog').catch((err) => {
                     console.warn('Catalog import skipped:', err);
                 });

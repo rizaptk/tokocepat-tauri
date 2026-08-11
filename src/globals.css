@@ -57,6 +57,7 @@
   --color-border: hsl(var(--border));
   --color-input: hsl(var(--input));
   --color-ring: hsl(var(--ring));
+  --color-field: hsl(var(--field));
 
   /* Charts */
   --color-chart-1: hsl(var(--chart-1));
@@ -102,6 +103,8 @@
 
     --card: 0 0% 100%;
     --card-foreground: 220 10% 16%;
+
+    --field: 220 14% 96%;           /* input surface, slightly darker than card */
 
     --popover: 0 0% 100%;
     --popover-foreground: 220 10% 16%;
@@ -164,6 +167,8 @@
 
     --card: 220 10% 14%;
     --card-foreground: 220 12% 94%;
+
+    --field: 220 10% 12%;           /* input surface, slightly darker than card */
 
     --popover: 220 10% 16%;
     --popover-foreground: 220 12% 94%;
