@@ -41,8 +41,17 @@ export function useLicense() {
             window.location.href = `/aktivasi?ticket=${ticketId}`;
         });
 
+        // Remote revocation: the server asked to kill this license. Clear local
+        // state so the app falls back to the trial/activation screen.
+        const unlistenRevoked = listen('license-revoked', () => {
+            setStatus('NOT_FOUND');
+            setLicenseDetails(null);
+            window.location.reload();
+        });
+
         return () => {
             unlisten.then(f => f());
+            unlistenRevoked.then(f => f());
         };
     }, [isInitialized]);
 

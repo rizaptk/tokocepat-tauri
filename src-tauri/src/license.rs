@@ -12,7 +12,7 @@ use tauri::{AppHandle, Emitter, Manager, Runtime};
 use std::env;
 
 use hmac::{Hmac, Mac};
-use sha2::Sha256;
+use sha2::{Digest, Sha256};
 
 type HmacSha256 = Hmac<Sha256>;
 
@@ -163,12 +163,42 @@ fn earliest<'a>(values: impl IntoIterator<Item = &'a str>) -> Option<DateTime<Ut
 
 // --- LOCAL CONVERSION HELPERS ---
 fn get_api_url(path: &str) -> String {
-    // 1. Try to get from system environment (set during build or in .env)
-    // 2. Fallback to a hardcoded production URL if nothing is found
-    let base_url = env::var("VITE_API_BASE_URL")
-        .unwrap_or_else(|_| "https://tokocepat-three.vercel.app".to_string());
+    const PRODUCTION_DEFAULT: &str = "https://tokocepat-three.vercel.app";
+    let base_url = env::var("VITE_API_BASE_URL").unwrap_or_else(|_| PRODUCTION_DEFAULT.to_string());
+
+    // Never send license tokens / device IDs over plaintext HTTP in release.
+    // A `.env`/env-var override must not be able to downgrade the channel.
+    #[cfg(not(debug_assertions))]
+    if base_url.starts_with("http://") {
+        eprintln!("[security] Refusing insecure HTTP API base URL in release build; using HTTPS production default.");
+        return format!("{}{}", PRODUCTION_DEFAULT, path);
+    }
 
     format!("{}{}", base_url, path)
+}
+
+/// Shared HS256 secret used to verify license JWTs.
+///
+/// Mirrors the server's `getJwtSecret()` in `tokocepat/src/lib/jwt.ts`:
+/// prefers `JWT_SECRET_KEY`, then `VITE_JWT_SECRET` (runtime or baked in at
+/// build time), and finally falls back to the same well-known development
+/// value the server uses when unset. This keeps verification consistent in
+/// dev, and in production both sides should set the same real secret so
+/// forged tokens are rejected.
+fn jwt_secret() -> Vec<u8> {
+    const DEV_FALLBACK_SECRET: &str = "a_very_insecure_default_secret_key_for_development_only";
+    let secret = env::var("JWT_SECRET_KEY")
+        .or_else(|_| env::var("VITE_JWT_SECRET"))
+        .ok()
+        .filter(|s| !s.is_empty())
+        .or_else(|| option_env!("VITE_JWT_SECRET").map(|s| s.to_string()))
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| {
+            #[cfg(not(debug_assertions))]
+            eprintln!("[security] No JWT secret configured in release build; using development fallback. Set JWT_SECRET_KEY/VITE_JWT_SECRET to match the server.");
+            DEV_FALLBACK_SECRET.to_string()
+        });
+    secret.into_bytes()
 }
 
 /// Helper to initialize environment variables (call this in setup)
@@ -259,25 +289,30 @@ fn trial_ui_details(expires_at: &DateTime<Utc>, now: &DateTime<Utc>) -> serde_js
     })
 }
 
-/// Trusted wall-clock from the backend (HTTP Date header). Used to make the trial
-/// immune to local clock manipulation when the device is online.
+/// Trusted wall-clock from the backend (`GET /api/health`). Used to make the
+/// trial immune to local clock manipulation when the device is online.
+/// Optional by design: callers fall back to the local clock when unreachable,
+/// so the app keeps working fully offline.
 async fn server_utc_now() -> Result<DateTime<Utc>, String> {
     let client = reqwest::Client::new();
     let res = client
-        .get(get_api_url("/api/"))
+        .get(get_api_url("/api/health"))
         .timeout(Duration::from_secs(4))
         .send()
         .await
         .map_err(|e| format!("server clock unreachable: {e}"))?;
-    let date = res
-        .headers()
-        .get(reqwest::header::DATE)
-        .ok_or("no date header")?
-        .to_str()
-        .map_err(|e| e.to_string())?;
-    chrono::DateTime::parse_from_rfc2822(date)
-        .map(|dt| dt.with_timezone(&Utc))
-        .map_err(|e| format!("bad date header: {e}"))
+    if !res.status().is_success() {
+        return Err(format!("server clock unreachable: HTTP {}", res.status()));
+    }
+    let body: serde_json::Value = res
+        .json()
+        .await
+        .map_err(|e| format!("server clock bad response: {e}"))?;
+    let now = body
+        .get("now")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| "server clock missing 'now' field".to_string())?;
+    parse_rfc3339(now).ok_or_else(|| "server clock invalid 'now' timestamp".to_string())
 }
 
 /// Preferred trusted clock: server time when reachable, local clock otherwise.
@@ -307,7 +342,31 @@ pub struct LicensedEverMarker {
 
 const ANCHOR_SALT: &str = "tokcepat.trial-anchor.v1";
 
+/// Derives a per-device HMAC key from the hardware id so forged/erased markers
+/// can't be minted with a single value read out of the binary. The server-side
+/// `trial-verify` remains the real backstop; this only binds local markers to
+/// this specific device.
+fn device_key(domain: &str) -> Vec<u8> {
+    let mut hasher = Sha256::new();
+    hasher.update(b"tokcepat.marker.v1|");
+    hasher.update(domain.as_bytes());
+    hasher.update(b"|");
+    hasher.update(hwid::get_license_hwid().as_bytes());
+    hasher.finalize().to_vec()
+}
+
 fn sign_anchor(anchor: &TrialAnchor) -> String {
+    let payload = format!("{}|{}|{}", ANCHOR_SALT, anchor.device_id, anchor.started_at);
+    let key = device_key("trial-anchor");
+    let mut mac = HmacSha256::new_from_slice(&key).expect("hmac key");
+    mac.update(payload.as_bytes());
+    hex_encode(&mac.finalize().into_bytes())
+}
+
+/// Legacy signature using the old hard-coded key. Accepted on read only, so
+/// installs that wrote markers before the device-bound keys landed don't lose
+/// their trial/ever-used history on upgrade.
+fn legacy_sign_anchor(anchor: &TrialAnchor) -> String {
     let payload = format!("{}|{}|{}", ANCHOR_SALT, anchor.device_id, anchor.started_at);
     let mut mac = HmacSha256::new_from_slice(b"tokoc1".repeat(8).as_ref()).expect("hmac key");
     mac.update(payload.as_bytes());
@@ -330,7 +389,7 @@ fn read_anchor(gateway: &FireLiteGateway) -> Option<TrialAnchor> {
         map.insert(k.to_string(), v.to_json());
     }
     let anchor: TrialAnchor = serde_json::from_value(serde_json::Value::Object(map)).ok()?;
-    if sign_anchor(&anchor) != anchor.sig {
+    if sign_anchor(&anchor) != anchor.sig && legacy_sign_anchor(&anchor) != anchor.sig {
         return None;
     }
     Some(anchor)
@@ -354,6 +413,15 @@ fn write_anchor(gateway: &FireLiteGateway, anchor: &TrialAnchor) {
 }
 
 fn sign_licensed_ever(marker: &LicensedEverMarker) -> String {
+    let payload = format!("{}|{}", ANCHOR_SALT, marker.device_id);
+    let key = device_key("licensed-ever");
+    let mut mac = HmacSha256::new_from_slice(&key).expect("hmac key");
+    mac.update(payload.as_bytes());
+    hex_encode(&mac.finalize().into_bytes())
+}
+
+/// Legacy signature using the old hard-coded key; accepted on read only.
+fn legacy_sign_licensed_ever(marker: &LicensedEverMarker) -> String {
     let payload = format!("{}|{}", ANCHOR_SALT, marker.device_id);
     let mut mac = HmacSha256::new_from_slice(b"tokcever".repeat(8).as_ref()).expect("hmac key");
     mac.update(payload.as_bytes());
@@ -395,7 +463,7 @@ fn read_licensed_ever(gateway: &FireLiteGateway) -> bool {
     else {
         return false;
     };
-    if sign_licensed_ever(&marker) != marker.sig {
+    if sign_licensed_ever(&marker) != marker.sig && legacy_sign_licensed_ever(&marker) != marker.sig {
         return false;
     }
     marker.device_id == hwid::get_license_hwid()
@@ -414,6 +482,15 @@ pub struct TrialUsedMarker {
 const TRIAL_USED_SALT: &str = "tokcepat.trial-used.v1";
 
 fn sign_trial_used(marker: &TrialUsedMarker) -> String {
+    let payload = format!("{}|{}", TRIAL_USED_SALT, marker.device_id);
+    let key = device_key("trial-used");
+    let mut mac = HmacSha256::new_from_slice(&key).expect("hmac key");
+    mac.update(payload.as_bytes());
+    hex_encode(&mac.finalize().into_bytes())
+}
+
+/// Legacy signature using the old hard-coded key; accepted on read only.
+fn legacy_sign_trial_used(marker: &TrialUsedMarker) -> String {
     let payload = format!("{}|{}", TRIAL_USED_SALT, marker.device_id);
     let mut mac = HmacSha256::new_from_slice(b"tokcused".repeat(8).as_ref()).expect("hmac key");
     mac.update(payload.as_bytes());
@@ -455,7 +532,7 @@ fn read_trial_used(gateway: &FireLiteGateway) -> bool {
     else {
         return false;
     };
-    if sign_trial_used(&marker) != marker.sig {
+    if sign_trial_used(&marker) != marker.sig && legacy_sign_trial_used(&marker) != marker.sig {
         return false;
     }
     marker.device_id == hwid::get_license_hwid()
@@ -752,17 +829,18 @@ async fn check_license_inner(
         return Ok((LicenseStatus::Tampered, None));
     }
 
-    let mut validation = Validation::default();
-    validation.insecure_disable_signature_validation();
+    let mut validation = Validation::new(Algorithm::HS256);
+    // `exp` is validated manually below so lifetime ("Selamanya") plans with no
+    // `exp` claim keep working; don't require it as a spec claim either.
     validation.validate_exp = false;
-    validation.algorithms = vec![Algorithm::HS256, Algorithm::RS256, Algorithm::ES256];
-    // Lifetime plans have no `exp` claim; don't require it as a spec claim.
     validation.required_spec_claims.clear();
 
-    // This now captures 'plan', 'isTrial', etc.
+    // Verify the signature so a forged/edited token in the local DB fails here
+    // instead of being blindly trusted. Uses the same HS256 secret as the server.
+    let secret = jwt_secret();
     let token_data = decode::<Claims>(
         &license_data.jwt,
-        &DecodingKey::from_secret(&[]),
+        &DecodingKey::from_secret(&secret),
         &validation,
     )
     .map_err(|e| format!("INVALID_TOKEN: {}", e))?;
@@ -932,6 +1010,14 @@ pub async fn run_heartbeat<R: Runtime>(app: AppHandle<R>) {
                     if let Ok(data) = response.json::<serde_json::Value>().await {
                         if data["status"] == "activation_required" {
                             let _ = app.emit("license-reverify", data["ticketId"].as_str());
+                        } else if data["status"] == "revoked" {
+                            // Remote kill switch: the server says this license /
+                            // device is no longer active. Clear the local license
+                            // so the app falls back to the trial/activation screen.
+                            eprintln!("[license] heartbeat reports 'revoked' — clearing local license.");
+                            let _ = gateway.db.delete("app_state", "license");
+                            let _ = gateway.db.delete("app_state", "trial");
+                            let _ = app.emit("license-revoked", ());
                         }
                     }
                 }
@@ -1080,10 +1166,12 @@ pub async fn deactivate_license(
 pub fn migrate_legacy_anchors(gateway: &FireLiteGateway, app_data_dir: &std::path::Path) {
     let trial_file = app_data_dir.join("trial_anchor.json");
     if trial_file.exists() {
+        // Legacy files may carry either the old hard-coded signature or the new
+        // device-bound one; accept both and re-sign below.
         let was_valid = std::fs::read_to_string(&trial_file)
             .ok()
             .and_then(|s| serde_json::from_str::<TrialAnchor>(&s).ok())
-            .filter(|a| sign_anchor(a) == a.sig)
+            .filter(|a| sign_anchor(a) == a.sig || legacy_sign_anchor(a) == a.sig)
             .is_some();
         if was_valid {
             if gateway.db.get("app_state", "trial_anchor").ok().flatten().is_none() {
@@ -1107,7 +1195,9 @@ pub fn migrate_legacy_anchors(gateway: &FireLiteGateway, app_data_dir: &std::pat
             .ok()
             .and_then(|s| serde_json::from_str::<LicensedEverMarker>(&s).ok());
         if let Some(m) = marker {
-            if sign_licensed_ever(&m) == m.sig && m.device_id == hwid::get_license_hwid() {
+            if (sign_licensed_ever(&m) == m.sig || legacy_sign_licensed_ever(&m) == m.sig)
+                && m.device_id == hwid::get_license_hwid()
+            {
                 if gateway.db.get("app_state", "licensed_ever").ok().flatten().is_none() {
                     let mut doc = FireLiteDoc::default();
                     let Ok(v) = Value::from_json(serde_json::json!(m.device_id)) else {
