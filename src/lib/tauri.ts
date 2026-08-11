@@ -12,7 +12,7 @@ export type FireLiteRecord = Record<string, any>;
 
 export type FilterOperator = 
   | 'eq' | 'ne' | 'gt' | 'gte' | 'lt' | 'lte' 
-  | 'match' | 'contains' | 'startsWith' | 'in' | 'notIn' 
+  | 'match' | 'matchPrefix' | 'contains' | 'startsWith' | 'in' | 'notIn' 
   | 'arrayContains' | 'arrayContainsAny';
 
 export interface SetOptions {
@@ -40,7 +40,7 @@ interface DeltaPayload {
     changes: DeltaChange[];
 }
 
-function symToOp(sym: string): FilterOperator {
+function symToOp(sym: string): string {
     switch (sym) {
         case '==': return 'eq';
         case '!=': return 'ne';
@@ -48,7 +48,14 @@ function symToOp(sym: string): FilterOperator {
         case '>=': return 'gte';
         case '<': return 'lt';
         case '<=': return 'lte';
-        default: return sym as FilterOperator;
+        // Rust FilterOperator deserializes with rename_all = "snake_case",
+        // so camelCase ops used at the call site are mapped to snake_case.
+        case 'matchPrefix': return 'match_prefix';
+        case 'startsWith': return 'starts_with';
+        case 'notIn': return 'not_in';
+        case 'arrayContains': return 'array_contains';
+        case 'arrayContainsAny': return 'array_contains_any';
+        default: return sym;
     }
 }
 
