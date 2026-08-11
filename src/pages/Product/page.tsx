@@ -26,10 +26,11 @@ import {
 } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
 
 // Icons
-import { PlusCircle, Printer, Package } from "lucide-react";
+import { PlusCircle, Printer, Package, Loader2 } from "lucide-react";
 
 // Services
 import { useGlobalBarcodeScanner } from "@/hooks/use-global-barcode-scanner";
@@ -179,10 +180,10 @@ export default function ProductManagementPage() {
 
     const [filter, setFilter] = useState('all');
 
-    // Catalog fallback: only surfaced when the query finds nothing in `products`.
+    // Catalog fallback: always appended below product results when searching.
     // Loaded lazily (cached per session) instead of snapshoting ~11k rows into
     // the store at boot; this keeps first page load fast.
-    const catalogHits = useCatalogSearch(query);
+    const { hits: catalogHits, loading: catalogLoading } = useCatalogSearch(query);
 
     const displayedProducts = useMemo(() => {
         let items = [...products];
@@ -357,17 +358,56 @@ export default function ProductManagementPage() {
                     </div>
                 </div>
                 <div className="grow min-h-0">
-                    {displayedProducts.length === 0 && query.trim().length > 0 && catalogHits.length > 0 ? (
+                    {query.trim().length > 0 ? (
                         <div className="h-full flex flex-col min-h-0">
-                            <div className="px-3 pt-2 pb-1 flex items-center gap-2 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-                                <PackageSearch className="size-3.5" />
-                                Katalog Referensi ({catalogHits.length}) — pilih lalu simpan untuk menjadikannya produk
-                            </div>
-                            <div className="flex-1 min-h-0 overflow-auto no-scrollbar divide-y divide-border/50">
-                                {catalogHits.map(item => (
-                                    <CatalogHitRow key={item.id} item={item} onSelect={() => handleCatalogSelect(item)} />
-                                ))}
-                            </div>
+                            {displayedProducts.length > 0 && (
+                                <div className="min-h-0 flex-1">
+                                    <div className="px-3 pt-2 pb-1 flex items-center gap-2 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                                        <Package className="size-3.5" />
+                                        Produk ({displayedProducts.length})
+                                    </div>
+                                    <ProductList
+                                        products={displayedProducts}
+                                        viewMode={viewMode}
+                                        onItemClick={handleSelectProduct}
+                                        selectedProductId={selectedProductId}
+                                        context="product"
+                                    />
+                                </div>
+                            )}
+
+                            {catalogLoading ? (
+                                <div className="px-3 py-3 flex items-center gap-2 text-xs text-muted-foreground">
+                                    <Loader2 className="size-3.5 animate-spin" />
+                                    Memuat katalog referensi...
+                                </div>
+                            ) : catalogHits.length > 0 ? (
+                                <div
+                                    className={cn(
+                                        "min-h-0 overflow-auto no-scrollbar",
+                                        displayedProducts.length > 0 ? "shrink-0 max-h-[45%]" : "flex-1"
+                                    )}
+                                >
+                                    <div className="px-3 pt-2 pb-1 flex items-center gap-2 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                                        <PackageSearch className="size-3.5" />
+                                        Katalog Referensi ({catalogHits.length}) — pilih lalu simpan untuk menjadikannya produk
+                                    </div>
+                                    <div className="divide-y divide-border/50">
+                                        {catalogHits.map(item => (
+                                            <CatalogHitRow key={item.id} item={item} onSelect={() => handleCatalogSelect(item)} />
+                                        ))}
+                                    </div>
+                                </div>
+                            ) : null}
+
+                            {displayedProducts.length === 0 && !catalogLoading && catalogHits.length === 0 && (
+                                <div className="flex-1 flex items-center justify-center text-center">
+                                    <div>
+                                        <h2 className="text-xl font-semibold">Tidak Ditemukan</h2>
+                                        <p className="text-muted-foreground">Coba gunakan kata kunci pencarian lain.</p>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     ) : (
                         <ProductList

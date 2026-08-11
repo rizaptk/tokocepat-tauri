@@ -10,6 +10,8 @@ import type { CatalogProduct } from '@/lib/types';
 let catalogCache: CatalogProduct[] | null = null;
 let loadPromise: Promise<CatalogProduct[]> | null = null;
 
+const isCatalogLoaded = () => catalogCache !== null;
+
 const loadCatalog = async (): Promise<CatalogProduct[]> => {
     if (catalogCache) return catalogCache;
     if (!loadPromise) {
@@ -49,26 +51,41 @@ export const getCatalogItemByBarcode = async (barcode: string): Promise<CatalogP
     return catalog.find(p => p.barcode === barcode);
 };
 
-/** Reactive catalog search: debounced, async, resolves to the top 40 matches. */
-export const useCatalogSearch = (query: string): CatalogProduct[] => {
+/**
+ * Reactive catalog search: debounced, async, resolves to the top 40 matches.
+ * `loading` is true only while the catalog is being fetched for the first time
+ * (the ~11k-row IPC read can be slow); cached searches resolve instantly.
+ */
+export const useCatalogSearch = (query: string): { hits: CatalogProduct[]; loading: boolean } => {
     const [hits, setHits] = useState<CatalogProduct[]>([]);
+    const [loading, setLoading] = useState(false);
 
     useEffect(() => {
         let isMounted = true;
         const q = query.trim();
         if (!q) {
             setHits([]);
+            setLoading(false);
             return;
         }
+
+        const needsFetch = !isCatalogLoaded();
+        if (needsFetch) setLoading(true);
+
         const timer = setTimeout(async () => {
-            const results = await searchCatalog(q);
-            if (isMounted) setHits(results);
-        }, 150);
+            try {
+                const results = await searchCatalog(q);
+                if (isMounted) setHits(results);
+            } finally {
+                if (isMounted) setLoading(false);
+            }
+        }, needsFetch ? 0 : 150);
+
         return () => {
             isMounted = false;
             clearTimeout(timer);
         };
     }, [query]);
 
-    return hits;
+    return { hits, loading };
 };
