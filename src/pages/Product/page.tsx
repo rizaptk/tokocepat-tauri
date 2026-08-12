@@ -179,6 +179,7 @@ export default function ProductManagementPage() {
     }
 
     const [filter, setFilter] = useState('all');
+    const [searchMode, setSearchMode] = useState<'product' | 'catalog'>('product');
 
     // Catalog fallback: always appended below product results when searching.
     // Loaded lazily (cached per session) instead of snapshoting ~11k rows into
@@ -355,80 +356,130 @@ export default function ProductManagementPage() {
                     </div>
 
                     <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
-                        <FilterPill active={filter === 'all'} onClick={() => setFilter('all')}>Semua (Aktif)</FilterPill>
-                        <FilterPill active={filter === 'retail'} onClick={() => setFilter('retail')}>Retail</FilterPill>
+                        <div className="flex items-center gap-1.5 bg-muted/60 rounded-md p-1 shrink-0">
+                            <PillButton
+                                active={searchMode === 'product'}
+                                onClick={() => setSearchMode('product')}
+                            >
+                                <Package className="size-3.5" /> Produk
+                            </PillButton>
+                            <PillButton
+                                active={searchMode === 'catalog'}
+                                onClick={() => setSearchMode('catalog')}
+                            >
+                                <PackageSearch className="size-3.5" /> Katalog
+                            </PillButton>
+                        </div>
                         <Separator orientation="vertical" className="h-4 my-auto" />
-                        <FilterPill active={filter === 'consignment'} onClick={() => setFilter('consignment')}>Konsinyasi</FilterPill>
-                        <FilterPill active={filter === 'variants'} onClick={() => setFilter('variants')}>Varian</FilterPill>
-                        <FilterPill active={filter === 'inactive'} onClick={() => setFilter('inactive')}>Nonaktif</FilterPill>
+                        {searchMode === 'product' ? (
+                            <>
+                                <FilterPill active={filter === 'all'} onClick={() => setFilter('all')}>Semua (Aktif)</FilterPill>
+                                <FilterPill active={filter === 'retail'} onClick={() => setFilter('retail')}>Retail</FilterPill>
+                                <Separator orientation="vertical" className="h-4 my-auto" />
+                                <FilterPill active={filter === 'consignment'} onClick={() => setFilter('consignment')}>Konsinyasi</FilterPill>
+                                <FilterPill active={filter === 'variants'} onClick={() => setFilter('variants')}>Varian</FilterPill>
+                                <FilterPill active={filter === 'inactive'} onClick={() => setFilter('inactive')}>Nonaktif</FilterPill>
+                            </>
+                        ) : null}
                     </div>
                 </div>
                 <div className="grow min-h-0">
-                    {query.trim().length > 0 ? (
-                        <div className="h-full flex flex-col min-h-0">
-                            {displayedProducts.length > 0 && (
-                                <div className="min-h-0 flex-1">
-                                    <div className="px-3 pt-2 pb-1 flex items-center gap-2 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-                                        <Package className="size-3.5" />
-                                        Produk ({displayedProducts.length})
+                    {searchMode === 'product' ? (
+                        query.trim().length > 0 ? (
+                            <div className="h-full flex flex-col min-h-0">
+                                {displayedProducts.length > 0 && (
+                                    <div className="min-h-0 flex-1">
+                                        <div className="px-3 pt-2 pb-1 flex items-center gap-2 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                                            <Package className="size-3.5" />
+                                            Produk ({displayedProducts.length})
+                                        </div>
+                                        <ProductList
+                                            products={displayedProducts}
+                                            viewMode={viewMode}
+                                            onItemClick={handleSelectProduct}
+                                            selectedProductId={selectedProductId}
+                                            context="product"
+                                        />
                                     </div>
-                                    <ProductList
-                                        products={displayedProducts}
-                                        viewMode={viewMode}
-                                        onItemClick={handleSelectProduct}
-                                        selectedProductId={selectedProductId}
-                                        context="product"
-                                    />
-                                </div>
-                            )}
+                                )}
 
-                            {catalogLoading ? (
-                                <div className="px-3 py-3 flex items-center gap-2 text-xs text-muted-foreground">
-                                    <Loader2 className="size-3.5 animate-spin" />
-                                    Memuat katalog referensi...
-                                </div>
-                            ) : filteredCatalogHits.length > 0 ? (
-                                <div
-                                    className={cn(
-                                        "min-h-0 overflow-auto no-scrollbar",
-                                        displayedProducts.length > 0 ? "shrink-0 max-h-[45%]" : "flex-1"
-                                    )}
-                                >
-                                    <div className="px-3 pt-2 pb-1 flex items-center gap-2 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-                                        <PackageSearch className="size-3.5" />
-                                        Katalog Referensi ({filteredCatalogHits.length}) — pilih lalu simpan untuk menjadikannya produk
+                                {displayedProducts.length === 0 && (
+                                    <div className="flex-1 flex items-center justify-center text-center">
+                                        <div>
+                                            <h2 className="text-xl font-semibold">Tidak Ditemukan di Produk</h2>
+                                            <p className="text-muted-foreground mt-1">
+                                                Tidak ada produk toko yang cocok. Coba cari di <b>Katalog Referensi</b> untuk melihat & menambahkan produk baru.
+                                            </p>
+                                        </div>
                                     </div>
-                                    <div className="divide-y divide-border/50">
-                                        {filteredCatalogHits.map(item => (
-                                            <CatalogHitRow key={item.id} item={item} onSelect={() => handleCatalogSelect(item)} />
-                                        ))}
-                                    </div>
-                                </div>
-                            ) : null}
-
-                            {displayedProducts.length === 0 && !catalogLoading && filteredCatalogHits.length === 0 && (
-                                <div className="flex-1 flex items-center justify-center text-center">
-                                    <div>
-                                        <h2 className="text-xl font-semibold">Tidak Ditemukan</h2>
-                                        <p className="text-muted-foreground">Coba gunakan kata kunci pencarian lain.</p>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
+                                )}
+                            </div>
+                        ) : (
+                            <ProductList
+                                products={displayedProducts}
+                                viewMode={viewMode}
+                                onItemClick={handleSelectProduct}
+                                selectedProductId={selectedProductId}
+                                context="product"
+                            />
+                        )
                     ) : (
-                        <ProductList
-                            products={displayedProducts}
-                            viewMode={viewMode}
-                            onItemClick={handleSelectProduct}
-                            selectedProductId={selectedProductId}
-                            context="product"
-                        />
+                        /* ----------------------------- CATALOG MODE ----------------------------- */
+                        query.trim().length > 0 ? (
+                            <div className="h-full flex flex-col min-h-0">
+                                {catalogLoading ? (
+                                    <div className="flex-1 flex items-center justify-center text-center">
+                                        <div>
+                                            <Loader2 className="mx-auto size-6 animate-spin text-muted-foreground" />
+                                            <p className="text-muted-foreground mt-2 text-sm">Memuat katalog referensi...</p>
+                                        </div>
+                                    </div>
+                                ) : filteredCatalogHits.length > 0 ? (
+                                    <div className="min-h-0 flex-1 overflow-auto no-scrollbar">
+                                        <div className="px-3 pt-2 pb-1 flex items-center gap-2 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                                            <PackageSearch className="size-3.5" />
+                                            Katalog Referensi ({filteredCatalogHits.length}) — pilih lalu simpan untuk menjadikannya produk
+                                        </div>
+                                        <div className="divide-y divide-border/50">
+                                            {filteredCatalogHits.map(item => (
+                                                <CatalogHitRow key={item.id} item={item} onSelect={() => handleCatalogSelect(item)} />
+                                            ))}
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="flex-1 flex items-center justify-center text-center">
+                                        <div>
+                                            <h2 className="text-xl font-semibold">Tidak Ditemukan di Katalog</h2>
+                                            <p className="text-muted-foreground mt-1">
+                                                Tidak ada item katalog referensi yang cocok. Coba kata kunci lain atau pindah ke mode <b>Produk</b>.
+                                            </p>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        ) : (
+                            <div className="h-full flex items-center justify-center text-center">
+                                <div>
+                                    <PackageSearch className="mx-auto size-8 text-muted-foreground" />
+                                    <h2 className="text-lg font-semibold mt-2">Cari di Katalog Referensi</h2>
+                                    <p className="text-muted-foreground mt-1 text-sm max-w-60">
+                                        Ketik nama, barcode, merek, atau generik untuk mencari katalog. Pilih item lalu simpan untuk menjadikannya produk toko.
+                                    </p>
+                                </div>
+                            </div>
+                        )
                     )}
                 </div>
                 {window.innerWidth >= 768 && viewMode === 'list' && (
                     <div className="px-3 pb-2 pt-1 flex items-center gap-3 text-[11px] text-muted-foreground shrink-0">
-                        <span className="flex items-center gap-1.5"><Package className="size-3.5" /> {displayedProducts.length} produk</span>
-                        <span className="flex items-center gap-1">Centang produk untuk mencetak label barcode.</span>
+                        <span className="flex items-center gap-1.5">
+                            {searchMode === 'catalog'
+                                ? <><PackageSearch className="size-3.5" /> Katalog referensi (pencarian langsung di katalog)</>
+                                : <><Package className="size-3.5" /> {displayedProducts.length} produk</>}
+                        </span>
+                        {searchMode === 'product' && (
+                            <span className="flex items-center gap-1">Centang produk untuk mencetak label barcode.</span>
+                        )}
                     </div>
                 )}
                 <div className="p-3 md:hidden flex gap-2 shrink-0">
@@ -478,6 +529,22 @@ export default function ProductManagementPage() {
 function FilterPill({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
     return (
         <Button variant={active ? 'secondary' : 'outline'} size="sm" className="rounded-md px-2.5 h-7 shrink-0 text-xs" onClick={onClick}>
+            {children}
+        </Button>
+    );
+}
+
+function PillButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+    return (
+        <Button
+            variant="ghost"
+            size="sm"
+            className={cn(
+                "rounded-md px-2.5 h-6 shrink-0 text-xs gap-1.5",
+                active ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+            )}
+            onClick={onClick}
+        >
             {children}
         </Button>
     );
