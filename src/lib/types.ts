@@ -136,12 +136,22 @@ export interface Transaction {
   change: number;
   created_at: string;
   shift_id?: string;
+  device?: string; // HWID of the device that created the transaction
   status: 'paid' | 'voided';
   voided_at?: string;
   void_reason?: string;
+  // Return (retur) fields — a return transaction is a separate 'return'
+  // transaction that references its original 'sale' transaction. Amounts on a
+  // return transaction are stored as NEGATIVE (subtotal, tax_amount, total,
+  // and item qty/subtotal) so existing total-based reports net automatically.
+  transaction_type?: 'sale' | 'return';
+  original_transaction_id?: string;
+  original_invoice?: string;
+  return_reason?: string;
+  condition_ok?: boolean;
 }
 
-export type StockMovementType = 'sale' | 'restock' | 'correction' | 'lost' | 'damaged' | 'initial_balance';
+export type StockMovementType = 'sale' | 'restock' | 'correction' | 'lost' | 'damaged' | 'initial_balance' | 'return';
 
 export interface StockMovement {
     id: string;

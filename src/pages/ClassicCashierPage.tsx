@@ -16,6 +16,7 @@ import { Search, Trash2, Plus, Minus, ReceiptCent, Printer, CheckCircle2, LogIn,
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { VariantPanel } from '@/components/VariantPanel';
+import ReturnDialog from '@/components/ReturnDialog';
 import { useGlobalKeydown } from '@/hooks/use-global-keydown';
 import { usePrintStore } from '@/lib/print-store';
 import { Badge } from '@/components/ui/badge';
@@ -200,12 +201,15 @@ export default function ClassicCashierPage() {
         }
     };
 
-    useGlobalBarcodeScanner({ onScan: handleBarcodeScan });
+    const [isReturnOpen, setIsReturnOpen] = useState(false);
+
+    useGlobalBarcodeScanner({ enabled: !isReturnOpen, onScan: handleBarcodeScan });
 
     // --- Keyboard Shortcuts ---
-    useGlobalKeydown({ key: 'f1', handler: () => searchInputRef.current?.focus(), enabled: true });
-    useGlobalKeydown({ key: 'f2', handler: () => setIsHistoryOpen(true), enabled: true });
-    useGlobalKeydown({ key: 'f3', handler: handleParkAction, enabled: cart.length > 0 });
+    useGlobalKeydown({ key: 'f1', handler: () => searchInputRef.current?.focus(), enabled: !isReturnOpen });
+    useGlobalKeydown({ key: 'f2', handler: () => setIsHistoryOpen(true), enabled: !isReturnOpen });
+    useGlobalKeydown({ key: 'f3', handler: handleParkAction, enabled: cart.length > 0 && !isReturnOpen });
+    useGlobalKeydown({ key: 'f4', handler: () => setIsReturnOpen(true), enabled: !isHistoryOpen });
     useGlobalKeydown({ key: 'f8', handler: () => cashInputRef.current?.focus(), enabled: true });
     
     const handleVoid = async () => {
@@ -444,6 +448,7 @@ export default function ClassicCashierPage() {
                             <span className="flex items-center gap-1.5"><Kbd>F1</Kbd> Cari</span>
                             <span className="flex items-center gap-1.5"><Kbd>F2</Kbd> Riwayat</span>
                             <span className="flex items-center gap-1.5"><Kbd>F3</Kbd> Parkir</span>
+                            <span className="flex items-center gap-1.5"><Kbd>F4</Kbd> Retur</span>
                             <span className="flex items-center gap-1.5"><Kbd>F8</Kbd> Bayar</span>
                         </div>
                         <span className="tabular-nums">{totalQty} items</span>
@@ -626,7 +631,7 @@ export default function ClassicCashierPage() {
                                             <div className="flex justify-between font-black text-lg border-t pt-2"><span>Total</span><span className="tabular-nums">{formatIDR(reviewingTx.total)}</span></div>
                                         </div>
                                         
-                                        {reviewingTx.status !== 'voided' && (
+                                        {reviewingTx.status !== 'voided' && reviewingTx.transaction_type !== 'return' && (
                                             <div className="pt-4 border-t space-y-3">
                                                 <Label className="text-destructive font-bold">Void Transaksi</Label>
                                                 <Input 
@@ -658,6 +663,8 @@ export default function ClassicCashierPage() {
 
             <VariantPanel item={itemToSelectVariant} onOpenChange={(open) => !open && setItemToSelectVariant(null)} onConfirm={handleVariantConfirm} />
             <VariantPanel item={variantEditItem} onOpenChange={(open) => { if (!open) { setVariantEditItem(null); setVariantEditCartId(null); } }} onConfirm={handleVariantConfirm} />
+
+            <ReturnDialog open={isReturnOpen} onOpenChange={setIsReturnOpen} />
         </div>
     );
 }

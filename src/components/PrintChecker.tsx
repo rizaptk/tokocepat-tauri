@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react"
 import { usePrinterStore } from "@/lib/print-detect-store"
 import { usePrintStore } from "@/lib/print-store";
-import { generateReceiptBinary } from "@/lib/receipt";
+import { generateReceiptBinary, generateReturnReceiptBinary } from "@/lib/receipt";
 import { useStore } from "@/lib/store";
 import { invoke } from "@tauri-apps/api/core";
 import { toast } from "@/hooks/use-toast";
 
 export default function PrinterDetector() {
-    const { savedPrinter, savedBaudRate, isOnline, setOnline, isEnabled } = usePrinterStore();
+    const { savedPrinter, savedBaudRate, paperWidth, isOnline, setOnline, isEnabled } = usePrinterStore();
     const { printQueue, getAndRemoveFirstFromQueue } = usePrintStore();
     const { storeConfig } = useStore();
     const [isProcessing, setIsProcessing] = useState(false);
@@ -40,7 +40,9 @@ export default function PrinterDetector() {
             }
 
             try {
-                const binaryData = generateReceiptBinary(tx, storeConfig);
+                const binaryData = tx.transaction_type === 'return'
+                    ? generateReturnReceiptBinary(tx, storeConfig, paperWidth)
+                    : generateReceiptBinary(tx, storeConfig, paperWidth);
                 await invoke("print_receipt", {
                     address: savedPrinter,
                     data: Array.from(binaryData),

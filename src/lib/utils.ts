@@ -63,7 +63,8 @@ export const reasonMapping = new Map<string, string>([
   ['correction', 'koreksi'],
   ['damaged', 'rusak'],
   ['lost', 'hilang'],
-  ['sale', 'penjualan']
+  ['sale', 'penjualan'],
+  ['return', 'retur']
 ])
 
 export const typeConfig = {

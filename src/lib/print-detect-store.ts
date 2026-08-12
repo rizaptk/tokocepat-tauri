@@ -2,6 +2,8 @@ import { PrinterCandidate } from '@/services/printerDetect';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
+export type PaperWidth = '58mm' | '80mm';
+
 interface PrinterState {
   savedPrinter: string | null;
   savedPrinterName: string | null;
@@ -9,7 +11,9 @@ interface PrinterState {
   availablePrinters: PrinterCandidate[];
   isOnline: boolean; // New State
   isEnabled: boolean;
+  paperWidth: PaperWidth;
   setIsEnabled: (isEnabled: boolean) => void;
+  setPaperWidth: (paperWidth: PaperWidth) => void;
   savePrinter: (port: string | null, baud?: number, name?: string | null) => void;
   setAvailablePrinters: (printers: PrinterCandidate[]) => void;
   setOnline: (status: boolean) => void; // New Action
@@ -24,7 +28,9 @@ export const usePrinterStore = create<PrinterState>()(
       availablePrinters: [], // Akan diisi saat runtime
       isOnline: false,       // Akan diisi saat runtime
       isEnabled: true,
+      paperWidth: '58mm',
       setIsEnabled: (isEnabled) => set({ isEnabled }),
+      setPaperWidth: (paperWidth) => set({ paperWidth }),
       savePrinter: (port, baud = 9600, name = null) => set({ 
         savedPrinter: port, 
         savedBaudRate: baud,
@@ -40,7 +46,8 @@ export const usePrinterStore = create<PrinterState>()(
         savedPrinter: state.savedPrinter, 
         savedBaudRate: state.savedBaudRate,
         savedPrinterName: state.savedPrinterName,
-        isEnabled: state.isEnabled 
+        isEnabled: state.isEnabled,
+        paperWidth: state.paperWidth,
       }),
     }
   )

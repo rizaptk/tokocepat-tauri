@@ -3,21 +3,87 @@ import { useDbStore } from '@/lib/db-store';
 import { useStore } from '@/lib/store';
 import { toast } from '@/hooks/use-toast';
 
-export const getTransactionsByDateRange = async (from: Date, to: Date): Promise<Transaction[]> => {
+export const getTransactionsByDateRange = async (from: Date, to: Date, device?: string | 'all'): Promise<Transaction[]> => {
     const { db, firesqlite } = useDbStore.getState();
     if (!db || !firesqlite) throw new Error("Database belum diinisialisasi");
 
     const { collection, query, where, getDocs, orderBy } = firesqlite;
     
-    const transactionsRef = collection(db, 'transactions');
-    const q = query(
-        transactionsRef,
+    const constraints: any[] = [
         where('created_at', 'gte', from.toISOString()),
         where('created_at', 'lte', to.toISOString()),
+    ];
+    if (device && device !== 'all') {
+        constraints.push(where('device', 'eq', device));
+    }
+    constraints.push(orderBy('created_at', 'desc'));
+
+    const transactionsRef = collection(db, 'transactions');
+    const q = query(transactionsRef, ...constraints);
+
+    console.log(q)
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map((doc: any) => doc.data() as Transaction);
+};
+
+/**
+ * All transactions belonging to a specific shift (any device). Uses the
+ * (shift_id, created_at) composite index; live via onSnapshot.
+ */
+export const getTransactionsByShiftId = async (shiftId: string, device?: string | 'all'): Promise<Transaction[]> => {
+    const { db, firesqlite } = useDbStore.getState();
+    if (!db || !firesqlite) throw new Error("Database belum diinisialisasi");
+
+    const { collection, query, where, getDocs, orderBy } = firesqlite;
+
+    const constraints: any[] = [where('shift_id', 'eq', shiftId)];
+    if (device && device !== 'all') {
+        constraints.push(where('device', 'eq', device));
+    }
+    constraints.push(orderBy('created_at', 'desc'));
+
+    const snapshot = await getDocs(query(collection(db, 'transactions'), ...constraints));
+    return snapshot.docs.map((doc: any) => doc.data() as Transaction);
+};
+
+/**
+ * Look up a transaction by its printed invoice number (the proof/receipt id a
+ * customer brings when returning an item). Queries the whole transactions
+ * collection (all time) so returns can reference sales from any shift/day.
+ */
+export const findTransactionByInvoice = async (invoice: string): Promise<Transaction | null> => {
+    const { db, firesqlite } = useDbStore.getState();
+    if (!db || !firesqlite) throw new Error("Database belum diinisialisasi");
+
+    const { collection, query, where, getDocs, limit } = firesqlite;
+
+    const q = query(
+        collection(db, 'transactions'),
+        where('invoice_number', 'eq', invoice.trim()),
+        limit(1)
+    );
+
+    const snapshot = await getDocs(q);
+    return snapshot.docs.length > 0 ? (snapshot.docs[0].data() as Transaction) : null;
+};
+
+/**
+ * Return all 'return' transactions that reference the given original
+ * transaction. Used to enforce the "cannot return more than purchased" rule.
+ */
+export const getReturnsByOriginalTx = async (originalTransactionId: string): Promise<Transaction[]> => {
+    const { db, firesqlite } = useDbStore.getState();
+    if (!db || !firesqlite) throw new Error("Database belum diinisialisasi");
+
+    const { collection, query, where, getDocs, orderBy } = firesqlite;
+
+    const q = query(
+        collection(db, 'transactions'),
+        where('original_transaction_id', 'eq', originalTransactionId),
+        where('transaction_type', 'eq', 'return'),
         orderBy('created_at', 'desc')
     );
 
-    console.log(q)
     const snapshot = await getDocs(q);
     return snapshot.docs.map((doc: any) => doc.data() as Transaction);
 };
@@ -127,6 +193,7 @@ export const createTransaction = async (cart: CartItem[], activeShift: Shift, st
       cash_paid: cashReceived,
       change: cashReceived - total,
       created_at: createdAt,
+      device: activeShift.device,
     };
 
 
@@ -202,6 +269,18 @@ export const voidTransaction = async (transactionId: string, reason: string): Pr
     const transaction = txSnap.data() as Transaction;
     if (transaction.status === 'voided') {
         throw new Error("Transaksi sudah dibatalkan (void).");
+    }
+    // A return refunds cash + restocks. Voiding it would drop the refund out of
+    // shift cash math while the money already left the drawer, so it cannot be
+    // voided.
+    if (transaction.transaction_type === 'return') {
+        throw new Error("Transaksi retur tidak dapat di-void.");
+    }
+    // If some items already came back through the Retur flow, voiding the whole
+    // sale would restock those quantities a second time.
+    const priorReturns = (await getReturnsByOriginalTx(transactionId)).filter(t => t.status !== 'voided');
+    if (priorReturns.length > 0) {
+        throw new Error("Transaksi sudah memiliki retur. Batalkan retur terlebih dahulu.");
     }
     
     const now = new Date().toISOString();

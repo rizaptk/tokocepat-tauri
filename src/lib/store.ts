@@ -4,6 +4,7 @@ import { Product, CartItem, Transaction, Category, ProductVariant, Shift, StoreC
 import { toast } from '@/hooks/use-toast';
 import { openShift as openShiftService, closeShift as closeShiftService } from '@/services/shiftService';
 import { createTransaction } from '@/services/transactionService';
+import { createReturnTransaction, ReturnLine } from '@/services/returnService';
 import { parkCartInDb, deletePendingCartFromDb } from '@/services/pendingCartService';
 import { useSettingsStore } from './settings';
 import { usePrintStore } from './print-store';
@@ -46,6 +47,7 @@ interface StoreState {
     updateQuantity: (cartItemId: string, quantity: number) => void;
     clearCart: () => void;
     checkout: (cashReceived: number) => Promise<Transaction | null>;
+    createReturn: (params: { originalTx: Transaction; returnLines: ReturnLine[]; reason: string; conditionOk: boolean }) => Promise<Transaction | null>;
     openShift: (openingCash: number) => Promise<void>;
     closeShift: (declaredCash: number) => Promise<void>;
     parkCart: () => Promise<void>;
@@ -274,6 +276,28 @@ export const useStore = create<StoreState>()(
                 } catch (error) {
                     console.error("Checkout failed:", error);
                     toast({ variant: "destructive", title: "Transaksi Gagal", description: "Pembayaran gagal diproses." });
+                    return null;
+                }
+            },
+
+            createReturn: async (params): Promise<Transaction | null> => {
+                const { activeShift, storeConfig, transactions } = get();
+
+                if (!activeShift || !storeConfig) {
+                    toast({ variant: 'destructive', title: 'Gagal', description: 'Sif atau konfigurasi hilang.' });
+                    return null;
+                }
+
+                try {
+                    const returnTx = await createReturnTransaction({ ...params, activeShift, storeConfig });
+                    if (returnTx) {
+                        set({ transactions: [returnTx, ...transactions] });
+                        usePrintStore.getState().addToQueue(returnTx);
+                    }
+                    return returnTx;
+                } catch (error: any) {
+                    console.error("Return failed:", error);
+                    toast({ variant: "destructive", title: "Retur Gagal", description: error.message });
                     return null;
                 }
             },

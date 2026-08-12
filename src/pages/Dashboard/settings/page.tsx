@@ -20,6 +20,8 @@ import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import type { PaperWidth } from '@/lib/print-detect-store';
 
 import { save } from '@tauri-apps/plugin-dialog';
 import { invoke } from '@tauri-apps/api/core';
@@ -38,7 +40,7 @@ export default function SettingsPage() {
 
     // Printer state
     const [isPairing, setIsPairing] = useState(false);
-    const { availablePrinters, savedPrinter, savedPrinterName, savePrinter, isOnline, isEnabled, setIsEnabled } = usePrinterStore();
+    const { availablePrinters, savedPrinter, savedPrinterName, savePrinter, isOnline, isEnabled, setIsEnabled, paperWidth, setPaperWidth } = usePrinterStore();
     const isSyncAvailable = useMemo(() => licenseDetails?.isSyncAvailable === true, [licenseDetails]);
 
     useEffect(() => {
@@ -146,6 +148,23 @@ export default function SettingsPage() {
                                             </div>
                                         </CardHeader>
                                         <CardContent className={cn("space-y-6", !isEnabled && "opacity-50 pointer-events-none")}>
+                                            <div className="space-y-2">
+                                                <div className="flex items-center justify-between">
+                                                    <div>
+                                                        <p className="text-sm font-medium">Lebar Kertas Struk</p>
+                                                        <p className="text-xs text-muted-foreground">Pilih ukuran kertas thermal printer Anda.</p>
+                                                    </div>
+                                                </div>
+                                                <Select value={paperWidth} onValueChange={(v) => setPaperWidth(v as PaperWidth)}>
+                                                    <SelectTrigger className="w-full sm:w-64">
+                                                        <SelectValue placeholder="Pilih ukuran kertas" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="58mm">58mm (Lebar ~32 karakter)</SelectItem>
+                                                        <SelectItem value="80mm">80mm (Lebar ~48 karakter)</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
                                             <div className="p-4 rounded-lg border bg-muted/50">
                                                 {availablePrinters.length > 0 ? (
                                                     <div className="space-y-2">

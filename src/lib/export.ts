@@ -73,6 +73,7 @@ export const exportSalesToExcel = async (transactions: Transaction[], dateRange:
     const totalRevenue = transactions.reduce((sum, tx) => sum + tx.total, 0);
     const totalTax = transactions.reduce((sum, tx) => sum + tx.tax_amount, 0);
     const totalSubtotal = transactions.reduce((sum, tx) => sum + tx.subtotal, 0);
+    const totalItems = transactions.reduce((sum, tx) => sum + tx.items.reduce((s, item) => s + item.qty, 0), 0);
     const totalStandardCost = dataForExport.reduce((sum, row) => sum + row['HPP Standar Toko'], 0);
     const totalConsignmentPayout = dataForExport.reduce((sum, row) => sum + row['Bagi Hasil Titipan'], 0);
     const totalProfit = dataForExport.reduce((sum, row) => sum + row.Profit, 0);
@@ -80,7 +81,7 @@ export const exportSalesToExcel = async (transactions: Transaction[], dateRange:
     const summary = {
         'Date': 'TOTAL',
         'Invoice #': '',
-        'Items': '',
+        'Items': totalItems,
         'Subtotal': totalSubtotal,
         'HPP Standar Toko': totalStandardCost,
         'Bagi Hasil Titipan': totalConsignmentPayout,
@@ -194,6 +195,58 @@ export const exportSalesToPdf = async (transactions: Transaction[], dateRange: {
 
         y -= 14; 
     }
+
+    // --- Grand Total Row ---
+    const grandTotal = transactions.reduce((acc, tx) => {
+        let stdCost = 0;
+        let consPayout = 0;
+        tx.items.forEach(item => {
+            const costVal = (item.cost_snapshot || 0) * item.qty;
+            if (item.product_snapshot.is_consignment) {
+                consPayout += costVal;
+            } else {
+                stdCost += costVal;
+            }
+        });
+        acc.subtotal += tx.subtotal;
+        acc.stdCost += stdCost;
+        acc.consPayout += consPayout;
+        acc.tax += tx.tax_amount;
+        acc.total += tx.total;
+        acc.qty += tx.items.reduce((sum, item) => sum + item.qty, 0);
+        return acc;
+    }, { subtotal: 0, stdCost: 0, consPayout: 0, tax: 0, total: 0, qty: 0 });
+
+    if (y < 50) {
+        currentPage = pdfDoc.addPage();
+        y = height - margin;
+        y = drawTableHeader(currentPage, y);
+    }
+
+    const pageSize = currentPage.getSize();
+    currentPage.drawLine({
+        start: { x: margin, y: y + 6 },
+        end: { x: pageSize.width - margin, y: y + 6 },
+        thickness: 1,
+    });
+
+    const grandRow = [
+        'TOTAL',
+        '',
+        grandTotal.qty.toString(),
+        formatCurrency(grandTotal.subtotal),
+        formatCurrency(grandTotal.stdCost),
+        formatCurrency(grandTotal.consPayout),
+        formatCurrency(grandTotal.subtotal - grandTotal.stdCost - grandTotal.consPayout),
+        formatCurrency(grandTotal.tax),
+        formatCurrency(grandTotal.total)
+    ];
+
+    let grandX = margin;
+    grandRow.forEach((cell, i) => {
+        currentPage.drawText(cell, { x: grandX, y: y, font: boldFont, size: bodyFontSize });
+        grandX += colWidths[i];
+    });
 
     const pdfBytes = await pdfDoc.save();
     const range = format(dateRange.from, 'yyyy-MM-dd') + '_to_' + format(dateRange.to, 'yyyy-MM-dd');
@@ -318,7 +371,7 @@ export const exportStockMovementToPdf = async (movements: ReportRow[], dateRange
             m.openingStock.toString(),
             (m.qty_change > 0 ? '+' : '') + m.qty_change.toString(),
             m.resultingStock.toString(),
-            m.referenceDisplay.replace('Sale', 'Jual').replace('Restock', 'Pasok'),
+            m.referenceDisplay,
         ];
 
         let xPos = margin;
@@ -535,7 +588,7 @@ export const exportShiftDetailsToPdf = async (shift: any, transactions: Transact
 
     page.drawText(`Shift ID: ${shift.id}`, { x: margin, y, font, size: 12 });
     y -= 18;
-    page.drawText(`Period: ${format(openedAt, 'PPP p')} to ${closedAt ? format(closedAt, 'PPP p') : 'Ongoing'}`, {
+    page.drawText(`Periode: ${format(openedAt, 'PPP p')} s.d. ${closedAt ? format(closedAt, 'PPP p') : 'Berjalan'}`, {
         x: margin,
         y,
         font,
@@ -549,12 +602,12 @@ export const exportShiftDetailsToPdf = async (shift: any, transactions: Transact
     const expectedCash = shift.opening_cash + totalSales;
 
     const summaryData = [
-        { label: 'Modal Awal:', value: formatCurrency(shift.opening_cash) },
-        { label: 'Total Jual:', value: formatCurrency(totalSales) },
-        { label: 'Total Void:', value: formatCurrency(totalVoid), color: rgb(0.8, 0, 0) },
-        { label: 'Expected in Drawer:', value: formatCurrency(expectedCash) },
-        { label: 'Declared at Close:', value: formatCurrency(shift.declared_cash || 0) },
-        { label: 'Variance:', value: formatCurrency(shift.variance || 0), color: shift.variance === 0 ? rgb(0, 0.5, 0) : rgb(0.8, 0, 0) }
+        { label: 'Kas Awal:', value: formatCurrency(shift.opening_cash) },
+        { label: 'Total Penjualan:', value: formatCurrency(totalSales) },
+        { label: 'Total Batal:', value: formatCurrency(totalVoid), color: rgb(0.8, 0, 0) },
+        { label: 'Ekspektasi Kas:', value: formatCurrency(expectedCash) },
+        { label: 'Kas Aktual:', value: formatCurrency(shift.declared_cash || 0) },
+        { label: 'Selisih:', value: formatCurrency(shift.variance || 0), color: shift.variance === 0 ? rgb(0, 0.5, 0) : rgb(0.8, 0, 0) }
     ];
 
     let x = margin;
@@ -648,8 +701,6 @@ export const exportShiftsToExcel = async (shifts: Shift[], dateRange: { from: Da
 
 export const exportShiftsToPdf = async (shifts: Shift[], dateRange: { from: Date, to: Date }, storeName: string) => {
     const pdfDoc = await PDFDocument.create();
-    let page = pdfDoc.addPage();
-    const { height } = page.getSize();
     const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
     const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
     const fontSize = 9;
@@ -676,6 +727,7 @@ export const exportShiftsToPdf = async (shifts: Shift[], dateRange: { from: Date
     };
 
     let currentPage = pdfDoc.addPage();
+    const { height } = currentPage.getSize();
     let y = height - margin;
 
     currentPage.drawText(`${storeName} - Laporan Riwayat Sif`, { x: margin, y, font: boldFont, size: 16 });
@@ -776,7 +828,7 @@ export const exportVoidToPdf = async (transactions: Transaction[], dateRange: { 
     };
 
     let currentPage = pdfDoc.addPage();
-    const { height } = currentPage.getSize();
+    const { width, height } = currentPage.getSize();
     let y = height - margin;
 
     // Header Laporan
@@ -809,6 +861,28 @@ export const exportVoidToPdf = async (transactions: Transaction[], dateRange: { 
         });
         y -= 15;
     }
+
+    // --- Total Voided Row ---
+    const totalVoidedAmount = transactions.reduce((sum, tx) => sum + tx.total, 0);
+
+    if (y < 50) {
+        currentPage = pdfDoc.addPage();
+        y = height - margin;
+        y = drawTableHeader(currentPage, y);
+    }
+
+    currentPage.drawLine({
+        start: { x: margin, y: y + 6 },
+        end: { x: width - margin, y: y + 6 },
+        thickness: 1,
+    });
+
+    const totalRow = ['TOTAL', '', `${transactions.length} Transaksi`, formatCurrency(totalVoidedAmount)];
+    let totalX = margin;
+    totalRow.forEach((cell, i) => {
+        currentPage.drawText(cell, { x: totalX, y, font: boldFont, size: 8 });
+        totalX += colWidths[i];
+    });
 
     const pdfBytes = await pdfDoc.save();
     const range = format(dateRange.from, 'yyyyMMdd') + '_' + format(dateRange.to, 'yyyyMMdd');
