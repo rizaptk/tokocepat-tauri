@@ -298,7 +298,7 @@ export default function StockMovementReportPage() {
 
     return (
         <div className="flex min-h-screen w-full flex-col bg-muted/40">
-           <header className="sticky top-0 flex h-12 items-center gap-4 border-b border-border/60 bg-background/80 px-4 backdrop-blur-md z-10">
+           <header className="sticky top-0 flex h-12 items-center gap-4 border-b border-border/60 bg-background/80 px-4 backdrop-blur-md z-20">
                 <Button variant="outline" size="icon" className="shrink-0" asChild>
                     <Link to="#" onClick={() => nav(-1)}>
                         <ArrowLeft className="h-4 w-4" />
@@ -315,7 +315,7 @@ export default function StockMovementReportPage() {
                         <DropdownMenuTrigger asChild>
                           <Button variant="outline" size="sm" disabled={reportData.length === 0}>
                             <FileDown className="mr-2 h-4 w-4" />
-                            <span>Export</span>
+                            <span>Ekspor</span>
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
@@ -343,12 +343,12 @@ export default function StockMovementReportPage() {
                             <div className="flex w-full sm:w-auto items-center gap-2">
                                 <Popover>
                                     <PopoverTrigger asChild>
-                                        <Button variant="outline" className="w-full sm:w-62.5 justify-start text-left font-normal">
+                                        <Button variant="outline" className="w-full sm:w-[250px] justify-start text-left font-normal">
                                             <Filter className="mr-2 h-4 w-4"/>
                                             <span className="truncate">{selectedProductName}</span>
                                         </Button>
                                     </PopoverTrigger>
-                                    <PopoverContent className="w-75 p-0" align="end">
+                                    <PopoverContent className="w-[300px] p-0" align="end">
                                         <Command>
                                             <CommandInput placeholder="Cari item..." />
                                             <CommandList>
@@ -396,7 +396,7 @@ export default function StockMovementReportPage() {
                         </div> :
                         reportData.length > 0 ? 
                             (
-                            <ChartContainer config={chartConfig} className="h-75 w-full">
+                            <ChartContainer config={chartConfig} className="h-[300px] w-full">
                                 <ComposedChart data={chartData}>
                                     <defs>
                                         <linearGradient id="fillNet" x1="0" y1="0" x2="0" y2="1">
@@ -447,7 +447,7 @@ export default function StockMovementReportPage() {
                                 </ComposedChart>
                             </ChartContainer>
                         ) : (
-                            <div className="h-75 flex flex-col items-center justify-center text-muted-foreground border border-dashed rounded-lg">
+                            <div className="h-[300px] flex flex-col items-center justify-center text-muted-foreground border border-dashed rounded-lg">
                                 <Package className="h-10 w-10 mb-2 opacity-20" />
                                 <p>Tidak ada data untuk periode ini.</p>
                             </div>
@@ -456,7 +456,7 @@ export default function StockMovementReportPage() {
                 </CardContent>
             </Card>
             <Card className="flex-1 flex flex-col overflow-hidden">
-                <CardHeader className="shrink-0 py-3 px-6">
+                <CardHeader className="shrink-0">
                     <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                         <div>
                             <CardTitle>Buku Mutasi</CardTitle>

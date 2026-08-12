@@ -70,7 +70,7 @@ export function DateRangeFilter({
   return (
     <div className={cn("grid gap-2 sm:flex sm:items-center", className)}>
         <Select value={preset} onValueChange={handlePresetChange}>
-            <SelectTrigger className="w-full sm:w-45">
+            <SelectTrigger className="w-full sm:w-[180px]">
                 <SelectValue placeholder="Pilih periode" />
             </SelectTrigger>
             <SelectContent>

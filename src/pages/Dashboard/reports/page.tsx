@@ -1,7 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, ArrowRight, BarChart2, BookOpen, Warehouse, ArchiveX, History, ShieldCheck, Landmark } from 'lucide-react';
+import { ArrowLeft, ArrowRight, BarChart2, BookOpen, Warehouse, ArchiveX, History, ShieldCheck, Landmark, ReceiptText } from 'lucide-react';
 import { NotificationBell } from '@/components/NotificationBell';
 import { ThemeToggle } from '@/components/ThemeButtons';
 
@@ -59,7 +59,7 @@ const reportLinks = [
         title: 'Audit Pajak',
         description: 'Konsolidasi data pajak untuk pelaporan.',
         href: '/dashboard/reports/tax',
-        icon: Landmark,
+        icon: ReceiptText,
         comingSoon: false,
     },
 ];
@@ -69,8 +69,8 @@ export default function ReportsPage() {
     return (
         <div className="flex min-h-screen w-full flex-col bg-muted/40">
             {/* Header */}
-            <header className="sticky top-0 flex h-12 items-center gap-4 border-b border-border/60 bg-background/80 px-4 backdrop-blur-md z-10">
-                <Button variant="outline" size="icon" asChild>
+            <header className="sticky top-0 flex h-12 items-center gap-4 border-b border-border/60 bg-background/80 px-4 backdrop-blur-md z-20">
+                <Button variant="outline" size="icon" className="shrink-0" asChild>
                     <Link to="#" onClick={() => nav(-1)}>
                         <ArrowLeft className="h-4 w-4" />
                         <span className="sr-only">Kembali</span>
@@ -79,8 +79,10 @@ export default function ReportsPage() {
                 <h1 className="text-lg font-semibold tracking-tight flex-1">
                     Laporan & Analitik
                 </h1>
-                <NotificationBell />
-                <ThemeToggle />
+                <div className="flex items-center gap-2">
+                    <NotificationBell />
+                    <ThemeToggle />
+                </div>
             </header>
 
             {/* Split Layout */}

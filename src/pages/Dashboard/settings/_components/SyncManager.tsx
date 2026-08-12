@@ -39,7 +39,7 @@ export function SyncManager() {
         await SyncIden(id, name);
         toast({
             title: 'Nama Perangkat',
-            description: 'Nama perangkat dsimpan!'
+            description: 'Nama perangkat disimpan!'
         })
     }
 

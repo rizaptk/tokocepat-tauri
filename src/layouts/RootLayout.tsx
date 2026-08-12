@@ -22,9 +22,11 @@ export default function RootLayout() {
   }, [initialize, isInitialized]);
 
   if (!isInitialized) {
-    <div className="h-screen w-screen flex items-center justify-center bg-background">
-      <div className="animate-pulse text-sm text-muted-foreground">Loading Configuration...</div>
-    </div>
+    return (
+      <div className="h-screen w-screen flex items-center justify-center bg-background">
+        <div className="animate-pulse text-sm text-muted-foreground">Loading Configuration...</div>
+      </div>
+    )
   }
 
   return (

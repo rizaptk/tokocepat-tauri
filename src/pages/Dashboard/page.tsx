@@ -170,7 +170,7 @@ export default function DashboardPage() {
 
   return (
     <div className="flex h-screen w-full flex-col bg-muted/40">
-      <header className="sticky top-0 flex h-12 items-center gap-4 border-b border-border/60 bg-background/80 px-4 z-10 justify-between shrink-0 backdrop-blur-md">
+      <header className="sticky top-0 flex h-12 items-center gap-4 border-b border-border/60 bg-background/80 px-4 z-20 justify-between shrink-0 backdrop-blur-md">
         <Link to="/">
           <TokoCepatLogo />
         </Link>
@@ -303,7 +303,7 @@ export default function DashboardPage() {
                     </div>
                   </div>
                   {filteredTransactions.length > 0 ? (
-                    <ChartContainer config={chartConfig} className="h-70 w-full">
+                    <ChartContainer config={chartConfig} className="h-[280px] w-full">
                       <ComposedChart data={chartData}>
                         <defs>
                           <linearGradient id="fillProfit" x1="0" y1="0" x2="0" y2="1">
@@ -320,7 +320,7 @@ export default function DashboardPage() {
                       </ComposedChart>
                     </ChartContainer>
                   ) : (
-                    <div className="text-center text-muted-foreground h-62.5 flex flex-col justify-center items-center">
+                    <div className="text-center text-muted-foreground h-[250px] flex flex-col justify-center items-center">
                       <ShoppingBag className="h-10 w-10 mb-2" />
                       <p>Tidak ada transaksi di periode ini.</p>
                       {isPerDevice && !currentDeviceHasData && (

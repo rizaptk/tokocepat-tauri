@@ -62,7 +62,7 @@ const TransactionRow = React.memo(({
     return (
         <div
             onClick={() => onClick(tx)}
-            className="flex items-center px-4 border-b hover:bg-muted/50 cursor-pointer transition-colors text-sm absolute top-0 left-0 w-full"
+            className="flex items-center px-6 border-b hover:bg-muted/50 cursor-pointer transition-colors text-sm absolute top-0 left-0 w-full"
             style={{
                 height: `${virtualRow.size}px`,
                 transform: `translateY(${virtualRow.start}px)`,
@@ -135,12 +135,12 @@ export default function SalesReportPage() {
     const columnStyles = {
         waktu: "w-[150px] shrink-0",
         invoice: "w-[130px] shrink-0",
-        subtotal: "flex-1 text-right",
-        hpp: "flex-1 text-right",
-        titipan: "flex-1 text-right",
-        laba: "flex-1 text-right",
-        pajak: "flex-1 text-right",
-        total: "flex-1 shrink-0 text-right pr-6"
+        subtotal: "w-[125px] shrink-0 text-right tabular-nums",
+        hpp: "w-[115px] shrink-0 text-right tabular-nums",
+        titipan: "w-[115px] shrink-0 text-right tabular-nums",
+        laba: "w-[115px] shrink-0 text-right tabular-nums",
+        pajak: "w-[90px] shrink-0 text-right tabular-nums",
+        total: "w-[125px] shrink-0 text-right pr-6 tabular-nums"
     };
 
     const stats = useMemo(() => {
@@ -200,7 +200,7 @@ export default function SalesReportPage() {
     return (
         <>
         <div className="flex min-h-screen w-full flex-col bg-muted/40">
-           <header className="sticky top-0 flex h-12 items-center gap-4 border-b border-border/60 bg-background/80 px-4 backdrop-blur-md z-10">
+           <header className="sticky top-0 flex h-12 items-center gap-4 border-b border-border/60 bg-background/80 px-4 backdrop-blur-md z-20">
                 <Button variant="outline" size="icon" className="shrink-0" asChild>
                     <Link to="#" onClick={() => nav(-1)}>
                         <ArrowLeft className="h-4 w-4" />
@@ -257,7 +257,7 @@ export default function SalesReportPage() {
                                 Menampilkan {filteredTransactions.length} transaksi.
                             </CardDescription>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
                             <DateRangeFilter date={date} setDate={setDate} preset='last30' />
                             <DeviceScopeFilter />
                             <div className="relative">
@@ -265,7 +265,7 @@ export default function SalesReportPage() {
                                 <Input
                                     type="search"
                                     placeholder="Cari invoice..."
-                                    className="pl-8 w-64"
+                                    className="pl-8 w-full sm:w-64"
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
                                 />
@@ -277,7 +277,7 @@ export default function SalesReportPage() {
                 <CardContent className="py-0 px-6 flex-1 flex flex-col relative overflow-hidden">
                     {/* TABLE HEADER (Separated to stay static) */}
                     <div className="w-full border-b shrink-0">
-                        <div className="flex items-center h-12 px-4 pb-2 pt-4 text-sm font-medium text-muted-foreground hover:bg-muted/50">
+                        <div className="flex items-center h-12 px-6 pb-2 pt-4 text-sm font-medium text-muted-foreground hover:bg-muted/50">
                             <div className={columnStyles.waktu}>Waktu</div>
                             <div className={columnStyles.invoice}>Invoice</div>
                             <div className={columnStyles.subtotal}>Subtotal</div>

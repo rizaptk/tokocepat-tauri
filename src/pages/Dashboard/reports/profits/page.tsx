@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import * as React from 'react';
 import { useState, useMemo, useEffect } from 'react';
 import { DateRange } from 'react-day-picker';
@@ -37,6 +37,7 @@ export default function AuditReportPage() {
     const [isLoading, setIsLoading] = useState(true);
     const { storeConfig, shifts } = useStore();
     const { activeDeviceId } = useDeviceScope();
+    const nav = useNavigate();
 
     useEffect(() => {
         if (!date?.from || !date?.to) return;
@@ -126,8 +127,13 @@ export default function AuditReportPage() {
 
     return (
         <div className="flex min-h-screen w-full flex-col bg-muted/40">
-           <header className="sticky top-0 flex h-12 items-center gap-4 border-b border-border/60 bg-background/80 px-4 backdrop-blur-md z-10">
-                <Button variant="outline" size="icon" asChild><Link to="/dashboard/reports"><ArrowLeft className="h-4 w-4" /></Link></Button>
+           <header className="sticky top-0 flex h-12 items-center gap-4 border-b border-border/60 bg-background/80 px-4 backdrop-blur-md z-20">
+                <Button variant="outline" size="icon" className="shrink-0" asChild>
+                    <Link to="#" onClick={() => nav(-1)}>
+                        <ArrowLeft className="h-4 w-4" />
+                        <span className="sr-only">Kembali ke Laporan</span>
+                    </Link>
+                </Button>
                 <div className="flex-1"><h1 className="text-lg font-semibold flex items-center gap-2"><ShieldCheck className="h-5 w-5" /> Audit Laba & Kas</h1></div>
                 <div className="flex items-center gap-2">
                     <DropdownMenu>
