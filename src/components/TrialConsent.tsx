@@ -2,8 +2,9 @@ import { useState, useRef } from 'react';
 import { TokoCepatLogo } from './TokoCepatLogo';
 import { Button } from './ui/button';
 import { ScrollArea } from './ui/scroll-area';
-import { CheckCircle2, ShieldCheck, Zap, CreditCard, ArrowLeft, Loader2 } from 'lucide-react';
+import { CheckCircle2, ShieldCheck, Zap, CreditCard, ArrowLeft, Loader2, KeyRound } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
+import { useNavigate } from 'react-router-dom';
 
 const TERMS_CONDITIONS = [
   {
@@ -29,6 +30,7 @@ const TERMS_CONDITIONS = [
 ];
 
 export function TrialConsent() {
+  const navigate = useNavigate();
   const [step, setStep] = useState<'terms' | 'declined'>('terms');
   const [isApplying, setIsApplying] = useState(false);
   const [applyError, setApplyError] = useState<string | null>(null);
@@ -90,6 +92,21 @@ export function TrialConsent() {
                 )}
                 {isApplying ? 'Menerapkan Uji Coba...' : 'Gunakan Masa Uji Coba (30 Hari)'}
               </Button>
+            )}
+            {alreadyUsed && (
+              <>
+                <div className="rounded-md bg-muted p-3 text-left">
+                  <p className="text-sm font-medium flex items-center gap-2">
+                    <KeyRound className="h-4 w-4 text-primary shrink-0" /> Sudah punya kode lisensi?
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Aktifkan TokoCepat dengan kode lisensi Anda agar bisa digunakan kembali di perangkat ini.
+                  </p>
+                </div>
+                <Button className="w-full h-11" onClick={() => navigate('/license')}>
+                  <KeyRound className="mr-2 h-4 w-4" /> Aktivasi dengan Kode Lisensi
+                </Button>
+              </>
             )}
             <Button variant="outline" className="w-full h-11" onClick={openPricing} disabled={isApplying}>
               <CreditCard className="mr-2 h-4 w-4" /> Beli / Unduh Lisensi Penuh
