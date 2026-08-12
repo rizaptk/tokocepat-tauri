@@ -106,10 +106,10 @@ export default function StockMovementReportPage() {
     const parentRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
-        if (!date?.from || !date?.to) return;
+        if (!date?.from) return;
         const fetchMovements = async () => {
             setIsLoading(true);
-            const data = await getStockMovementsByDateRange(date.from!, date.to!);
+            const data = await getStockMovementsByDateRange(date.from!, endOfDay(new Date()));
             setStockMovements(data);
             setIsLoading(false);
         };
@@ -148,6 +148,13 @@ export default function StockMovementReportPage() {
         new Map(transactions.map(tx => [tx.id, tx.invoice_number])),
     [transactions]);
 
+    const currentStockMap = useMemo(() => {
+        const map = new Map<string, number>();
+        products.forEach(p => map.set(p.id, p.stock));
+        productVariants.forEach(v => map.set(v.id, v.stock));
+        return map;
+    }, [products, productVariants]);
+
     const getReferenceDisplay = useCallback((movement: StockMovement): string => {
         if (movement.reason) {
             return movement.reason;
@@ -163,17 +170,36 @@ export default function StockMovementReportPage() {
     const reportData = useMemo((): ReportRow[] => {
         if (isLoading || stockMovements.length === 0) return [];
 
-        return stockMovements
-            .filter(m => !filterProductId || m.product_id === filterProductId)
-            .map(movement => ({
-                ...movement,
-                openingStock: 0,
-                resultingStock: 0,
-                referenceDisplay: getReferenceDisplay(movement),
-                productType: itemsLookup.get(movement.product_id) || 'Product'
-            }))
+        // Movements fetched from range start -> now; only show ones within date.to
+        const toTime = date?.to ? new Date(date.to).getTime() : Number.MAX_SAFE_INTEGER;
+        const inRange = stockMovements
+            .filter(m => new Date(m.created_at).getTime() <= toTime)
+            .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+
+        // Opening stock per item = current stock - sum of all movements from range start.
+        // Running balance per item gives the resulting stock after each movement.
+        const sums: Record<string, number> = {};
+        inRange.forEach(m => { sums[m.product_id] = (sums[m.product_id] || 0) + m.qty_change; });
+
+        const running: Record<string, number> = {};
+        const rows: ReportRow[] = inRange.map(m => {
+            if (running[m.product_id] === undefined) {
+                running[m.product_id] = (currentStockMap.get(m.product_id) || 0) - (sums[m.product_id] || 0);
+            }
+            running[m.product_id] += m.qty_change;
+            return {
+                ...m,
+                openingStock: running[m.product_id] - m.qty_change,
+                resultingStock: running[m.product_id],
+                referenceDisplay: getReferenceDisplay(m),
+                productType: itemsLookup.get(m.product_id) || 'Product'
+            };
+        });
+
+        return rows
+            .filter(r => !filterProductId || r.product_id === filterProductId)
             .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-    }, [stockMovements, filterProductId, itemsLookup, getReferenceDisplay, isLoading]);
+    }, [stockMovements, filterProductId, itemsLookup, getReferenceDisplay, isLoading, currentStockMap, date]);
 
     // 4. OPTIMIZATION: Process Chart Data from the already-filtered reportData
     const chartData = useMemo(() => {
