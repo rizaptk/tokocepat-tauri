@@ -267,17 +267,17 @@ export default function ReturnDialog({ open, onOpenChange }: ReturnDialogProps) 
                                 <ArrowLeft className="size-4" />
                             </Button>
                         )}
-                        <h2 className="text-lg font-black tracking-tight flex items-center gap-2">
+                        <h2 className="text-lg font-semibold tracking-tight flex items-center gap-2">
                             <Undo2 className="size-5 text-primary" /> Retur / Pengembalian Dana
                         </h2>
                     </div>
                     {selectedTx && <Badge variant="outline" className="font-mono">{selectedTx.invoice_number}</Badge>}
                 </div>
 
-                <div className="flex-1 overflow-auto p-5 space-y-4">
+                <div className="flex-1 overflow-auto p-5 space-y-6">
                     {!selectedTx ? (
                         <>
-                            <div className="space-y-2">
+                            <div className="space-y-3">
                                 <Label className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
                                     No. Struk / Invoice
                                 </Label>
@@ -285,7 +285,7 @@ export default function ReturnDialog({ open, onOpenChange }: ReturnDialogProps) 
                                     <Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                                     <Input
                                         ref={inputRef}
-                                        className="h-10 pl-9 font-mono font-bold tracking-wide"
+                                        className="h-10 pl-9 font-mono font-medium tracking-wide"
                                         placeholder="INV-MMDD-XXXX — scan struk atau ketik"
                                         value={invoiceInput}
                                         onChange={(e) => setInvoiceInput(e.target.value)}
@@ -293,14 +293,14 @@ export default function ReturnDialog({ open, onOpenChange }: ReturnDialogProps) 
                                         autoFocus
                                     />
                                 </div>
-                                <Button className="w-full" onClick={() => handleLookup()} disabled={isLookingUp}>
+                                <Button className="w-full h-10" onClick={() => handleLookup()} disabled={isLookingUp}>
                                     {isLookingUp ? 'Mencari...' : 'Cari Transaksi'}
                                 </Button>
                             </div>
 
                             {error && <p className="text-sm font-medium text-destructive">{error}</p>}
 
-                            <div className="space-y-2">
+                            <div className="space-y-3">
                                 <Label className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
                                     Riwayat Transaksi (30 hari terakhir)
                                 </Label>
@@ -326,12 +326,12 @@ export default function ReturnDialog({ open, onOpenChange }: ReturnDialogProps) 
                     ) : (
                         <>
                             <div className="border rounded-lg overflow-hidden">
-                                <div className="px-4 py-2 bg-muted/50 text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                                <div className="px-4 py-2.5 bg-muted/50 text-xs font-bold uppercase tracking-widest text-muted-foreground">
                                     Barang yang dikembalikan · scan barcode / atur jumlah
                                 </div>
                                 <div className="divide-y divide-border/60">
                                     {lines.map(l => (
-                                        <div key={l.key} className="px-4 py-3 flex items-center gap-3">
+                                        <div key={l.key} className="px-4 py-3.5 flex items-center gap-3">
                                             <div className="flex-1 min-w-0">
                                                 <p className="text-sm font-medium truncate">{l.item.product_snapshot.name}</p>
                                                 <p className="text-xs text-muted-foreground tabular-nums">
@@ -366,8 +366,8 @@ export default function ReturnDialog({ open, onOpenChange }: ReturnDialogProps) 
                                 </div>
                             )}
 
-                            <div className="space-y-3">
-                                <div className="space-y-1.5">
+                            <div className="space-y-4">
+                                <div className="space-y-2">
                                     <Label htmlFor="retur-reason">Alasan Retur *</Label>
                                     <Input
                                         id="retur-reason"
@@ -386,7 +386,7 @@ export default function ReturnDialog({ open, onOpenChange }: ReturnDialogProps) 
 
                             {error && <p className="text-sm font-medium text-destructive">{error}</p>}
 
-                            <div className="bg-muted/40 rounded-lg p-4 space-y-1.5">
+                            <div className="bg-muted/40 rounded-lg p-5 space-y-2">
                                 <div className="flex justify-between text-sm">
                                     <span className="text-muted-foreground">Kembali Subtotal</span>
                                     <span className="tabular-nums">{formatIDR(refundSummary.subtotal)}</span>
@@ -401,7 +401,7 @@ export default function ReturnDialog({ open, onOpenChange }: ReturnDialogProps) 
                                 </div>
                             </div>
 
-                            <Button className="w-full h-12 font-black" onClick={handleConfirm} disabled={isSubmitting || !hasAnyReturn}>
+                            <Button className="w-full h-12 font-semibold" onClick={handleConfirm} disabled={isSubmitting || !hasAnyReturn}>
                                 <CheckCircle2 className="mr-2 size-5" />
                                 {isSubmitting ? 'Memproses...' : `Buat Retur & Refund ${formatIDR(refundSummary.total)}`}
                             </Button>

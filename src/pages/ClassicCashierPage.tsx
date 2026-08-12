@@ -81,21 +81,29 @@ export default function ClassicCashierPage() {
     const [qtyEditValue, setQtyEditValue] = useState('');
     const [variantEditItem, setVariantEditItem] = useState<Product | null>(null);
     const [variantEditCartId, setVariantEditCartId] = useState<string | null>(null);
-    const { activeIndex: cartActiveIndex, setActiveIndex: setCartActiveIndex } = useTableNavigation({
+    const { activeIndex: cartActiveIndex, setActiveIndex: setCartActiveIndex, activeColumn: cartActiveColumn } = useTableNavigation({
         rowCount: cart.length,
+        columnCount: 6, // No | Produk | Harga | Qty | Subtotal | Hapus
         bindTo: cartTableRef,
-        onActivate: (index) => {
+        onActivate: (index, column) => {
             const item = cart[index];
             if (!item) return;
-            if (item.has_variant) {
+            if (column === 1 && item.has_variant) {
+                // Produk column: open variant selector when the item has variants
                 const base = products.find(p => p.id === item.id);
                 if (base) {
                     setVariantEditItem(base);
                     setVariantEditCartId(item.cartItemId);
                 }
-            } else {
+            } else if (column === 3) {
+                // Qty column (default for any line): start in-cell qty edit
                 setQtyEditValue(String(item.quantity));
                 setQtyEditId(item.cartItemId);
+            } else if (column === 1) {
+                setQtyEditValue(String(item.quantity));
+                setQtyEditId(item.cartItemId);
+            } else if (column === 5) {
+                removeFromCart(item.cartItemId);
             }
         },
     });
@@ -379,10 +387,14 @@ export default function ClassicCashierPage() {
                                                 animate={{ opacity: 1, x: 0 }}
                                                 exit={{ opacity: 0, height: 0 }}
                                                 transition={rowSpring}
-                                                className="group bg-card hover:bg-muted/40"
+                                                className={cn(
+                                                    "group bg-card hover:bg-muted/40",
+                                                    cartActiveIndex === idx && "bg-muted/40"
+                                                )}
+                                                onMouseEnter={() => setCartActiveIndex(idx)}
                                             >
-                                                <TableCell>{idx + 1}</TableCell>
-                                                <TableCell className="font-medium">
+                                                <TableCell className={cn(cartActiveIndex === idx && cartActiveColumn === 0 && "bg-primary/10")}>{idx + 1}</TableCell>
+                                                <TableCell className={cn("font-medium", cartActiveIndex === idx && cartActiveColumn === 1 && "bg-primary/10")}>
                                                     <div className="truncate">{item.name}</div>
                                                     {item.selectedVariant && (
                                                         <button
@@ -394,8 +406,8 @@ export default function ClassicCashierPage() {
                                                         </button>
                                                     )}
                                                 </TableCell>
-                                                <TableCell className="text-right tabular-nums">{formatIDR(item.price)}</TableCell>
-                                                <TableCell>
+                                                <TableCell className={cn("text-right tabular-nums", cartActiveIndex === idx && cartActiveColumn === 2 && "bg-primary/10")}>{formatIDR(item.price)}</TableCell>
+                                                <TableCell className={cn(cartActiveIndex === idx && cartActiveColumn === 3 && "bg-primary/10")}>
                                                     {qtyEditId === item.cartItemId ? (
                                                         <div className="flex items-center justify-center gap-1">
                                                             <input
@@ -430,8 +442,8 @@ export default function ClassicCashierPage() {
                                                         </div>
                                                     )}
                                                 </TableCell>
-                                                <TableCell className="text-right font-bold tabular-nums">{formatIDR(item.price * item.quantity)}</TableCell>
-                                                <TableCell>
+                                                <TableCell className={cn("text-right font-bold tabular-nums", cartActiveIndex === idx && cartActiveColumn === 4 && "bg-primary/10")}>{formatIDR(item.price * item.quantity)}</TableCell>
+                                                <TableCell className={cn(cartActiveIndex === idx && cartActiveColumn === 5 && "bg-primary/10")}>
                                                     <Button variant="ghost" size="icon" className="size-7 text-muted-foreground opacity-0 hover:text-destructive group-hover:opacity-100" onClick={() => removeFromCart(item.cartItemId)}><Trash2 className="size-4"/></Button>
                                                 </TableCell>
                                             </motion.tr>
@@ -487,8 +499,8 @@ export default function ClassicCashierPage() {
                                 <Label className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Uang Tunai Cepat</Label>
                                 <div className="mt-1.5 grid grid-cols-3 gap-1.5">
                                     {cashSuggestions.map(amt => (
-                                        <Button key={amt} variant="outline" size="sm" className="h-8 font-semibold text-xs tabular-nums" onClick={() => curr.setRaw(amt.toString())}>
-                                            {amt === total ? "Uang Pas" : formatIDR(amt).slice(0, -3)}
+                                        <Button key={amt} variant="outline" size="sm" className="h-8 font-semibold text-xs tabular-nums whitespace-nowrap" onClick={() => curr.setRaw(amt.toString())}>
+                                            {amt === total ? "Uang Pas" : formatIDR(amt)}
                                         </Button>
                                     ))}
                                 </div>
@@ -504,7 +516,7 @@ export default function ClassicCashierPage() {
                                     ref={cashInputRef} 
                                     type="text"
                                     inputMode='numeric'
-                                    className="h-10 border-2 pl-8 text-lg font-bold tracking-tight tabular-nums"
+                                    className="h-10 border-2 pl-10 text-lg font-bold tracking-tight tabular-nums"
                                     value={curr.value}
                                     onChange={curr.onChange}
                                     onKeyDown={(e) => e.key === 'Enter' && handleProcessPayment()}
