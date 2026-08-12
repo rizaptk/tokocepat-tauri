@@ -21,6 +21,8 @@ import { isSameDay, differenceInDays, addDays, startOfDay, endOfDay, format } fr
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useLoadTransactions } from "@/hooks/useLoadTransaction";
 import { LicenseBadge } from "@/components/LicenseBadge";
+import { useDeviceScope } from "@/hooks/useDeviceScope";
+import { DeviceScopeFilter } from "@/components/DeviceScopeFilter";
 
 export default function DashboardPage() {
   const products = useStore((state) => state.products);
@@ -33,7 +35,10 @@ export default function DashboardPage() {
     to: endOfDay(new Date()),
   });
 
-  const {transactions} = useLoadTransactions(date);
+  const { scope: deviceScope, activeDeviceId, devices } = useDeviceScope();
+  const { transactions } = useLoadTransactions(date, activeDeviceId);
+  const isPerDevice = deviceScope !== 'all';
+  const currentDeviceHasData = isPerDevice && transactions.length > 0;
 
   const lowStockItems = useMemo(() => {
     const lowStockProducts = products.filter(
@@ -292,7 +297,10 @@ export default function DashboardPage() {
                       <CalendarDays className="h-4 w-4 text-muted-foreground" />
                       Periode
                     </div>
-                    <DateRangeFilter date={date} setDate={setDate} />
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                      <DateRangeFilter date={date} setDate={setDate} />
+                      <DeviceScopeFilter />
+                    </div>
                   </div>
                   {filteredTransactions.length > 0 ? (
                     <ChartContainer config={chartConfig} className="h-70 w-full">
@@ -315,6 +323,13 @@ export default function DashboardPage() {
                     <div className="text-center text-muted-foreground h-62.5 flex flex-col justify-center items-center">
                       <ShoppingBag className="h-10 w-10 mb-2" />
                       <p>Tidak ada transaksi di periode ini.</p>
+                      {isPerDevice && !currentDeviceHasData && (
+                        <p className="text-xs mt-1 text-muted-foreground/70">
+                          {deviceScope === 'current'
+                            ? 'Perangkat ini belum memiliki transaksi pada periode tersebut.'
+                            : `Belum ada transaksi untuk ${devices.find(d => d.id === deviceScope)?.name || 'perangkat terpilih'} pada periode tersebut.`}
+                        </p>
+                      )}
                     </div>
                   )}
                 </CardContent>

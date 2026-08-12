@@ -27,6 +27,8 @@ import { ThemeToggle } from '@/components/ThemeButtons';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useLoadTransactions } from '@/hooks/useLoadTransaction';
+import { useDeviceScope } from '@/hooks/useDeviceScope';
+import { DeviceScopeFilter } from '@/components/DeviceScopeFilter';
 import { cn } from '@/lib/utils';
 
 const formatCurrency = (amount: number) => {
@@ -55,7 +57,8 @@ export default function ConsignmentReportPage() {
     const [searchTerm, setSearchTerm] = useState('');
 
     // --- LOAD TRANSACTIONS REALTIME DARI DATABASE BERDASARKAN FILTER TANGGAL ---
-    const { transactions, isLoading: isTxLoading } = useLoadTransactions(date);
+    const { activeDeviceId } = useDeviceScope();
+    const { transactions, isLoading: isTxLoading } = useLoadTransactions(date, activeDeviceId);
 
     // Fetch movements for the active date range
     const fetchMovements = async () => {
@@ -460,6 +463,7 @@ export default function ConsignmentReportPage() {
                             {/* Filters Bar */}
                             <div className="flex flex-col sm:flex-row items-center gap-2">
                                 <DateRangeFilter date={date} setDate={setDate} />
+                                <DeviceScopeFilter />
 
                                 <Select value={filterStatus} onValueChange={setFilterStatus}>
                                     <SelectTrigger className="w-full sm:w-40">

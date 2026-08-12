@@ -1,5 +1,6 @@
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { useStore } from '@/lib/store';
+import { useLoadShiftTransactions } from '@/hooks/useLoadShiftTransactions';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
@@ -34,11 +35,11 @@ export default function ShiftDetailsPage() {
     const shiftId = params.id as string;
     const nav = useNavigate();
     
-    const { shifts, transactions, storeConfig } = useStore();
+    const { shifts, storeConfig } = useStore();
+    const { transactions: shiftTransactions } = useLoadShiftTransactions(shiftId);
     const { toast } = useToast();
     
     const shift = shifts.find(s => s.id === shiftId);
-    const shiftTransactions = transactions.filter(t => t.shift_id === shiftId);
 
     const [voidReason, setVoidReason] = useState("");
 

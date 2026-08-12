@@ -11,6 +11,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Shift } from '@/lib/types';
 import { DateRangeFilter } from '@/components/DateRangeFilter';
+import { useDeviceScope } from '@/hooks/useDeviceScope';
+import { DeviceScopeFilter } from '@/components/DeviceScopeFilter';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { NotificationBell } from '@/components/NotificationBell';
@@ -30,6 +32,7 @@ const formatCurrency = (amount: number) => {
 export default function ShiftsReportPage() {
     const navigate = useNavigate();
     const { shifts, storeConfig } = useStore();
+    const { activeDeviceId, devices } = useDeviceScope();
     const { toast } = useToast();
     const [date, setDate] = React.useState<DateRange | undefined>({
       from: startOfDay(subDays(new Date(), 29)),
@@ -40,10 +43,11 @@ export default function ShiftsReportPage() {
         if (!date?.from || !date?.to) return [];
         return shifts.filter(s => {
             if (s.status !== 'closed' || !s.closed_at) return false;
+            if (activeDeviceId && s.device && s.device !== activeDeviceId) return false;
             const closedDate = new Date(s.closed_at);
             return closedDate >= date.from! && closedDate <= date.to!;
         });
-    }, [shifts, date]);
+    }, [shifts, date, activeDeviceId]);
 
     const handlePdfExport = async () => {
         if (storeConfig && date?.from && date?.to) {
@@ -108,7 +112,10 @@ export default function ShiftsReportPage() {
                                 </CardDescription>
                             )}
                         </div>
-                        <DateRangeFilter date={date} setDate={setDate} preset='last30' />
+                        <div className="flex items-center gap-2">
+                            <DateRangeFilter date={date} setDate={setDate} preset='last30' />
+                            <DeviceScopeFilter />
+                        </div>
                     </div>
                 </CardHeader>
                 <CardContent>
@@ -116,6 +123,7 @@ export default function ShiftsReportPage() {
                         <TableHeader>
                             <TableRow>
                                 <TableHead>Waktu</TableHead>
+                                <TableHead>Perangkat</TableHead>
                                 <TableHead>Kas Awal</TableHead>
                                 <TableHead>Ekspektasi</TableHead>
                                 <TableHead>Aktual</TableHead>
@@ -135,6 +143,7 @@ export default function ShiftsReportPage() {
                                                 }
                                             </div>
                                         </TableCell>
+                                        <TableCell>{devices.find(d => d.id === s.device)?.name || s.device || '-'}</TableCell>
                                         <TableCell>{formatCurrency(s.opening_cash)}</TableCell>
                                         <TableCell>{formatCurrency(s.system_cash || 0)}</TableCell>
                                         <TableCell>{formatCurrency(s.declared_cash || 0)}</TableCell>
@@ -146,7 +155,7 @@ export default function ShiftsReportPage() {
                                 ))
                             ) : (
                                 <TableRow>
-                                    <TableCell colSpan={5} className="h-24 text-center">
+                                    <TableCell colSpan={6} className="h-24 text-center">
                                         Tidak ada data sif pada periode ini.
                                     </TableCell>
                                 </TableRow>

@@ -14,6 +14,8 @@ import { Transaction } from '@/lib/types';
 import { DateRangeFilter } from '@/components/DateRangeFilter';
 import { getTransactionsByDateRange } from '@/services/transactionService';
 import { useStore } from '@/lib/store';
+import { useDeviceScope } from '@/hooks/useDeviceScope';
+import { DeviceScopeFilter } from '@/components/DeviceScopeFilter';
 import { NotificationBell } from '@/components/NotificationBell';
 import { ThemeToggle } from '@/components/ThemeButtons';
 
@@ -34,13 +36,14 @@ export default function AuditReportPage() {
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const { storeConfig, shifts } = useStore();
+    const { activeDeviceId } = useDeviceScope();
 
     useEffect(() => {
         if (!date?.from || !date?.to) return;
         const fetchData = async () => {
             setIsLoading(true);
             try {
-                const txData = await getTransactionsByDateRange(date.from!, date.to!);
+                const txData = await getTransactionsByDateRange(date.from!, date.to!, activeDeviceId);
                 setTransactions(txData);
             } catch (err) {
                 console.error("Gagal mengambil data transaksi:", err);
@@ -49,7 +52,7 @@ export default function AuditReportPage() {
             }
         };
         fetchData();
-    }, [date]);
+    }, [date, activeDeviceId]);
 
     // --- AUDIT LOGIC: Join Transactions to Shifts ---
     const auditData = useMemo(() => {
@@ -58,6 +61,7 @@ export default function AuditReportPage() {
         // 1. Get closed shifts in range
         const periodShifts = shifts.filter(s => {
             if (s.status !== 'closed' || !s.closed_at) return false;
+            if (activeDeviceId && s.device && s.device !== activeDeviceId) return false;
             const d = new Date(s.closed_at);
             return d >= date.from! && d <= date.to!;
         });
@@ -102,7 +106,7 @@ export default function AuditReportPage() {
                 txCount: shiftTx.length
             };
         }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    }, [transactions, shifts, date]);
+    }, [transactions, shifts, date, activeDeviceId]);
 
     const stats = useMemo(() => {
         const totalRevenue = auditData.reduce((sum, row) => sum + row.revenue, 0);
@@ -160,7 +164,10 @@ export default function AuditReportPage() {
                             <CardTitle>Buku Audit</CardTitle>
                             <CardDescription>Rekonsiliasi margin penjualan, biaya modal, pengeluaran titipan, dan selisih kas fisik per sif.</CardDescription>
                         </div>
-                        <DateRangeFilter date={date} setDate={setDate} preset='last30' />
+                        <div className="flex items-center gap-2">
+                            <DateRangeFilter date={date} setDate={setDate} preset='last30' />
+                            <DeviceScopeFilter />
+                        </div>
                     </div>
                 </CardHeader>
                 <CardContent className="p-0">

@@ -7,7 +7,9 @@ interface DateRange {
     to?: Date;
 }
 
-export function useLoadTransactions(range?: DateRange) {
+type DeviceScope = string | 'all' | undefined;
+
+export function useLoadTransactions(range?: DateRange, device?: DeviceScope) {
     const { firesqlite, db, isInitialized } = useDbStore();
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     
@@ -25,12 +27,16 @@ export function useLoadTransactions(range?: DateRange) {
         const fromDate = (range?.from || new Date(new Date().setDate(new Date().getDate() - 30))).toISOString();
         const toDate = (range?.to || new Date()).toISOString();
 
-        const txQuery = query(
-            collection(db, 'transactions'),
+        const constraints = [
             where('created_at', 'gte', fromDate),
             where('created_at', 'lte', toDate),
-            orderBy('created_at', 'desc')
-        );
+        ];
+        if (device && device !== 'all') {
+            constraints.push(where('device', 'eq', device));
+        }
+        constraints.push(orderBy('created_at', 'desc'));
+
+        const txQuery = query(collection(db, 'transactions'), ...constraints);
 
         const unsubscribe = onSnapshot(txQuery, (snap: any) => {
             const fetchedTxs = snap.docs.map((d: any) => ({
@@ -46,7 +52,7 @@ export function useLoadTransactions(range?: DateRange) {
             if (unsubscribe) unsubscribe();
         };
         
-    }, [isInitialized, firesqlite, db, range?.from?.getTime(), range?.to?.getTime()]);
+    }, [isInitialized, firesqlite, db, range?.from?.getTime(), range?.to?.getTime(), device]);
 
     // Return both the data and the loading state
     return { transactions, isLoading };

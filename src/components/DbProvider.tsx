@@ -1,6 +1,6 @@
 import { useDbStore } from "@/lib/db-store";
 import { useStore } from "@/lib/store";
-import { ensureIndexes } from "@/lib/database";
+import { ensureIndexes, backfillTransactionDevice } from "@/lib/database";
 import { useEffect, useState } from "react";
 import { invoke } from '@tauri-apps/api/core';
 import { 
@@ -35,6 +35,7 @@ export function DbProvider({ children }: { children: React.ReactNode }) {
                 // A. Ensure database indexes are present before starting listeners
                 const hwid = await generateDeviceFingerprint();
                 await ensureIndexes(firesqlite, db);
+                await backfillTransactionDevice(firesqlite, db);
                 
                 // B. Guard: If user navigated away during seeding, don't start listeners
                 if (!isMounted) return;

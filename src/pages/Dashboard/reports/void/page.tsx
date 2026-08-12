@@ -1,7 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useStore } from '@/lib/store';
 import { format, startOfDay, endOfDay } from 'date-fns';
-import { ArrowLeft, ArchiveX, FileDown, FileText } from 'lucide-react';
+import { ArrowLeft, ArchiveX, FileDown, FileText, Loader2 } from 'lucide-react';
 import React, { useState, useMemo } from 'react';
 import { DateRange } from 'react-day-picker';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -16,6 +16,9 @@ import TransactionDetailDialog from '@/components/TransactionDetailDialog';
 import { NotificationBell } from '@/components/NotificationBell';
 import { ThemeToggle } from '@/components/ThemeButtons';
 import { exportVoidToExcel, exportVoidToPdf } from '@/lib/export';
+import { useLoadTransactions } from '@/hooks/useLoadTransaction';
+import { useDeviceScope } from '@/hooks/useDeviceScope';
+import { DeviceScopeFilter } from '@/components/DeviceScopeFilter';
 
 const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('id-ID', {
@@ -26,7 +29,7 @@ const formatCurrency = (amount: number) => {
 };
 
 export default function VoidReportPage() {
-    const { transactions, storeConfig } = useStore();
+    const { storeConfig } = useStore();
     const { toast } = useToast();
     const [date, setDate] = React.useState<DateRange | undefined>({
       from: startOfDay(new Date()),
@@ -34,6 +37,9 @@ export default function VoidReportPage() {
     });
     const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
     const nav = useNavigate();
+
+    const { activeDeviceId } = useDeviceScope();
+    const { transactions, isLoading } = useLoadTransactions(date, activeDeviceId);
 
     const voidedTransactions = useMemo(() => {
         if (!date?.from || !date?.to) return [];
@@ -108,7 +114,10 @@ export default function VoidReportPage() {
                                     </CardDescription>
                                 )}
                             </div>
-                            <DateRangeFilter date={date} setDate={setDate} />
+                            <div className="flex items-center gap-2">
+                                <DateRangeFilter date={date} setDate={setDate} />
+                                <DeviceScopeFilter />
+                            </div>
                         </div>
                     </CardHeader>
                     <CardContent>
@@ -122,7 +131,11 @@ export default function VoidReportPage() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {voidedTransactions.length > 0 ? (
+                                {isLoading ? (
+                                    <TableRow>
+                                        <TableCell colSpan={4} className="text-center py-10"><Loader2 className="animate-spin mx-auto" /></TableCell>
+                                    </TableRow>
+                                ) : voidedTransactions.length > 0 ? (
                                     voidedTransactions.map((tx: Transaction) => (
                                         <TableRow key={tx.id} onClick={() => setSelectedTx(tx)} className="cursor-pointer">
                                             <TableCell>

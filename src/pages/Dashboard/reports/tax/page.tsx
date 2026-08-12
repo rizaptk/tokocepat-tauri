@@ -16,6 +16,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { DateRangeFilter } from '@/components/DateRangeFilter';
+import { useDeviceScope } from '@/hooks/useDeviceScope';
+import { DeviceScopeFilter } from '@/components/DeviceScopeFilter';
 import { ThemeToggle } from '@/components/ThemeButtons';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
@@ -23,6 +25,7 @@ const formatCurrency = (val: number) => new Intl.NumberFormat('id-ID', { style: 
 
 export default function TaxReportPage() {
     const { storeConfig } = useStore();
+    const { activeDeviceId } = useDeviceScope();
     const [date, setDate] = useState<DateRange | undefined>({ from: startOfDay(subDays(new Date(), 29)), to: endOfDay(new Date()) });
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -32,12 +35,12 @@ export default function TaxReportPage() {
         if (!date?.from || !date?.to) return;
         const fetch = async () => {
             setIsLoading(true);
-            const data = await getTransactionsByDateRange(date.from!, date.to!);
+            const data = await getTransactionsByDateRange(date.from!, date.to!, activeDeviceId);
             setTransactions(data);
             setIsLoading(false);
         };
         fetch();
-    }, [date]);
+    }, [date, activeDeviceId]);
 
     // --- 1. TAX RATE SUMMARY LOGIC ---
     const taxReport = useMemo(() => {
@@ -209,7 +212,10 @@ export default function TaxReportPage() {
                     <Card className="lg:col-span-2">
                         <CardHeader className="flex flex-row items-center justify-between">
                             <CardTitle className="text-base">Buku Besar Pajak Harian</CardTitle>
-                            <DateRangeFilter date={date} setDate={setDate} preset='last30' />
+                            <div className="flex items-center gap-2">
+                                <DateRangeFilter date={date} setDate={setDate} preset='last30' />
+                                <DeviceScopeFilter />
+                            </div>
                         </CardHeader>
                         <CardContent>
                             <Table>
