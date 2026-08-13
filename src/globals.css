@@ -282,17 +282,6 @@
 
 }
 
-@keyframes ripple {
-  0% {
-    transform: scale(0);
-    opacity: 0.6;
-  }
-  100% {
-    transform: scale(1);
-    opacity: 0;
-  }
-}
-
 /* --- Aurora Taskbar (the world's one ornament) ---
    A low-opacity teal → Aero blue → violet spectral sweep, drifting slowly
    down the dark rail. The only licensed gradient in the system. */
@@ -323,8 +312,8 @@
   box-shadow: inset 0 1px 0 hsl(0 0% 100% / 0.30);
 }
 
-/* Respect prefers-reduced-motion: pause the aurora drift and ripple so
-   nothing moves on its own. */
+/* Respect prefers-reduced-motion: pause the aurora drift so nothing moves
+   on its own. */
 @media (prefers-reduced-motion: reduce) {
   .aurora-rail {
     animation: none;
