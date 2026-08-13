@@ -1,64 +1,69 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
+import { Suspense, lazy } from 'react'
 import RootLayout from './layouts/RootLayout'
 import HomePage from './pages/HomePage'
-import ActivationPage from './pages/ActivationPage'
 import CashierPage from './pages/CashierPage'
 import InventoryPage from './pages/InventoryPage'
 
-// Dashboard pages
-import DashboardHome from './pages/Dashboard/page'
-import DashboardReports from './pages/Dashboard/reports/page'
-import DashboardReportsSales from './pages/Dashboard/reports/sales/page'
-import DashboardReportsShifts from './pages/Dashboard/reports/shifts/page'
-import DashboardReportsStockMovement from './pages/Dashboard/reports/stock-movement/page'
-import DashboardReportsStockSummary from './pages/Dashboard/reports/stock-summary/page'
-import DashboardReportsVoid from './pages/Dashboard/reports/void/page'
-import DashboardSettings from './pages/Dashboard/settings/page'
-import DashboardShiftDetail from './pages/Dashboard/shifts/[id]/page'
-import AuditReportPage from './pages/Dashboard/reports/profits/page'
-import TaxReportPage from './pages/Dashboard/reports/tax/page'
-import ConsignmentReportPage from './pages/Dashboard/reports/consignments/page'
-
-import LicensePage from './pages/Dashboard/settings/License'
-import PromosPage from './pages/Dashboard/promos/page'
-
-// Product pages
-import ProductLayout from './pages/Product/layout'
-import ProductHome from './pages/Product/page'
+// Main POS route — the counter is where you arrive and must never wait.
+// Dashboard/Product/auxiliary surfaces are lazy so the initial bundle stays lean.
+const ActivationPage = lazy(() => import('./pages/ActivationPage'))
+const DashboardHome = lazy(() => import('./pages/Dashboard/page'))
+const DashboardReports = lazy(() => import('./pages/Dashboard/reports/page'))
+const DashboardReportsSales = lazy(() => import('./pages/Dashboard/reports/sales/page'))
+const DashboardReportsShifts = lazy(() => import('./pages/Dashboard/reports/shifts/page'))
+const DashboardReportsStockMovement = lazy(() => import('./pages/Dashboard/reports/stock-movement/page'))
+const DashboardReportsStockSummary = lazy(() => import('./pages/Dashboard/reports/stock-summary/page'))
+const DashboardReportsVoid = lazy(() => import('./pages/Dashboard/reports/void/page'))
+const DashboardSettings = lazy(() => import('./pages/Dashboard/settings/page'))
+const DashboardShiftDetail = lazy(() => import('./pages/Dashboard/shifts/[id]/page'))
+const AuditReportPage = lazy(() => import('./pages/Dashboard/reports/profits/page'))
+const TaxReportPage = lazy(() => import('./pages/Dashboard/reports/tax/page'))
+const ConsignmentReportPage = lazy(() => import('./pages/Dashboard/reports/consignments/page'))
+const LicensePage = lazy(() => import('./pages/Dashboard/settings/License'))
+const PromosPage = lazy(() => import('./pages/Dashboard/promos/page'))
+const ProductLayout = lazy(() => import('./pages/Product/layout'))
+const ProductHome = lazy(() => import('./pages/Product/page'))
 
 function App() {
   return (
     <Router>
-      <Routes>
-        {/* Main POS */}
-        <Route path="/" element={<RootLayout />}>
-          <Route index element={<HomePage />} />
-          <Route path="aktivasi" element={<ActivationPage />} /> 
-          <Route path="cashier" element={<CashierPage />} />
-          <Route path="inventory" element={<InventoryPage />} />
-          <Route path="license" element={<LicensePage />} />
+      <Suspense fallback={<RootLoading />}>
+        <Routes>
+          {/* Main POS */}
+          <Route path="/" element={<RootLayout />}>
+            <Route index element={<HomePage />} />
+            <Route path="aktivasi" element={<ActivationPage />} />
+            <Route path="cashier" element={<CashierPage />} />
+            <Route path="inventory" element={<InventoryPage />} />
+            <Route path="license" element={<LicensePage />} />
 
-          {/* Dashboard routes */}
-          <Route path="dashboard" element={<DashboardHome />} />
-          <Route path="dashboard/reports" element={<DashboardReports />} />
-          <Route path="dashboard/reports/sales" element={<DashboardReportsSales />} />
-          <Route path="dashboard/reports/shifts" element={<DashboardReportsShifts />} />
-          <Route path="dashboard/reports/stock-movement" element={<DashboardReportsStockMovement />} />
-          <Route path="dashboard/reports/stock-summary" element={<DashboardReportsStockSummary />} />
-          <Route path="dashboard/reports/void" element={<DashboardReportsVoid />} />
-          <Route path="dashboard/reports/profit" element={<AuditReportPage />} />
-          <Route path="dashboard/reports/tax" element={<TaxReportPage />} />
-          <Route path="dashboard/reports/consignments" element={<ConsignmentReportPage />} />
-          <Route path="dashboard/promos" element={<PromosPage />} />
-          <Route path="dashboard/settings" element={<DashboardSettings />} />
-          <Route path="dashboard/shifts/:id" element={<DashboardShiftDetail />} />
+            {/* Dashboard routes */}
+            <Route path="dashboard" element={<DashboardHome />} />
+            <Route path="dashboard/reports" element={<DashboardReports />} />
+            <Route path="dashboard/reports/sales" element={<DashboardReportsSales />} />
+            <Route path="dashboard/reports/shifts" element={<DashboardReportsShifts />} />
+            <Route path="dashboard/reports/stock-movement" element={<DashboardReportsStockMovement />} />
+            <Route path="dashboard/reports/stock-summary" element={<DashboardReportsStockSummary />} />
+            <Route path="dashboard/reports/void" element={<DashboardReportsVoid />} />
+            <Route path="dashboard/reports/profit" element={<AuditReportPage />} />
+            <Route path="dashboard/reports/tax" element={<TaxReportPage />} />
+            <Route path="dashboard/reports/consignments" element={<ConsignmentReportPage />} />
+            <Route path="dashboard/promos" element={<PromosPage />} />
+            <Route path="dashboard/settings" element={<DashboardSettings />} />
+            <Route path="dashboard/shifts/:id" element={<DashboardShiftDetail />} />
 
-          {/* Product routes */}
-          <Route path="product" element={<ProductLayout children={<ProductHome />} />} />
-        </Route>
-      </Routes>
+            {/* Product routes */}
+            <Route path="product" element={<ProductLayout children={<ProductHome />} />} />
+          </Route>
+        </Routes>
+      </Suspense>
     </Router>
   )
+}
+
+function RootLoading() {
+  return <div className="flex h-screen w-full items-center justify-center bg-background" />
 }
 
 export default App
