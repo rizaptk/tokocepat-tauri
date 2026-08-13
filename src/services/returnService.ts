@@ -96,21 +96,33 @@ export const createReturnTransaction = async ({
     const transactionId = `tx-${crypto.randomUUID().slice(0, 8)}`;
     const invoiceNumber = `RTR-${createdAt.substring(5, 7)}${createdAt.substring(8, 10)}-${crypto.randomUUID().slice(0, 4).toUpperCase()}`;
 
-    const items: TransactionItem[] = lines.map(line => ({
-        id: `tx-item-${crypto.randomUUID().slice(0, 8)}`,
-        transaction_id: transactionId,
-        // Copy the ORIGINAL snapshot so profit/cost/consignment math is exact.
-        product_snapshot: line.item.product_snapshot,
-        price_snapshot: line.item.price_snapshot,
-        cost_snapshot: line.item.cost_snapshot,
-        qty: -line.qty,
-        subtotal: -(line.item.price_snapshot * line.qty),
-    }));
+    const items: TransactionItem[] = lines.map(line => {
+        // Refund the NET unit price actually charged (gross minus any per-unit
+        // discount), so free / discounted units return 0 cash but still restock.
+        const unitDiscount = line.item.unit_discount || 0;
+        const netUnit = line.item.price_snapshot - unitDiscount;
+        return {
+            id: `tx-item-${crypto.randomUUID().slice(0, 8)}`,
+            transaction_id: transactionId,
+            // Copy the ORIGINAL snapshot so profit/cost/consignment math is exact.
+            product_snapshot: line.item.product_snapshot,
+            price_snapshot: line.item.price_snapshot,
+            cost_snapshot: line.item.cost_snapshot,
+            qty: -line.qty,
+            subtotal: -(netUnit * line.qty),
+            unit_discount: unitDiscount,
+            discount_amount: -(unitDiscount * line.qty),
+            promo_ids: line.item.promo_ids || [],
+            is_free_item: line.item.is_free_item || false,
+        };
+    });
 
     const subtotal = items.reduce((sum, it) => sum + it.subtotal, 0);
     const tax_amount = lines.reduce((acc, line) => {
         const rate = getTaxRateForItem(line.item, storeConfig);
-        return acc - (line.item.price_snapshot * line.qty * rate);
+        const unitDiscount = line.item.unit_discount || 0;
+        const netUnit = line.item.price_snapshot - unitDiscount;
+        return acc - (netUnit * line.qty * rate);
     }, 0);
     const total = subtotal + tax_amount;
 

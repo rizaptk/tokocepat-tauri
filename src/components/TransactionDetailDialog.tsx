@@ -16,19 +16,12 @@ import { Badge } from "@/components/ui/badge";
 import { Trash2, Printer, Clock } from "lucide-react";
 import { usePrintStore } from "@/lib/print-store";
 import { ScrollArea } from "./ui/scroll-area";
+import { formatIDR as formatCurrency } from "@/lib/format";
 
 interface TransactionDetailDialogProps {
     transaction: Transaction | null;
     onOpenChange: (isOpen: boolean) => void;
 }
-
-const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('id-ID', {
-        style: 'currency',
-        currency: 'IDR',
-        minimumFractionDigits: 0,
-    }).format(amount);
-};
 
 function TransactionDetailDialog({ transaction, onOpenChange }: TransactionDetailDialogProps) {
     const { shifts } = useStore();
@@ -101,10 +94,10 @@ function TransactionDetailDialog({ transaction, onOpenChange }: TransactionDetai
                                 {transaction.items.map((item, index) => (
                                     <div key={`${item.id}-${index}`} className="flex justify-between items-start p-3 border-b last:border-none">
                                         <div className="flex-1">
-                                            <p className="font-medium text-sm">{item.product_snapshot.name}</p>
+                                            <p className="font-medium text-sm">{item.product_snapshot.name} {item.is_free_item && <Badge variant="secondary" className="ml-1">GRATIS</Badge>}</p>
                                             <p className="text-xs text-muted-foreground">{item.qty} x {formatCurrency(item.price_snapshot)}</p>
                                         </div>
-                                        <p className="font-medium text-sm">{formatCurrency(item.subtotal)}</p>
+                                        <p className="font-medium text-sm">{formatCurrency((item.subtotal || 0) - (item.discount_amount || 0))}</p>
                                     </div>
                                 ))}
                                 </div>
@@ -115,6 +108,9 @@ function TransactionDetailDialog({ transaction, onOpenChange }: TransactionDetai
                                 <h4 className="font-semibold text-sm">Ringkasan</h4>
                                 <div className="border rounded-lg p-4 space-y-2 text-sm">
                                     <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span className="font-medium">{formatCurrency(transaction.subtotal)}</span></div>
+                                    {transaction.discount_total ? (
+                                        <div className="flex justify-between text-green-600 dark:text-green-400"><span className="text-muted-foreground">Diskon</span><span className="font-medium">-{formatCurrency(transaction.discount_total)}</span></div>
+                                    ) : null}
                                     <div className="flex justify-between"><span className="text-muted-foreground">Pajak</span><span className="font-medium">{formatCurrency(transaction.tax_amount)}</span></div>
                                     <Separator/>
                                     <div className="flex justify-between text-base font-bold"><span>Total</span><span>{formatCurrency(transaction.total)}</span></div>

@@ -1,4 +1,5 @@
 import { useStore } from '@/lib/store';
+import { formatIDR as formatCurrency } from "@/lib/format";
 import { Transaction } from '@/lib/types';
 import { ScrollArea } from './ui/scroll-area';
 import { ReceiptText } from 'lucide-react';
@@ -9,13 +10,7 @@ interface TransactionDisplayProps {
     onSelectTransaction: (transaction: Transaction) => void;
 }
 
-const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR',
-      minimumFractionDigits: 0,
-    }).format(amount);
-};
+
 
 
 export function TransactionDisplay({ onSelectTransaction }: TransactionDisplayProps) {

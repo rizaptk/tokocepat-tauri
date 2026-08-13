@@ -230,6 +230,7 @@ export function TaxSettingsForm() {
                         variant="ghost"
                         size="icon"
                         className="text-destructive"
+                        aria-label="Hapus kategori pajak"
                         onClick={() => remove(index)}
                       >
                         <Trash2 className="h-4 w-4" />

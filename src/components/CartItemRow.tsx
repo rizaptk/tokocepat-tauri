@@ -5,6 +5,8 @@ import { cn } from '@/lib/utils';
 import { Button } from './ui/button';
 import { Trash2, Minus, Plus } from 'lucide-react';
 import { useIsMobile } from '@/lib/ismobile-store';
+import { formatIDR as formatCurrency } from '@/lib/format';
+import { usePrefersReducedMotion } from '@/hooks/usePrefersReducedMotion';
 
 interface CartItemRowProps {
     item: CartItem;
@@ -12,15 +14,8 @@ interface CartItemRowProps {
     isReadOnly?: boolean;
 }
 
-const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('id-ID', {
-        style: 'currency',
-        currency: 'IDR',
-        minimumFractionDigits: 0,
-    }).format(amount);
-};
-
 export const CartItemRow = ({ item, onEditItem, isReadOnly = false }: CartItemRowProps) => {
+    const reducedMotion = usePrefersReducedMotion();
     const removeFromCart = useStore((state) => state.removeFromCart);
     const updateQuantity = useStore((state) => state.updateQuantity);
     const { isMobile } = useIsMobile();
@@ -48,7 +43,7 @@ export const CartItemRow = ({ item, onEditItem, isReadOnly = false }: CartItemRo
             )}
 
             <motion.div
-                drag={isMobile && !isReadOnly ? "x" : false}
+                drag={isMobile && !isReadOnly && !reducedMotion ? "x" : false}
                 dragConstraints={{ left: 0, right: 0 }}
                 dragElastic={{ left: 0.5, right: 0 }}
                 onDragEnd={(_, info) => {
@@ -63,7 +58,7 @@ export const CartItemRow = ({ item, onEditItem, isReadOnly = false }: CartItemRo
                 onClick={() => onEditItem && !isReadOnly && onEditItem(item)}
             >
                 <div className="flex-1 space-y-1">
-                    <p className="font-medium leading-tight mt-1">{item.name} {item.selectedVariant ? `(${item.selectedVariant.name})` : ''}</p>
+                    <p className="font-medium leading-tight mt-1">{item.name} {item.brand && <span className="text-muted-foreground font-normal">· {item.brand}</span>} {item.selectedVariant ? `(${item.selectedVariant.name})` : ''}</p>
                     <p className="text-sm text-muted-foreground md:hidden">
                         {item.quantity} x {formatCurrency(item.price)}
                     </p>
@@ -73,6 +68,7 @@ export const CartItemRow = ({ item, onEditItem, isReadOnly = false }: CartItemRo
                         variant="ghost"
                         size="icon"
                         className="h-8 w-8 rounded-full opacity-40 hover:opacity-100"
+                        aria-label={`Kurangi jumlah ${item.name}`}
                         onClick={() => updateQuantity(item.cartItemId, Math.max(1, item.quantity - 1))}
                         disabled={item.quantity <= 1 || isReadOnly}
                     >
@@ -83,6 +79,7 @@ export const CartItemRow = ({ item, onEditItem, isReadOnly = false }: CartItemRo
                         variant="ghost" 
                         size="icon" 
                         className="h-8 w-8 rounded-full opacity-40 hover:opacity-100" 
+                        aria-label={`Tambah jumlah ${item.name}`}
                         onClick={() => updateQuantity(item.cartItemId, item.quantity + 1)}
                         disabled={isReadOnly}
                     >
@@ -97,6 +94,7 @@ export const CartItemRow = ({ item, onEditItem, isReadOnly = false }: CartItemRo
                         variant="ghost" 
                         size="icon" 
                         className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive rounded-full" 
+                        aria-label={`Hapus ${item.name}`}
                         onClick={() => removeFromCart(item.cartItemId)}
                         disabled={isReadOnly}
                     >

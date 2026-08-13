@@ -1,4 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom';
+import { formatIDR as formatCurrency } from "@/lib/format";
 import * as React from 'react';
 import { useState, useMemo, useEffect } from 'react';
 import { DateRange } from 'react-day-picker';
@@ -19,13 +20,7 @@ import { DeviceScopeFilter } from '@/components/DeviceScopeFilter';
 import { NotificationBell } from '@/components/NotificationBell';
 import { ThemeToggle } from '@/components/ThemeButtons';
 
-const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('id-ID', {
-        style: 'currency',
-        currency: 'IDR',
-        minimumFractionDigits: 0,
-    }).format(amount);
-};
+
 
 export default function AuditReportPage() {
     const [date, setDate] = React.useState<DateRange | undefined>({
@@ -90,8 +85,9 @@ export default function AuditReportPage() {
                 });
             });
 
-            // Profit = Subtotal (Omzet Netto) - Total Costs (COGS + Payouts)
-            const paperProfit = subtotal - (standardHPP + consignmentPayout);
+            // Profit = Subtotal (Omzet Netto) - Discounts - Total Costs (COGS + Payouts)
+            const discounts = shiftTx.reduce((sum, tx) => sum + (tx.discount_total || 0), 0);
+            const paperProfit = subtotal - discounts - (standardHPP + consignmentPayout);
             const variance = shift.variance || 0;
             const actualProfit = paperProfit + variance; // Adjust profit by cash register variance
 

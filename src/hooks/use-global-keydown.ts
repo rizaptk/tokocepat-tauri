@@ -35,11 +35,13 @@ export function useGlobalKeydown({ key, handler, enabled = true, bindTo }: Props
                 }
             }
             
-            // Don't trigger if user is typing in an input or textarea, unless it's explicitly allowed
+            // Don't trigger if user is typing in an input or textarea, unless it's explicitly allowed.
+            // Function keys (F1-F12) never produce characters, so they are always safe to let through.
             const target = event.target as HTMLElement;
+            const isFunctionKey = /^F([1-9]|1[0-2])$/.test(event.code);
             if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
                 const enableGlobal = target.attributes.getNamedItem('enable-global-keydown')?.value === 'true';
-                if (!enableGlobal) return;
+                if (!enableGlobal && !isFunctionKey) return;
             }
 
             if (event.code.toLowerCase() === key.toLowerCase()) {

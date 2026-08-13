@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
+import { formatIDR as formatCurrency } from "@/lib/format";
 import { Product, ProductVariant } from '@/lib/types';
 import { useStore } from '@/lib/store';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter } from '@/components/ui/sheet';
@@ -68,13 +69,7 @@ export function VariantPanel({ item, onOpenChange, onConfirm }: VariantPanelProp
         bindTo: contentRef,
     });
     
-    const formatCurrency = (amount: number) => {
-        return new Intl.NumberFormat('id-ID', {
-          style: 'currency',
-          currency: 'IDR',
-          minimumFractionDigits: 0,
-        }).format(amount);
-    };
+    
 
     return (
         <Sheet open={!!item} onOpenChange={onOpenChange}>

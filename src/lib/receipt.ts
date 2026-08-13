@@ -1,6 +1,6 @@
 /** @ts-ignore - No types available for this package */
 import ReceiptPrinterEncoder from '@point-of-sale/receipt-printer-encoder';
-import { Transaction, StoreConfig } from './types';
+import { Transaction, StoreConfig, AppliedPromoRecord } from './types';
 import type { PaperWidth } from './print-detect-store';
 
 const formatCurrency = (amount: number) => {
@@ -79,7 +79,8 @@ export function generateReceiptBinary(
         const rate = getTaxRateForItem(item, storeConfig);
         const current = taxGroups.get(rate) || { taxableAmount: 0, taxAmount: 0 };
         
-        const itemTaxable = item.subtotal;
+        // Tax base = net charged amount (gross minus discounts / free units)
+        const itemTaxable = (item.subtotal || 0) - (item.discount_amount || 0);
         const itemTax = itemTaxable * rate;
 
         taxGroups.set(rate, {
@@ -119,18 +120,35 @@ export function generateReceiptBinary(
         // Product Name (truncated to width, keep it on a single line)
         encoder.line(fit(receiptWidth, item.product_snapshot.name));
 
-        // Price details
-        // Format: "1 x 10.000             10.000"
+        // Price details — show the NET line total (gross minus discounts) so a
+        // discounted or free line prints what the customer actually paid.
         const qtyAndPrice = `${item.qty} x ${formatCurrency(item.price_snapshot)}`;
-        const totalItemPrice = formatCurrency(item.subtotal);
-        
-        encoder.line(twoCols(receiptWidth, qtyAndPrice, totalItemPrice));
+        const discount = item.discount_amount || 0;
+        const netItemTotal = item.subtotal - discount;
+        const lineTotal = item.is_free_item ? 0 : netItemTotal;
+
+        encoder.line(twoCols(receiptWidth, qtyAndPrice, formatCurrency(lineTotal)));
+        if (discount > 0) {
+            encoder.line(twoCols(receiptWidth, `   Diskon -${formatCurrency(discount)}`, ''));
+        }
     });
 
     encoder.rule({ char: '-' });
 
     // --- Totals ---
     encoder.line(twoCols(receiptWidth, 'Subtotal', formatCurrency(transaction.subtotal)))
+
+    // Discount lines (manual discount, voucher, free items from promos)
+    (transaction.applied_promos || []).forEach((p: AppliedPromoRecord) => {
+        if (p.amount > 0) {
+            const label = p.kind === 'manual' ? 'Diskon Kasir' : p.name;
+            const suffix = p.voucher_code ? ` (${p.voucher_code})` : '';
+            encoder.line(twoCols(receiptWidth, `${label}${suffix}`, `-${formatCurrency(p.amount)}`));
+        }
+    });
+    if (!transaction.applied_promos?.length && (transaction.discount_total || 0) > 0) {
+        encoder.line(twoCols(receiptWidth, 'Diskon', `-${formatCurrency(transaction.discount_total || 0)}`));
+    }
 
     // Print each tax rate found
     taxGroups.forEach((data, rate) => {

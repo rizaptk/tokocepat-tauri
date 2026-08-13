@@ -20,8 +20,7 @@ import { useDeviceScope } from '@/hooks/useDeviceScope';
 import { DeviceScopeFilter } from '@/components/DeviceScopeFilter';
 import { ThemeToggle } from '@/components/ThemeButtons';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-
-const formatCurrency = (val: number) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(val);
+import { formatIDR as formatCurrency } from "@/lib/format";
 
 export default function TaxReportPage() {
     const { storeConfig } = useStore();
@@ -59,7 +58,8 @@ export default function TaxReportPage() {
                 if (catOverride) rate = catOverride.tax_rate;
 
                 // --- CONSIGNMENT TAX BASE ADJUSTMENT ---
-                let taxableBase = item.subtotal;
+                // Base = NET charged (gross minus per-unit discount / free units)
+                let taxableBase = (item.subtotal || 0) - (item.discount_amount || 0);
                 const isConsignment = item.product_snapshot.is_consignment;
                 
                 if (isConsignment) {
@@ -97,11 +97,11 @@ export default function TaxReportPage() {
             };
 
             if (tx.status === 'paid') {
-                current.taxableBase += tx.subtotal;
+                current.taxableBase += tx.subtotal - (tx.discount_total || 0);
                 current.taxCollected += tx.tax_amount;
                 current.netTaxOwed += tx.tax_amount;
             } else if (tx.status === 'voided') {
-                current.taxableBase -= tx.subtotal; // Reflect actual realized liability
+                current.taxableBase -= (tx.subtotal || 0) - (tx.discount_total || 0); // Reflect actual realized liability
                 current.taxVoided += tx.tax_amount;
                 current.netTaxOwed -= tx.tax_amount;
             }

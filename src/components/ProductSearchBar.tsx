@@ -11,9 +11,11 @@ interface ProductSearchBarProps {
     viewMode?: ViewMode;
     onViewModeChange?: (mode: ViewMode) => void;
     onBarcodeScan?: (barcode: string) => void;
+    /** Called when ArrowDown/ArrowUp is pressed so the parent can jump focus into its list/table. */
+    onArrowNav?: (direction: 'down' | 'up') => void;
 }
 
-export const ProductSearchBar = React.memo(({ viewMode, onViewModeChange, onBarcodeScan }: ProductSearchBarProps) => {
+export const ProductSearchBar = React.memo(({ viewMode, onViewModeChange, onBarcodeScan, onArrowNav }: ProductSearchBarProps) => {
     const [localValue, setLocalValue] = useState('');
     const [lastInputTime, setLastInputTime] = useState(0);
     const { clearActive } = useActiveProduct();
@@ -33,6 +35,13 @@ export const ProductSearchBar = React.memo(({ viewMode, onViewModeChange, onBarc
     };
 
     const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+            if (onArrowNav) {
+                e.preventDefault();
+                onArrowNav(e.key === 'ArrowDown' ? 'down' : 'up');
+            }
+            return;
+        }
         if (e.key === 'Enter' && localValue.trim() && onBarcodeScan) {
             const now = Date.now();
             const timeDiff = now - lastInputTime;
@@ -73,7 +82,7 @@ export const ProductSearchBar = React.memo(({ viewMode, onViewModeChange, onBarc
             {viewMode && onViewModeChange && (
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                        <Button variant="secondary" size="icon" className="shrink-0 h-8 w-8">
+                        <Button variant="secondary" size="icon" className="shrink-0 h-8 w-8" aria-label="Ubah tampilan pencarian">
                            <SlidersHorizontal className="h-4 w-4" />
                         </Button>
                     </DropdownMenuTrigger>

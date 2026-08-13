@@ -1,4 +1,5 @@
 import { useStore } from "@/lib/store";
+import { formatIDR as formatCurrency } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { ScrollArea, ScrollAreaHandle } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
@@ -6,7 +7,7 @@ import { ParkingSquare, ShoppingCart, ReceiptText, Trash2, X } from "lucide-reac
 import { useEffect, useRef, useState, useMemo } from "react";
 import { PaymentModal } from "./PaymentModal";
 import { useToast } from "@/hooks/use-toast";
-import { CartItem, Transaction, StoreConfig } from "@/lib/types";
+import { CartItem, Transaction } from "@/lib/types";
 import { AnimatePresence } from 'framer-motion';
 import { CartItemRow } from './CartItemRow';
 import { TransactionDisplay } from './TransactionDisplay';
@@ -16,35 +17,15 @@ import { Label } from "./ui/label";
 import { voidTransaction } from "@/services/transactionService";
 import { Badge } from "./ui/badge";
 import { useGlobalKeydown } from "@/hooks/use-global-keydown";
-
-// Helper function for tax calculation
-const getTaxRateForItem = (item: CartItem, storeConfig: StoreConfig): number => {
-    const { tax_settings, tax_rate } = storeConfig;
-
-    if (!tax_settings) {
-        return tax_rate; // Fallback to old system
-    }
-
-    // 1. Check for category override
-    if (item.category_id) {
-        const categoryOverride = tax_settings.category_overrides.find(
-            co => co.category_id === item.category_id
-        );
-        if (categoryOverride && typeof categoryOverride.tax_rate === 'number') {
-            return categoryOverride.tax_rate;
-        }
-    }
-
-    // 2. Fallback to default rate from new system
-    return tax_settings.default_rate;
-};
+import { evaluateDiscounts } from "@/services/promoService";
+import { getTaxRateForItem } from "@/lib/pricing";
 
 interface CartDisplayProps {
     onEditItem?: (item: CartItem) => void;
 }
 
 export function CartDisplay({ onEditItem }: CartDisplayProps) {
-  const { cart, transactions, activeShift, parkCart, storeConfig } = useStore();
+  const { cart, transactions, activeShift, parkCart, storeConfig, promos } = useStore();
   const { toast } = useToast();
 
   const [view, setView] = useState<'cart' | 'history'>('cart');
@@ -67,28 +48,30 @@ export function CartDisplay({ onEditItem }: CartDisplayProps) {
   const itemsToDisplay = isReviewing ? reviewedItems : cart;
 
   // Calculate totals based on the currently displayed items (either real cart or reviewed transaction)
-  const { subtotal, tax, total } = useMemo(() => {
+  const { subtotal, tax, total, discountTotal } = useMemo(() => {
     const currentItems = isReviewing ? reviewedItems : cart;
+    if (!isReviewing && storeConfig && currentItems.length > 0) {
+      const result = evaluateDiscounts(currentItems, storeConfig, promos);
+      return {
+        subtotal: result.grossSubtotal,
+        tax: result.taxAmount,
+        total: result.total,
+        discountTotal: result.discountTotal,
+      };
+    }
+
     const sub = currentItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
-    
     const taxAmount = currentItems.reduce((taxSum, item) => {
         if (!storeConfig) return taxSum + (item.price * item.quantity * 0.11); // Fallback
-        const itemTaxRate = getTaxRateForItem(item, storeConfig);
-        const itemTotal = item.price * item.quantity;
-        return taxSum + (itemTotal * itemTaxRate);
+        const rate = getTaxRateForItem(item, storeConfig);
+        return taxSum + (item.price * item.quantity * rate);
     }, 0);
 
     const totalAmount = sub + taxAmount;
-    return { subtotal: sub, tax: taxAmount, total: totalAmount };
-  }, [isReviewing, reviewedItems, cart, storeConfig]);
+    return { subtotal: sub, tax: taxAmount, total: totalAmount, discountTotal: 0 };
+  }, [isReviewing, reviewedItems, cart, storeConfig, promos]);
   
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR',
-      minimumFractionDigits: 0,
-    }).format(amount);
-  };
+  
 
   const handleProcessPayment = () => {
     if (!activeShift) {
@@ -174,12 +157,12 @@ export function CartDisplay({ onEditItem }: CartDisplayProps) {
   return (
     <div ref={cartDisplayRef} className="flex flex-col flex-1 h-full min-h-0">
       <header className="hidden md:flex h-11 items-center justify-between px-3 shrink-0 gap-1.5">
-        <Button variant={view === 'cart' ? 'secondary' : 'ghost'} onClick={() => setView('cart')} className="flex-1">
+        <Button variant={view === 'cart' ? 'secondary' : 'ghost'} aria-pressed={view === 'cart'} onClick={() => setView('cart')} className="flex-1">
             <ShoppingCart className="mr-2 h-4 w-4" />
             Keranjang
             {cartItemCount > 0 && !isReviewing && <Badge className="ml-2">{cartItemCount}</Badge>}
         </Button>
-        <Button variant={view === 'history' ? 'secondary' : 'ghost'} onClick={() => setView('history')} className="flex-1">
+        <Button variant={view === 'history' ? 'secondary' : 'ghost'} aria-pressed={view === 'history'} onClick={() => setView('history')} className="flex-1">
             <ReceiptText className="mr-2 h-4 w-4" />
             Riwayat
             {shiftTransactions.length > 0 && <Badge variant="success" className="ml-2">{shiftTransactions.length}</Badge>}
@@ -225,6 +208,12 @@ export function CartDisplay({ onEditItem }: CartDisplayProps) {
                         <span>Subtotal</span>
                         <span>{formatCurrency(subtotal)}</span>
                     </div>
+                    {discountTotal > 0 && (
+                        <div className="flex justify-between text-green-600 dark:text-green-400">
+                            <span>Diskon</span>
+                            <span className="font-medium">-{formatCurrency(discountTotal)}</span>
+                        </div>
+                    )}
                     <div className="flex justify-between">
                         <span>Pajak</span>
                         <span>{formatCurrency(tax)}</span>

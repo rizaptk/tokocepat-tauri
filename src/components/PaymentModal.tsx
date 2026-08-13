@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
+import { formatIDR as formatCurrency } from "@/lib/format";
 import {
   Dialog,
   DialogContent,
@@ -43,13 +44,7 @@ export function PaymentModal({ isOpen, setIsOpen, total }: PaymentModalProps) {
 
   useGlobalNumberInputFix();
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR',
-      minimumFractionDigits: 0,
-    }).format(amount);
-  };
+  
 
   const suggestions = useMemo(() => {
     if (!total || total <= 0) return [];

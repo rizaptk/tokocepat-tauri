@@ -7,6 +7,7 @@ import {
     BarChart as BarChartIcon,
     Settings,
     ShieldAlert,
+    Gift,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/lib/ismobile-store';
@@ -21,6 +22,7 @@ const navItems = [
     { href: '/cashier', label: 'Kasir', icon: ShoppingCart },
     { href: '/product', label: 'Produk', icon: Package },
     { href: '/inventory', label: 'Inventori', icon: Warehouse },
+    { href: '/dashboard/promos', label: 'Promo', icon: Gift },
     { href: '/dashboard/reports', label: 'Laporan', icon: BarChartIcon },
     { href: '/dashboard/settings', label: 'Pengaturan', icon: Settings },
 ];
@@ -60,7 +62,9 @@ export function SideNav() {
 
     return (
 <aside className="fixed left-0 top-0 z-40 flex h-full w-12 flex-col border-r border-sidebar-border bg-sidebar bg-opacity-95 backdrop-blur-xl">
-            <nav className="flex h-full flex-col items-center justify-center">
+            <div aria-hidden className="aurora-rail pointer-events-none absolute inset-0" />
+            <div aria-hidden className="gloss-chrome pointer-events-none absolute inset-x-0 top-0 h-px" />
+            <nav className="relative flex h-full flex-col items-center justify-center">
                 <TooltipProvider>
                     <div className="flex flex-col items-center gap-1.5 px-1.5 py-3">
                         {filteredNav.map((item) => (
@@ -69,7 +73,7 @@ export function SideNav() {
                                     <Link
                                         to={item.href}
                                         className={cn(
-                                            "group relative flex h-9 w-9 shrink-0 items-center justify-center rounded-lg",
+                                            "group relative flex h-9 w-9 shrink-0 items-center justify-center rounded-[2px]",
                                             "transition-colors duration-150",
                                             isActive(item.href)
                                                 ? "text-sidebar-active-foreground"
@@ -79,7 +83,7 @@ export function SideNav() {
                                         {isActive(item.href) && (
                                             <motion.div
                                                 layoutId="active-nav-bg"
-                                                className="absolute inset-0 rounded-lg bg-sidebar-active"
+                                                className="absolute inset-0 rounded-[2px] bg-sidebar-active"
                                                 transition={{ type: "spring", stiffness: 400, damping: 30 }}
                                             />
                                         )}
@@ -102,14 +106,14 @@ export function SideNav() {
                             <Tooltip key="license">
                                 <TooltipTrigger asChild>
                                     <Link to="/license" className={cn(
-                                            "group relative flex h-9 w-9 shrink-0 items-center justify-center rounded-lg",
+                                            "group relative flex h-9 w-9 shrink-0 items-center justify-center rounded-[2px]",
                                             "transition-colors duration-150",
                                             "text-sidebar-muted hover:bg-sidebar-hover hover:text-sidebar-foreground"
                                         )}>
                                             {isActive('/license') && (
                                                 <motion.div
                                                     layoutId="active-nav-bg"
-                                                    className="absolute inset-0 rounded-lg bg-sidebar-active"
+                                                    className="absolute inset-0 rounded-[2px] bg-sidebar-active"
                                                     transition={{ type: "spring", stiffness: 400, damping: 30 }}
                                                 />
                                             )}

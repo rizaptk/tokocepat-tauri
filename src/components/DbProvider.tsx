@@ -6,7 +6,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { 
     Product, ProductVariant, 
     Shift, StoreConfig, Category, PendingCart, 
-    CustomAccessType
+    CustomAccessType, Promotion
 } from '@/lib/types';
 import { TokoCepatLogo } from "./TokoCepatLogo";
 import { generateDeviceFingerprint } from "@/lib/security";
@@ -16,7 +16,7 @@ export function DbProvider({ children }: { children: React.ReactNode }) {
     const { 
         setProducts, setProductVariants, 
         setShifts, setStoreConfig, setCustomAccess,
-        setCategories, setPendingCarts
+        setCategories, setPendingCarts, setPromos
     } = useStore();
     
     const [isDataLoaded, setIsDataLoaded] = useState(false);
@@ -91,6 +91,11 @@ export function DbProvider({ children }: { children: React.ReactNode }) {
                 // Active Carts
                 subscribe(onSnapshot(collection(db, 'pending_carts'), (snap: any) => {
                     setPendingCarts(snap.docs.map((d: any) => d.data() as PendingCart));
+                }));
+
+                // Promotions & vouchers (discount engine rules)
+                subscribe(onSnapshot(collection(db, 'promos'), (snap: any) => {
+                    setPromos(snap.docs.map((d: any) => d.data() as Promotion));
                 }));
 
                 // Current Shifts

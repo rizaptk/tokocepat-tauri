@@ -30,6 +30,7 @@ import { NotificationBell } from "@/components/NotificationBell";
 import { ThemeToggle } from "@/components/ThemeButtons";
 import { itemMapping } from "@/lib/utils"; 
 import { motion, AnimatePresence } from "framer-motion";
+import { usePrefersReducedMotion } from "@/hooks/usePrefersReducedMotion";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ProductForm } from "@/pages/Product/_components/ProductForm"; 
 
@@ -312,15 +313,15 @@ const StockAdjustmentPanel = memo(({ selectedItem, onSave, onCancel }: { selecte
                                         <div>
                                             <Label>Aksi?</Label>
                                             <ButtonGroup className="w-full mt-2">
-                                                <Button variant={mode === 'add' ? 'success' : 'outline'} onClick={() => setMode('add')} className="flex-1 h-10">
+                                                <Button variant={mode === 'add' ? 'success' : 'outline'} aria-pressed={mode === 'add'} onClick={() => setMode('add')} className="flex-1 h-10">
                                                     <Plus className="w-4 h-4" />
                                                     <span className="text-xs">Tambah</span>
                                                 </Button>
-                                                <Button variant={mode === 'remove' ? 'destructive' : 'outline'} onClick={() => setMode('remove')} className="flex-1 h-10">
+                                                <Button variant={mode === 'remove' ? 'destructive' : 'outline'} aria-pressed={mode === 'remove'} onClick={() => setMode('remove')} className="flex-1 h-10">
                                                     <Minus className="w-4 h-4" />
                                                     <span className="text-xs">Kurang</span>
                                                 </Button>
-                                                <Button variant={mode === 'count' ? 'default' : 'outline'} onClick={() => setMode('count')} className="flex-1 h-10">
+                                                <Button variant={mode === 'count' ? 'default' : 'outline'} aria-pressed={mode === 'count'} onClick={() => setMode('count')} className="flex-1 h-10">
                                                     <Calculator className="w-4 h-4" />
                                                     <span className="text-xs">Koreksi</span>
                                                 </Button>
@@ -424,6 +425,7 @@ const StockAdjustmentPanel = memo(({ selectedItem, onSave, onCancel }: { selecte
 
 const ColumnClass = {
     name: "flex items-center gap-2 flex-1 min-w-0 h-full",
+    brand: "hidden sm:flex items-center text-sm text-muted-foreground truncate max-w-[150px] w-[150px] px-2 border-l border-l-border/50 h-full",
     category: "hidden md:flex items-center text-sm text-muted-foreground truncate max-w-[160px] w-[160px] px-2 border-l border-l-border/50 h-full",
     stock: "flex flex-col items-end justify-center shrink-0 text-right tabular-nums whitespace-nowrap w-24 border-l border-l-border/50 h-full px-2"
 }
@@ -436,6 +438,14 @@ const InventoryListItem = ({ item, isSelected, onItemClick, onShowDetail, catego
     } else if (item.itemType === 'variant') {
         const parent = useStore.getState().products.find(p => p.id === item.product_id);
         categoryName = parent ? categories.find(c => c.id === parent.category_id)?.name || 'N/A' : 'N/A';
+    }
+
+    let brand = '';
+    if (item.itemType === 'product') {
+        brand = (item as Product).brand || '';
+    } else {
+        const parent = useStore.getState().products.find(p => p.id === (item as ProductVariant).product_id);
+        brand = parent?.brand || '';
     }
 
     let displayName = item.name;
@@ -459,8 +469,11 @@ const InventoryListItem = ({ item, isSelected, onItemClick, onShowDetail, catego
                 data-item
                 onClick={() => onItemClick(item)}
                 onDoubleClick={() => onShowDetail(item)}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onItemClick(item); } }}
+                role="button"
+                tabIndex={0}
                 className={cn(
-                    "group flex items-center px-4 transition-colors cursor-pointer  hover:bg-accent h-12",
+                    "group flex items-center px-4 transition-colors cursor-pointer  hover:bg-accent h-12 focus:outline-none focus-visible:bg-accent",
                     isSelected ? "bg-primary/10 text-primary ring-1 ring-inset ring-primary" : isEven ? 'bg-border/10' : ''
                 )}
             >
@@ -472,10 +485,13 @@ const InventoryListItem = ({ item, isSelected, onItemClick, onShowDetail, catego
                         </span>
                     )}
                 </div>
+                <div className={ColumnClass.brand}>
+                    <span className={cn("truncate", !brand && "text-muted-foreground/40")}>{brand || '—'}</span>
+                </div>
                 <div className={ColumnClass.category}>
                     <span className="truncate">{categoryName}</span>
                 </div>
-                <div className={ColumnClass.stock} title="Klik untuk menyesuaikan stok" onClick={() => onItemClick(item)} role="button" tabIndex={-1}>
+                <div className={ColumnClass.stock} title="Klik untuk menyesuaikan stok">
                     <p className="font-bold text-base group-hover:text-primary transition-colors">{item.stock}</p>
                 </div>
             </div>
@@ -485,6 +501,7 @@ const InventoryListItem = ({ item, isSelected, onItemClick, onShowDetail, catego
 
 
 export default function InventoryPage() {
+    const reducedMotion = usePrefersReducedMotion();
     const { products, categories, productVariants } = useStore();
     const { toast } = useToast();
     const [selectedItem, setSelectedItem] = useState<{ id: string; type: 'product' | 'variant' } | null>(null);
@@ -639,6 +656,17 @@ export default function InventoryPage() {
         }
     };
 
+    // Jump keyboard focus from the search bar into the inventory table.
+    const handleInventoryArrowNav = (dir: 'down' | 'up') => {
+        if (inventoryItems.length === 0) return;
+        const targetIdx = dir === 'down' ? 0 : inventoryItems.length - 1;
+        if (!selectedItem) {
+            handleItemSelect(inventoryItems[targetIdx]);
+        }
+        listRef.current?.scrollToItem(targetIdx);
+        containerRef.current?.focus();
+    };
+
     const handleOpenAdjustmentSheet = () => {
         setSelectedItem(null);
         setIsSheetOpen(true);
@@ -681,7 +709,7 @@ export default function InventoryPage() {
 
     return (
         <div className="flex flex-col h-full min-h-0">
-            <header className="sticky top-0 z-20 flex h-12 items-center gap-4 px-4 justify-between border-b border-border/60 bg-background/80 backdrop-blur-md">
+            <header className="sticky top-0 z-20 flex h-10 items-center gap-4 px-4 justify-between border-b border-border/60 bg-background/80 backdrop-blur-md">
                 <Link to="/">
                     <TokoCepatLogo />
                 </Link>
@@ -697,6 +725,7 @@ export default function InventoryPage() {
                             <div className="grow">
                                 <ProductSearchBar
                                     onBarcodeScan={handleBarcodeScan}
+                                    onArrowNav={handleInventoryArrowNav}
                                 />
                             </div>
                             <div className="md:hidden">
@@ -706,16 +735,16 @@ export default function InventoryPage() {
                             </div>
                         </div>
                         <div className="flex items-center gap-4 overflow-x-auto no-scrollbar">
-                            <Button variant={filter === 'all' ? 'secondary' : 'outline'} onClick={() => setFilter('all')} className="rounded-md px-3 shrink-0">All</Button>
-                            <Button variant={filter === 'product' ? 'secondary' : 'outline'} onClick={() => setFilter('product')} className="rounded-md px-3 shrink-0">Produk</Button>
+                            <Button variant={filter === 'all' ? 'secondary' : 'outline'} aria-pressed={filter === 'all'} onClick={() => setFilter('all')} className="rounded-md px-3 shrink-0">All</Button>
+                            <Button variant={filter === 'product' ? 'secondary' : 'outline'} aria-pressed={filter === 'product'} onClick={() => setFilter('product')} className="rounded-md px-3 shrink-0">Produk</Button>
                             {/* Consignment inventory filter */}
-                            <Button variant={filter === 'consignment' ? 'secondary' : 'outline'} onClick={() => setFilter('consignment')} className="rounded-md px-3 shrink-0">Titipan / Konsinyasi</Button>
-                            <Button variant={filter === 'variant' ? 'secondary' : 'outline'} onClick={() => setFilter('variant')} className="rounded-md px-3 shrink-0">Varian</Button>
+                            <Button variant={filter === 'consignment' ? 'secondary' : 'outline'} aria-pressed={filter === 'consignment'} onClick={() => setFilter('consignment')} className="rounded-md px-3 shrink-0">Titipan / Konsinyasi</Button>
+                            <Button variant={filter === 'variant' ? 'secondary' : 'outline'} aria-pressed={filter === 'variant'} onClick={() => setFilter('variant')} className="rounded-md px-3 shrink-0">Varian</Button>
                             
                             <Separator orientation="vertical" />
 
-                            <Button variant={filter === 'low_stock' ? 'secondary' : 'outline'} onClick={() => setFilter('low_stock')} className="rounded-md px-3 shrink-0">Stok Tipis</Button>
-                            <Button variant={filter === 'out_of_stock' ? 'secondary' : 'outline'} onClick={() => setFilter('out_of_stock')} className="rounded-md px-3 shrink-0">Habis</Button>
+                            <Button variant={filter === 'low_stock' ? 'secondary' : 'outline'} aria-pressed={filter === 'low_stock'} onClick={() => setFilter('low_stock')} className="rounded-md px-3 shrink-0">Stok Tipis</Button>
+                            <Button variant={filter === 'out_of_stock' ? 'secondary' : 'outline'} aria-pressed={filter === 'out_of_stock'} onClick={() => setFilter('out_of_stock')} className="rounded-md px-3 shrink-0">Habis</Button>
                         </div>
                     </div>
                     <div className="flex-1 bg-background h-full min-h-0 flex flex-col">
@@ -725,6 +754,9 @@ export default function InventoryPage() {
                                     <div className="rounded-t-lg h-10 w-full border bg-card flex items-center px-4">
                                         <div className={ColumnClass.name}>
                                             <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Nama Item</span>
+                                        </div>
+                                        <div className={ColumnClass.brand}>
+                                            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Merek</span>
                                         </div>
                                         <div className={ColumnClass.category}>
                                             <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Kategori</span>
@@ -771,10 +803,10 @@ export default function InventoryPage() {
                     <AnimatePresence mode="wait" initial={false}>
                         <motion.div
                             key={selectedItem ? `${selectedItem.type}-${selectedItem.id}` : 'none'}
-                            initial={{ opacity: 0, x: 24 }}
+                            initial={{ opacity: 0, x: reducedMotion ? 0 : 24 }}
                             animate={{ opacity: 1, x: 0 }}
-                            exit={{ opacity: 0, x: 24 }}
-                            transition={{ duration: 0.18, ease: 'easeOut' }}
+                            exit={{ opacity: 0, x: reducedMotion ? 0 : 24 }}
+                            transition={reducedMotion ? { duration: 0 } : { duration: 0.18, ease: 'easeOut' }}
                             className="h-full min-h-0"
                         >
                             <StockAdjustmentPanel onSave={handleSave} onCancel={handleCancel} selectedItem={selectedItem} />
@@ -790,10 +822,10 @@ export default function InventoryPage() {
                         <AnimatePresence mode="wait" initial={false}>
                             <motion.div
                                 key={selectedItem ? `${selectedItem.type}-${selectedItem.id}` : 'none'}
-                                initial={{ opacity: 0, x: 40 }}
+                                initial={{ opacity: 0, x: reducedMotion ? 0 : 40 }}
                                 animate={{ opacity: 1, x: 0 }}
-                                exit={{ opacity: 0, x: 40 }}
-                                transition={{ duration: 0.2, ease: 'easeOut' }}
+                                exit={{ opacity: 0, x: reducedMotion ? 0 : 40 }}
+                                transition={reducedMotion ? { duration: 0 } : { duration: 0.2, ease: 'easeOut' }}
                                 className="h-full min-h-0"
                             >
                                 <StockAdjustmentPanel onSave={handleSave} onCancel={handleCancel} selectedItem={selectedItem} />

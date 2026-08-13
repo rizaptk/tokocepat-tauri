@@ -114,13 +114,13 @@ export function SyncManager() {
                             <div className='flex items-center gap-2'>
                                 <Input type="text" size="sm" placeholder='Nama Perangkat' value={device} onChange={e => setDevice(e.target.value)} />
                                 <Button variant="outline" size="sm" onClick={() => setName(myHwid, device)}>Simpan</Button>
-                                <Button variant="ghost" size="sm" onClick={() =>setEditName(false)} title='Tutup'>
+                                <Button variant="ghost" size="sm" aria-label="Tutup" onClick={() =>setEditName(false)}>
                                     <X size="8" />
                                 </Button>
                             </div> :
                             <div className='flex items-center gap-2'>
                                 <span>{customAccess?.name??'Nama Perangkat'}</span>
-                                <Button variant="ghost" size="sm" onClick={() => setEditName(true)}>
+                                <Button variant="ghost" size="sm" aria-label="Ubah nama perangkat" onClick={() => setEditName(true)}>
                                     <PencilIcon size="8" />
                                 </Button>
                             </div>

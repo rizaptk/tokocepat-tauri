@@ -8,6 +8,7 @@ import React from "react";
 import { Checkbox } from "../ui/checkbox";
 import { useSelectedChecked } from "@/hooks/useDeferedCheck";
 import { useActiveProduct } from "@/lib/product-active-store";
+import { formatIDR as formatCurrency } from "@/lib/format";
 
 type ProductThumbnailItemProps = {
   product: Product;
@@ -51,13 +52,6 @@ export function ProductThumbnailItem({
     return h;
   }, [product.name]);
 
-  const formatCurrency = (amount: number) =>
-    new Intl.NumberFormat("id-ID", {
-      style: "currency",
-      currency: "IDR",
-      minimumFractionDigits: 0,
-    }).format(amount);
-
     
     const isOutOfStock = product.track_stock && product.stock <= 0;
     const isLowStock =
@@ -79,12 +73,13 @@ export function ProductThumbnailItem({
       ref={itemRef}
       style={style}
       onClick={handleSelect}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleSelect(); } }}
       role="button"
       tabIndex={not_allowed ? -1 : 0}
       aria-disabled={not_allowed}
       className={cn(
         "group flex items-center gap-3 px-3 py-1.5 transition-colors duration-100 border border-border bg-card h-16 rounded-md",
-        "hover:shadow-md",
+        "hover:border-primary/30",
         "active:ring-1 active:ring-inset active:ring-primary",
         isSelected && "bg-background",
         isActive && "ring-1 ring-primary ring-inset text-primary bg-primary/5",
@@ -136,6 +131,7 @@ export function ProductThumbnailItem({
         <div className="flex items-center gap-2">
           <p className="font-medium text-sm truncate">
             {product.name}
+            {product.brand && <span className="text-muted-foreground font-normal"> · {product.brand}</span>}
           </p>
         </div>
 

@@ -25,7 +25,7 @@ export function DeviceScopeFilter({ className }: DeviceScopeFilterProps) {
         <div className={className}>
             <Select value={scope} onValueChange={(v) => setScope(v)}>
                 <SelectTrigger className="w-full sm:w-52">
-                    <span className="flex min-w-0 items-center gap-2 pr-1">
+                    <span className="flex! min-w-0 flex-1 items-center gap-2 pr-1">
                         <MonitorIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
                         <SelectValue className="truncate min-w-0" placeholder="Perangkat" />
                     </span>

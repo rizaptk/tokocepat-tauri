@@ -1,7 +1,8 @@
-import { CartItem, Transaction, Shift, StoreConfig, StockMovement } from '@/lib/types';
+import { CartItem, Transaction, Shift, StoreConfig, StockMovement, Promotion } from '@/lib/types';
 import { useDbStore } from '@/lib/db-store';
 import { useStore } from '@/lib/store';
 import { toast } from '@/hooks/use-toast';
+import { evaluateDiscounts, DiscountOptions } from './promoService';
 
 export const getTransactionsByDateRange = async (from: Date, to: Date, device?: string | 'all'): Promise<Transaction[]> => {
     const { db, firesqlite } = useDbStore.getState();
@@ -88,28 +89,14 @@ export const getReturnsByOriginalTx = async (originalTransactionId: string): Pro
     return snapshot.docs.map((doc: any) => doc.data() as Transaction);
 };
 
-const getTaxRateForItem = (item: CartItem, storeConfig: StoreConfig): number => {
-    const { tax_settings, tax_rate } = storeConfig;
-
-    if (!tax_settings) {
-        return tax_rate; // Fallback to old system
-    }
-
-    // 1. Check for category override
-    if (item.category_id) {
-        const categoryOverride = tax_settings.category_overrides.find(
-            co => co.category_id === item.category_id
-        );
-        if (categoryOverride && typeof categoryOverride.tax_rate === 'number') {
-            return categoryOverride.tax_rate;
-        }
-    }
-
-    // 2. Fallback to default rate from new system
-    return tax_settings.default_rate;
-};
-
-export const createTransaction = async (cart: CartItem[], activeShift: Shift, storeConfig: StoreConfig, cashReceived: number): Promise<Transaction | null> => {
+export const createTransaction = async (
+    cart: CartItem[],
+    activeShift: Shift,
+    storeConfig: StoreConfig,
+    cashReceived: number,
+    promos: Promotion[] = [],
+    options: DiscountOptions = {}
+): Promise<Transaction | null> => {
     const { db, firesqlite } = useDbStore.getState();
 
     if (!activeShift) {
@@ -120,15 +107,37 @@ export const createTransaction = async (cart: CartItem[], activeShift: Shift, st
 
     const { doc, getDoc, setDoc, updateDoc } = firesqlite;
 
-    const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    // --- Authoritative voucher usage: count real (paid, non-void) redemptions
+    // directly from the DB so max_uses caps hold even across reboots/devices. ---
+    let usageCounts = options.usageCounts || {};
+    const voucherCodeRaw = (options.voucherCode || '').trim().toUpperCase();
+    if (voucherCodeRaw) {
+        try {
+            const { collection, query, where, getDocs } = firesqlite;
+            const redemptions = await getDocs(query(
+                collection(db, 'transactions'),
+                where('voucher_code', 'eq', voucherCodeRaw),
+                where('status', 'eq', 'paid'),
+            ));
+            if (redemptions.docs) {
+                usageCounts = { ...usageCounts, [voucherCodeRaw]: redemptions.docs.length };
+            }
+        } catch (e) {
+            console.warn('Voucher usage count query failed:', e);
+        }
+    }
 
-    const tax_amount = cart.reduce((taxSum, item) => {
-        const itemTaxRate = getTaxRateForItem(item, storeConfig);
-        const itemTotal = item.price * item.quantity;
-        return taxSum + (itemTotal * itemTaxRate);
-    }, 0);
-    
-    const total = subtotal + tax_amount;
+    // --- Discount engine: BOGO auto promos, voucher code, manual discount ---
+    const discount = evaluateDiscounts(cart, storeConfig, promos, { ...options, usageCounts });
+
+    if (discount.errors.length > 0) {
+        toast({ variant: 'destructive', title: 'Promo Gagal', description: discount.errors[0] });
+        return null;
+    }
+
+    const subtotal = discount.grossSubtotal;
+    const tax_amount = discount.taxAmount;
+    const total = discount.total;
 
     if (cashReceived < total) {
         // This case is already handled in the UI, but as a safeguard.
@@ -145,6 +154,8 @@ export const createTransaction = async (cart: CartItem[], activeShift: Shift, st
       shift_id: activeShift.id,
       status: 'paid',
       items: cart.map(item => {
+        const line = discount.lines.find(l => l.cartItemId === item.cartItemId);
+
         // --- CONSIGNMENT COST DEDUCTION LOGIC ---
         let effectiveCost = item.cost_price || 0; // Fallback to standard cost price
         
@@ -183,8 +194,13 @@ export const createTransaction = async (cart: CartItem[], activeShift: Shift, st
             price_snapshot: item.price,
             cost_snapshot: effectiveCost, // Saved as cost_snapshot (HPP)
             qty: item.quantity,
-            subtotal: item.price * item.quantity,
+            subtotal: item.price * item.quantity, // GROSS line total (includes free-unit retail value)
             is_consignment_settled: item.is_consignment ? false : undefined,
+            // Discount snapshot from the engine (0 for legacy/unpromoted lines)
+            unit_discount: line?.unitDiscount || 0,
+            discount_amount: line?.lineDiscount || 0,
+            promo_ids: line?.promoIds || [],
+            is_free_item: line?.isFreeItem || false,
         };
       }),
       subtotal,
@@ -194,6 +210,13 @@ export const createTransaction = async (cart: CartItem[], activeShift: Shift, st
       change: cashReceived - total,
       created_at: createdAt,
       device: activeShift.device,
+      // Discount / promo breakdown (defaults 0 for legacy transactions)
+      gross_subtotal: subtotal,
+      discount_total: discount.discountTotal,
+      promo_discount: discount.promoDiscount,
+      manual_discount: discount.manualDiscount,
+      voucher_code: discount.voucherCode,
+      applied_promos: discount.appliedPromos,
     };
 
 

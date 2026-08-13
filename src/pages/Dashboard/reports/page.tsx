@@ -1,7 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, ArrowRight, BarChart2, BookOpen, Warehouse, ArchiveX, History, ShieldCheck, Landmark, ReceiptText } from 'lucide-react';
+import { ArrowLeft, ArrowRight, BarChart2, BookOpen, Warehouse, ArchiveX, History, ShieldCheck, Landmark, ReceiptText, TicketPercent } from 'lucide-react';
 import { NotificationBell } from '@/components/NotificationBell';
 import { ThemeToggle } from '@/components/ThemeButtons';
 
@@ -60,6 +60,13 @@ const reportLinks = [
         description: 'Konsolidasi data pajak untuk pelaporan.',
         href: '/dashboard/reports/tax',
         icon: ReceiptText,
+        comingSoon: false,
+    },
+    {
+        title: 'Promo & Voucher',
+        description: 'Atur diskon otomatis dan kode voucher.',
+        href: '/dashboard/promos',
+        icon: TicketPercent,
         comingSoon: false,
     },
 ];
@@ -140,9 +147,7 @@ export default function ReportsPage() {
                                 <Card
                                     className="
                                         h-full cursor-pointer
-                                        transition-all duration-300
-                                        hover:shadow-xl
-                                        hover:-translate-y-1
+                                        transition-colors duration-200
                                         hover:border-primary/40
                                     "
                                 >

@@ -368,7 +368,7 @@ export default function StockMovementReportPage() {
                                     </PopoverContent>
                                 </Popover>
                                 {filterProductId && (
-                                    <Button variant="ghost" size="icon" onClick={() => setFilterProductId(null)}>
+                                    <Button variant="ghost" size="icon" aria-label="Hapus filter produk" onClick={() => setFilterProductId(null)}>
                                         <X className="h-4 w-4"/>
                                     </Button>
                                 )}

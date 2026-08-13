@@ -12,6 +12,9 @@ export async function ensureIndexes(firesqlite: any, _db: any) {
             createCompositeIndex('transactions',[{field: 'shift_id', desc: true}, {field: 'status', desc: true}, {field: 'created_at', desc: true}]),
             createIndex('transactions', 'device'),
             createCompositeIndex('transactions',[{field: 'device', desc: true}, {field: 'created_at', desc: true}]),
+
+            // For voucher redemption counting: where voucher_code eq + status eq
+            createCompositeIndex('transactions',[{field: 'voucher_code', desc: true}, {field: 'status', desc: true}]),
             
             // For stock movement report filtering
             createIndex('stock_movements', 'created_at'),
@@ -27,6 +30,9 @@ export async function ensureIndexes(firesqlite: any, _db: any) {
 
             // For variants lookup by product
             createIndex('product_variants', 'product_id'),
+
+            // For promo/voucher listing and sync ordering
+            createIndex('promos', 'created_at'),
         ]);
         console.log("Database indexes are up to date.");
     } catch (error) {

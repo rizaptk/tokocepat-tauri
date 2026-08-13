@@ -1,4 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom';
+import { formatIDR as formatCurrency } from "@/lib/format";
 import { useStore } from '@/lib/store';
 import { format, startOfDay, endOfDay, subDays } from 'date-fns';
 import { ArrowLeft, BookOpen, AlertTriangle, FileDown, FileText } from 'lucide-react';
@@ -21,13 +22,7 @@ import { ThemeToggle } from '@/components/ThemeButtons';
 import { exportShiftsToExcel, exportShiftsToPdf } from '@/lib/export';
 
 
-const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('id-ID', {
-        style: 'currency',
-        currency: 'IDR',
-        minimumFractionDigits: 0,
-    }).format(amount);
-};
+
 
 export default function ShiftsReportPage() {
     const navigate = useNavigate();

@@ -9,6 +9,7 @@ import { setProductVariants, type VariantFormData } from './variantService';
 // This type should match the Zod schema in the form dialog
 export type ProductFormData = {
     name: string;
+    brand?: string;
     price: number;
     stock: number;
     track_stock: boolean;

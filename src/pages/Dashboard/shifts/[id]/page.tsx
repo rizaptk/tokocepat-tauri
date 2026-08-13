@@ -1,4 +1,5 @@
 import { Link, useParams, useNavigate } from 'react-router-dom';
+import { formatIDR as formatCurrency } from "@/lib/format";
 import { useStore } from '@/lib/store';
 import { useLoadShiftTransactions } from '@/hooks/useLoadShiftTransactions';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -68,13 +69,7 @@ export default function ShiftDetailsPage() {
         }
     }
 
-    const formatCurrency = (amount: number) => {
-        return new Intl.NumberFormat('id-ID', {
-          style: 'currency',
-          currency: 'IDR',
-          minimumFractionDigits: 0,
-        }).format(amount);
-    };
+    
 
     if (!shift) {
         return (

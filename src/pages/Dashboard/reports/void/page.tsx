@@ -1,4 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom';
+import { formatIDR as formatCurrency } from "@/lib/format";
 import { useStore } from '@/lib/store';
 import { format, startOfDay, endOfDay } from 'date-fns';
 import { ArrowLeft, ArchiveX, FileDown, FileText, Loader2 } from 'lucide-react';
@@ -20,13 +21,7 @@ import { useLoadTransactions } from '@/hooks/useLoadTransaction';
 import { useDeviceScope } from '@/hooks/useDeviceScope';
 import { DeviceScopeFilter } from '@/components/DeviceScopeFilter';
 
-const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('id-ID', {
-        style: 'currency',
-        currency: 'IDR',
-        minimumFractionDigits: 0,
-    }).format(amount);
-};
+
 
 export default function VoidReportPage() {
     const { storeConfig } = useStore();
@@ -137,7 +132,7 @@ export default function VoidReportPage() {
                                     </TableRow>
                                 ) : voidedTransactions.length > 0 ? (
                                     voidedTransactions.map((tx: Transaction) => (
-                                        <TableRow key={tx.id} onClick={() => setSelectedTx(tx)} className="cursor-pointer">
+                                        <TableRow key={tx.id} onClick={() => setSelectedTx(tx)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedTx(tx); } }} tabIndex={0} className="cursor-pointer focus:outline-none focus-visible:bg-muted">
                                             <TableCell>
                                                 <div className="font-medium">{tx.voided_at ? format(new Date(tx.voided_at), 'PP') : '-'}</div>
                                                 <div className="text-sm text-muted-foreground">{tx.voided_at ? format(new Date(tx.voided_at), 'p') : '-'}</div>

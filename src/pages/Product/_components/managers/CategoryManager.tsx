@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useMemo, useCallback } from 'react';
 import { useStore } from '@/lib/store';
 import { useToast } from '@/hooks/use-toast';
 import { addCategory, updateCategory, deleteCategory } from '@/services/categoryService';
@@ -10,19 +10,38 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { PlusCircle, Edit, Trash, Search, Inbox } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { ScrollArea, ScrollAreaHandle } from '@/components/ui/scroll-area';
-import { Card, CardContent } from '@/components/ui/card';
-import { PlusCircle, Edit, Trash } from 'lucide-react';
 import { ScrollShadow } from '@/components/ui/scrollshadow';
 
 const CategoryManagerComponent = () => {
-    const { categories } = useStore();
+    const { categories, products } = useStore();
     const { toast } = useToast();
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [categoryToEdit, setCategoryToEdit] = useState<Category | null>(null);
     const [categoryName, setCategoryName] = useState("");
+    const [search, setSearch] = useState("");
+    const [activeIndex, setActiveIndex] = useState(-1);
 
     const scrollRef = useRef<ScrollAreaHandle>(null);
+
+    const filtered = useMemo(() => {
+        const q = search.trim().toLowerCase();
+        if (!q) return categories;
+        return categories.filter(c => c.name.toLowerCase().includes(q));
+    }, [categories, search]);
+
+    const productCount = useCallback((catId: string) => {
+        return products.filter(p => p.category_id === catId).length;
+    }, [products]);
+
+    // Reset the active row when the filtered list shrinks or search changes.
+    const activeRef = useRef(activeIndex);
+    activeRef.current = activeIndex;
+    useMemo(() => {
+        if (activeRef.current >= filtered.length) setActiveIndex(-1);
+    }, [filtered.length]);
 
     const openDialog = (category: Category | null) => {
         setCategoryToEdit(category);
@@ -59,51 +78,128 @@ const CategoryManagerComponent = () => {
         }
     };
 
+    const scrollActiveIntoView = (index: number) => {
+        const row = scrollRef.current?.viewport?.querySelector<HTMLElement>(`[data-cat-index="${index}"]`);
+        row?.scrollIntoView({ block: 'nearest' });
+    };
+
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+        if (filtered.length === 0) return;
+        let next = activeRef.current;
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            next = next >= filtered.length - 1 ? 0 : next + 1;
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            next = next <= 0 ? filtered.length - 1 : next - 1;
+        } else if (e.key === 'Enter') {
+            e.preventDefault();
+            const cat = filtered[activeRef.current];
+            if (cat) openDialog(cat);
+            return;
+        } else {
+            return;
+        }
+        setActiveIndex(next);
+        scrollActiveIntoView(next);
+    };
+
     return (
         <div className="h-full flex flex-col min-h-0">
-            <div className="flex justify-between items-center my-4 px-4">
+            <div className="flex justify-between items-center px-4 py-3 border-b border-border/60">
                 <h3 className="font-semibold">Kelola Kategori</h3>
                 <Button size="sm" onClick={() => openDialog(null)}><PlusCircle className="mr-2 h-4 w-4" /> Tambah</Button>
             </div>
-            <div className='flex-1 min-h-0 flex flex-col overflow-hidden relative px-4'>
-                <ScrollShadow scrollRef={scrollRef} side="top" />
-                <ScrollArea className="flex-1 min-h-0 -mx-4 px-4" ref={scrollRef}>
-                    <Card className="rounded-lg">
-                        <CardContent className="p-0">
-                            <div className="divide-y">
-                                {categories.map((cat) => (
-                                    <div key={cat.id} className="flex items-center justify-between px-4 py-4">
-                                        <div className="flex flex-col">
-                                            <span className="font-medium text-base">{cat.name}</span>
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                            <Button variant="ghost" size="icon" onClick={() => openDialog(cat)}>
-                                                <Edit className="h-4 w-4" />
-                                            </Button>
-                                            <AlertDialog>
-                                                <AlertDialogTrigger asChild>
-                                                    <Button variant="ghost" size="icon" className="text-destructive">
-                                                        <Trash className="h-4 w-4" />
-                                                    </Button>
-                                                </AlertDialogTrigger>
-                                                <AlertDialogContent>
-                                                    <AlertDialogHeader>
-                                                        <AlertDialogTitle>Hapus "{cat.name}"?</AlertDialogTitle>
-                                                        <AlertDialogDescription>Kategori akan dinonaktifkan dan tidak bisa digunakan untuk produk baru.</AlertDialogDescription>
-                                                    </AlertDialogHeader>
-                                                    <AlertDialogFooter>
-                                                        <AlertDialogCancel>Batal</AlertDialogCancel>
-                                                        <AlertDialogAction onClick={() => handleDelete(cat.id)}>Hapus</AlertDialogAction>
-                                                    </AlertDialogFooter>
-                                                </AlertDialogContent>
-                                            </AlertDialog>
-                                        </div>
-                                    </div>
-                                ))}
+            <div className="px-4 py-2 border-b border-border/40">
+                <div className="relative">
+                    <Search className="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                        className="h-7 pl-7 text-sm"
+                        placeholder="Cari nama kategori..."
+                        value={search}
+                        onChange={(e) => { setSearch(e.target.value); setActiveIndex(-1); }}
+                    />
+                </div>
+            </div>
+            <div className="flex-1 min-h-0 relative overflow-hidden">
+                <ScrollShadow scrollRef={scrollRef} side="both" />
+                <div tabIndex={0} onKeyDown={handleKeyDown} className="h-full outline-none">
+                    <ScrollArea ref={scrollRef} className="h-full">
+                        {filtered.length > 0 ? (
+                            <div className="px-4 pb-2 pt-1">
+                                <table className="w-full caption-bottom text-sm">
+                                    <thead className="sticky top-0 z-10 bg-background/95 backdrop-blur">
+                                        <tr className="border-b transition-colors">
+                                            <th className="h-9 px-3 text-left align-middle text-xs font-medium uppercase tracking-wider text-muted-foreground">Nama Kategori</th>
+                                            <th className="h-9 px-3 text-right align-middle text-xs font-medium uppercase tracking-wider text-muted-foreground whitespace-nowrap">Produk</th>
+                                            <th className="h-9 px-3 w-28 text-right align-middle text-xs font-medium uppercase tracking-wider text-muted-foreground">Aksi</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {filtered.map((cat, idx) => {
+                                            const isActive = idx === activeIndex;
+                                            return (
+                                                <tr
+                                                    key={cat.id}
+                                                    data-cat-index={idx}
+                                                    onMouseEnter={() => setActiveIndex(idx)}
+                                                    onClick={() => openDialog(cat)}
+                                                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openDialog(cat); } }}
+                                                    tabIndex={0}
+                                                    className={cn(
+                                                        "group border-b transition-colors hover:bg-muted/50 cursor-pointer data-[state=selected]:bg-muted focus:outline-none focus-visible:bg-muted/70",
+                                                        isActive && "bg-primary/10"
+                                                    )}
+                                                >
+                                                    <td className="p-2.5 px-3 align-middle font-medium truncate max-w-[200px]">{cat.name}</td>
+                                                    <td className="p-2.5 px-3 text-right text-muted-foreground tabular-nums whitespace-nowrap">
+                                                        {productCount(cat.id)}
+                                                    </td>
+                                                    <td className="p-2.5 px-3">
+                                                        <div className={cn(
+                                                            "flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity",
+                                                            isActive && "opacity-100"
+                                                        )}>
+                                                            <Button variant="ghost" size="icon" className="size-8 text-muted-foreground hover:text-foreground" aria-label={`Ubah kategori ${cat.name}`} onClick={(e) => { e.stopPropagation(); openDialog(cat); }}>
+                                                                <Edit className="h-4 w-4" />
+                                                            </Button>
+                                                            <AlertDialog>
+                                                                <AlertDialogTrigger asChild>
+                                                                    <Button variant="ghost" size="icon" className="size-8 text-muted-foreground hover:text-destructive" aria-label={`Hapus kategori ${cat.name}`} onClick={(e) => e.stopPropagation()}>
+                                                                        <Trash className="h-4 w-4" />
+                                                                    </Button>
+                                                                </AlertDialogTrigger>
+                                                                <AlertDialogContent>
+                                                                    <AlertDialogHeader>
+                                                                        <AlertDialogTitle>Hapus "{cat.name}"?</AlertDialogTitle>
+                                                                        <AlertDialogDescription>Kategori akan dinonaktifkan dan tidak bisa digunakan untuk produk baru.</AlertDialogDescription>
+                                                                    </AlertDialogHeader>
+                                                                    <AlertDialogFooter>
+                                                                        <AlertDialogCancel>Batal</AlertDialogCancel>
+                                                                        <AlertDialogAction onClick={() => handleDelete(cat.id)}>Hapus</AlertDialogAction>
+                                                                    </AlertDialogFooter>
+                                                                </AlertDialogContent>
+                                                            </AlertDialog>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
                             </div>
-                        </CardContent>
-                    </Card>
-                </ScrollArea>
+                        ) : (
+                            <div className="flex h-full items-center justify-center text-center text-muted-foreground p-8">
+                                <div>
+                                    <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+                                        <Inbox className="h-6 w-6" />
+                                    </div>
+                                    <p className="font-medium text-foreground/70">Kategori tidak ditemukan.</p>
+                                </div>
+                            </div>
+                        )}
+                    </ScrollArea>
+                </div>
             </div>
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <DialogContent>

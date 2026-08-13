@@ -1,4 +1,5 @@
 import { Product } from '@/lib/types';
+import { formatIDR as formatCurrency } from "@/lib/format";
 import { useStore } from '@/lib/store';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -50,13 +51,7 @@ export function ProductCard({ product, onItemClick, isSelected, context = 'cashi
     }
   }, [isActive, navigationSource, clearNavigationSource]);
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR',
-      minimumFractionDigits: 0,
-    }).format(amount);
-  };
+  
   
   const handleSelect = () => {
     if (onItemClick) {
@@ -75,11 +70,11 @@ export function ProductCard({ product, onItemClick, isSelected, context = 'cashi
         ref={cardRef}
         style={style}
         className={cn(
-          "flex flex-col h-full overflow-hidden transition-all hover:shadow-lg relative active:ring-2 active:ring-primary active:ring-offset-0",
+          "flex flex-col h-full overflow-hidden transition-colors hover:border-primary/40 relative active:ring-2 active:ring-primary active:ring-offset-0 border border-border",
           isSelected && "ring-2 ring-primary ring-offset-2",
           not_allowed ? "cursor-not-allowed" : "cursor-pointer",
           !is_active && "opacity-80",
-          isActive && "ring-2 ring-primary ring-offset-0 shadow-lg"
+          isActive && "ring-2 ring-primary ring-offset-0"
         )}
         onClick={!not_allowed ? handleSelect : undefined}
         role="button"
@@ -119,7 +114,7 @@ export function ProductCard({ product, onItemClick, isSelected, context = 'cashi
             
             {product.has_variant && (
               <div className='absolute left-1 top-2 flex flex-col gap-1'>
-                <Badge variant="secondary" className='bg-background/70 hover:bg-background backdrop-blur-md text-[10px] h-5 px-1.5 border-none shadow-sm flex gap-1 w-fit' title={'Varian'}>
+                <Badge variant="secondary" className='bg-background/70 hover:bg-background backdrop-blur-md text-[10px] h-5 px-1.5 border-none ring-1 ring-border/60 flex gap-1 w-fit' title={'Varian'}>
                   <Layers2 className="h-3 w-3 text-primary" />
                   <span>{variants?.length} Varian</span>
                 </Badge>
@@ -143,6 +138,7 @@ export function ProductCard({ product, onItemClick, isSelected, context = 'cashi
         </CardHeader>
         <CardContent className="p-4 space-y-1.5">
           <CardTitle className="text-base font-medium line-clamp-2">{product.name}</CardTitle>
+          {product.brand && <p className="text-xs text-muted-foreground truncate">{product.brand}</p>}
         </CardContent>
         <CardFooter className="flex items-center justify-between p-4 pt-0 mt-auto">
           <span className="font-semibold text-foreground">{formatCurrency(product.price)}</span>

@@ -9,10 +9,11 @@
 @import "tw-animate-css";
 
 @theme {
-  /* --- Font Families (SF Pro-style system stack) --- */
-  --font-body: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", "Segoe UI", system-ui, sans-serif;
-  --font-headline: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", system-ui, sans-serif;
-  --font-code: ui-monospace, "SF Mono", Menlo, monospace;
+  /* --- Font Families (Segoe UI — Windows-native, per the Aurora Till design) --- */
+  --font-body: "Segoe UI Variable Text", "Segoe UI", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-headline: "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif;
+  --font-code: Consolas, "Cascadia Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --font-mono: Consolas, "Cascadia Mono", ui-monospace, "SF Mono", Menlo, monospace;
 
   /* --- Colors --- */
   /* Basic */
@@ -75,10 +76,13 @@
   --color-sidebar-active-foreground: hsl(var(--sidebar-active-foreground));
   --color-sidebar-border: hsl(var(--sidebar-border));
 
-  /* --- Border Radius --- */
+  /* --- Border Radius (sharp — 0-2px, per the Rectangle Rule) --- */
   --radius-lg: var(--radius);
   --radius-md: calc(var(--radius) - 2px);
   --radius-sm: calc(var(--radius) - 4px);
+  --radius-xl: var(--radius);
+  --radius-2xl: var(--radius);
+  --radius-3xl: var(--radius);
 
   /* --- Keyframes --- */
   @keyframes accordion-down {
@@ -97,56 +101,56 @@
 
 @layer base {
   :root {
-    /* ========== SURFACE ========== */
-    --background: 220 20% 98%;      /* light window grey */
-    --foreground: 220 10% 16%;
+    /* ========== SURFACE (Win Chrome — flat desktop ground) ========== */
+    --background: 210 12% 97%;
+    --foreground: 210 10% 15%;
 
     --card: 0 0% 100%;
-    --card-foreground: 220 10% 16%;
+    --card-foreground: 210 10% 15%;
 
-    --field: 220 14% 96%;           /* input surface, slightly darker than card */
+    --field: 210 12% 93%;           /* input surface, slightly darker than card */
 
     --popover: 0 0% 100%;
-    --popover-foreground: 220 10% 16%;
+    --popover-foreground: 210 10% 15%;
 
-    /* ========== BRAND (Apple Accent Blue) ========== */
-    --primary: 211 100% 50%;        /* #007AFF */
+    /* ========== BRAND (Aero Blue) ========== */
+    --primary: 211 100% 42%;        /* #0078D7 */
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 220 12% 90%;
-    --secondary-foreground: 220 12% 28%;
+    --secondary: 210 12% 90%;
+    --secondary-foreground: 210 12% 28%;
 
-    --muted: 220 12% 92%;
-    --muted-foreground: 220 8% 46%;
+    --muted: 210 12% 93%;
+    --muted-foreground: 210 8% 48%;
 
-    --accent: 220 14% 88%;
-    --accent-foreground: 220 12% 22%;
+    --accent: 210 14% 89%;
+    --accent-foreground: 210 12% 22%;
 
-    --destructive: 0 72% 51%;       /* Apple Red */
+    --destructive: 8 74% 50%;       /* Ticket Red */
     --destructive-foreground: 0 0% 100%;
 
     /* ========== UI ========== */
-    --border: 220 10% 86%;
-    --input: 220 10% 86%;
-    --ring: 211 95% 50%;
+    --border: 210 10% 88%;          /* Hairline Pewter */
+    --input: 210 10% 86%;
+    --ring: 211 100% 45%;
 
-    --radius: 0.5rem;
+    --radius: 0.125rem;
 
-    /* SUCCESS — Apple Green */
-    --success: 142 65% 43%;
+    /* SUCCESS — Total Green */
+    --success: 142 52% 42%;
     --success-foreground: 0 0% 100%;
 
-    /* WARNING — Apple Orange */
-    --warning: 28 90% 52%;
+    /* WARNING — Variance Amber */
+    --warning: 34 92% 48%;
     --warning-foreground: 0 0% 100%;
 
-    /* INFO — Apple Blue-Grey */
+    /* INFO — Windows information blue */
     --info: 199 89% 48%;
     --info-foreground: 0 0% 100%;
 
     --sidebar: 220 16% 14%;
     --sidebar-foreground: 220 15% 92%;
-    --sidebar-muted: 220 10% 62%;
+    --sidebar-muted: 220 10% 66%;
     --sidebar-hover: 220 14% 22%;
     --sidebar-active: 211 95% 55%;
     --sidebar-active-foreground: 0 0% 100%;
@@ -161,7 +165,7 @@
   }
 
   .dark {
-    /* ========== SURFACE ========== */
+    /* ========== SURFACE (Aero black glass) ========== */
     --background: 220 10% 10%;      /* dark window grey */
     --foreground: 220 12% 94%;
 
@@ -174,7 +178,7 @@
     --popover-foreground: 220 12% 94%;
 
     /* ========== BRAND ========== */
-    --primary: 211 100% 55%;        /* #0A84FF */
+    --primary: 211 100% 58%;
     --primary-foreground: 0 0% 100%;
 
     --secondary: 220 10% 22%;
@@ -186,7 +190,7 @@
     --accent: 220 12% 24%;
     --accent-foreground: 220 12% 94%;
 
-    --destructive: 0 72% 58%;
+    --destructive: 8 74% 58%;
     --destructive-foreground: 0 0% 100%;
 
     /* ========== UI ========== */
@@ -194,23 +198,23 @@
     --input: 220 10% 24%;
     --ring: 211 100% 55%;
 
-    /* SUCCESS — Dark Apple Green Tint */
+    /* SUCCESS — Dark Total Green */
     --success: 142 55% 48%;
     --success-foreground: 0 0% 100%;
 
-    /* WARNING — Dark Apple Orange Tint */
-    --warning: 28 88% 55%;
+    /* WARNING — Dark Variance Amber */
+    --warning: 34 88% 55%;
     --warning-foreground: 0 0% 100%;
 
-    /* INFO — Dark Apple Blue Tint */
+    /* INFO — Dark Blue */
     --info: 199 60% 50%;
     --info-foreground: 0 0% 100%;
 
     --sidebar: 220 12% 10%;
     --sidebar-foreground: 220 15% 92%;
-    --sidebar-muted: 220 10% 58%;
+    --sidebar-muted: 220 10% 62%;
     --sidebar-hover: 220 12% 18%;
-    --sidebar-active: 211 100% 48%;
+    --sidebar-active: 211 100% 58%;
     --sidebar-active-foreground: 0 0% 100%;
     --sidebar-border: 220 12% 20%;
 
@@ -244,7 +248,7 @@
 
   body {
     @apply bg-background text-foreground;
-    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", "Segoe UI", system-ui, sans-serif;
+    font-family: "Segoe UI Variable Text", "Segoe UI", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
@@ -287,4 +291,34 @@
     transform: scale(1);
     opacity: 0;
   }
+}
+
+/* --- Aurora Taskbar (the world's one ornament) ---
+   A low-opacity teal → Aero blue → violet spectral sweep, drifting slowly
+   down the dark rail. The only licensed gradient in the system. */
+.aurora-rail {
+  background-image: linear-gradient(
+    180deg,
+    hsl(180 70% 45% / 0.20),
+    hsl(211 100% 50% / 0.16),
+    hsl(260 60% 60% / 0.20),
+    hsl(180 70% 45% / 0.20)
+  );
+  background-size: 100% 300%;
+  animation: aurora-drift 18s linear infinite;
+}
+
+@keyframes aurora-drift {
+  0% {
+    background-position: 0% 0%;
+  }
+  100% {
+    background-position: 0% 200%;
+  }
+}
+
+/* Win7 half-shine: a single, very faint top-edge highlight on chrome that
+   carries a colour (primary buttons, the rail). Never a dropped shadow. */
+.gloss-chrome {
+  box-shadow: inset 0 1px 0 hsl(0 0% 100% / 0.30);
 }

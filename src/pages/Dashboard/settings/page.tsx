@@ -40,7 +40,7 @@ export default function SettingsPage() {
 
     // Printer state
     const [isPairing, setIsPairing] = useState(false);
-    const { availablePrinters, savedPrinter, savedPrinterName, savePrinter, isOnline, isEnabled, setIsEnabled, paperWidth, setPaperWidth } = usePrinterStore();
+    const { availablePrinters, savedPrinter, savedPrinterName, savePrinter, isOnline, isEnabled, setIsEnabled, paperWidth, setPaperWidth, showTapeWhenDisabled, setShowTapeWhenDisabled } = usePrinterStore();
     const isSyncAvailable = useMemo(() => licenseDetails?.isSyncAvailable === true, [licenseDetails]);
 
     useEffect(() => {
@@ -98,7 +98,7 @@ export default function SettingsPage() {
 
     return (
         <div className="flex h-screen min-h-0 w-full flex-col bg-muted/40">
-            <header className="sticky shrink-0 top-0 z-20 flex h-12 items-center gap-4 border-b border-border/60 bg-background/80 px-4 backdrop-blur-md justify-between">
+            <header className="sticky shrink-0 top-0 z-20 flex h-10 items-center gap-4 border-b border-border/60 bg-background/80 px-4 backdrop-blur-md justify-between">
                 <Link to="#" onClick={() => nav(-1)}><TokoCepatLogo /></Link>
                 <div className="flex items-center gap-2">
                     <NotificationBell />
@@ -146,6 +146,15 @@ export default function SettingsPage() {
                                                 </div>
                                                 <Switch checked={isEnabled} onCheckedChange={setIsEnabled} />
                                             </div>
+                                            <div className="mt-4 flex items-center justify-between gap-3 rounded-lg border bg-muted/50 p-3">
+                                                <div className="space-y-0.5 pr-4">
+                                                    <p className="text-sm font-medium">Struk di Layar</p>
+                                                    <p className="text-xs text-muted-foreground">
+                                                        Tampilkan simulasi struk cetak di layar saat printer nonaktif.
+                                                    </p>
+                                                </div>
+                                                <Switch checked={showTapeWhenDisabled} onCheckedChange={setShowTapeWhenDisabled} />
+                                            </div>
                                         </CardHeader>
                                         <CardContent className={cn("space-y-6", !isEnabled && "opacity-50 pointer-events-none")}>
                                             <div className="space-y-2">
@@ -169,7 +178,7 @@ export default function SettingsPage() {
                                                 {availablePrinters.length > 0 ? (
                                                     <div className="space-y-2">
                                                         {availablePrinters.map(p => (
-                                                            <div key={p.address} className={cn("flex items-center justify-between p-3 rounded-md border bg-background cursor-pointer", savedPrinter === p.address && "border-primary ring-1 ring-primary")} onClick={() => savePrinter(p.address, p.baud_rate)}>
+                                                            <div key={p.address} className={cn("flex items-center justify-between p-3 rounded-md border bg-background cursor-pointer focus:outline-none focus-visible:ring-1 focus-visible:ring-primary", savedPrinter === p.address && "border-primary ring-1 ring-primary")} onClick={() => savePrinter(p.address, p.baud_rate)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); savePrinter(p.address, p.baud_rate); } }} role="button" tabIndex={0}>
                                                                 <div className="flex items-center gap-2">
                                                                     {p.kind === 'bluetooth' ? <Bluetooth className="h-4 w-4" /> : <Usb className="h-4 w-4" />}
                                                                     <span className="text-sm font-medium">{p.name}</span>

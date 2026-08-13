@@ -108,7 +108,7 @@ export function NotificationBell() {
     return (
         <Popover>
             <PopoverTrigger asChild>
-                <Button variant="outline" size="sm" className="relative size-9">
+                <Button variant="outline" size="sm" className="relative size-9" aria-label="Notifikasi">
                     <Bell className="h-4 w-4" />
                     {notificationCount > 0 && (
                         <Badge variant="destructive" className="absolute -top-2 -right-2 h-5 w-5 justify-center rounded-full p-0 text-xs">
@@ -169,6 +169,7 @@ export function NotificationBell() {
                                                     dismissNotification(notif.id);
                                                 }}
                                                 title="Hapus"
+                                                aria-label="Hapus notifikasi"
                                             >
                                                 <X className="h-4 w-4" />
                                             </Button>
@@ -184,6 +185,7 @@ export function NotificationBell() {
                                                         markAsRead(notif.id);
                                                     }}
                                                     title="Tandai dibaca"
+                                                    aria-label="Tandai notifikasi dibaca"
                                                 >
                                                     <Check className="h-4 w-4" />
                                                 </Button>

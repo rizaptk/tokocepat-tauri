@@ -169,7 +169,7 @@ export default function DefaultCashierPage() {
             {/* Desktop & Tablet Layout: Split View */}
             <div className="hidden md:grid md:grid-cols-2 xl:grid-cols-10 flex-1 overflow-hidden">
                 <main className="xl:col-span-6 flex flex-col overflow-hidden relative">
-                    <div className={`z-10 p-4 flex flex-col gap-4 border-b transition-all ${scrollTop > 0 ? 'border-b-border shadow-md' : 'border-b-transparent'}`}>
+                    <div className={`z-10 p-4 flex flex-col gap-4 border-b transition-colors ${scrollTop > 0 ? 'border-b-border' : 'border-b-transparent'}`}>
                         <ProductSearchBar
                             viewMode={showMode.cart}
                             onViewModeChange={(view) => setShowMode({ cart: view })}

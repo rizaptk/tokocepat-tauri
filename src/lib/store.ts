@@ -1,10 +1,11 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { Product, CartItem, Transaction, Category, ProductVariant, Shift, StoreConfig, PendingCart, StockMovement, CustomAccessType } from '@/lib/types';
+import { Product, CartItem, Transaction, Category, ProductVariant, Shift, StoreConfig, PendingCart, StockMovement, CustomAccessType, Promotion } from '@/lib/types';
 import { toast } from '@/hooks/use-toast';
 import { openShift as openShiftService, closeShift as closeShiftService } from '@/services/shiftService';
 import { createTransaction } from '@/services/transactionService';
 import { createReturnTransaction, ReturnLine } from '@/services/returnService';
+import { evaluateDiscounts, DiscountOptions } from '@/services/promoService';
 import { parkCartInDb, deletePendingCartFromDb } from '@/services/pendingCartService';
 import { useSettingsStore } from './settings';
 import { usePrintStore } from './print-store';
@@ -25,6 +26,7 @@ interface StoreState {
     storeConfig: StoreConfig | null;
     pendingCarts: PendingCart[];
     stockMovements: StockMovement[];
+    promos: Promotion[];
     customAccess: CustomAccessType | null;
     readNotificationIds: string[];
     dismissedNotificationIds: string[];
@@ -42,11 +44,12 @@ interface StoreState {
     setStoreConfig: (config: StoreConfig) => void;
     setPendingCarts: (carts: PendingCart[]) => void;
     setStockMovements: (movements: StockMovement[]) => void;
+    setPromos: (promos: Promotion[]) => void;
     saveItemToCart: (itemData: Product | CartItem | ItemWithVariant, selectedVariant?: ProductVariant) => void;
     removeFromCart: (cartItemId: string) => void;
     updateQuantity: (cartItemId: string, quantity: number) => void;
     clearCart: () => void;
-    checkout: (cashReceived: number) => Promise<Transaction | null>;
+    checkout: (cashReceived: number, options?: DiscountOptions) => Promise<Transaction | null>;
     createReturn: (params: { originalTx: Transaction; returnLines: ReturnLine[]; reason: string; conditionOk: boolean }) => Promise<Transaction | null>;
     openShift: (openingCash: number) => Promise<void>;
     closeShift: (declaredCash: number) => Promise<void>;
@@ -70,6 +73,7 @@ export const useStore = create<StoreState>()(
             storeConfig: null,
             pendingCarts: [],
             stockMovements: [],
+            promos: [],
             customAccess: null,
             readNotificationIds: [],
             dismissedNotificationIds: [],
@@ -102,6 +106,7 @@ export const useStore = create<StoreState>()(
             setStoreConfig: (config) => set({ storeConfig: config }),
             setPendingCarts: (carts) => set({ pendingCarts: carts.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()) }),
             setStockMovements: (movements) => set({ stockMovements: movements.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()) }),
+            setPromos: (promos) => set({ promos: promos.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()) }),
 
             saveItemToCart: (itemData: Product | CartItem | ItemWithVariant, selectedVariant?: ProductVariant) => {
                 const { products, cart, activeShift } = get();
@@ -253,8 +258,8 @@ export const useStore = create<StoreState>()(
                 }
             },
 
-            checkout: async (cashReceived: number): Promise<Transaction | null> => {
-                const { cart, activeShift, storeConfig, transactions } = get();
+            checkout: async (cashReceived: number, options?: DiscountOptions): Promise<Transaction | null> => {
+                const { cart, activeShift, storeConfig, transactions, promos } = get();
 
                 if (!activeShift || !storeConfig) {
                     toast({ variant: 'destructive', title: 'Gagal', description: 'Sif atau konfigurasi hilang.' });
@@ -262,7 +267,7 @@ export const useStore = create<StoreState>()(
                 }
 
                 try {
-                    const newTransaction = await createTransaction(cart, activeShift, storeConfig, cashReceived);
+                    const newTransaction = await createTransaction(cart, activeShift, storeConfig, cashReceived, promos, options);
                     if (newTransaction) {
                         set({
                             cart: [],
@@ -303,13 +308,20 @@ export const useStore = create<StoreState>()(
             },
 
             parkCart: async () => {
-                const { cart } = get();
+                const { cart, promos } = get();
                 if (cart.length === 0) return;
 
-                const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
-                const taxRate = get().storeConfig?.tax_rate ?? 0.11;
-                const total = subtotal + (subtotal * taxRate);
+                const storeConfig = get().storeConfig;
                 const itemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
+                let total = 0;
+                if (storeConfig) {
+                    const result = evaluateDiscounts(cart, storeConfig, promos);
+                    total = result.total;
+                } else {
+                    const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+                    const taxRate = get().storeConfig?.tax_rate ?? 0.11;
+                    total = subtotal + (subtotal * taxRate);
+                }
 
                 try {
                     await parkCartInDb(cart, total, itemCount);
@@ -371,7 +383,7 @@ export const useStore = create<StoreState>()(
             },
             partialize: (state) =>
                 Object.fromEntries(
-                    Object.entries(state).filter(([key]) => !['products', 'transactions', 'productVariants', 'categories', 'shifts', 'activeShift', 'storeConfig', 'pendingCarts', 'stockMovements'].includes(key))
+                    Object.entries(state).filter(([key]) => !['products', 'transactions', 'productVariants', 'categories', 'shifts', 'activeShift', 'storeConfig', 'pendingCarts', 'stockMovements', 'promos'].includes(key))
                 ),
         }
     )

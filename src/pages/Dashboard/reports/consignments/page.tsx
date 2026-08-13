@@ -1,5 +1,6 @@
 // reports/consignments/page.tsx
 
+import { formatIDR as formatCurrency } from "@/lib/format";
 import { Link, useNavigate } from 'react-router-dom';
 import { useState, useMemo, useEffect, useTransition } from 'react';
 import { DateRange } from 'react-day-picker';
@@ -31,13 +32,7 @@ import { useDeviceScope } from '@/hooks/useDeviceScope';
 import { DeviceScopeFilter } from '@/components/DeviceScopeFilter';
 import { cn } from '@/lib/utils';
 
-const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('id-ID', {
-        style: 'currency',
-        currency: 'IDR',
-        minimumFractionDigits: 0,
-    }).format(amount);
-};
+
 
 export default function ConsignmentReportPage() {
     const { products, storeConfig, activeShift } = useStore();
@@ -351,7 +346,7 @@ export default function ConsignmentReportPage() {
                             </div>
                         )}
                         <Card className={cn(
-                            'border-amber-500/20 bg-amber-500/5 shadow-sm transition-all duration-300',
+                            'border-amber-500/20 bg-amber-500/5 transition-colors duration-200',
                             !activeShift ? 'opacity-50 pointer-events-none' : ''
                         )}>
                             <CardHeader className="pb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -367,7 +362,7 @@ export default function ConsignmentReportPage() {
                                 <Button 
                                     onClick={handleSettleConsignment} 
                                     disabled={isSettling || kpis.totalPayout === 0 || !activeShift}
-                                    className="bg-amber-600 hover:bg-amber-700 text-white font-bold h-11 px-6 shadow-sm"
+                                    className="bg-amber-600 hover:bg-amber-700 text-white font-bold h-11 px-6"
                                 >
                                     {isSettling ? (
                                         <>

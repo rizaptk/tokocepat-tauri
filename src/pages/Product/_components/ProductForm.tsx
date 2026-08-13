@@ -1,4 +1,4 @@
-import React, { useMemo, useEffect, useRef } from "react";
+import React, { useMemo, useEffect, useRef, useState } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { useStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { ScrollArea, ScrollAreaHandle } from "@/components/ui/scroll-area";
 
@@ -41,6 +42,7 @@ export interface VariantFormData {
 
 export interface ProductFormData {
     name: string;
+    brand?: string;
     category_id?: string;
     sku?: string;
     barcode?: string;
@@ -70,7 +72,7 @@ interface ProductFormProps {
 }
 
 const initialFormValues: ProductFormData = {
-    name: "", price: 0, cost_price: 0, stock: 0,
+    name: "", brand: "", price: 0, cost_price: 0, stock: 0,
     low_stock_alert: 0, track_stock: true, is_active: true, has_variant: false,
     sku: "", barcode: "",
     variants: [], imageUrl: "", imageHint: "",
@@ -101,6 +103,7 @@ export const ProductForm = ({ productId, onSave, onCancel, catalogPrefill }: Pro
     const hasVariant = form.watch('has_variant');
     const imageUrl = form.watch('imageUrl');
     const isConsignment = form.watch('is_consignment');
+    const [confirmDisableTracking, setConfirmDisableTracking] = useState(false);
 
     useGlobalNumberInputFix();
 
@@ -108,7 +111,7 @@ export const ProductForm = ({ productId, onSave, onCancel, catalogPrefill }: Pro
         if (product) {
             const variantsForProduct = productVariants.filter(v => v.product_id === product.id);
             form.reset({
-                name: product.name, category_id: product.category_id,
+                name: product.name, brand: product.brand || "", category_id: product.category_id,
                 sku: product.sku, barcode: product.barcode,
                 price: product.price, cost_price: product.cost_price, stock: product.stock,
                 low_stock_alert: product.low_stock_alert, track_stock: product.track_stock,
@@ -128,17 +131,33 @@ export const ProductForm = ({ productId, onSave, onCancel, catalogPrefill }: Pro
 
             // SKU auto-suggestion: first 3 letters of the category name + a
             // 4-digit zero-padded order number within the category, e.g. KAT-0022.
-            // Left empty when the catalog row has no category.
+            // Left empty when the catalog row has no category. The number keeps
+            // incrementing until it finds a candidate that is not already taken
+            // by a product SKU/barcode or a variant SKU, so saving never fails
+            // with a duplicate-code error.
             const categoryName = (catalogPrefill.category_name || '').trim();
             let suggestedSku = "";
             if (categoryName && matchedCategory) {
                 const countInCategory = products.filter(p => p.category_id === matchedCategory.id).length;
                 const initials = categoryName.slice(0, 3).toUpperCase();
-                suggestedSku = `${initials}-${String(countInCategory + 1).padStart(4, '0')}`;
+                const taken = new Set(
+                    [...products.map(p => [p.sku, p.barcode]), ...productVariants.map(v => v.sku)]
+                        .flat()
+                        .filter((v): v is string => !!v)
+                        .map(v => v.trim())
+                );
+                let n = countInCategory + 1;
+                let candidate = `${initials}-${String(n).padStart(4, '0')}`;
+                while (taken.has(candidate)) {
+                    n++;
+                    candidate = `${initials}-${String(n).padStart(4, '0')}`;
+                }
+                suggestedSku = candidate;
             }
 
             form.reset({
                 name: catalogPrefill.name,
+                brand: catalogPrefill.brand || "",
                 category_id: matchedCategory?.id,
                 sku: suggestedSku,
                 barcode: catalogPrefill.barcode,
@@ -199,10 +218,10 @@ export const ProductForm = ({ productId, onSave, onCancel, catalogPrefill }: Pro
                 await addProduct(data);
                 toast({ title: "Produk Berhasil Dibuat" });
             }
+            // Only reset the form on success so a failed save keeps user input.
+            onSave();
         } catch (error: any) {
             toast({ variant: "destructive", title: "Gagal Menyimpan", description: error.message });
-        } finally {
-            onSave();
         }
     }
 
@@ -238,6 +257,20 @@ export const ProductForm = ({ productId, onSave, onCancel, catalogPrefill }: Pro
                                         </div>
                                     </div>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-x-3 gap-y-3">
+                                        <FormField
+                                            control={form.control}
+                                            name="name"
+                                            rules={{ required: "Product name is required.", minLength: { value: 2, message: "Product name must be at least 2 characters." } }}
+                                            render={({ field }) => (<FormItem><FormLabel>Nama Produk</FormLabel><FormControl><Input placeholder="cth. Cokelat Batang" {...field} /></FormControl><FormMessage /></FormItem>)}
+                                        />
+                                        <FormField control={form.control} name="category_id" render={({ field }) => (
+                                            <FormItem className="flex flex-col gap-2"><FormLabel>Kategori</FormLabel><FormControl><CategoryCombobox categories={categories} value={field.value} onChange={field.onChange} /></FormControl><FormMessage /></FormItem>
+                                        )} />
+                                    </div>
+                                    <FormField control={form.control} name="brand" render={({ field }) => (
+                                        <FormItem><FormLabel>Merek / Brand</FormLabel><FormControl><Input placeholder="Opsional, cth. Indofood" {...field} /></FormControl><FormDescription>Untuk membedakan produk dengan nama yang sama dari merek berbeda.</FormDescription><FormMessage /></FormItem>
+                                    )} />
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-3 gap-y-3">
                                         <FormField control={form.control} name="barcode" render={({ field }) => (
                                                 <FormItem><FormLabel>Barcode</FormLabel><FormControl>
                                                     <div className="flex items-center gap-2">
@@ -258,17 +291,6 @@ export const ProductForm = ({ productId, onSave, onCancel, catalogPrefill }: Pro
                                             </FormItem>
                                         )} />
                                         <FormField control={form.control} name="sku" render={({ field }) => (<FormItem><FormLabel>SKU / Kode Produk</FormLabel><FormControl><Input placeholder="cth. F-DRK-001" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                                    </div>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-3 gap-y-3">
-                                        <FormField
-                                            control={form.control}
-                                            name="name"
-                                            rules={{ required: "Product name is required.", minLength: { value: 2, message: "Product name must be at least 2 characters." } }}
-                                            render={({ field }) => (<FormItem><FormLabel>Nama Produk</FormLabel><FormControl><Input placeholder="cth. Cokelat Batang" {...field} /></FormControl><FormMessage /></FormItem>)}
-                                        />
-                                        <FormField control={form.control} name="category_id" render={({ field }) => (
-                                            <FormItem className="flex flex-col gap-2"><FormLabel>Kategori</FormLabel><FormControl><CategoryCombobox categories={categories} value={field.value} onChange={field.onChange} /></FormControl><FormMessage /></FormItem>
-                                        )} />
                                     </div>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-x-3 gap-y-3">
                                         <FormField
@@ -395,7 +417,13 @@ export const ProductForm = ({ productId, onSave, onCancel, catalogPrefill }: Pro
                                         </>
                                     )}
                                     <Separator />
-                                    <FormField control={form.control} name="track_stock" render={({ field }) => (<FormItem className={cn("flex flex-row items-center justify-between", hasVariant && "opacity-50")}><FormLabel>Lacak Stok</FormLabel><FormControl><Switch checked={hasVariant ? false : field.value} onCheckedChange={field.onChange} disabled={hasVariant} /></FormControl></FormItem>)} />
+                                    <FormField control={form.control} name="track_stock" render={({ field }) => (<FormItem className={cn("flex flex-row items-center justify-between", hasVariant && "opacity-50")}><FormLabel>Lacak Stok</FormLabel><FormControl><Switch checked={hasVariant ? false : field.value} onCheckedChange={(val) => {
+                                        if (!val && isEditing && product && product.stock > 0 && !hasVariant) {
+                                            setConfirmDisableTracking(true);
+                                            return;
+                                        }
+                                        field.onChange(val);
+                                    }} disabled={hasVariant} /></FormControl></FormItem>)} />
                                     <div className={cn("grid grid-cols-1 md:grid-cols-2 gap-x-3 gap-y-3", hasVariant && "opacity-50")}>
                                         <FormField
                                             control={form.control}
@@ -424,6 +452,23 @@ export const ProductForm = ({ productId, onSave, onCancel, catalogPrefill }: Pro
                     <Button type="submit" className="flex-1">{isEditing ? "Simpan Perubahan" : "Buat Produk"}</Button>
                 </div>
             </form>
+            <AlertDialog open={confirmDisableTracking} onOpenChange={setConfirmDisableTracking}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Nonaktifkan Lacak Stok?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            "{product?.name}" saat ini memiliki {product?.stock} unit stok. Stok tersebut akan tetap tersimpan tetapi tidak lagi dilacak, dipantau, atau disesuaikan melalui Inventori.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Batal</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => {
+                            setConfirmDisableTracking(false);
+                            form.setValue('track_stock', false, { shouldDirty: true });
+                        }}>Nonaktifkan</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </Form>
     );
 };

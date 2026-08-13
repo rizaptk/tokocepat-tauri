@@ -11,8 +11,12 @@ interface PrinterState {
   availablePrinters: PrinterCandidate[];
   isOnline: boolean; // New State
   isEnabled: boolean;
+  // Saat printer nonaktif, tunjukkan simulasi struk di layar (Aurora Till).
+  // Default false → pengguna langsung kembali ke kasir tanpa dokumen apa pun.
+  showTapeWhenDisabled: boolean;
   paperWidth: PaperWidth;
   setIsEnabled: (isEnabled: boolean) => void;
+  setShowTapeWhenDisabled: (show: boolean) => void;
   setPaperWidth: (paperWidth: PaperWidth) => void;
   savePrinter: (port: string | null, baud?: number, name?: string | null) => void;
   setAvailablePrinters: (printers: PrinterCandidate[]) => void;
@@ -28,8 +32,10 @@ export const usePrinterStore = create<PrinterState>()(
       availablePrinters: [], // Akan diisi saat runtime
       isOnline: false,       // Akan diisi saat runtime
       isEnabled: true,
+      showTapeWhenDisabled: false,
       paperWidth: '58mm',
       setIsEnabled: (isEnabled) => set({ isEnabled }),
+      setShowTapeWhenDisabled: (showTapeWhenDisabled) => set({ showTapeWhenDisabled }),
       setPaperWidth: (paperWidth) => set({ paperWidth }),
       savePrinter: (port, baud = 9600, name = null) => set({ 
         savedPrinter: port, 
@@ -47,6 +53,7 @@ export const usePrinterStore = create<PrinterState>()(
         savedBaudRate: state.savedBaudRate,
         savedPrinterName: state.savedPrinterName,
         isEnabled: state.isEnabled,
+        showTapeWhenDisabled: state.showTapeWhenDisabled,
         paperWidth: state.paperWidth,
       }),
     }

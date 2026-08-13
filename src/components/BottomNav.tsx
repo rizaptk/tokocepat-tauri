@@ -41,7 +41,7 @@ export function BottomNav() {
 
   return (
     <nav
-      className="fixed bottom-0 left-0 z-50 w-full border-t bg-background/95 shadow-lg backdrop-blur-sm"
+      className="fixed bottom-0 left-0 z-50 w-full border-t bg-background/95 backdrop-blur-sm"
     >
       <div className="grid h-16 grid-cols-4 items-stretch px-2">
         {navItems.map((item) => (

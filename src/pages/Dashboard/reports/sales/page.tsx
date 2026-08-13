@@ -1,9 +1,10 @@
 import { Link, useNavigate } from 'react-router-dom';
+import { formatIDR as formatCurrency } from "@/lib/format";
 import * as React from 'react';
 import { useState, useMemo, useRef } from 'react';
 import { DateRange } from 'react-day-picker';
 import { endOfDay, startOfDay, subDays, format } from 'date-fns';
-import { ArrowLeft, BarChart2, DollarSign, ReceiptText, Landmark, Search, Loader2, FileDown, FileText, Package, Wallet, TrendingUp } from 'lucide-react';
+import { ArrowLeft, BarChart2, DollarSign, ReceiptText, Landmark, Search, Loader2, FileDown, FileText, Package, Wallet, TrendingUp, BadgePercent } from 'lucide-react';
 import { exportSalesToExcel, exportSalesToPdf } from '@/lib/export';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
@@ -23,13 +24,7 @@ import { useLoadTransactions } from '@/hooks/useLoadTransaction';
 import { useDeviceScope } from '@/hooks/useDeviceScope';
 import { DeviceScopeFilter } from '@/components/DeviceScopeFilter';
 
-const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('id-ID', {
-        style: 'currency',
-        currency: 'IDR',
-        minimumFractionDigits: 0,
-    }).format(amount);
-};
+
 
 
 // Pre-define the Memoized Row
@@ -57,12 +52,15 @@ const TransactionRow = React.memo(({
         }
     });
 
-    const txProfit = tx.subtotal - standardCost - consignmentPayout;
+    const txProfit = tx.subtotal - (tx.discount_total || 0) - standardCost - consignmentPayout;
 
     return (
         <div
             onClick={() => onClick(tx)}
-            className="flex items-center px-6 border-b hover:bg-muted/50 cursor-pointer transition-colors text-sm absolute top-0 left-0 w-full"
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(tx); } }}
+            role="button"
+            tabIndex={0}
+            className="flex items-center px-6 border-b hover:bg-muted/50 cursor-pointer transition-colors text-sm absolute top-0 left-0 w-full focus:outline-none focus-visible:bg-muted/70"
             style={{
                 height: `${virtualRow.size}px`,
                 transform: `translateY(${virtualRow.start}px)`,
@@ -77,6 +75,9 @@ const TransactionRow = React.memo(({
             </div>
             <div className={columnStyles.subtotal}>
                 {formatCurrency(tx.subtotal)}
+            </div>
+            <div className={columnStyles.diskon}>
+                {(tx.discount_total || 0) > 0 ? `-${formatCurrency(tx.discount_total || 0)}` : '—'}
             </div>
             <div className={`${columnStyles.hpp} text-destructive/80`}>
                 {formatCurrency(standardCost)}
@@ -136,6 +137,7 @@ export default function SalesReportPage() {
         waktu: "w-[150px] shrink-0",
         invoice: "w-[130px] shrink-0",
         subtotal: "w-[125px] shrink-0 text-right tabular-nums",
+        diskon: "w-[100px] shrink-0 text-right tabular-nums text-green-600 dark:text-green-400",
         hpp: "w-[115px] shrink-0 text-right tabular-nums",
         titipan: "w-[115px] shrink-0 text-right tabular-nums",
         laba: "w-[115px] shrink-0 text-right tabular-nums",
@@ -151,8 +153,10 @@ export default function SalesReportPage() {
         
         let totalStandardCost = 0;
         let totalConsignmentPayout = 0;
+        let totalDiscount = 0;
 
         paidTransactions.forEach(tx => {
+            totalDiscount += tx.discount_total || 0;
             tx.items.forEach(item => {
                 const costVal = (item.cost_snapshot || 0) * item.qty;
                 if (item.product_snapshot.is_consignment) {
@@ -163,10 +167,11 @@ export default function SalesReportPage() {
             });
         });
 
-        const totalProfit = totalSubtotal - totalStandardCost - totalConsignmentPayout;
+        const totalProfit = totalSubtotal - totalDiscount - totalStandardCost - totalConsignmentPayout;
 
         return [
             { title: 'Total Omzet', value: formatCurrency(totalRevenue), icon: DollarSign },
+            { title: 'Total Diskon', value: formatCurrency(totalDiscount), icon: BadgePercent },
             { title: 'HPP Standar Toko', value: formatCurrency(totalStandardCost), icon: Package },
             { title: 'Bagi Hasil Titipan', value: formatCurrency(totalConsignmentPayout), icon: Wallet },
             { title: 'Margin Laba Kotor', value: formatCurrency(totalProfit), icon: TrendingUp },
@@ -281,6 +286,7 @@ export default function SalesReportPage() {
                             <div className={columnStyles.waktu}>Waktu</div>
                             <div className={columnStyles.invoice}>Invoice</div>
                             <div className={columnStyles.subtotal}>Subtotal</div>
+                            <div className={columnStyles.diskon}>Diskon</div>
                             <div className={columnStyles.hpp}>HPP Toko</div>
                             <div className={columnStyles.titipan}>Bagi Hasil</div>
                             <div className={columnStyles.laba}>Laba</div>

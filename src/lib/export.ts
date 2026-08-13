@@ -1,4 +1,5 @@
 
+import { formatIDR as formatCurrency } from "@/lib/format";
 import * as XLSX from 'xlsx';
 import { Transaction, Product, StockMovement, Shift } from '@/lib/types';
 import { format, parseISO } from 'date-fns';
@@ -10,13 +11,7 @@ import bwipjs from 'bwip-js';
 import { save } from '@tauri-apps/plugin-dialog';
 import { writeFile } from '@tauri-apps/plugin-fs';
 
-const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('id-ID', {
-        style: 'currency',
-        currency: 'IDR',
-        minimumFractionDigits: 0,
-    }).format(amount);
-};
+
 
 // --- NEW HELPER: Native Save Function ---
 async function saveFileNative(data: Uint8Array, defaultFilename: string, extensions: { name: string, extensions: string[] }[]) {
@@ -54,13 +49,14 @@ export const exportSalesToExcel = async (transactions: Transaction[], dateRange:
             }
         });
 
-        const txProfit = tx.subtotal - stdCost - consPayout;
+        const txProfit = tx.subtotal - (tx.discount_total || 0) - stdCost - consPayout;
 
         return {
             'Date': format(new Date(tx.created_at), 'yyyy-MM-dd HH:mm:ss'),
             'Invoice #': tx.invoice_number,
             'Items': tx.items.reduce((sum, item) => sum + item.qty, 0),
             'Subtotal': tx.subtotal,
+            'Diskon': tx.discount_total || 0,
             'HPP Standar Toko': stdCost,
             'Bagi Hasil Titipan': consPayout,
             'Profit': txProfit,
@@ -73,6 +69,7 @@ export const exportSalesToExcel = async (transactions: Transaction[], dateRange:
     const totalRevenue = transactions.reduce((sum, tx) => sum + tx.total, 0);
     const totalTax = transactions.reduce((sum, tx) => sum + tx.tax_amount, 0);
     const totalSubtotal = transactions.reduce((sum, tx) => sum + tx.subtotal, 0);
+    const totalDiscount = transactions.reduce((sum, tx) => sum + (tx.discount_total || 0), 0);
     const totalItems = transactions.reduce((sum, tx) => sum + tx.items.reduce((s, item) => s + item.qty, 0), 0);
     const totalStandardCost = dataForExport.reduce((sum, row) => sum + row['HPP Standar Toko'], 0);
     const totalConsignmentPayout = dataForExport.reduce((sum, row) => sum + row['Bagi Hasil Titipan'], 0);
@@ -83,6 +80,7 @@ export const exportSalesToExcel = async (transactions: Transaction[], dateRange:
         'Invoice #': '',
         'Items': totalItems,
         'Subtotal': totalSubtotal,
+        'Diskon': totalDiscount,
         'HPP Standar Toko': totalStandardCost,
         'Bagi Hasil Titipan': totalConsignmentPayout,
         'Profit': totalProfit,
@@ -115,8 +113,8 @@ export const exportSalesToPdf = async (transactions: Transaction[], dateRange: {
     
     // Printable A4 width is 595 - 70 = 525 units.
     // Sum of colWidths below is 518 units, ensuring complete alignment without overflow.
-    const tableHeaders = ['Tanggal', 'Invoice', 'Qty', 'Subtotal', 'HPP Toko', 'Titipan', 'Laba', 'Pajak', 'Total'];
-    const colWidths = [72, 78, 18, 57, 57, 57, 57, 50, 72];
+    const tableHeaders = ['Tanggal', 'Invoice', 'Qty', 'Subtotal', 'Diskon', 'HPP Toko', 'Titipan', 'Laba', 'Pajak', 'Total'];
+    const colWidths = [66, 70, 16, 54, 46, 54, 54, 54, 48, 56];
 
     const drawTableHeader = (page: any, yPos: number) => {
         const { width } = page.getSize();
@@ -173,13 +171,14 @@ export const exportSalesToPdf = async (transactions: Transaction[], dateRange: {
             }
         });
 
-        const txProfit = tx.subtotal - stdCost - consPayout;
+        const txProfit = tx.subtotal - (tx.discount_total || 0) - stdCost - consPayout;
 
         const row = [
             format(new Date(tx.created_at), 'yyyy-MM-dd HH:mm'),
             tx.invoice_number,
             tx.items.reduce((sum, item) => sum + item.qty, 0).toString(),
             formatCurrency(tx.subtotal),
+            formatCurrency(tx.discount_total || 0),
             formatCurrency(stdCost),
             formatCurrency(consPayout),
             formatCurrency(txProfit),
@@ -209,13 +208,14 @@ export const exportSalesToPdf = async (transactions: Transaction[], dateRange: {
             }
         });
         acc.subtotal += tx.subtotal;
+        acc.discount += tx.discount_total || 0;
         acc.stdCost += stdCost;
         acc.consPayout += consPayout;
         acc.tax += tx.tax_amount;
         acc.total += tx.total;
         acc.qty += tx.items.reduce((sum, item) => sum + item.qty, 0);
         return acc;
-    }, { subtotal: 0, stdCost: 0, consPayout: 0, tax: 0, total: 0, qty: 0 });
+    }, { subtotal: 0, discount: 0, stdCost: 0, consPayout: 0, tax: 0, total: 0, qty: 0 });
 
     if (y < 50) {
         currentPage = pdfDoc.addPage();
@@ -235,9 +235,10 @@ export const exportSalesToPdf = async (transactions: Transaction[], dateRange: {
         '',
         grandTotal.qty.toString(),
         formatCurrency(grandTotal.subtotal),
+        formatCurrency(grandTotal.discount),
         formatCurrency(grandTotal.stdCost),
         formatCurrency(grandTotal.consPayout),
-        formatCurrency(grandTotal.subtotal - grandTotal.stdCost - grandTotal.consPayout),
+        formatCurrency(grandTotal.subtotal - grandTotal.discount - grandTotal.stdCost - grandTotal.consPayout),
         formatCurrency(grandTotal.tax),
         formatCurrency(grandTotal.total)
     ];

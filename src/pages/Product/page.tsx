@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useStore } from "@/lib/store";
 import { Product, CatalogProduct } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
@@ -181,6 +181,18 @@ export default function ProductManagementPage() {
     const [filter, setFilter] = useState('all');
     const [searchMode, setSearchMode] = useState<'product' | 'catalog'>('product');
 
+    const catalogListRef = useRef<HTMLDivElement>(null);
+
+    // Jump keyboard focus from the search bar into the catalog result list.
+    const handleCatalogArrowNav = (dir: 'down' | 'up') => {
+        if (searchMode !== 'catalog' || filteredCatalogHits.length === 0) return;
+        const container = catalogListRef.current;
+        if (!container) return;
+        const items = Array.from(container.querySelectorAll<HTMLElement>('[data-catalog-row]'));
+        if (items.length === 0) return;
+        items[dir === 'down' ? 0 : items.length - 1].focus();
+    };
+
     // Catalog fallback: always appended below product results when searching.
     // Loaded lazily (cached per session) instead of snapshoting ~11k rows into
     // the store at boot; this keeps first page load fast.
@@ -218,7 +230,7 @@ export default function ProductManagementPage() {
     }, [products, filter, query]);
 
     const dlgTrigger = (
-        <Button variant="outline" size="sm" className="hidden md:flex relative rounded-md h-8 shrink-0" disabled={selectedProductIds.size === 0}>
+        <Button variant="outline" size="sm" className="hidden md:flex relative rounded-md h-8 shrink-0" aria-label="Cetak label barcode" disabled={selectedProductIds.size === 0}>
             <Printer className="h-4 w-4" />
             {selectedProductIds.size > 0 && (
                 <div className="text-[10px] grid place-items-center leading-none absolute -top-0.5 -right-0.5 bg-destructive rounded-full text-destructive-foreground size-4">
@@ -345,6 +357,7 @@ export default function ProductManagementPage() {
                             viewMode={viewMode}
                             onViewModeChange={setViewMode}
                             onBarcodeScan={handleBarcodeScan}
+                            onArrowNav={handleCatalogArrowNav}
                         />
                         <Dialog>
                             <DialogTrigger asChild>{dlgTrigger}</DialogTrigger>
@@ -440,7 +453,24 @@ export default function ProductManagementPage() {
                                             <PackageSearch className="size-3.5" />
                                             Katalog Referensi ({filteredCatalogHits.length}) — pilih lalu simpan untuk menjadikannya produk
                                         </div>
-                                        <div className="divide-y divide-border/50">
+                                        <div
+                                            ref={catalogListRef}
+                                            className="divide-y divide-border/50"
+                                            onKeyDown={(e) => {
+                                                if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+                                                e.preventDefault();
+                                                const items = Array.from(
+                                                    (e.currentTarget as HTMLDivElement).querySelectorAll<HTMLElement>('[data-catalog-row]')
+                                                );
+                                                if (items.length === 0) return;
+                                                const idx = items.indexOf(document.activeElement as HTMLElement);
+                                                const target =
+                                                    idx === -1
+                                                        ? (e.key === 'ArrowDown' ? items[0] : items[items.length - 1])
+                                                        : (e.key === 'ArrowDown' ? items[Math.min(idx + 1, items.length - 1)] : items[Math.max(idx - 1, 0)]);
+                                                target.focus();
+                                            }}
+                                        >
                                             {filteredCatalogHits.map(item => (
                                                 <CatalogHitRow key={item.id} item={item} onSelect={() => handleCatalogSelect(item)} />
                                             ))}
@@ -528,7 +558,7 @@ export default function ProductManagementPage() {
 
 function FilterPill({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
     return (
-        <Button variant={active ? 'secondary' : 'outline'} size="sm" className="rounded-md px-2.5 h-7 shrink-0 text-xs" onClick={onClick}>
+        <Button variant={active ? 'secondary' : 'outline'} size="sm" className="rounded-md px-2.5 h-7 shrink-0 text-xs" aria-pressed={active} onClick={onClick}>
             {children}
         </Button>
     );
@@ -541,8 +571,9 @@ function PillButton({ active, onClick, children }: { active: boolean; onClick: (
             size="sm"
             className={cn(
                 "rounded-md px-2.5 h-6 shrink-0 text-xs gap-1.5",
-                active ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                active ? "bg-background text-foreground ring-1 ring-inset ring-border" : "text-muted-foreground hover:text-foreground"
             )}
+            aria-pressed={active}
             onClick={onClick}
         >
             {children}
@@ -550,9 +581,7 @@ function PillButton({ active, onClick, children }: { active: boolean; onClick: (
     );
 }
 
-const formatIDR = (amt: number) => new Intl.NumberFormat('id-ID', {
-    style: 'currency', currency: 'IDR', maximumFractionDigits: 0,
-}).format(amt);
+import { formatIDR } from "@/lib/format";
 
 function CatalogHitRow({ item, onSelect }: { item: CatalogProduct; onSelect: () => void }) {
     const brandLabel = item.brand || item.generic_name;
@@ -560,9 +589,15 @@ function CatalogHitRow({ item, onSelect }: { item: CatalogProduct; onSelect: () 
         <div
             role="button"
             tabIndex={0}
+            data-catalog-row
             onClick={onSelect}
-            onKeyDown={(e) => e.key === 'Enter' && onSelect()}
-            className="flex items-center gap-3 px-3 py-2.5 cursor-pointer hover:bg-accent transition-colors"
+            onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    onSelect();
+                }
+            }}
+            className="flex items-center gap-3 px-3 py-2.5 cursor-pointer hover:bg-accent focus-visible:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset transition-colors"
         >
             {item.image_url ? (
                 <img

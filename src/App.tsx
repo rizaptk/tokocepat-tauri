@@ -20,6 +20,7 @@ import TaxReportPage from './pages/Dashboard/reports/tax/page'
 import ConsignmentReportPage from './pages/Dashboard/reports/consignments/page'
 
 import LicensePage from './pages/Dashboard/settings/License'
+import PromosPage from './pages/Dashboard/promos/page'
 
 // Product pages
 import ProductLayout from './pages/Product/layout'
@@ -48,6 +49,7 @@ function App() {
           <Route path="dashboard/reports/profit" element={<AuditReportPage />} />
           <Route path="dashboard/reports/tax" element={<TaxReportPage />} />
           <Route path="dashboard/reports/consignments" element={<ConsignmentReportPage />} />
+          <Route path="dashboard/promos" element={<PromosPage />} />
           <Route path="dashboard/settings" element={<DashboardSettings />} />
           <Route path="dashboard/shifts/:id" element={<DashboardShiftDetail />} />
 

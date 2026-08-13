@@ -42,6 +42,7 @@ export interface Product {
   sku?: string;
   barcode?: string;
   name: string;
+  brand?: string;
   category_id?: string;
   price: number;
   cost_price?: number;
@@ -64,6 +65,9 @@ export interface CartItem extends Product {
   quantity: number;
   // `price` in a CartItem will now represent the final calculated price including variants
   selectedVariant?: ProductVariant;
+  // Transient flags used by the discount engine / checkout (never persisted to the cart store)
+  isFreeItem?: boolean;
+  freeFromPromoId?: string;
 }
 
 /**
@@ -123,6 +127,19 @@ export interface TransactionItem {
     subtotal: number;
     is_consignment_settled?: boolean; // true jika sudah dilunasi ke vendor, false jika belum
     consignment_settled_at?: string;  // timestamp kapan pelunasan dilakukan
+    // Discount / promo snapshot (0 by default for legacy transactions)
+    unit_discount?: number;     // discount in Rp applied to each charged unit (gross price before discount)
+    discount_amount?: number;   // total discount for this line = unit_discount * qty
+    promo_ids?: string[];       // promotion ids that contributed to this line
+    is_free_item?: boolean;     // line was granted free via a promo (price_snapshot = 0)
+}
+
+export interface AppliedPromoRecord {
+    promo_id: string;
+    name: string;
+    amount: number;   // total Rp value given up (discounts + free item value)
+    kind: 'auto' | 'voucher' | 'manual';
+    voucher_code?: string;
 }
 
 export interface Transaction {
@@ -149,6 +166,14 @@ export interface Transaction {
   original_invoice?: string;
   return_reason?: string;
   condition_ok?: boolean;
+  // Discount / promo snapshot (0 by default for legacy transactions).
+  // `subtotal` remains the GROSS line total; `total = subtotal - discount_total + tax_amount`.
+  gross_subtotal?: number;
+  discount_total?: number;
+  promo_discount?: number;   // auto + voucher discounts + free item value
+  manual_discount?: number;  // cashier-entered manual discount
+  voucher_code?: string;
+  applied_promos?: AppliedPromoRecord[];
 }
 
 export type StockMovementType = 'sale' | 'restock' | 'correction' | 'lost' | 'damaged' | 'initial_balance' | 'return';
@@ -175,6 +200,36 @@ export interface Shift {
     status: 'open' | 'closed';
     device?: string;
     total_cash_out?: number;
+}
+
+/**
+ * A promotion rule. Two kinds:
+ * - 'bogo'   → Buy X, Get Y free (auto-applied at checkout/cart)
+ * - 'voucher'→ discount code the cashier enters (percentage or flat Rp)
+ */
+export interface Promotion {
+  id: string;
+  name: string;
+  kind: 'bogo' | 'voucher';
+  is_active: boolean;
+  created_at: string;
+  // Validity window (ISO datetimes). Optional — null/undefined = no restriction.
+  starts_at?: string;
+  ends_at?: string;
+  // --- BOGO (Buy X Get Y Free) ---
+  buy_quantity?: number;        // X units you must buy
+  free_quantity?: number;       // Y units you get free
+  applies_to_product_ids?: string[]; // empty = any product
+  applies_to_category_ids?: string[]; // empty = any category
+  free_product_id?: string;     // if set, free units come from this product
+  max_total_free_qty?: number;  // cap on free units per cart (optional)
+  // --- VOUCHER ---
+  code?: string;                // unique code, uppercased
+  discount_type?: 'percentage' | 'flat';
+  discount_value?: number;      // percent (0-100) or Rp
+  min_purchase?: number;        // gross subtotal required to use voucher
+  max_uses?: number;            // lifetime redemption cap across devices
+  uses_count?: number;          // how many times it has been used
 }
 
 export type PaymentPlan = 'PRO_MONTHLY' | 'PRO_YEARLY' | 'LIFETIME';

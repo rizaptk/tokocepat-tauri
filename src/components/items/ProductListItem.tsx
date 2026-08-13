@@ -8,6 +8,7 @@ import { Badge } from "../ui/badge";
 import { Checkbox } from "../ui/checkbox";
 import { useSelectedChecked } from "@/hooks/useDeferedCheck";
 import { useActiveProduct } from "@/lib/product-active-store";
+import { formatIDR as formatCurrency } from "@/lib/format";
 
 type ProductListItemProps = {
   product: Product;
@@ -60,14 +61,6 @@ export function ProductListItem({
       .reduce((sum, v) => sum + v.stock, 0);
   }, [productVariants, product.id, product.has_variant]);
 
-
-  const formatCurrency = (amount: number) =>
-    new Intl.NumberFormat("id-ID", {
-      style: "currency",
-      currency: "IDR",
-      minimumFractionDigits: 0,
-    }).format(amount);
-
     
     const isOutOfStock = product.has_variant ? totalVariantStock <= 0 : (product.track_stock && product.stock <= 0);
     const isLowStock = product.track_stock && product.low_stock_alert != null && product.stock > 0 && product.stock <= product.low_stock_alert;
@@ -92,6 +85,7 @@ export function ProductListItem({
         <div
           style={style}
           onClick={handleSelect}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleSelect(); } }}
           role="button"
           tabIndex={not_allowed ? -1 : 0}
           aria-disabled={not_allowed}
@@ -122,6 +116,7 @@ export function ProductListItem({
             )}
             <span className="font-medium truncate">
               {product.name}
+              {product.brand && <span className="text-muted-foreground font-normal"> · {product.brand}</span>}
             </span>
           </div>
 

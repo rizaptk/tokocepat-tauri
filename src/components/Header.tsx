@@ -22,6 +22,7 @@ import { ThemeToggle } from "./ThemeButtons";
 import { NotificationBell } from "./NotificationBell";
 import { useCurrencyFormat } from "@/hooks/useCurrencyFormat";
 import { getVersion } from "@tauri-apps/api/app";
+import { formatIDR as formatCurrency } from "@/lib/format";
 
 export function Header() {
   const navigate = useNavigate();
@@ -33,14 +34,6 @@ export function Header() {
   const closeShift = useStore((state) => state.closeShift);
   const cash = useCurrencyFormat();
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR',
-      minimumFractionDigits: 0,
-    }).format(amount);
-  };
-  
   const { shiftRevenue, expectedCash } = useMemo(() => {
     const activeShiftTransactions = activeShift ? transactions.filter(t => t.shift_id === activeShift.id && t.status === 'paid') : [];
     const revenue = activeShiftTransactions.reduce((sum, t) => sum + t.total, 0);
@@ -66,7 +59,7 @@ export function Header() {
 
   return (
     <>
-    <header className="sticky top-0 z-30 flex h-12 shrink-0 items-center justify-between gap-4 border-b border-border/60 bg-background/80 px-4 backdrop-blur-md md:px-4">
+    <header className="sticky top-0 z-30 flex h-10 shrink-0 items-center justify-between gap-4 border-b border-border/60 bg-background/80 px-4 backdrop-blur-md md:px-4">
       <div className="flex items-center gap-2">
         <Link to="/">
           <TokoCepatLogo />

@@ -19,7 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 
-export type DateRangePreset = 'today' | 'last7' | 'last30' | 'lastMonth' | 'custom';
+export type DateRangePreset = 'today' | 'last7' | 'last30' | 'thisMonth' | 'lastMonth' | 'custom';
 
 interface DateRangeFilterProps extends React.HTMLAttributes<HTMLDivElement> {
     date: DateRange | undefined;
@@ -52,6 +52,9 @@ export function DateRangeFilter({
             case 'last30':
                 newDate = { from: startOfDay(subDays(now, 29)), to: endOfDay(now) };
                 break;
+            case 'thisMonth':
+                newDate = { from: startOfMonth(now), to: endOfMonth(now) };
+                break;
             case 'lastMonth':
                  const lastMonthDate = subMonths(now, 1);
                 newDate = { from: startOfMonth(lastMonthDate), to: endOfMonth(lastMonthDate) };
@@ -77,6 +80,7 @@ export function DateRangeFilter({
                 <SelectItem value="today">Hari Ini</SelectItem>
                 <SelectItem value="last7">7 Hari Terakhir</SelectItem>
                 <SelectItem value="last30">30 Hari Terakhir</SelectItem>
+                <SelectItem value="thisMonth">Bulan Ini</SelectItem>
                 <SelectItem value="lastMonth">Bulan Lalu</SelectItem>
                 <SelectItem value="custom" disabled>Rentang Kustom</SelectItem>
             </SelectContent>

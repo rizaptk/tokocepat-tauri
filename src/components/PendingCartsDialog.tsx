@@ -1,4 +1,5 @@
 import { useStore } from '@/lib/store';
+import { formatIDR as formatCurrency } from "@/lib/format";
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -14,13 +15,7 @@ interface PendingCartsDialogProps {
 export function PendingCartsDialog({ isOpen, onOpenChange }: PendingCartsDialogProps) {
   const { pendingCarts, resumeCart, deletePendingCart } = useStore();
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR',
-      minimumFractionDigits: 0,
-    }).format(amount);
-  };
+  
   
   const handleResume = (id: string) => {
     resumeCart(id);

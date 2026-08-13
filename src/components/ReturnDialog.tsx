@@ -13,10 +13,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Search, ArrowLeft, Undo2, Minus, Plus, CheckCircle2, XCircle } from 'lucide-react';
 import { format } from 'date-fns';
-
-const formatIDR = (amt: number) => new Intl.NumberFormat('id-ID', {
-    style: 'currency', currency: 'IDR', minimumFractionDigits: 0
-}).format(amt);
+import { formatIDR } from "@/lib/format";
 
 // Stable identity for a purchased line across original + return transactions.
 // Uses name too so different variants of the same parent product stay separate.
@@ -263,7 +260,7 @@ export default function ReturnDialog({ open, onOpenChange }: ReturnDialogProps) 
                 <div className="flex items-center justify-between px-5 py-4 border-b shrink-0">
                     <div className="flex items-center gap-2">
                         {selectedTx && (
-                            <Button variant="ghost" size="icon" onClick={() => { setSelectedTx(null); setError(null); }}>
+                            <Button variant="ghost" size="icon" aria-label="Kembali ke daftar transaksi" onClick={() => { setSelectedTx(null); setError(null); }}>
                                 <ArrowLeft className="size-4" />
                             </Button>
                         )}
@@ -339,11 +336,11 @@ export default function ReturnDialog({ open, onOpenChange }: ReturnDialogProps) 
                                                 </p>
                                             </div>
                                             <div className="flex items-center gap-1 shrink-0">
-                                                <Button variant="outline" size="icon" className="size-7" onClick={() => setLineQty(l.key, l.qty - 1)} disabled={l.qty <= 0}>
+                                                <Button variant="outline" size="icon" className="size-7" aria-label={`Kurangi jumlah retur ${l.item.product_snapshot?.name || ''}`} onClick={() => setLineQty(l.key, l.qty - 1)} disabled={l.qty <= 0}>
                                                     <Minus className="size-3" />
                                                 </Button>
                                                 <span className="w-8 text-center font-bold tabular-nums">{l.qty}</span>
-                                                <Button variant="outline" size="icon" className="size-7" onClick={() => setLineQty(l.key, l.qty + 1)} disabled={l.qty >= l.remaining}>
+                                                <Button variant="outline" size="icon" className="size-7" aria-label={`Tambah jumlah retur ${l.item.product_snapshot?.name || ''}`} onClick={() => setLineQty(l.key, l.qty + 1)} disabled={l.qty >= l.remaining}>
                                                     <Plus className="size-3" />
                                                 </Button>
                                             </div>

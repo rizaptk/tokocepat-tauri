@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { formatIDR as formatCurrency } from "@/lib/format";
 import { CheckCircle, ShoppingBag, ArrowRight, LineChart, CalendarDays } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -154,13 +155,7 @@ export default function DashboardPage() {
   } satisfies ChartConfig;
 
   // --- Currency Formatter ---
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR',
-      minimumFractionDigits: 0,
-    }).format(amount);
-  };
+  
 
   // --- Active Shift Calculations ---
   const activeShiftTransactions = activeShift
@@ -170,7 +165,7 @@ export default function DashboardPage() {
 
   return (
     <div className="flex h-screen w-full flex-col bg-muted/40">
-      <header className="sticky top-0 flex h-12 items-center gap-4 border-b border-border/60 bg-background/80 px-4 z-20 justify-between shrink-0 backdrop-blur-md">
+      <header className="sticky top-0 flex h-10 items-center gap-4 border-b border-border/60 bg-background/80 px-4 z-20 justify-between shrink-0 backdrop-blur-md">
         <Link to="/">
           <TokoCepatLogo />
         </Link>
