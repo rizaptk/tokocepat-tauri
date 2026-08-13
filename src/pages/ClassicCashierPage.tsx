@@ -549,10 +549,10 @@ export default function ClassicCashierPage() {
                         <AnimatePresence mode="wait">
                             <motion.div
                                 key={total}
-                                initial={{ opacity: 0, y: 6 }}
+                                initial={{ opacity: 0, y: reducedMotion ? 0 : 6 }}
                                 animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: -6 }}
-                                transition={{ type: 'spring', bounce: 0, duration: 0.3 }}
+                                exit={{ opacity: 0, y: reducedMotion ? 0 : -6 }}
+                                transition={reducedMotion ? { duration: 0 } : { type: 'spring', bounce: 0, duration: 0.3 }}
                                 className="pt-1 text-[2.5rem] font-light leading-none tracking-tight tabular-nums"
                             >
                                 {formatIDR(total)}
@@ -729,9 +729,9 @@ export default function ClassicCashierPage() {
                             <div className="flex items-center justify-between border-b border-border py-3.5 pl-5 pr-10">
                                 <div className="flex items-center gap-2.5">
                                     <motion.span
-                                        initial={{ scale: 0, rotate: -20 }}
+                                        initial={{ scale: reducedMotion ? 1 : 0, rotate: reducedMotion ? 0 : -20 }}
                                         animate={{ scale: 1, rotate: 0 }}
-                                        transition={{ type: 'spring', bounce: 0.5, duration: 0.5 }}
+                                        transition={reducedMotion ? { duration: 0 } : { type: 'spring', bounce: 0.5, duration: 0.5 }}
                                         className="flex size-8 items-center justify-center rounded-full bg-success text-success-foreground"
                                     >
                                         <CheckCircle2 className="size-5" />

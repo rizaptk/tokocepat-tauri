@@ -30,7 +30,7 @@ const ScrollShadow = React.memo(({ scrollRef, side, className }: ScrollShadowPro
     })
   }, [scrollRef, side])
 
-  const shadowClass = "absolute z-10 left-2 right-2 h-0 border-b shadow transition-opacity duration-150 pointer-events-none opacity-0"
+  const shadowClass = "absolute z-10 left-2 right-2 h-0 border-b transition-opacity duration-150 pointer-events-none opacity-0"
 
   return (
     <>

@@ -236,7 +236,12 @@ export const ProductForm = ({ productId, onSave, onCancel, catalogPrefill }: Pro
                                 <CardHeader className="px-3 py-2 border-b border-border/60"><CardTitle className="text-sm">Detail Produk</CardTitle></CardHeader>
                                 <CardContent className="space-y-3 px-3 py-3">
                                     <div className="flex items-stretch w-full gap-4">
-                                        <div onClick={() => imageInputRef.current?.click()} role="button" tabIndex={0} onKeyDown={(e) => e.key === "Enter" && imageInputRef.current?.click()} className="group relative w-32 h-32 shrink-0 rounded-lg overflow-hidden border bg-muted cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary">
+                                        <div onClick={() => imageInputRef.current?.click()} role="button" tabIndex={0} onKeyDown={(e) => {
+    if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        imageInputRef.current?.click();
+    }
+}} className="group relative w-32 h-32 shrink-0 rounded-lg overflow-hidden border bg-muted cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary">
                                             <img
                                                 src={imageUrl || "/images/placeholder.svg"}
                                                 alt={form.getValues("name") || "Product image"}

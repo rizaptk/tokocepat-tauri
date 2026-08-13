@@ -182,6 +182,7 @@ export default function DefaultCashierPage() {
                                     variant={selectedCategoryId === null ? 'secondary' : 'outline'}
                                     size="sm"
                                     className="rounded-md px-3 shrink-0"
+                                    aria-pressed={selectedCategoryId === null}
                                     onClick={() => setSelectedCategoryId(null)}
                                 >
                                     Semua
@@ -193,6 +194,7 @@ export default function DefaultCashierPage() {
                                             variant={selectedCategoryId === category.id ? 'secondary' : 'outline'}
                                             size="sm"
                                             className="rounded-md px-3 shrink-0"
+                                            aria-pressed={selectedCategoryId === category.id}
                                             onClick={() => setSelectedCategoryId(category.id)}
                                         >
                                             {category.name}
