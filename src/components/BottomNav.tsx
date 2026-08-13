@@ -8,14 +8,14 @@ import { useLicense } from '@/hooks/useLicense';
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutGrid },
-  { href: '/cashier', label: 'Cashier', icon: ShoppingCart },
-  { href: '/product', label: 'Products', icon: Package },
+  { href: '/cashier', label: 'Kasir', icon: ShoppingCart },
+  { href: '/product', label: 'Produk', icon: Package },
 ];
 
 const moreNavItems = [
-  { href: '/inventory', label: 'Inventory', icon: Warehouse },
-  { href: '/dashboard/reports', label: 'Reports', icon: BarChartIcon },
-  { href: '/dashboard/settings', label: 'Settings', icon: Settings },
+  { href: '/inventory', label: 'Inventori', icon: Warehouse },
+  { href: '/dashboard/reports', label: 'Laporan', icon: BarChartIcon },
+  { href: '/dashboard/settings', label: 'Pengaturan', icon: Settings },
 ];
 
 export function BottomNav() {
@@ -48,6 +48,7 @@ export function BottomNav() {
           <Link
             key={item.href}
             to={item.href}
+            aria-current={isActive(item.href) ? 'page' : undefined}
             className={cn(
               'flex flex-col items-center justify-center gap-1 rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-primary',
               isActive(item.href) && 'text-primary'
@@ -71,6 +72,7 @@ export function BottomNav() {
                 <Link
                   key={item.href}
                   to={item.href}
+                  aria-current={isActive(item.href) ? 'page' : undefined}
                   className={cn(
                     "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-primary",
                     isActive(item.href) && 'bg-accent text-primary'

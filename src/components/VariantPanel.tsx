@@ -77,8 +77,8 @@ export function VariantPanel({ item, onOpenChange, onConfirm }: VariantPanelProp
                 {item && (
                     <>
                         <SheetHeader>
-                            <SheetTitle>Select a Variant for {item.name}</SheetTitle>
-                            <SheetDescription>Choose an option below. Base price: {formatCurrency(item.price)}</SheetDescription>
+                            <SheetTitle>Pilih Varian untuk {item.name}</SheetTitle>
+                            <SheetDescription>Pilih salah satu varian di bawah. Harga dasar: {formatCurrency(item.price)}</SheetDescription>
                         </SheetHeader>
                         <ScrollArea className="flex-1 -mx-6 px-6">
                             <RadioGroup onValueChange={setSelectedVariantId} value={selectedVariantId || ''} className="py-4 space-y-2">
@@ -101,11 +101,11 @@ export function VariantPanel({ item, onOpenChange, onConfirm }: VariantPanelProp
                            <div className="w-full space-y-4">
                                <Separator />
                                 <div className="flex justify-between items-center text-lg font-bold">
-                                    <span>Total Price</span>
+                                    <span>Total Harga</span>
                                     <span>{formatCurrency(finalPrice)}</span>
                                 </div>
                                 <Button onClick={handleConfirm} disabled={!selectedVariant} className="w-full" size="lg">
-                                    Next
+                                    Lanjut
                                 </Button>
                            </div>
                         </SheetFooter>

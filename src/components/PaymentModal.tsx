@@ -168,6 +168,8 @@ export function PaymentModal({ isOpen, setIsOpen, total }: PaymentModalProps) {
                     {cashReceived && (
                       <button
                         onClick={() => curr.setRaw('0')}
+                        aria-label="Kosongkan uang diterima"
+                        title="Kosongkan"
                         className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                       >
                         <Delete className="h-5 w-5" />

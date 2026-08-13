@@ -37,10 +37,13 @@ export function TransactionDisplay({ onSelectTransaction }: TransactionDisplayPr
                         <div
                             key={tx.id}
                             className={cn(
-                                "flex items-center py-3 px-5 gap-3 cursor-pointer hover:bg-accent",
+                                "flex items-center py-3 px-5 gap-3 cursor-pointer hover:bg-accent focus:outline-none focus-visible:bg-accent",
                                 tx.status === 'voided' && 'opacity-50'
                             )}
                             onClick={() => onSelectTransaction(tx)}
+                            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelectTransaction(tx); } }}
+                            role="button"
+                            tabIndex={0}
                         >
                             <div className="flex-1">
                                 <p className="font-semibold text-sm">{tx.invoice_number}</p>

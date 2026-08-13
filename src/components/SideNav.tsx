@@ -14,6 +14,7 @@ import { useIsMobile } from '@/lib/ismobile-store';
 import { useLicense } from '@/hooks/useLicense';
 import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
+import { usePrefersReducedMotion } from '@/hooks/usePrefersReducedMotion';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useStore } from '@/lib/store';
 
@@ -31,6 +32,7 @@ const navItems = [
 export function SideNav() {
     const location = useLocation();
     const { isMobile } = useIsMobile();
+    const reducedMotion = usePrefersReducedMotion();
     const { status: licenseStatus } = useLicense();
     const [isClient, setIsClient] = useState(false);
     const { customAccess } = useStore();
@@ -72,6 +74,7 @@ export function SideNav() {
                                 <TooltipTrigger asChild>
                                     <Link
                                         to={item.href}
+                                        aria-current={isActive(item.href) ? 'page' : undefined}
                                         className={cn(
                                             "group relative flex h-9 w-9 shrink-0 items-center justify-center rounded-[2px]",
                                             "transition-colors duration-150",
@@ -81,11 +84,15 @@ export function SideNav() {
                                         )}
                                     >
                                         {isActive(item.href) && (
-                                            <motion.div
-                                                layoutId="active-nav-bg"
-                                                className="absolute inset-0 rounded-[2px] bg-sidebar-active"
-                                                transition={{ type: "spring", stiffness: 400, damping: 30 }}
-                                            />
+                                            reducedMotion ? (
+                                                <div className="absolute inset-0 rounded-[2px] bg-sidebar-active" />
+                                            ) : (
+                                                <motion.div
+                                                    layoutId="active-nav-bg"
+                                                    className="absolute inset-0 rounded-[2px] bg-sidebar-active"
+                                                    transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                                                />
+                                            )
                                         )}
 
                                         <item.icon
@@ -105,19 +112,24 @@ export function SideNav() {
                             isActive('/license') &&
                             <Tooltip key="license">
                                 <TooltipTrigger asChild>
-                                    <Link to="/license" className={cn(
+                                    <Link to="/license" aria-current={isActive('/license') ? 'page' : undefined} className={cn(
                                             "group relative flex h-9 w-9 shrink-0 items-center justify-center rounded-[2px]",
                                             "transition-colors duration-150",
                                             "text-sidebar-muted hover:bg-sidebar-hover hover:text-sidebar-foreground"
                                         )}>
                                             {isActive('/license') && (
-                                                <motion.div
-                                                    layoutId="active-nav-bg"
-                                                    className="absolute inset-0 rounded-[2px] bg-sidebar-active"
-                                                    transition={{ type: "spring", stiffness: 400, damping: 30 }}
-                                                />
+                                                reducedMotion ? (
+                                                    <div className="absolute inset-0 rounded-[2px] bg-sidebar-active" />
+                                                ) : (
+                                                    <motion.div
+                                                        layoutId="active-nav-bg"
+                                                        className="absolute inset-0 rounded-[2px] bg-sidebar-active"
+                                                        transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                                                    />
+                                                )
                                             )}
                                             <ShieldAlert className="relative z-10 h-4.5 w-4.5 transition-colors duration-150" />
+                                            <span className="sr-only">Lisensi</span>
                                     </Link>
                                 </TooltipTrigger>
                             </Tooltip>

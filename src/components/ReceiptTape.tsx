@@ -269,9 +269,9 @@ export function ReceiptTape({ data, storeName, storeAddress, footer, className }
         <motion.div
             className={cn("relative mx-auto", className)}
             style={{ width: 264, transformPerspective: 640 }}
-            initial={{ opacity: 0, y: 18, rotateX: 42, scale: 0.92 }}
+            initial={{ opacity: 0, y: reduced ? 0 : 18, rotateX: reduced ? 0 : 42, scale: reduced ? 1 : 0.92 }}
             animate={{ opacity: 1, y: 0, rotateX: 0, scale: 1 }}
-            transition={{ type: "spring", bounce: 0, stiffness: 260, damping: 26, delay: 0.05 }}
+            transition={reduced ? { duration: 0 } : { type: "spring", bounce: 0, stiffness: 260, damping: 26, delay: 0.05 }}
         >
             <div
                 aria-hidden
@@ -307,9 +307,9 @@ export function ReceiptTape({ data, storeName, storeAddress, footer, className }
                         aria-hidden
                         className="pointer-events-none absolute left-0 right-0 flex items-center"
                         initial={{ top: "0%" }}
-                        animate={headDone ? { opacity: 0 } : { top: ["0%", "100%"], opacity: 1 }}
-                        transition={headDone ? { duration: 0.3 } : { duration: printEnd, ease: "linear" }}
-                        onAnimationComplete={() => !headDone && setHeadDone(true)}
+                        animate={reduced ? { opacity: 0 } : headDone ? { opacity: 0 } : { top: ["0%", "100%"], opacity: 1 }}
+                        transition={reduced ? { duration: 0 } : headDone ? { duration: 0.3 } : { duration: printEnd, ease: "linear" }}
+                        onAnimationComplete={() => !headDone && !reduced && setHeadDone(true)}
                         style={{ height: 2 }}
                     >
                         <div style={{ height: 2, background: LED, opacity: 0.9, boxShadow: `0 0 8px 1px ${LED}` }} className="w-full" />
