@@ -46,12 +46,6 @@ export function ProductThumbnailItem({
 
   // Images are optional and only shown in the product form; list/card views use
   // a lightweight letter tile so rendering stays fast with large catalogs.
-  const tint = useMemo(() => {
-    let h = 0;
-    for (let i = 0; i < product.name.length; i++) h = (h * 31 + product.name.charCodeAt(i)) % 360;
-    return h;
-  }, [product.name]);
-
     
     const isOutOfStock = product.track_stock && product.stock <= 0;
     const isLowStock =
@@ -97,8 +91,7 @@ export function ProductThumbnailItem({
       {/* Thumbnail */}
       <div className="relative w-10 h-10 shrink-0 rounded-md overflow-hidden border bg-muted">
         <div
-          className="w-full h-full grid place-items-center"
-          style={{ background: `linear-gradient(135deg, hsl(${tint} 60% 92%), hsl(${tint} 55% 84%))` }}
+          className="w-full h-full grid place-items-center bg-primary/10"
         >
           <span className="text-base font-black text-primary/70 select-none">
             {product.name.trim().charAt(0).toUpperCase()}
@@ -113,7 +106,7 @@ export function ProductThumbnailItem({
 
         {isLowStock && (
           <div className="absolute top-1 right-1">
-            <TriangleAlert className="h-3.5 w-3.5 text-yellow-500 drop-shadow fill-yellow-500" />
+            <TriangleAlert className="h-3.5 w-3.5 text-warning fill-warning" />
           </div>
         )}
       </div>

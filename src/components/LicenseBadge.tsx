@@ -33,7 +33,7 @@ export function LicenseBadge({ size = "compact" }: { size?: "compact" | "full" }
       return (
         <div className="flex items-center gap-3">
           <Badge variant="secondary" className="gap-1.5 text-[11px] py-1">
-            {isTrial ? <Zap className="size-3.5 text-primary" /> : <ShieldCheck className="size-3.5 text-green-600" />}
+            {isTrial ? <Zap className="size-3.5 text-primary" /> : <ShieldCheck className="size-3.5 text-success" />}
             {isTrial ? 'Masa Trial Aktif' : 'Lisensi Aktif'}
           </Badge>
           <span className="text-xs text-muted-foreground hidden sm:inline">{detail}</span>
@@ -45,7 +45,7 @@ export function LicenseBadge({ size = "compact" }: { size?: "compact" | "full" }
     return (
       <Link to="/license">
         <Badge variant={isTrial ? 'secondary' : 'default'} className="gap-1.5 text-[10px] font-medium h-6">
-          {isTrial ? <Zap className="size-3 text-primary" /> : <ShieldCheck className="size-3 text-green-600" />}
+          {isTrial ? <Zap className="size-3 text-primary" /> : <ShieldCheck className="size-3 text-success" />}
           {isTrial ? 'Trial' : 'Lisensi Aktif'}
         </Badge>
       </Link>

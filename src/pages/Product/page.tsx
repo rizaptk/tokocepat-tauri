@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useMemo, useRef } from "react";
 import { useStore } from "@/lib/store";
 import { Product, CatalogProduct } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
@@ -46,7 +46,6 @@ import { PackageSearch } from "lucide-react";
 export default function ProductManagementPage() {
     const { products } = useStore();
     const { toast } = useToast();
-    const [viewMode, setViewMode] = useState<"card" | "thumbnail" | "list">('list');
     const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
     const [isDrawerOpen, setIsDrawerOpen] = useState(false);
     const [activeTab, setActiveTab] = useState("product");
@@ -84,11 +83,6 @@ export default function ProductManagementPage() {
 
     const totalLabels = selectedProducts.length * printOptions.repeat;
     const estimatedSheets = Math.max(1, Math.ceil(totalLabels / layoutEstimate.perSheet));
-
-    useEffect(() => {
-        // Desktop default: tight table view; compact list view on smaller screens.
-        setViewMode(window.innerWidth < 768 ? 'thumbnail' : 'list');
-    }, []);
 
     const handleSelectProduct = (product: Product) => {
         setSelectedProductId(product.id);
@@ -354,8 +348,6 @@ export default function ProductManagementPage() {
                 <div className="px-3 pt-3 pb-2 flex flex-col w-full gap-2">
                     <div className="flex items-center gap-2">
                         <ProductSearchBar
-                            viewMode={viewMode}
-                            onViewModeChange={setViewMode}
                             onBarcodeScan={handleBarcodeScan}
                             onArrowNav={handleCatalogArrowNav}
                         />
@@ -408,7 +400,7 @@ export default function ProductManagementPage() {
                                         </div>
                                         <ProductList
                                             products={displayedProducts}
-                                            viewMode={viewMode}
+                                            viewMode="list"
                                             onItemClick={handleSelectProduct}
                                             selectedProductId={selectedProductId}
                                             context="product"
@@ -430,7 +422,7 @@ export default function ProductManagementPage() {
                         ) : (
                             <ProductList
                                 products={displayedProducts}
-                                viewMode={viewMode}
+                                viewMode="list"
                                 onItemClick={handleSelectProduct}
                                 selectedProductId={selectedProductId}
                                 context="product"
@@ -500,7 +492,7 @@ export default function ProductManagementPage() {
                         )
                     )}
                 </div>
-                {window.innerWidth >= 768 && viewMode === 'list' && (
+                {window.innerWidth >= 768 && (
                     <div className="px-3 pb-2 pt-1 flex items-center gap-3 text-[11px] text-muted-foreground shrink-0">
                         <span className="flex items-center gap-1.5">
                             {searchMode === 'catalog'
@@ -558,7 +550,16 @@ export default function ProductManagementPage() {
 
 function FilterPill({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
     return (
-        <Button variant={active ? 'secondary' : 'outline'} size="sm" className="rounded-md px-2.5 h-7 shrink-0 text-xs" aria-pressed={active} onClick={onClick}>
+        <Button
+            variant="ghost"
+            size="sm"
+            className={cn(
+                "rounded-md px-2.5 h-7 shrink-0 text-xs",
+                active ? "bg-background text-foreground ring-1 ring-inset ring-border" : "text-muted-foreground hover:text-foreground"
+            )}
+            aria-pressed={active}
+            onClick={onClick}
+        >
             {children}
         </Button>
     );
@@ -570,7 +571,7 @@ function PillButton({ active, onClick, children }: { active: boolean; onClick: (
             variant="ghost"
             size="sm"
             className={cn(
-                "rounded-md px-2.5 h-6 shrink-0 text-xs gap-1.5",
+                "rounded-md px-2.5 h-7 shrink-0 text-xs gap-1.5",
                 active ? "bg-background text-foreground ring-1 ring-inset ring-border" : "text-muted-foreground hover:text-foreground"
             )}
             aria-pressed={active}

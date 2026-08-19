@@ -96,7 +96,6 @@ const CardRow = ({ index, style, data }: { index: number, style: React.CSSProper
 const ListItem = React.memo(({ index, style, data }: { index: number, style: React.CSSProperties, data: any }) => {
   const { products, viewMode, onItemClick, selectedProductId, context } = data;
   const product = products[index];
-  const isEven = index % 2 === 0;
 
   const content = viewMode === 'thumbnail' ? (
     <motion.div
@@ -117,14 +116,13 @@ const ListItem = React.memo(({ index, style, data }: { index: number, style: Rea
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.15 }}
-      className="h-full px-4"
+      className="h-full px-3"
     >
       <ProductListItem
         product={product}
         onItemClick={onItemClick}
         isSelected={product.id === selectedProductId}
         context={context}
-        isEvent={isEven}
       />
     </motion.div>
   );
@@ -263,6 +261,7 @@ export function ProductList({ products, viewMode, isLoading, onItemClick, select
         <div className='px-3'>
           <div className='flex w-full items-center h-8 border bg-card rounded-t border-b-0 px-3'>
             <div className={columnClass.name}>
+              {context === 'product' && <div className="w-9 shrink-0" aria-hidden="true" />}
               <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Nama</span>
             </div>
             <div className={columnClass.category}>

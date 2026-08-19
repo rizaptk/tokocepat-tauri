@@ -16,7 +16,6 @@ type ProductListItemProps = {
   isSelected?: boolean;
   context?: "cashier" | "product" | "inventory";
   style?: React.CSSProperties;
-  isEvent?: boolean;
 };
 
 const columnClass = {
@@ -33,7 +32,6 @@ export function ProductListItem({
   isSelected,
   context = "cashier",
   style,
-  isEvent = false
 }: ProductListItemProps) {
   const { categories, productVariants } = useStore();
   const [checked, toggleChecked] = useSelectedChecked(product.id);
@@ -94,7 +92,6 @@ export function ProductListItem({
             "transition-colors",
             "hover:bg-accent",
             "active:ring-1 active:ring-inset active:ring-primary",
-            isEvent && 'bg-primary/5',
             isSelected && "bg-background",
             isActive && "bg-primary/10 text-primary ring-1 ring-inset ring-primary",
             not_allowed && "opacity-60 cursor-not-allowed",

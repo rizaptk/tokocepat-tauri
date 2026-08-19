@@ -63,9 +63,9 @@ const reportLinks = [
         comingSoon: false,
     },
     {
-        title: 'Promo & Voucher',
-        description: 'Atur diskon otomatis dan kode voucher.',
-        href: '/dashboard/promos',
+        title: 'Performa Promo & Voucher',
+        description: 'Analisis dampak diskon dan pemakaian voucher.',
+        href: '/dashboard/reports/promos',
         icon: TicketPercent,
         comingSoon: false,
     },
@@ -76,7 +76,7 @@ export default function ReportsPage() {
     return (
         <div className="flex min-h-screen w-full flex-col bg-muted/40">
             {/* Header */}
-            <header className="sticky top-0 flex h-12 items-center gap-4 border-b border-border/60 bg-background/80 px-4 backdrop-blur-md z-20">
+            <header className="sticky top-0 flex h-10 items-center gap-4 border-b border-border/60 bg-background/80 px-4 backdrop-blur-md z-20">
                 <Button variant="outline" size="icon" className="shrink-0" asChild>
                     <Link to="#" onClick={() => nav(-1)}>
                         <ArrowLeft className="h-4 w-4" />

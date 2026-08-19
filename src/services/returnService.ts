@@ -169,7 +169,7 @@ export const createReturnTransaction = async ({
                     const variantSnap = await getDoc(variantRef);
                     if (variantSnap.exists()) {
                         const currentStock = variantSnap.data()?.stock;
-                        await updateDoc(variantRef, { stock: currentStock + line.qty });
+                        await updateDoc(variantRef, { stock: currentStock + line.qty, updated_at: createdAt });
 
                         const movementId = `sm-retur-var-${transactionId}-${variant.id}`;
                         const stockMovement: StockMovement = {
@@ -191,7 +191,7 @@ export const createReturnTransaction = async ({
             const productSnap = await getDoc(productRef);
             if (productSnap.exists() && productSnap.data()?.track_stock) {
                 const currentStock = productSnap.data()?.stock;
-                await updateDoc(productRef, { stock: currentStock + line.qty });
+                await updateDoc(productRef, { stock: currentStock + line.qty, updated_at: createdAt });
 
                 const movementId = `sm-retur-${transactionId}-${line.item.product_snapshot.id}`;
                 const stockMovement: StockMovement = {

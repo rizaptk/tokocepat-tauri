@@ -119,7 +119,7 @@ export default function StockSummaryReportPage() {
 
     return (
         <div className="flex min-h-screen w-full flex-col bg-muted/40">
-           <header className="sticky top-0 flex h-12 items-center gap-4 border-b border-border/60 bg-background/80 px-4 backdrop-blur-md z-20">
+           <header className="sticky top-0 flex h-10 items-center gap-4 border-b border-border/60 bg-background/80 px-4 backdrop-blur-md z-20">
                 <Button variant="outline" size="icon" className="shrink-0" asChild>
                     <Link to="#" onClick={() => nav(-1)}>
                         <ArrowLeft className="h-4 w-4" />
@@ -141,7 +141,7 @@ export default function StockSummaryReportPage() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                             <DropdownMenuItem onSelect={handleExcelExport}>
-                                <FileDown className="mr-2 h-4 w-4 text-green-500"/> Excel (.xlsx)
+                                <FileDown className="mr-2 h-4 w-4 text-success"/> Excel (.xlsx)
                             </DropdownMenuItem>
                             <DropdownMenuItem onSelect={handlePdfExport}>
                                 <FileText className="mr-2 h-4 w-4 text-red-400"/> PDF (.pdf)
@@ -209,9 +209,9 @@ export default function StockSummaryReportPage() {
                                             </Badge>
                                         </TableCell>
                                         <TableCell className="text-right">{item.openingStock.toLocaleString()}</TableCell>
-                                        <TableCell className="text-right text-green-600">{item.added > 0 ? `+${item.added.toLocaleString()}` : 0}</TableCell>
-                                        <TableCell className="text-right text-red-500">{item.sold > 0 ? `-${item.sold.toLocaleString()}` : 0}</TableCell>
-                                        <TableCell className="text-right text-blue-500">{item.adjusted !== 0 ? item.adjusted.toLocaleString() : 0}</TableCell>
+                                        <TableCell className="text-right text-success dark:text-success-foreground">{item.added > 0 ? `+${item.added.toLocaleString()}` : 0}</TableCell>
+                                        <TableCell className="text-right text-destructive">{item.sold > 0 ? `-${item.sold.toLocaleString()}` : 0}</TableCell>
+                                        <TableCell className="text-right text-primary">{item.adjusted !== 0 ? item.adjusted.toLocaleString() : 0}</TableCell>
                                         <TableCell className="text-right font-bold">{item.closingStock.toLocaleString()}</TableCell>
                                     </TableRow>
                                 ))

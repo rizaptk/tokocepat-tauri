@@ -123,7 +123,7 @@ export function Header() {
                     {declaredCash > 0 && (
                         <div className="flex justify-between items-center font-semibold text-base">
                             <span>Selisih</span>
-                            <span className={`font-medium ${declaredCash - expectedCash !== 0 ? 'text-destructive' : 'text-green-600'}`}>{formatCurrency(declaredCash - expectedCash)}</span>
+                            <span className={`font-medium ${declaredCash - expectedCash !== 0 ? 'text-destructive' : 'text-success'}`}>{formatCurrency(declaredCash - expectedCash)}</span>
                         </div>
                     )}
                 </div>

@@ -33,6 +33,7 @@ interface StoreState {
     
     // Actions
     markAsRead: (id: string) => void;
+    markAllNotificationsRead: (ids: string[]) => void;
     dismissNotification: (id: string) => void;
     clearDismissedNotifications: () => void;
     setProducts: (products: Product[]) => void;
@@ -79,15 +80,19 @@ export const useStore = create<StoreState>()(
             dismissedNotificationIds: [],
 
             markAsRead: (id: string) => set((state) => ({
-                // Using Set to prevent duplicates, keeping last 100 to prevent localstorage bloat
-                readNotificationIds: [...new Set([...state.readNotificationIds, id])].slice(-100)
+                // Using Set to prevent duplicates, keeping last 500 to prevent localstorage bloat
+                readNotificationIds: [...new Set([...state.readNotificationIds, id])].slice(-500)
+            })),
+
+            markAllNotificationsRead: (ids: string[]) => set((state) => ({
+                readNotificationIds: [...new Set([...state.readNotificationIds, ...ids])].slice(-500)
             })),
 
             dismissNotification: (id: string) => {
                 set((state) => {
                     const newDismissed = [...state.dismissedNotificationIds, id];
-                    // Keep only the last 100 entries to prevent local storage bloat
-                    return { dismissedNotificationIds: newDismissed.slice(-100) };
+                    // Keep only the last 500 entries to prevent local storage bloat
+                    return { dismissedNotificationIds: newDismissed.slice(-500) };
                 });
             },
 

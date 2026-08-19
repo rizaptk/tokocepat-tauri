@@ -1,21 +1,16 @@
 import React, { useDeferredValue, useEffect, useState } from 'react';
-import { Search, SlidersHorizontal, Image, StretchHorizontal, Equal } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import type { ViewMode } from "@/pages/DefaultCashierPage";
 import { useProductSearch } from '@/lib/useProductSearch';
 import { useActiveProduct } from '@/lib/product-active-store';
 
 interface ProductSearchBarProps {
-    viewMode?: ViewMode;
-    onViewModeChange?: (mode: ViewMode) => void;
     onBarcodeScan?: (barcode: string) => void;
     /** Called when ArrowDown/ArrowUp is pressed so the parent can jump focus into its list/table. */
     onArrowNav?: (direction: 'down' | 'up') => void;
 }
 
-export const ProductSearchBar = React.memo(({ viewMode, onViewModeChange, onBarcodeScan, onArrowNav }: ProductSearchBarProps) => {
+export const ProductSearchBar = React.memo(({ onBarcodeScan, onArrowNav }: ProductSearchBarProps) => {
     const [localValue, setLocalValue] = useState('');
     const [lastInputTime, setLastInputTime] = useState(0);
     const { clearActive } = useActiveProduct();
@@ -78,29 +73,6 @@ export const ProductSearchBar = React.memo(({ viewMode, onViewModeChange, onBarc
                     onBlur={() => clearActive()}
                 />
             </div>
-
-            {viewMode && onViewModeChange && (
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <Button variant="secondary" size="icon" className="shrink-0 h-8 w-8" aria-label="Ubah tampilan pencarian">
-                           <SlidersHorizontal className="h-4 w-4" />
-                        </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent>
-                        <DropdownMenuRadioGroup value={viewMode} onValueChange={(value) => onViewModeChange(value as ViewMode)}>
-                            <DropdownMenuRadioItem value="card" className='py-2'>
-                                <Image className="mr-2 size-4 text-emerald-500" /> Kartu
-                            </DropdownMenuRadioItem>
-                             <DropdownMenuRadioItem value="thumbnail" className='py-2'>
-                                <StretchHorizontal className="mr-2 size-4 text-rose-500" /> List
-                            </DropdownMenuRadioItem>
-                             <DropdownMenuRadioItem value="list" className='py-2'>
-                                <Equal className="mr-2 size-4 text-purple-500" /> Tabel
-                            </DropdownMenuRadioItem>
-                        </DropdownMenuRadioGroup>
-                    </DropdownMenuContent>
-                </DropdownMenu>
-            )}
         </div>
     )
 })

@@ -58,8 +58,13 @@ export default function TaxReportPage() {
                 if (catOverride) rate = catOverride.tax_rate;
 
                 // --- CONSIGNMENT TAX BASE ADJUSTMENT ---
-                // Base = NET charged (gross minus per-unit discount / free units)
-                let taxableBase = (item.subtotal || 0) - (item.discount_amount || 0);
+                // Base = NET charged (gross minus per-unit discount / free units).
+                // Return items already store a NET negative subtotal (the discount
+                // is baked in), so only strip discount_amount from sale lines.
+                let taxableBase = item.subtotal || 0;
+                if (taxableBase >= 0) {
+                    taxableBase -= (item.discount_amount || 0);
+                }
                 const isConsignment = item.product_snapshot.is_consignment;
                 
                 if (isConsignment) {
@@ -124,7 +129,7 @@ export default function TaxReportPage() {
 
     return (
         <div className="flex min-h-screen w-full flex-col bg-muted/40">
-            <header className="sticky top-0 flex h-12 items-center gap-4 border-b border-border/60 bg-background/80 px-4 backdrop-blur-md z-20">
+            <header className="sticky top-0 flex h-10 items-center gap-4 border-b border-border/60 bg-background/80 px-4 backdrop-blur-md z-20">
                 <Button variant="outline" size="icon" className="shrink-0" asChild>
                     <Link to="#" onClick={() => nav(-1)}>
                         <ArrowLeft className="h-4 w-4" />
@@ -143,7 +148,7 @@ export default function TaxReportPage() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                             <DropdownMenuItem onSelect={handleExcelExport}>
-                                <FileDown className="mr-2 h-4 w-4 text-green-500" /> Audit Detail (.xlsx)
+                                <FileDown className="mr-2 h-4 w-4 text-success" /> Audit Detail (.xlsx)
                             </DropdownMenuItem>
                             <DropdownMenuItem onSelect={handlePdfExport}>
                                 <FileText className="mr-2 h-4 w-4 text-red-400" /> Ringkasan Laporan (.pdf)
@@ -162,21 +167,21 @@ export default function TaxReportPage() {
                             <CardTitle className="text-sm font-medium">Total DPP (Net)</CardTitle>
                             <Receipt className="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
-                        <CardContent><div className="text-2xl font-bold">{formatCurrency(taxReport.totals.taxable)}</div></CardContent>
+                        <CardContent><div className="text-2xl font-light">{formatCurrency(taxReport.totals.taxable)}</div></CardContent>
                     </Card>
                     <Card className="border-primary/50">
                         <CardHeader className="flex flex-row items-center justify-between pb-2">
                             <CardTitle className="text-sm font-medium">Kewajiban Pajak</CardTitle>
                             <Percent className="h-4 w-4 text-primary" />
                         </CardHeader>
-                        <CardContent><div className="text-2xl font-bold text-primary">{formatCurrency(taxReport.totals.tax)}</div></CardContent>
+                        <CardContent><div className="text-2xl font-light text-primary">{formatCurrency(taxReport.totals.tax)}</div></CardContent>
                     </Card>
                     <Card>
                         <CardHeader className="flex flex-row items-center justify-between pb-2">
                             <CardTitle className="text-sm font-medium">Kredit Pajak (Void)</CardTitle>
                             <History className="h-4 w-4 text-destructive" />
                         </CardHeader>
-                        <CardContent><div className="text-2xl font-bold text-destructive">{formatCurrency(taxReport.totals.voidedTax)}</div></CardContent>
+                        <CardContent><div className="text-2xl font-light text-destructive">{formatCurrency(taxReport.totals.voidedTax)}</div></CardContent>
                     </Card>
                     <Card>
                         <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -251,7 +256,7 @@ export default function TaxReportPage() {
                     </Card>
                 </div>
 
-                <div className="flex items-start gap-3 p-4 rounded-lg border bg-blue-500/10 border-blue-500/20 text-blue-700">
+                <div className="flex items-start gap-3 p-4 rounded-lg border bg-primary/10 border-primary/20 text-primary">
                     <AlertCircle className="h-5 w-5 mt-0.5 shrink-0" />
                     <div className="text-sm">
                         <p className="font-bold">Info Kalkulasi Kewajiban:</p>

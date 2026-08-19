@@ -35,6 +35,7 @@ export interface ProductVariant {
     stock: number;
     track_stock: boolean;
     low_stock_alert?: number;
+    updated_at?: string;
 }
 
 export interface Product {
@@ -53,6 +54,7 @@ export interface Product {
   imageHint: string;
   is_active: boolean;
   low_stock_alert?: number;
+  updated_at?: string;
 
   is_consignment?: boolean;
   consignor_name?: string;
@@ -202,34 +204,64 @@ export interface Shift {
     total_cash_out?: number;
 }
 
+export type PromoKind = 'flat' | 'bogo' | 'criteria' | 'conditional' | 'voucher';
+
+/** Legacy kinds written by older versions; `normalizePromo` maps them to 'flat'. */
+export type LegacyPromoKind = 'product' | 'category' | 'event';
+
+/** What a criteria / conditional promo grants once its trigger is met. */
+export type PromoRewardType = 'discount' | 'bonus_product' | 'discount_product';
+
 /**
- * A promotion rule. Two kinds:
- * - 'bogo'   → Buy X, Get Y free (auto-applied at checkout/cart)
- * - 'voucher'→ discount code the cashier enters (percentage or flat Rp)
+ * A promotion rule.
+ * - 'flat'        → automatic money-off on chosen products / categories
+ * - 'bogo'        → Buy X, Get Y free (auto-applied at checkout/cart)
+ * - 'criteria'    → activates when the whole selected scope is present in the cart,
+ *                   then grants a flat order discount, a bonus product, or a
+ *                   discount on another selected product
+ * - 'conditional' → activates on a spend threshold (min_purchase), optionally also
+ *                   requiring the selected scope in the cart; grants an order
+ *                   discount or bonus product(s)
+ * - 'voucher'     → discount code the cashier enters (percentage or flat Rp)
+ *
+ * Scope (`applies_to_product_ids` / `applies_to_category_ids`) is picked from the
+ * shared left-panel checkboxes on the Promo page. A product can receive at most
+ * ONE diskon (money-off OR free units) per transaction; a voucher may stack on
+ * top of that diskon.
  */
 export interface Promotion {
   id: string;
   name: string;
-  kind: 'bogo' | 'voucher';
+  kind: PromoKind;
   is_active: boolean;
   created_at: string;
-  // Validity window (ISO datetimes). Optional — null/undefined = no restriction.
+  // Validity window (ISO datetimes). Mandatory for diskons (and vouchers expire too).
   starts_at?: string;
   ends_at?: string;
+  // --- Scope (which products the rule applies to) ---
+  applies_to_product_ids?: string[];  // empty = any product
+  applies_to_category_ids?: string[]; // empty = any category
+  // --- Reward (criteria / conditional) ---
+  reward_type?: PromoRewardType;      // what is granted once the trigger is met
+  reward_product_ids?: string[];      // products granted free / discounted
+  require_scope?: boolean;            // conditional: also require selected scope in cart
   // --- BOGO (Buy X Get Y Free) ---
   buy_quantity?: number;        // X units you must buy
   free_quantity?: number;       // Y units you get free
-  applies_to_product_ids?: string[]; // empty = any product
-  applies_to_category_ids?: string[]; // empty = any category
   free_product_id?: string;     // if set, free units come from this product
   max_total_free_qty?: number;  // cap on free units per cart (optional)
-  // --- VOUCHER ---
-  code?: string;                // unique code, uppercased
+  // --- Discount amount (flat / criteria / conditional / voucher) ---
   discount_type?: 'percentage' | 'flat';
   discount_value?: number;      // percent (0-100) or Rp
-  min_purchase?: number;        // gross subtotal required to use voucher
+  // --- VOUCHER ---
+  code?: string;                // unique code, uppercased
+  min_purchase?: number;        // gross subtotal required to activate
   max_uses?: number;            // lifetime redemption cap across devices
   uses_count?: number;          // how many times it has been used
+  // --- LEGACY FIELDS (kept for reading old docs; not written by new forms) ---
+  trigger_product_ids?: string[];
+  trigger_qty?: number;
+  apply_to?: 'items' | 'cart';
 }
 
 export type PaymentPlan = 'PRO_MONTHLY' | 'PRO_YEARLY' | 'LIFETIME';

@@ -13,7 +13,11 @@ interface DeviceScopeFilterProps {
 }
 
 export function DeviceScopeFilter({ className }: DeviceScopeFilterProps) {
-    const { scope, setScope, devices, currentDeviceId } = useDeviceScope();
+    const { scope, setScope, devices, currentDeviceId, syncAllowed } = useDeviceScope();
+
+    // Only show the device filter when the sync license is active and sync mode
+    // is enabled. Otherwise the report/dashboard is always scoped to this device.
+    if (!syncAllowed) return null;
 
     const sorted: DeviceInfo[] = [...devices].sort((a, b) => {
         if (a.id === currentDeviceId) return -1;

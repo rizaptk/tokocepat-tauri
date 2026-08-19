@@ -127,13 +127,13 @@ const StockHistoryCards = memo(({selectedItem}: {selectedItem: { id: string, typ
                         </CardHeader>
                         <CardContent className="p-0">
                             <div className="divide-y divide-border/50">
-                                {group.map((history, index) => {
+                                {group.map((history) => {
                                     const date = new Date(history.created_at).toLocaleString();
                                     const mapped = reasonMapping.get(history.type);
                                     const hisType = (mapped??history.type).toUpperCase();
                                     const isPositive = history.qty_change > 0;
                                     return (
-                                        <div key={history.id} className={cn("px-4 py-3 text-sm hover:bg-muted/30 transition-colors flex gap-3 items-start", index % 2 === 0 ? "bg-muted/40" : "bg-transparent")}>
+                                        <div key={history.id} className={cn("px-4 py-3 text-sm hover:bg-muted/30 transition-colors flex gap-3 items-start")}>
                                             <div className={cn(
                                                 "mt-1 p-1.5 rounded-full shrink-0",
                                                 isPositive ? "bg-success/30 text-success-foreground" : "bg-destructive/15 text-destructive"
@@ -145,7 +145,7 @@ const StockHistoryCards = memo(({selectedItem}: {selectedItem: { id: string, typ
                                                     <span className="text-[11px] text-muted-foreground uppercase tracking-wider font-bold">
                                                         {hisType}
                                                     </span>
-                                                    <div className={cn("font-bold text-sm tabular-nums", isPositive ? "text-green-600" : "text-destructive")}>
+                                                    <div className={cn("font-bold text-sm tabular-nums", isPositive ? "text-success dark:text-success-foreground" : "text-destructive")}>
                                                         {isPositive ? `+${history.qty_change}` : history.qty_change}
                                                     </div>
                                                 </div>
@@ -384,7 +384,7 @@ const StockAdjustmentPanel = memo(({ selectedItem, onSave, onCancel }: { selecte
                                                 <span className="text-muted-foreground">Stok Lama</span>
                                                 <span>{item.stock}</span>
                                             </div>
-                                            <div className={cn("flex justify-between font-semibold", change > 0 ? "text-green-600" : "text-destructive")}>
+                                            <div className={cn("flex justify-between font-semibold", change > 0 ? "text-success dark:text-success-foreground" : "text-destructive")}>
                                                 <span className="text-muted-foreground">Perubahan</span>
                                                 <span>{change > 0 ? `+${change}` : change}</span>
                                             </div>
@@ -430,7 +430,7 @@ const ColumnClass = {
     stock: "flex flex-col items-end justify-center shrink-0 text-right tabular-nums whitespace-nowrap w-24 border-l border-l-border/50 h-full px-2"
 }
 
-const InventoryListItem = ({ item, isSelected, onItemClick, onShowDetail, categories, isEven }: { item: InventoryItemType; isSelected: boolean; onItemClick: (item: InventoryItemType) => void; onShowDetail: (item: InventoryItemType) => void; categories: Category[], isEven: boolean}) => {
+const InventoryListItem = ({ item, isSelected, onItemClick, onShowDetail, categories }: { item: InventoryItemType; isSelected: boolean; onItemClick: (item: InventoryItemType) => void; onShowDetail: (item: InventoryItemType) => void; categories: Category[]}) => {
     
     let categoryName = 'N/A';
     if (item.itemType === 'product') {
@@ -474,13 +474,13 @@ const InventoryListItem = ({ item, isSelected, onItemClick, onShowDetail, catego
                 tabIndex={0}
                 className={cn(
                     "group flex items-center px-4 transition-colors cursor-pointer  hover:bg-accent h-12 focus:outline-none focus-visible:bg-accent",
-                    isSelected ? "bg-primary/10 text-primary ring-1 ring-inset ring-primary" : isEven ? 'bg-border/10' : ''
+                    isSelected ? "bg-primary/10 text-primary ring-1 ring-inset ring-primary" : ''
                 )}
             >
                 <div className={ColumnClass.name}>
                     <p className="font-medium truncate">{displayName}</p>
                     {isConsignment && (
-                        <span className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold truncate">
+                        <span className="text-[10px] text-warning dark:text-warning-foreground font-semibold truncate">
                             Titipan: {consignorName} ({formattedCommission})
                         </span>
                     )}
@@ -499,6 +499,23 @@ const InventoryListItem = ({ item, isSelected, onItemClick, onShowDetail, catego
     );
 }
 
+
+function FilterPill({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+    return (
+        <Button
+            variant="ghost"
+            size="sm"
+            className={cn(
+                "rounded-md px-2.5 h-7 shrink-0 text-xs",
+                active ? "bg-background text-foreground ring-1 ring-inset ring-border" : "text-muted-foreground hover:text-foreground"
+            )}
+            aria-pressed={active}
+            onClick={onClick}
+        >
+            {children}
+        </Button>
+    );
+}
 
 export default function InventoryPage() {
     const reducedMotion = usePrefersReducedMotion();
@@ -692,7 +709,6 @@ export default function InventoryPage() {
     }
 
     const Row = memo(({ index, style }: { index: number, style: React.CSSProperties }) => {
-        const isEven = index % 2 === 0;
         return (
             <div style={style} className="px-4 pb-4 pt-0">
                 <InventoryListItem
@@ -701,7 +717,6 @@ export default function InventoryPage() {
                     onItemClick={handleItemSelect}
                     onShowDetail={openProductDetail}
                     categories={categories}
-                    isEven={isEven}
                 />
             </div>
         )
@@ -734,17 +749,16 @@ export default function InventoryPage() {
                                 </Button>
                             </div>
                         </div>
-                        <div className="flex items-center gap-4 overflow-x-auto no-scrollbar">
-                            <Button variant={filter === 'all' ? 'secondary' : 'outline'} aria-pressed={filter === 'all'} onClick={() => setFilter('all')} className="rounded-md px-3 shrink-0">All</Button>
-                            <Button variant={filter === 'product' ? 'secondary' : 'outline'} aria-pressed={filter === 'product'} onClick={() => setFilter('product')} className="rounded-md px-3 shrink-0">Produk</Button>
-                            {/* Consignment inventory filter */}
-                            <Button variant={filter === 'consignment' ? 'secondary' : 'outline'} aria-pressed={filter === 'consignment'} onClick={() => setFilter('consignment')} className="rounded-md px-3 shrink-0">Titipan / Konsinyasi</Button>
-                            <Button variant={filter === 'variant' ? 'secondary' : 'outline'} aria-pressed={filter === 'variant'} onClick={() => setFilter('variant')} className="rounded-md px-3 shrink-0">Varian</Button>
-                            
-                            <Separator orientation="vertical" />
+                        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+                            <FilterPill active={filter === 'all'} onClick={() => setFilter('all')}>All</FilterPill>
+                            <FilterPill active={filter === 'product'} onClick={() => setFilter('product')}>Produk</FilterPill>
+                            <FilterPill active={filter === 'consignment'} onClick={() => setFilter('consignment')}>Titipan / Konsinyasi</FilterPill>
+                            <FilterPill active={filter === 'variant'} onClick={() => setFilter('variant')}>Varian</FilterPill>
 
-                            <Button variant={filter === 'low_stock' ? 'secondary' : 'outline'} aria-pressed={filter === 'low_stock'} onClick={() => setFilter('low_stock')} className="rounded-md px-3 shrink-0">Stok Tipis</Button>
-                            <Button variant={filter === 'out_of_stock' ? 'secondary' : 'outline'} aria-pressed={filter === 'out_of_stock'} onClick={() => setFilter('out_of_stock')} className="rounded-md px-3 shrink-0">Habis</Button>
+                            <Separator orientation="vertical" className="h-4 my-auto" />
+
+                            <FilterPill active={filter === 'low_stock'} onClick={() => setFilter('low_stock')}>Stok Tipis</FilterPill>
+                            <FilterPill active={filter === 'out_of_stock'} onClick={() => setFilter('out_of_stock')}>Habis</FilterPill>
                         </div>
                     </div>
                     <div className="flex-1 bg-background h-full min-h-0 flex flex-col">

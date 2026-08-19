@@ -41,8 +41,8 @@ export const LicenseInfo = () => {
                   <Card>
                     <CardContent className="flex flex-col gap-2 pt-6">
                         <div className="flex items-center gap-2">
-                            {isTrial ? <Zap className="h-5 w-5 text-primary" /> : <CheckCircle className="h-5 w-5 text-green-600" />}
-                            <p className={`font-semibold ${isTrial ? 'text-primary' : 'text-green-600'}`}>
+                            {isTrial ? <Zap className="h-5 w-5 text-primary" /> : <CheckCircle className="h-5 w-5 text-success" />}
+                            <p className={`font-semibold ${isTrial ? 'text-primary' : 'text-success'}`}>
                                 {isTrial ? 'Masa Trial Aktif' : 'Lisensi Aktif'}
                             </p>
                             {isTrial && <Badge variant="secondary" className="ml-auto">Trial</Badge>}

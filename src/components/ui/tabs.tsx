@@ -83,7 +83,7 @@ const TabsTrigger = React.forwardRef<
       {isActive && (
         <motion.div
           layoutId={layoutId}
-          className={`absolute inset-0 z-0 rounded-sm ${isDanger ? 'bg-destructive' : 'bg-primary'} shadow-sm`}
+          className={`absolute inset-0 z-0 rounded-sm ${isDanger ? 'bg-destructive' : 'bg-primary'}`}
           transition={{ type: "spring", stiffness: 400, damping: 30 }}
         />
       )}

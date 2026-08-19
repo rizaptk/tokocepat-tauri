@@ -116,14 +116,14 @@ export default function AuditReportPage() {
         return [
             { title: 'Total Omzet (Gross)', value: formatCurrency(totalRevenue), icon: DollarSign, color: '' },
             { title: 'HPP Inventori Toko', value: formatCurrency(totalStandardHPP), icon: Package, color: 'text-muted-foreground' },
-            { title: 'Bagi Hasil Titipan', value: formatCurrency(totalConsignmentPayout), icon: Wallet, color: 'text-amber-600 dark:text-amber-400' },
+            { title: 'Bagi Hasil Titipan', value: formatCurrency(totalConsignmentPayout), icon: Wallet, color: 'text-warning dark:text-warning-foreground' },
             { title: 'Laba Bersih Riil', value: formatCurrency(totalNetProfit), icon: TrendingUp, color: 'text-primary' },
         ];
     }, [auditData]);
 
     return (
         <div className="flex min-h-screen w-full flex-col bg-muted/40">
-           <header className="sticky top-0 flex h-12 items-center gap-4 border-b border-border/60 bg-background/80 px-4 backdrop-blur-md z-20">
+           <header className="sticky top-0 flex h-10 items-center gap-4 border-b border-border/60 bg-background/80 px-4 backdrop-blur-md z-20">
                 <Button variant="outline" size="icon" className="shrink-0" asChild>
                     <Link to="#" onClick={() => nav(-1)}>
                         <ArrowLeft className="h-4 w-4" />
@@ -154,7 +154,7 @@ export default function AuditReportPage() {
                             <CardTitle className="text-sm font-medium">{stat.title}</CardTitle>
                             <stat.icon className="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
-                        <CardContent><div className={`text-2xl font-bold ${stat.color}`}>{stat.value}</div></CardContent>
+                        <CardContent><div className={`text-2xl font-light ${stat.color}`}>{stat.value}</div></CardContent>
                     </Card>
                 ))}
             </div>
@@ -196,9 +196,9 @@ export default function AuditReportPage() {
                                     </TableCell>
                                     <TableCell className="text-right">{formatCurrency(row.revenue)}</TableCell>
                                     <TableCell className="text-right text-muted-foreground">{formatCurrency(row.standardHPP)}</TableCell>
-                                    <TableCell className="text-right text-amber-600 dark:text-amber-400">{formatCurrency(row.consignmentPayout)}</TableCell>
+                                    <TableCell className="text-right text-warning dark:text-warning-foreground">{formatCurrency(row.consignmentPayout)}</TableCell>
                                     <TableCell className="text-right font-medium">{formatCurrency(row.paperProfit)}</TableCell>
-                                    <TableCell className={`text-right ${row.variance < 0 ? 'text-destructive font-bold' : row.variance > 0 ? 'text-green-600' : ''}`}>
+                                    <TableCell className={`text-right ${row.variance < 0 ? 'text-destructive font-bold' : row.variance > 0 ? 'text-success dark:text-success-foreground' : ''}`}>
                                         {row.variance > 0 ? '+' : ''}{formatCurrency(row.variance)}
                                     </TableCell>
                                     <TableCell className="text-right font-bold bg-muted/30">{formatCurrency(row.actualProfit)}</TableCell>

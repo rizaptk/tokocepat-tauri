@@ -113,7 +113,7 @@ export default function ReturnDialog({ open, onOpenChange }: ReturnDialogProps) 
         if (!storeConfig) return { subtotal: 0, tax: 0, total: 0 };
         lines.forEach(l => {
             if (l.qty <= 0) return;
-            const lineTotal = l.item.price_snapshot * l.qty;
+            const lineTotal = (l.item.price_snapshot - (l.item.unit_discount || 0)) * l.qty;
             subtotal += lineTotal;
             const { tax_settings, tax_rate } = storeConfig;
             let rate = tax_rate;

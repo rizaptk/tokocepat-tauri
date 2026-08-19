@@ -233,7 +233,7 @@ export const createTransaction = async (
                 const variantSnap = await getDoc(variantRef);
                 if (variantSnap.exists()) {
                     const currentStock = variantSnap.data()?.stock;
-                    await updateDoc(variantRef, { stock: currentStock - cartItem.quantity });
+                    await updateDoc(variantRef, { stock: currentStock - cartItem.quantity, updated_at: createdAt });
 
                     const movementId = `sm-var-${transactionId}-${cartItem.selectedVariant.id}`;
                     const stockMovement: StockMovement = {
@@ -254,7 +254,7 @@ export const createTransaction = async (
             const productSnap = await getDoc(productRef);
             if (productSnap.exists()) {
                 const currentStock = productSnap.data()?.stock;
-                await updateDoc(productRef, { stock: currentStock - cartItem.quantity });
+                await updateDoc(productRef, { stock: currentStock - cartItem.quantity, updated_at: createdAt });
 
                 const movementId = `sm-${transactionId}-${cartItem.id}`;
                 const stockMovement: StockMovement = {
@@ -330,7 +330,7 @@ export const voidTransaction = async (transactionId: string, reason: string): Pr
                     const variantSnap = await getDoc(variantRef);
                     if (variantSnap.exists()) {
                         const currentStock = variantSnap.data()?.stock;
-                        await updateDoc(variantRef, { stock: currentStock + item.qty });
+                        await updateDoc(variantRef, { stock: currentStock + item.qty, updated_at: now });
 
                         const movementId = `sm-void-var-${transaction.id}-${variant.id}`;
                         const stockMovement: StockMovement = {
@@ -356,7 +356,7 @@ export const voidTransaction = async (transactionId: string, reason: string): Pr
                 const currentStock = productData?.stock;
                 const quantityToReturn = item.qty;
 
-                await updateDoc(productRef, { stock: currentStock + quantityToReturn });
+                await updateDoc(productRef, { stock: currentStock + quantityToReturn, updated_at: now });
 
                 const movementId = `sm-void-${transaction.id}-${item.product_snapshot.id}`;
                 const stockMovement: StockMovement = {

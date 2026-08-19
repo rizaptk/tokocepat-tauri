@@ -1,71 +1,91 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { ArrowLeft, Plus, Pencil, Trash2, Gift, TicketPercent, Power } from 'lucide-react';
-import { NotificationBell } from '@/components/NotificationBell';
-import { ThemeToggle } from '@/components/ThemeButtons';
+import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
+import { Checkbox } from '@/components/ui/checkbox';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { ArrowLeft, Plus, Trash2, Search, Percent, TicketPercent, Package, Tags } from 'lucide-react';
+import { NotificationBell } from '@/components/NotificationBell';
+import { ThemeToggle } from '@/components/ThemeButtons';
 import { useStore } from '@/lib/store';
 import { useDbStore } from '@/lib/db-store';
 import { toast } from '@/hooks/use-toast';
-import { Promotion } from '@/lib/types';
+import { Promotion, PromoKind } from '@/lib/types';
 import { savePromo, deletePromo, setPromoActive, generatePromoId } from '@/services/promoManagerService';
+import { normalizePromo, isPromoLive } from '@/lib/promo-model';
 import { cn } from '@/lib/utils';
-import { MultiSelect, SingleSelect } from './_components/SelectCombobox';
 import { formatIDR } from "@/lib/format";
+import { PromoEditor, PromoEditorTab } from './_components/PromoEditor';
+import { KIND_LABEL, KIND_ICON } from './_components/promoMeta';
 
-const toLocalInput = (iso?: string): string => {
-    if (!iso) return '';
-    const d = new Date(iso);
-    const p = (n: number) => String(n).padStart(2, '0');
-    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
-};
-
-const fromLocalInput = (v: string): string | undefined => (v ? new Date(v).toISOString() : undefined);
+type LeftTab = 'diskon' | 'voucher' | 'produk' | 'kategori';
 
 const fmtDate = (iso?: string): string => {
     if (!iso) return '-';
     return new Date(iso).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 };
 
-const isLiveNow = (p: Promotion): boolean => {
-    if (!p.is_active) return false;
-    const now = Date.now();
-    if (p.starts_at && new Date(p.starts_at).getTime() > now) return false;
-    if (p.ends_at && new Date(p.ends_at).getTime() <= now) return false;
-    return true;
+const emptyDraft = (kind: PromoKind): Promotion => {
+    const base: Promotion = {
+        id: generatePromoId(),
+        name: '',
+        kind,
+        is_active: true,
+        created_at: new Date().toISOString(),
+        applies_to_product_ids: [],
+        applies_to_category_ids: [],
+        discount_type: 'percentage',
+        discount_value: 10,
+    };
+    switch (kind) {
+        case 'flat': return { ...base, reward_type: 'discount' };
+        case 'bogo': return { ...base, buy_quantity: 2, free_quantity: 1 };
+        case 'criteria': return { ...base, reward_type: 'discount', reward_product_ids: [] };
+        case 'conditional': return { ...base, reward_type: 'discount', reward_product_ids: [], min_purchase: 50000, require_scope: true };
+        case 'voucher': return { ...base, code: '', max_uses: 100, min_purchase: 0 };
+    }
 };
 
-type Draft = Promotion;
-
-const emptyDraft = (kind: 'bogo' | 'voucher'): Draft => ({
-    id: generatePromoId(),
-    name: '',
-    kind,
-    is_active: true,
-    created_at: new Date().toISOString(),
-    buy_quantity: 2,
-    free_quantity: 1,
-    applies_to_product_ids: [],
-    applies_to_category_ids: [],
-    discount_type: 'percentage',
-    discount_value: 10,
-    max_uses: 100,
-});
+function PillButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+    return (
+        <Button
+            variant="ghost"
+            size="sm"
+            className={cn(
+                "rounded-md px-2.5 h-7 shrink-0 text-xs gap-1.5",
+                active ? "bg-background text-foreground ring-1 ring-inset ring-border" : "text-muted-foreground hover:text-foreground"
+            )}
+            aria-pressed={active}
+            onClick={onClick}
+        >
+            {children}
+        </Button>
+    );
+}
 
 export default function PromosPage() {
     const nav = useNavigate();
     const { promos, products, categories } = useStore();
 
-    const [draft, setDraft] = useState<Draft | null>(null);
+    const [leftTab, setLeftTab] = useState<LeftTab>('diskon');
+    const [query, setQuery] = useState('');
+    const [draft, setDraft] = useState<Promotion>(() => emptyDraft('flat'));
+    const [isNew, setIsNew] = useState(true);
+    const [isSheetOpen, setIsSheetOpen] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
+    const [activeTab, setActiveTab] = useState<PromoEditorTab>('diskon');
+
+    // Shared scope: the left-panel checkbox selection feeds BOTH Diskon & Voucher.
+    const [selectedProductIds, setSelectedProductIds] = useState<Set<string>>(new Set());
+    const [selectedCategoryIds, setSelectedCategoryIds] = useState<Set<string>>(new Set());
+
+    const normalizedPromos = promos.map(normalizePromo);
+    const diskons = normalizedPromos.filter(p => p.kind !== 'voucher');
+    const vouchers = normalizedPromos.filter(p => p.kind === 'voucher');
 
     // Actual redemptions per voucher code, queried from the DB so the numbers
     // reflect every device + day (not just the in-memory ledger).
@@ -97,41 +117,207 @@ export default function PromosPage() {
     const productName = (id: string) => products.find(p => p.id === id)?.name || id;
     const categoryName = (id: string) => categories.find(c => c.id === id)?.name || id;
 
+    const toggleProduct = (id: string) =>
+        setSelectedProductIds(prev => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id); else next.add(id);
+            return next;
+        });
+    const toggleCategory = (id: string) =>
+        setSelectedCategoryIds(prev => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id); else next.add(id);
+            return next;
+        });
+    const clearScope = () => {
+        setSelectedProductIds(new Set());
+        setSelectedCategoryIds(new Set());
+    };
+
+    const handleSelect = (promo: Promotion) => {
+        setDraft({
+            ...promo,
+            applies_to_product_ids: promo.applies_to_product_ids || [],
+            applies_to_category_ids: promo.applies_to_category_ids || [],
+        });
+        setIsNew(false);
+        setActiveTab(promo.kind === 'voucher' ? 'voucher' : 'diskon');
+        setSelectedProductIds(new Set(promo.applies_to_product_ids || []));
+        setSelectedCategoryIds(new Set(promo.applies_to_category_ids || []));
+        if (window.innerWidth < 768) setIsSheetOpen(true);
+    };
+
+    const handleEditorTab = (tab: PromoEditorTab) => {
+        setActiveTab(tab);
+        const kind: PromoKind = tab === 'voucher' ? 'voucher' : 'flat';
+        const mismatch = tab === 'voucher' ? draft.kind !== 'voucher' : draft.kind === 'voucher';
+        if (mismatch) {
+            setDraft(emptyDraft(kind));
+            setIsNew(true);
+        }
+    };
+
+    const resetToNewDiskon = () => {
+        setDraft(emptyDraft('flat'));
+        setIsNew(true);
+        setActiveTab('diskon');
+    };
+
+    const handleCancel = () => {
+        resetToNewDiskon();
+        setIsSheetOpen(false);
+    };
+
+    const buildClean = (d: Promotion): Promotion => {
+        const scopeProducts = (d.applies_to_product_ids || []).length ? d.applies_to_product_ids : undefined;
+        const scopeCategories = (d.applies_to_category_ids || []).length ? d.applies_to_category_ids : undefined;
+        const base: Promotion = {
+            ...d,
+            name: d.name.trim(),
+            applies_to_product_ids: scopeProducts,
+            applies_to_category_ids: scopeCategories,
+        };
+        switch (d.kind) {
+            case 'voucher':
+                return {
+                    ...base,
+                    code: (d.code || '').trim().toUpperCase(),
+                    discount_type: d.discount_type,
+                    discount_value: d.discount_value,
+                    min_purchase: (d.min_purchase || 0) > 0 ? d.min_purchase : undefined,
+                    max_uses: d.max_uses,
+                    reward_type: undefined, reward_product_ids: undefined, require_scope: undefined,
+                    buy_quantity: undefined, free_quantity: undefined, free_product_id: undefined, max_total_free_qty: undefined,
+                };
+            case 'flat':
+                return {
+                    ...base,
+                    discount_type: d.discount_type,
+                    discount_value: d.discount_value,
+                    reward_type: undefined, reward_product_ids: undefined, require_scope: undefined,
+                    code: undefined, min_purchase: undefined, max_uses: undefined,
+                    buy_quantity: undefined, free_quantity: undefined, free_product_id: undefined, max_total_free_qty: undefined,
+                };
+            case 'bogo':
+                return {
+                    ...base,
+                    buy_quantity: d.buy_quantity,
+                    free_quantity: d.free_quantity,
+                    free_product_id: d.free_product_id || undefined,
+                    max_total_free_qty: (d.max_total_free_qty || 0) > 0 ? d.max_total_free_qty : undefined,
+                    discount_type: undefined, discount_value: undefined, reward_type: undefined, reward_product_ids: undefined,
+                    require_scope: undefined, code: undefined, min_purchase: undefined, max_uses: undefined,
+                };
+            case 'criteria': {
+                const r = d.reward_type || 'discount';
+                const needsDiscount = r === 'discount' || r === 'discount_product';
+                return {
+                    ...base,
+                    reward_type: r,
+                    reward_product_ids: (d.reward_product_ids || []).length ? d.reward_product_ids : undefined,
+                    discount_type: needsDiscount ? d.discount_type : undefined,
+                    discount_value: needsDiscount ? d.discount_value : undefined,
+                    require_scope: undefined, code: undefined, min_purchase: undefined, max_uses: undefined,
+                    buy_quantity: undefined, free_quantity: undefined, free_product_id: undefined, max_total_free_qty: undefined,
+                };
+            }
+            case 'conditional': {
+                const r = d.reward_type || 'discount';
+                return {
+                    ...base,
+                    min_purchase: d.min_purchase,
+                    require_scope: d.require_scope,
+                    reward_type: r,
+                    reward_product_ids: (d.reward_product_ids || []).length ? d.reward_product_ids : undefined,
+                    discount_type: r === 'discount' ? d.discount_type : undefined,
+                    discount_value: r === 'discount' ? d.discount_value : undefined,
+                    code: undefined, max_uses: undefined,
+                    buy_quantity: undefined, free_quantity: undefined, free_product_id: undefined, max_total_free_qty: undefined,
+                };
+            }
+        }
+    };
+
     const handleSave = async () => {
         if (!draft) return;
         if (!draft.name.trim()) {
             toast({ variant: 'destructive', title: 'Nama wajib diisi' });
             return;
         }
-        if (draft.kind === 'voucher' && !draft.code?.trim()) {
-            toast({ variant: 'destructive', title: 'Kode voucher wajib diisi' });
+        if (!draft.starts_at || !draft.ends_at) {
+            toast({ variant: 'destructive', title: 'Rentang berlaku wajib diisi' });
             return;
         }
+        if (new Date(draft.ends_at) <= new Date(draft.starts_at)) {
+            toast({ variant: 'destructive', title: 'Jadwal salah', description: 'Tanggal berakhir harus setelah tanggal mulai.' });
+            return;
+        }
+
         if (draft.kind === 'voucher') {
-            const clash = promos.find(p =>
-                p.kind === 'voucher' && p.id !== draft.id &&
-                (p.code || '').toUpperCase() === (draft.code || '').toUpperCase()
+            if (!draft.code?.trim()) {
+                toast({ variant: 'destructive', title: 'Kode voucher wajib diisi' });
+                return;
+            }
+            const clash = vouchers.find(p =>
+                p.id !== draft.id && (p.code || '').toUpperCase() === (draft.code || '').toUpperCase()
             );
             if (clash) {
                 toast({ variant: 'destructive', title: 'Kode sudah dipakai', description: `Kode "${draft.code}" sudah digunakan pada voucher ${clash.name}.` });
                 return;
             }
+            if ((draft.discount_value || 0) <= 0) {
+                toast({ variant: 'destructive', title: 'Besar diskon wajib diisi' });
+                return;
+            }
+        } else {
+            if ((draft.applies_to_product_ids?.length || 0) === 0 && (draft.applies_to_category_ids?.length || 0) === 0) {
+                toast({ variant: 'destructive', title: 'Pilih produk/kategori dulu', description: 'Diskon butuh minimal satu produk atau kategori di panel kiri.' });
+                return;
+            }
+            if (draft.kind === 'flat' && (draft.discount_value || 0) <= 0) {
+                toast({ variant: 'destructive', title: 'Besar diskon wajib diisi' });
+                return;
+            }
+            if (draft.kind === 'bogo' && (!draft.buy_quantity || draft.buy_quantity < 1)) {
+                toast({ variant: 'destructive', title: 'Jumlah beli (X) wajib diisi' });
+                return;
+            }
+            if (draft.kind === 'criteria') {
+                const r = draft.reward_type || 'discount';
+                if ((r === 'discount' || r === 'discount_product') && (draft.discount_value || 0) <= 0) {
+                    toast({ variant: 'destructive', title: 'Besar diskon wajib diisi' });
+                    return;
+                }
+                if ((r === 'bonus_product' || r === 'discount_product') && !(draft.reward_product_ids?.length)) {
+                    toast({ variant: 'destructive', title: 'Pilih produk hadiah' });
+                    return;
+                }
+            }
+            if (draft.kind === 'conditional') {
+                if (!draft.min_purchase || draft.min_purchase <= 0) {
+                    toast({ variant: 'destructive', title: 'Minimal belanja wajib diisi' });
+                    return;
+                }
+                const r = draft.reward_type || 'discount';
+                if (r === 'discount' && (draft.discount_value || 0) <= 0) {
+                    toast({ variant: 'destructive', title: 'Besar diskon wajib diisi' });
+                    return;
+                }
+                if (r === 'bonus_product' && !(draft.reward_product_ids?.length)) {
+                    toast({ variant: 'destructive', title: 'Pilih produk bonus' });
+                    return;
+                }
+            }
         }
 
-        const clean: Promotion = {
-            ...draft,
-            name: draft.name.trim(),
-            code: draft.kind === 'voucher' ? (draft.code || '').trim().toUpperCase() : undefined,
-            applies_to_product_ids: draft.applies_to_product_ids?.length ? draft.applies_to_product_ids : undefined,
-            applies_to_category_ids: draft.applies_to_category_ids?.length ? draft.applies_to_category_ids : undefined,
-            free_product_id: draft.kind === 'bogo' && draft.free_product_id ? draft.free_product_id : undefined,
-        };
-
+        const clean = buildClean(draft);
         setIsSaving(true);
         try {
             await savePromo(clean);
             toast({ title: 'Promo Disimpan', description: `"${clean.name}" berhasil disimpan.` });
-            setDraft(null);
+            resetToNewDiskon();
+            clearScope();
+            setIsSheetOpen(false);
         } catch (error: any) {
             toast({ variant: 'destructive', title: 'Gagal Simpan', description: error.message });
         } finally {
@@ -143,6 +329,7 @@ export default function PromosPage() {
         try {
             await deletePromo(promo.id);
             toast({ title: 'Promo Dihapus', description: `"${promo.name}" dihapus.` });
+            if (draft?.id === promo.id) handleCancel();
         } catch (error: any) {
             toast({ variant: 'destructive', title: 'Gagal Hapus', description: error.message });
         }
@@ -153,18 +340,53 @@ export default function PromosPage() {
         toast({ title: active ? 'Promo Diaktifkan' : 'Promo Dinonaktifkan', description: promo.name });
     };
 
+    const scopeSummary = (p: Promotion): string => {
+        const pids = p.applies_to_product_ids || [];
+        const cids = p.applies_to_category_ids || [];
+        if (pids.length === 0 && cids.length === 0) return 'Semua produk';
+        const parts: string[] = [];
+        if (pids.length) parts.push(`${pids.length} produk`);
+        if (cids.length) parts.push(`${cids.length} kategori`);
+        return parts.join(' · ');
+    };
+
+    const rewardName = (p: Promotion): string => {
+        const names = (p.reward_product_ids || []).map(productName);
+        return names.length ? names.join(', ') : '-';
+    };
+
+    const discText = (p: Promotion) => p.discount_type === 'percentage' ? `${p.discount_value}%` : formatIDR(p.discount_value || 0);
+
     const describe = (p: Promotion): string => {
         let desc: string;
-        if (p.kind === 'voucher') {
-            const disc = p.discount_type === 'percentage' ? `${p.discount_value}%` : formatIDR(p.discount_value || 0);
-            const scope = p.min_purchase ? `, min ${formatIDR(p.min_purchase)}` : '';
-            desc = `Diskon ${disc}${scope}`;
-        } else {
-            const scopeParts: string[] = [];
-            if (p.applies_to_category_ids?.length) scopeParts.push(p.applies_to_category_ids.map(categoryName).join(', '));
-            if (p.applies_to_product_ids?.length) scopeParts.push(p.applies_to_product_ids.map(productName).join(', '));
-            if (p.applies_to_product_ids?.length === 0 && p.applies_to_category_ids?.length === 0) scopeParts.push('Semua produk');
-            desc = `Beli ${p.buy_quantity ?? 2} → gratis ${p.free_quantity ?? 1}${p.free_product_id ? ` (${productName(p.free_product_id)})` : ''}${scopeParts.length ? ` · ${scopeParts.join(' · ')}` : ''}`;
+        switch (p.kind) {
+            case 'flat':
+                desc = `Diskon ${discText(p)} · ${scopeSummary(p)}`;
+                break;
+            case 'bogo':
+                desc = `Beli ${p.buy_quantity ?? 2} → gratis ${p.free_quantity ?? 1}${p.free_product_id ? ` (${productName(p.free_product_id)})` : ''} · ${scopeSummary(p)}`;
+                break;
+            case 'criteria': {
+                const scope = scopeSummary(p);
+                if (p.reward_type === 'discount') desc = `Beli semua ${scope} → diskon ${discText(p)}`;
+                else if (p.reward_type === 'discount_product') desc = `Beli semua ${scope} → diskon ${discText(p)} untuk ${rewardName(p)}`;
+                else desc = `Beli semua ${scope} → gratis ${rewardName(p)}`;
+                break;
+            }
+            case 'conditional': {
+                const min = p.min_purchase ? `Belanja ≥ ${formatIDR(p.min_purchase)}` : 'Belanja';
+                const scope = p.require_scope ? ` + beli ${scopeSummary(p)}` : '';
+                desc = p.reward_type === 'bonus_product'
+                    ? `${min}${scope} → gratis ${rewardName(p)}`
+                    : `${min}${scope} → diskon ${discText(p)}`;
+                break;
+            }
+            case 'voucher': {
+                const scope = scopeSummary(p) !== 'Semua produk' ? ` · ${scopeSummary(p)}` : '';
+                const min = p.min_purchase ? `, min ${formatIDR(p.min_purchase)}` : '';
+                desc = `Diskon ${discText(p)}${min}${scope}`;
+                break;
+            }
         }
         if (p.starts_at || p.ends_at) {
             desc += ` · ${fmtDate(p.starts_at)} → ${fmtDate(p.ends_at)}`;
@@ -172,18 +394,53 @@ export default function PromosPage() {
         return desc;
     };
 
+    const overlaps = (a: Promotion, b: Promotion): boolean => {
+        const aP = new Set(a.applies_to_product_ids || []);
+        const bP = new Set(b.applies_to_product_ids || []);
+        const aC = new Set(a.applies_to_category_ids || []);
+        const bC = new Set(b.applies_to_category_ids || []);
+        return [...aP].some(id => bP.has(id)) || [...aC].some(id => bC.has(id));
+    };
+
+    const conflictFor = (p: Promotion): boolean =>
+        diskons.some(o => o.id !== p.id && o.is_active && isPromoLive(o) && overlaps(p, o));
+
+    const q = query.trim().toLowerCase();
+    const filteredDiskons = diskons.filter(p => !q || p.name.toLowerCase().includes(q) || describe(p).toLowerCase().includes(q));
+    const filteredVouchers = vouchers.filter(p => !q || p.name.toLowerCase().includes(q) || (p.code || '').toLowerCase().includes(q));
+    const filteredProducts = products.filter(p => !q || p.name.toLowerCase().includes(q) || (p.barcode || '').toLowerCase().includes(q) || (p.sku || '').toLowerCase().includes(q));
+    const filteredCategories = categories.filter(c => !q || c.name.toLowerCase().includes(q));
+
+    const searchPlaceholder: Record<LeftTab, string> = {
+        diskon: 'Cari diskon...',
+        voucher: 'Cari kode/nama voucher...',
+        produk: 'Cari produk (nama/barcode)...',
+        kategori: 'Cari kategori...',
+    };
+
+    const selectedId = draft.id;
+
+    const scopePickerFooter = (count: number, label: string) => (
+        <div className="flex items-center justify-between border-t border-border px-4 py-2 text-xs text-muted-foreground">
+            <span>{count} {label} dipilih</span>
+            {count > 0 && (
+                <button type="button" className="font-medium text-primary hover:underline" onClick={clearScope}>Bersihkan</button>
+            )}
+        </div>
+    );
+
     return (
-        <div className="flex min-h-screen w-full flex-col bg-muted/40">
-            <header className="sticky top-0 flex h-12 items-center gap-4 border-b border-border/60 bg-background/80 px-4 backdrop-blur-md z-20">
+        <div className="flex h-screen w-full flex-col overflow-hidden bg-muted/40">
+            <header className="z-20 flex h-12 shrink-0 items-center gap-4 border-b border-border/60 bg-background/80 px-4 backdrop-blur-md">
                 <Button variant="outline" size="icon" className="shrink-0" asChild>
                     <Link to="#" onClick={() => nav(-1)}>
                         <ArrowLeft className="h-4 w-4" />
                         <span className="sr-only">Kembali</span>
                     </Link>
                 </Button>
-                <h1 className="text-lg font-semibold tracking-tight flex-1">Promo & Voucher</h1>
-                <Button onClick={() => setDraft(emptyDraft('voucher'))}>
-                    <Plus className="mr-2 h-4 w-4" /> Tambah Promo
+                <h1 className="flex-1 text-lg font-semibold tracking-tight">Promo & Voucher</h1>
+                <Button onClick={() => { resetToNewDiskon(); setIsSheetOpen(true); }} className="md:hidden">
+                    <Plus className="mr-2 h-4 w-4" /> Tambah
                 </Button>
                 <div className="flex items-center gap-2">
                     <NotificationBell />
@@ -191,273 +448,292 @@ export default function PromosPage() {
                 </div>
             </header>
 
-            <main className="flex-1 p-4 lg:p-6 space-y-4">
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Aturan Promo & Voucher</CardTitle>
-                        <CardDescription>
-                            Atur promo otomatis (Beli X Gratis Y) dan kode voucher. Promo aktif otomatis diterapkan di kasir.
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        {promos.length === 0 ? (
-                            <div className="py-12 text-center text-muted-foreground">
-                                <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-muted">
-                                    <Gift className="h-6 w-6" />
-                                </div>
-                                <p className="font-medium text-foreground/70">Belum ada promo</p>
-                                <p className="text-sm">Klik "Tambah Promo" untuk membuat aturan pertama.</p>
+            <div className="w-full min-h-0 flex-1 md:grid md:grid-cols-10">
+                {/* LEFT: 4-tab panel */}
+                <div className="col-span-10 md:col-span-6 lg:col-span-6 flex h-full flex-col min-h-0 bg-background">
+                    <div className="px-3 pt-3 pb-2 flex flex-col w-full gap-2 shrink-0">
+                        <div className="relative flex-1">
+                            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/50" />
+                            <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={searchPlaceholder[leftTab]} className="pl-9 h-8 bg-card" />
+                        </div>
+                        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+                            <div className="flex items-center gap-1.5 bg-muted/60 rounded-md p-1 shrink-0">
+                                <PillButton active={leftTab === 'diskon'} onClick={() => setLeftTab('diskon')}><Percent className="size-3.5" /> Diskon</PillButton>
+                                <PillButton active={leftTab === 'voucher'} onClick={() => setLeftTab('voucher')}><TicketPercent className="size-3.5" /> Voucher</PillButton>
+                                <PillButton active={leftTab === 'produk'} onClick={() => setLeftTab('produk')}><Package className="size-3.5" /> Produk</PillButton>
+                                <PillButton active={leftTab === 'kategori'} onClick={() => setLeftTab('kategori')}><Tags className="size-3.5" /> Kategori</PillButton>
                             </div>
-                        ) : (
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Promo</TableHead>
-                                        <TableHead className="w-40">Tipe</TableHead>
-                                        <TableHead>Ketentuan</TableHead>
-                                        <TableHead className="text-right">Pemakaian</TableHead>
-                                        <TableHead className="w-20 text-center">Aktif</TableHead>
-                                        <TableHead className="w-28 text-right">Aksi</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {promos.map(promo => {
-                                        const uses = promo.kind === 'voucher' ? (usageByCode[(promo.code || '').toUpperCase()] || 0) + (promo.uses_count || 0) : 0;
-                                        return (
-                                            <TableRow key={promo.id}>
-                                                <TableCell>
-                                                    <div className="font-medium">{promo.name}</div>
-                                                    <div className="flex items-center gap-2">
-                                                        {promo.kind === 'voucher' && (
-                                                            <div className="font-mono text-xs text-muted-foreground mt-0.5">{promo.code}</div>
-                                                        )}
-                                                        {promo.is_active && !isLiveNow(promo) && (
-                                                            <Badge variant="outline" className="mt-0.5 text-amber-600 border-amber-500/40">Di luar jadwal</Badge>
-                                                        )}
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell>
-                                                    <Badge variant={promo.kind === 'bogo' ? 'secondary' : 'outline'} className="gap-1">
-                                                        {promo.kind === 'bogo' ? <Gift className="h-3 w-3" /> : <TicketPercent className="h-3 w-3" />}
-                                                        {promo.kind === 'bogo' ? 'Beli X Gratis Y' : 'Voucher'}
-                                                    </Badge>
-                                                </TableCell>
-                                                <TableCell className="text-sm text-muted-foreground max-w-md truncate">{describe(promo)}</TableCell>
-                                                <TableCell className="text-right text-sm tabular-nums">
-                                                    {promo.kind === 'voucher'
-                                                        ? (promo.max_uses ? `${Math.min(uses, promo.max_uses)}/${promo.max_uses}` : `${uses}×`)
-                                                        : 'Auto'}
-                                                </TableCell>
-                                                <TableCell className="text-center">
-                                                    <Switch
-                                                        checked={promo.is_active}
-                                                        onCheckedChange={(v) => handleToggle(promo, v)}
-                                                    />
-                                                </TableCell>
-                                                <TableCell className="text-right">
-                                                    <div className="flex justify-end gap-1">
-                                                        <Button variant="ghost" size="icon" className="size-8 text-muted-foreground hover:text-foreground" aria-label={`Ubah promo ${promo.name}`} onClick={() => setDraft({ ...promo, applies_to_product_ids: promo.applies_to_product_ids || [], applies_to_category_ids: promo.applies_to_category_ids || [] })}>
-                                                            <Pencil className="h-4 w-4" />
-                                                        </Button>
-                                                        <AlertDialog>
-                                                            <AlertDialogTrigger asChild>
-                                                                <Button variant="ghost" size="icon" className="size-8 text-muted-foreground hover:text-destructive" aria-label={`Hapus promo ${promo.name}`}>
-                                                                    <Trash2 className="h-4 w-4" />
-                                                                </Button>
-                                                            </AlertDialogTrigger>
-                                                            <AlertDialogContent>
-                                                                <AlertDialogHeader>
-                                                                    <AlertDialogTitle>Hapus promo "{promo.name}"?</AlertDialogTitle>
-                                                                    <AlertDialogDescription>Transaksi lama tetap tersimpan; hanya aturan yang dihapus.</AlertDialogDescription>
-                                                                </AlertDialogHeader>
-                                                                <AlertDialogFooter>
-                                                                    <AlertDialogCancel>Batal</AlertDialogCancel>
-                                                                    <AlertDialogAction onClick={() => handleDelete(promo)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Hapus</AlertDialogAction>
-                                                                </AlertDialogFooter>
-                                                            </AlertDialogContent>
-                                                        </AlertDialog>
-                                                    </div>
-                                                </TableCell>
-                                            </TableRow>
-                                        );
-                                    })}
-                                </TableBody>
-                            </Table>
+                        </div>
+                    </div>
+
+                    <div className="min-h-0 flex-1 overflow-auto">
+                        {leftTab === 'diskon' && (
+                            filteredDiskons.length === 0 ? (
+                                <div className="py-16 text-center text-muted-foreground">
+                                    <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+                                        <Percent className="h-6 w-6" />
+                                    </div>
+                                    <p className="font-medium text-foreground/70">{diskons.length === 0 ? 'Belum ada diskon' : 'Diskon tidak ditemukan'}</p>
+                                    <p className="text-sm">Isi form diskon di panel kanan untuk aturan pertama.</p>
+                                </div>
+                            ) : (
+                                <div className="px-3 pb-3">
+                                    <div className="overflow-hidden rounded-md border border-border/60 bg-card">
+                                        <Table>
+                                            <TableHeader className="sticky top-0 z-10 bg-card">
+                                                <TableRow className="hover:bg-transparent">
+                                                    <TableHead>Promo</TableHead>
+                                                    <TableHead className="w-28">Tipe</TableHead>
+                                                    <TableHead>Ketentuan</TableHead>
+                                                    <TableHead className="w-14 text-center">Aktif</TableHead>
+                                                    <TableHead className="w-12 text-right">Aksi</TableHead>
+                                                </TableRow>
+                                            </TableHeader>
+                                            <TableBody>
+                                                {filteredDiskons.map(promo => {
+                                                    const Icon = KIND_ICON[promo.kind];
+                                                    return (
+                                                        <TableRow
+                                                            key={promo.id}
+                                                            className={cn('cursor-pointer', selectedId === promo.id && 'bg-primary/5')}
+                                                            onClick={() => handleSelect(promo)}
+                                                        >
+                                                            <TableCell>
+                                                                <div className="font-medium">{promo.name}</div>
+                                                                <div className="mt-0.5 flex items-center gap-1.5">
+                                                                    {promo.is_active && !isPromoLive(promo) && (
+                                                                        <Badge variant="outline" className="text-warning dark:text-warning-foreground border-warning/40">Di luar jadwal</Badge>
+                                                                    )}
+                                                                    {conflictFor(promo) && (
+                                                                        <Badge variant="outline" className="border-warning/50 text-warning dark:text-warning-foreground">Bentrok</Badge>
+                                                                    )}
+                                                                </div>
+                                                            </TableCell>
+                                                            <TableCell>
+                                                                <Badge variant="secondary" className="gap-1 font-medium">
+                                                                    <Icon className="h-3 w-3" /> {KIND_LABEL[promo.kind]}
+                                                                </Badge>
+                                                            </TableCell>
+                                                            <TableCell className="max-w-md truncate text-sm text-muted-foreground">{describe(promo)}</TableCell>
+                                                            <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
+                                                                <Switch checked={promo.is_active} onCheckedChange={(v) => handleToggle(promo, v)} />
+                                                            </TableCell>
+                                                            <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                                                                <AlertDialog>
+                                                                    <AlertDialogTrigger asChild>
+                                                                        <Button variant="ghost" size="icon" className="size-8 text-muted-foreground hover:text-destructive" aria-label={`Hapus promo ${promo.name}`}>
+                                                                            <Trash2 className="h-4 w-4" />
+                                                                        </Button>
+                                                                    </AlertDialogTrigger>
+                                                                    <AlertDialogContent>
+                                                                        <AlertDialogHeader>
+                                                                            <AlertDialogTitle>Hapus diskon "{promo.name}"?</AlertDialogTitle>
+                                                                            <AlertDialogDescription>Transaksi lama tetap tersimpan; hanya aturan yang dihapus.</AlertDialogDescription>
+                                                                        </AlertDialogHeader>
+                                                                        <AlertDialogFooter>
+                                                                            <AlertDialogCancel>Batal</AlertDialogCancel>
+                                                                            <AlertDialogAction onClick={() => handleDelete(promo)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Hapus</AlertDialogAction>
+                                                                        </AlertDialogFooter>
+                                                                    </AlertDialogContent>
+                                                                </AlertDialog>
+                                                            </TableCell>
+                                                        </TableRow>
+                                                    );
+                                                })}
+                                            </TableBody>
+                                        </Table>
+                                    </div>
+                                </div>
+                            )
                         )}
-                    </CardContent>
-                </Card>
-            </main>
 
-            {draft && (
-                <PromoDialog
-                    draft={draft}
-                    onChange={setDraft}
-                    onClose={() => setDraft(null)}
-                    onSave={handleSave}
-                    isSaving={isSaving}
-                    products={products}
-                    categories={categories}
-                />
-            )}
-        </div>
-    );
-}
-
-interface PromoDialogProps {
-    draft: Draft;
-    onChange: (d: Draft) => void;
-    onClose: () => void;
-    onSave: () => void;
-    isSaving: boolean;
-    products: { id: string; name: string }[];
-    categories: { id: string; name: string }[];
-}
-
-function PromoDialog({ draft, onChange, onClose, onSave, isSaving, products, categories }: PromoDialogProps) {
-    const set = (patch: Partial<Draft>) => onChange({ ...draft, ...patch });
-
-    return (
-        <Dialog open onOpenChange={(open) => !open && onClose()}>
-            <DialogContent className="sm:max-w-lg">
-                <DialogHeader>
-                    <DialogTitle>{draft.name ? 'Edit Promo' : 'Tambah Promo'}</DialogTitle>
-                    <DialogDescription>Atur aturan diskon yang diterapkan di kasir.</DialogDescription>
-                </DialogHeader>
-
-                <div className="space-y-4">
-                    <div className="flex flex-wrap gap-2">
-                        {(['voucher', 'bogo'] as const).map(kind => (
-                            <button
-                                key={kind}
-                                type="button"
-                                onClick={() => set({ kind, code: kind === 'voucher' ? draft.code : undefined, free_product_id: kind === 'bogo' ? draft.free_product_id : undefined })}
-                                aria-pressed={draft.kind === kind}
-                                className={cn(
-                                    'flex-1 rounded-lg border px-3 py-2 text-sm font-semibold transition-colors',
-                                    draft.kind === kind ? 'border-primary bg-primary/10 text-primary' : 'border-border text-muted-foreground hover:bg-muted'
-                                )}
-                            >
-                                {kind === 'voucher' ? <div className="flex items-center justify-center gap-1.5"><TicketPercent className="h-4 w-4" /> Voucher</div> : <div className="flex items-center justify-center gap-1.5"><Gift className="h-4 w-4" /> Beli X Gratis Y</div>}
-                            </button>
-                        ))}
-                    </div>
-
-                    <div className="space-y-2">
-                        <Label>Nama Promo</Label>
-                        <Input value={draft.name} onChange={(e) => set({ name: e.target.value })} placeholder="Mis. Promo Ramadhan" />
-                    </div>
-
-                    {draft.kind === 'voucher' ? (
-                        <>
-                            <div className="grid grid-cols-2 gap-3">
-                                <div className="space-y-2">
-                                    <Label>Kode Voucher</Label>
-                                    <Input value={draft.code || ''} onChange={(e) => set({ code: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 20) })} placeholder="HEMAT10" className="font-mono uppercase" />
+                        {leftTab === 'voucher' && (
+                            filteredVouchers.length === 0 ? (
+                                <div className="py-16 text-center text-muted-foreground">
+                                    <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+                                        <TicketPercent className="h-6 w-6" />
+                                    </div>
+                                    <p className="font-medium text-foreground/70">{vouchers.length === 0 ? 'Belum ada voucher' : 'Voucher tidak ditemukan'}</p>
+                                    <p className="text-sm">Buka tab Voucher di panel kanan untuk kode diskon.</p>
                                 </div>
-                                <div className="space-y-2">
-                                    <Label>Minimal Belanja (0 = tanpa)</Label>
-                                    <Input type="number" min={0} value={draft.min_purchase ?? 0} onChange={(e) => set({ min_purchase: parseFloat(e.target.value) || 0 })} />
+                            ) : (
+                                <div className="px-3 pb-3">
+                                    <div className="overflow-hidden rounded-md border border-border/60 bg-card">
+                                        <Table>
+                                            <TableHeader className="sticky top-0 z-10 bg-card">
+                                                <TableRow className="hover:bg-transparent">
+                                                    <TableHead>Promo</TableHead>
+                                                    <TableHead>Ketentuan</TableHead>
+                                                    <TableHead className="w-20 text-right">Pemakaian</TableHead>
+                                                    <TableHead className="w-14 text-center">Aktif</TableHead>
+                                                    <TableHead className="w-12 text-right">Aksi</TableHead>
+                                                </TableRow>
+                                            </TableHeader>
+                                            <TableBody>
+                                                {filteredVouchers.map(promo => {
+                                                    const uses = (usageByCode[(promo.code || '').toUpperCase()] || 0) + (promo.uses_count || 0);
+                                                    return (
+                                                        <TableRow
+                                                            key={promo.id}
+                                                            className={cn('cursor-pointer', selectedId === promo.id && 'bg-primary/5')}
+                                                            onClick={() => handleSelect(promo)}
+                                                        >
+                                                            <TableCell>
+                                                                <div className="font-medium">{promo.name}</div>
+                                                                <div className="mt-0.5 font-mono text-xs text-muted-foreground">{promo.code}</div>
+                                                            </TableCell>
+                                                            <TableCell className="max-w-md truncate text-sm text-muted-foreground">{describe(promo)}</TableCell>
+                                                            <TableCell className="text-right text-sm tabular-nums">
+                                                                {promo.max_uses ? `${Math.min(uses, promo.max_uses)}/${promo.max_uses}` : `${uses}×`}
+                                                            </TableCell>
+                                                            <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
+                                                                <Switch checked={promo.is_active} onCheckedChange={(v) => handleToggle(promo, v)} />
+                                                            </TableCell>
+                                                            <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                                                                <AlertDialog>
+                                                                    <AlertDialogTrigger asChild>
+                                                                        <Button variant="ghost" size="icon" className="size-8 text-muted-foreground hover:text-destructive" aria-label={`Hapus voucher ${promo.name}`}>
+                                                                            <Trash2 className="h-4 w-4" />
+                                                                        </Button>
+                                                                    </AlertDialogTrigger>
+                                                                    <AlertDialogContent>
+                                                                        <AlertDialogHeader>
+                                                                            <AlertDialogTitle>Hapus voucher "{promo.name}"?</AlertDialogTitle>
+                                                                            <AlertDialogDescription>Transaksi lama tetap tersimpan; hanya aturan yang dihapus.</AlertDialogDescription>
+                                                                        </AlertDialogHeader>
+                                                                        <AlertDialogFooter>
+                                                                            <AlertDialogCancel>Batal</AlertDialogCancel>
+                                                                            <AlertDialogAction onClick={() => handleDelete(promo)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Hapus</AlertDialogAction>
+                                                                        </AlertDialogFooter>
+                                                                    </AlertDialogContent>
+                                                                </AlertDialog>
+                                                            </TableCell>
+                                                        </TableRow>
+                                                    );
+                                                })}
+                                            </TableBody>
+                                        </Table>
+                                    </div>
                                 </div>
-                            </div>
-                            <div className="space-y-2">
-                                <Label>Jenis Diskon</Label>
-                                <div className="flex flex-wrap gap-2">
-                                    {(['percentage', 'flat'] as const).map(t =>
-                                        <button key={t} type="button" onClick={() => set({ discount_type: t })} aria-pressed={draft.discount_type === t} className={cn('rounded-lg border px-3 py-1.5 text-sm font-medium', draft.discount_type === t ? 'border-primary bg-primary/10 text-primary' : 'border-border text-muted-foreground')}>
-                                            {t === 'percentage' ? 'Persen' : 'Nominal (Rp)'}
-                                        </button>
-                                    )}
-                                </div>
-                                <div className="relative">
-                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-muted-foreground">{draft.discount_type === 'percentage' ? '%' : 'Rp'}</span>
-                                    <Input type="number" min={0} value={draft.discount_value ?? 0} onChange={(e) => set({ discount_value: parseFloat(e.target.value) || 0 })} className="pl-8" placeholder={draft.discount_type === 'percentage' ? '10' : '10000'} />
-                                </div>
-                            </div>
-                            <div className="space-y-2">
-                                <Label>Batas Pemakaian (0 = tanpa batas)</Label>
-                                <Input type="number" min={0} value={draft.max_uses ?? 0} onChange={(e) => set({ max_uses: parseFloat(e.target.value) || 0 })} />
-                            </div>
-                        </>
-                    ) : (
-                        <>
-                            <div className="grid grid-cols-2 gap-3">
-                                <div className="space-y-2">
-                                    <Label>Beli Sebanyak (X)</Label>
-                                    <Input type="number" min={1} value={draft.buy_quantity ?? 1} onChange={(e) => set({ buy_quantity: Math.max(1, parseInt(e.target.value) || 1) })} />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label>Gratis (Y)</Label>
-                                    <Input type="number" min={1} value={draft.free_quantity ?? 1} onChange={(e) => set({ free_quantity: Math.max(1, parseInt(e.target.value) || 1) })} />
-                                </div>
-                            </div>
-                            <div className="space-y-2">
-                                <Label>Batasan Produk yang Dibeli</Label>
-                                <Multis categoryIds={draft.applies_to_category_ids || []} productIds={draft.applies_to_product_ids || []} categories={categories} products={products} onChangeCat={(ids) => set({ applies_to_category_ids: ids })} onChangeProd={(ids) => set({ applies_to_product_ids: ids })} />
-                            </div>
-                            <div className="space-y-2">
-                                <Label>Produk Gratis (opsional; kosong = produk yang sama)</Label>
-                                <SingleSelect items={products} value={draft.free_product_id || ''} onChange={(id) => set({ free_product_id: id })} placeholder="Produk yang sama dengan yang dibeli" />
-                            </div>
-                            <div className="space-y-2">
-                                <Label>Maks Free Per Transaksi (0 = tanpa batas)</Label>
-                                <Input type="number" min={0} value={draft.max_total_free_qty ?? 0} onChange={(e) => set({ max_total_free_qty: parseFloat(e.target.value) || 0 })} />
-                            </div>
-                        </>
-                    )}
+                            )
+                        )}
 
-                    <div className="grid grid-cols-2 gap-3">
-                            <div className="space-y-2">
-                                <Label>Mulai Berlaku (opsional)</Label>
-                                <Input type="datetime-local" value={toLocalInput(draft.starts_at)} onChange={(e) => set({ starts_at: fromLocalInput(e.target.value) })} />
-                            </div>
-                            <div className="space-y-2">
-                                <Label>Berakhir (opsional)</Label>
-                                <Input type="datetime-local" value={toLocalInput(draft.ends_at)} onChange={(e) => set({ ends_at: fromLocalInput(e.target.value) })} />
-                            </div>
-                        </div>
+                        {leftTab === 'produk' && (
+                            filteredProducts.length === 0 ? (
+                                <div className="py-16 text-center text-muted-foreground">
+                                    <p className="font-medium text-foreground/70">{products.length === 0 ? 'Belum ada produk' : 'Produk tidak ditemukan'}</p>
+                                </div>
+                            ) : (
+                                <div className="flex h-full flex-col min-h-0">
+                                    <div className="min-h-0 flex-1 overflow-auto px-3 pt-1 pb-1">
+                                        <div className="overflow-hidden rounded-md border border-border/60 bg-card">
+                                            <Table>
+                                                <TableHeader className="sticky top-0 z-10 bg-card">
+                                                    <TableRow className="hover:bg-transparent">
+                                                        <TableHead className="w-10"><span className="sr-only">Pilih</span></TableHead>
+                                                        <TableHead>Produk</TableHead>
+                                                        <TableHead className="w-28">Brand</TableHead>
+                                                        <TableHead className="w-32">Kategori</TableHead>
+                                                        <TableHead className="w-24 text-right">Harga</TableHead>
+                                                    </TableRow>
+                                                </TableHeader>
+                                                <TableBody>
+                                                    {filteredProducts.map(p => (
+                                                        <TableRow
+                                                            key={p.id}
+                                                            className="cursor-pointer"
+                                                            data-state={selectedProductIds.has(p.id) ? 'selected' : undefined}
+                                                            onClick={() => toggleProduct(p.id)}
+                                                        >
+                                                            <TableCell className="pr-0">
+                                                                <Checkbox checked={selectedProductIds.has(p.id)} className="pointer-events-none" />
+                                                            </TableCell>
+                                                            <TableCell className="font-medium">{p.name}</TableCell>
+                                                            <TableCell className="text-sm text-muted-foreground">{p.brand || '—'}</TableCell>
+                                                            <TableCell className="text-sm text-muted-foreground">{p.category_id ? categoryName(p.category_id) : '—'}</TableCell>
+                                                            <TableCell className="text-right text-sm tabular-nums">{formatIDR(p.price)}</TableCell>
+                                                        </TableRow>
+                                                    ))}
+                                                </TableBody>
+                                            </Table>
+                                        </div>
+                                    </div>
+                                    {scopePickerFooter(selectedProductIds.size, 'produk')}
+                                </div>
+                            )
+                        )}
 
-                        <div className="flex items-center justify-between rounded-lg border p-3">
-                        <div>
-                            <p className="text-sm font-medium">Aktif</p>
-                            <p className="text-xs text-muted-foreground">Diterapkan otomatis di kasir.</p>
-                        </div>
-                        <Switch checked={draft.is_active} onCheckedChange={(v) => set({ is_active: v })} />
+                        {leftTab === 'kategori' && (
+                            filteredCategories.length === 0 ? (
+                                <div className="py-16 text-center text-muted-foreground">
+                                    <p className="font-medium text-foreground/70">{categories.length === 0 ? 'Belum ada kategori' : 'Kategori tidak ditemukan'}</p>
+                                </div>
+                            ) : (
+                                <div className="flex h-full flex-col min-h-0">
+                                    <div className="min-h-0 flex-1 overflow-auto px-3 pt-1 pb-1">
+                                        <div className="overflow-hidden rounded-md border border-border/60 bg-card">
+                                            {filteredCategories.map(c => (
+                                                <label key={c.id} className="flex cursor-pointer items-center gap-2.5 rounded-md px-2 py-2 hover:bg-muted">
+                                                    <Checkbox checked={selectedCategoryIds.has(c.id)} onCheckedChange={() => toggleCategory(c.id)} />
+                                                    <span className="min-w-0 flex-1 truncate text-sm font-medium">{c.name}</span>
+                                                </label>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    {scopePickerFooter(selectedCategoryIds.size, 'kategori')}
+                                </div>
+                            )
+                        )}
                     </div>
                 </div>
 
-                <DialogFooter className="gap-2">
-                    <Button variant="ghost" onClick={onClose} disabled={isSaving}>Batal</Button>
-                    <Button onClick={onSave} disabled={isSaving}>
-                        <Power className="mr-2 h-4 w-4" /> {isSaving ? 'Menyimpan...' : 'Simpan'}
-                    </Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
-    );
-}
-
-function Multis({ categoryIds, productIds, categories, products, onChangeCat, onChangeProd }: {
-    categoryIds: string[];
-    productIds: string[];
-    categories: { id: string; name: string }[];
-    products: { id: string; name: string }[];
-    onChangeCat: (ids: string[]) => void;
-    onChangeProd: (ids: string[]) => void;
-}) {
-    const [mode, setMode] = useState<'all' | 'cat' | 'prod'>(categoryIds.length === 0 && productIds.length === 0 ? 'all' : categoryIds.length > 0 ? 'cat' : 'prod');
-
-    return (
-        <div className="space-y-2">
-            <div className="flex gap-1.5">
-                {(['all', 'cat', 'prod'] as const).map(m => (
-                    <button key={m} type="button" onClick={() => { setMode(m); if (m === 'all') { onChangeCat([]); onChangeProd([]); } }} aria-pressed={mode === m} className={cn('px-2.5 py-1 rounded-md text-xs font-semibold border', mode === m ? 'bg-primary text-primary-foreground border-primary' : 'border-border text-muted-foreground')}>
-                        {m === 'all' ? 'Semua' : m === 'cat' ? 'Kategori' : 'Produk'}
-                    </button>
-                ))}
+                {/* RIGHT: editor (desktop) */}
+                <aside className="hidden h-full min-h-0 border-l border-border bg-background md:col-span-4 md:block lg:col-span-4">
+                    <PromoEditor
+                        draft={draft}
+                        isNew={isNew}
+                        onChange={setDraft}
+                        onCancel={handleCancel}
+                        onSave={handleSave}
+                        isSaving={isSaving}
+                        products={products}
+                        categories={categories}
+                        selectedProductIds={selectedProductIds}
+                        selectedCategoryIds={selectedCategoryIds}
+                        onClearScope={clearScope}
+                        activeTab={activeTab}
+                        onTabChange={handleEditorTab}
+                        existingCodes={vouchers.map(v => v.code || '')}
+                    />
+                </aside>
             </div>
-            {mode === 'cat' && <MultiSelect items={categories} selected={categoryIds} onChange={onChangeCat} placeholder="Pilih kategori..." />}
-            {mode === 'prod' && <MultiSelect items={products} selected={productIds} onChange={onChangeProd} placeholder="Pilih produk..." />}
-            {mode === 'all' && <p className="text-xs text-muted-foreground">Promo berlaku untuk semua produk.</p>}
+
+            {/* Editor drawer (mobile) */}
+            <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+                <SheetContent side="right" className="flex w-full flex-col p-0 sm:w-125">
+                    <SheetHeader className="sr-only">
+                        <SheetTitle>Promo & Voucher</SheetTitle>
+                    </SheetHeader>
+                    <div className="flex h-full min-h-0 flex-col">
+                        <PromoEditor
+                            draft={draft}
+                            isNew={isNew}
+                            onChange={setDraft}
+                            onCancel={handleCancel}
+                            onSave={handleSave}
+                            isSaving={isSaving}
+                            products={products}
+                            categories={categories}
+                            selectedProductIds={selectedProductIds}
+                            selectedCategoryIds={selectedCategoryIds}
+                            onClearScope={clearScope}
+                            activeTab={activeTab}
+                            onTabChange={handleEditorTab}
+                            existingCodes={vouchers.map(v => v.code || '')}
+                        />
+                    </div>
+                </SheetContent>
+            </Sheet>
         </div>
     );
 }

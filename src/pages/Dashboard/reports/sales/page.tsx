@@ -82,10 +82,10 @@ const TransactionRow = React.memo(({
             <div className={`${columnStyles.hpp} text-destructive/80`}>
                 {formatCurrency(standardCost)}
             </div>
-            <div className={`${columnStyles.titipan} text-amber-600 dark:text-amber-400`}>
+            <div className={`${columnStyles.titipan} text-warning dark:text-warning-foreground`}>
                 {formatCurrency(consignmentPayout)}
             </div>
-            <div className={`${columnStyles.laba} text-green-600 font-medium`}>
+            <div className={`${columnStyles.laba} text-success dark:text-success-foreground font-medium`}>
                 {formatCurrency(txProfit)}
             </div>
             <div className={columnStyles.pajak}>
@@ -137,7 +137,7 @@ export default function SalesReportPage() {
         waktu: "w-[150px] shrink-0",
         invoice: "w-[130px] shrink-0",
         subtotal: "w-[125px] shrink-0 text-right tabular-nums",
-        diskon: "w-[100px] shrink-0 text-right tabular-nums text-green-600 dark:text-green-400",
+        diskon: "w-[100px] shrink-0 text-right tabular-nums text-success dark:text-success-foreground",
         hpp: "w-[115px] shrink-0 text-right tabular-nums",
         titipan: "w-[115px] shrink-0 text-right tabular-nums",
         laba: "w-[115px] shrink-0 text-right tabular-nums",
@@ -205,7 +205,7 @@ export default function SalesReportPage() {
     return (
         <>
         <div className="flex min-h-screen w-full flex-col bg-muted/40">
-           <header className="sticky top-0 flex h-12 items-center gap-4 border-b border-border/60 bg-background/80 px-4 backdrop-blur-md z-20">
+           <header className="sticky top-0 flex h-10 items-center gap-4 border-b border-border/60 bg-background/80 px-4 backdrop-blur-md z-20">
                 <Button variant="outline" size="icon" className="shrink-0" asChild>
                     <Link to="#" onClick={() => nav(-1)}>
                         <ArrowLeft className="h-4 w-4" />
@@ -227,7 +227,7 @@ export default function SalesReportPage() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                             <DropdownMenuItem onSelect={handleExcelExport}>
-                                <FileDown className="mr-2 h-4 w-4 text-green-500"/> Excel (.xlsx)
+                                <FileDown className="mr-2 h-4 w-4 text-success"/> Excel (.xlsx)
                             </DropdownMenuItem>
                             <DropdownMenuItem onSelect={handlePdfExport}>
                                 <FileText className="mr-2 h-4 w-4 text-red-400"/> PDF (.pdf)
@@ -247,7 +247,7 @@ export default function SalesReportPage() {
                             <stat.icon className="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold">{stat.value}</div>
+                            <div className="text-2xl font-light">{stat.value}</div>
                         </CardContent>
                     </Card>
                 ))}
@@ -280,6 +280,9 @@ export default function SalesReportPage() {
                 </CardHeader>
 
                 <CardContent className="py-0 px-6 flex-1 flex flex-col relative overflow-hidden">
+                    {/* Locked header + body into one horizontal scroll so columns stay aligned */}
+                    <div className="flex-1 min-h-0 overflow-x-auto">
+                        <div className="flex min-w-full h-full flex-col">
                     {/* TABLE HEADER (Separated to stay static) */}
                     <div className="w-full border-b shrink-0">
                         <div className="flex items-center h-12 px-6 pb-2 pt-4 text-sm font-medium text-muted-foreground hover:bg-muted/50">
@@ -296,9 +299,9 @@ export default function SalesReportPage() {
                     </div>
 
                     {/* VIRTUALIZED BODY CONTAINER */}
-                    <div 
-                        ref={parentRef} 
-                        className="flex-1 overflow-auto scrollbar-thin relative"
+                    <div
+                        ref={parentRef}
+                        className="flex-1 overflow-y-auto scrollbar-thin relative"
                     >
                         <div
                             style={{
@@ -322,6 +325,8 @@ export default function SalesReportPage() {
                             ) : (
                                 <div className="p-20 text-center text-muted-foreground">Tidak ada data.</div>
                             )}
+                        </div>
+                    </div>
                         </div>
                     </div>
                 </CardContent>

@@ -94,7 +94,7 @@ export function SyncManager() {
                         <div className="flex items-center gap-2">
                             {store.isNetworkEnable ? (
                                 <>
-                                    <Badge variant="outline" className="text-green-600 border-green-200 bg-green-50 animate-pulse py-0">
+                                    <Badge variant="outline" className="text-success border-success/30 bg-success/10 animate-pulse py-0">
                                         ONLINE
                                     </Badge>
                                 </>

@@ -12,9 +12,9 @@ import {
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Search, Trash2, Plus, Minus, ReceiptCent, Printer, CheckCircle2, LogIn, ParkingSquare, ArrowLeft, XCircle, TicketPercent, Gift } from 'lucide-react';
+import { Search, Trash2, Plus, Minus, ReceiptCent, Printer, CheckCircle2, LogIn, ParkingSquare, ArrowLeft, XCircle, TicketPercent, Gift, Percent, BadgePercent } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { VariantPanel } from '@/components/VariantPanel';
 import ReturnDialog from '@/components/ReturnDialog';
 import { useGlobalKeydown } from '@/hooks/use-global-keydown';
@@ -84,6 +84,8 @@ export default function ClassicCashierPage() {
     const [voucherCode, setVoucherCode] = useState('');
     const [manualDiscountInput, setManualDiscountInput] = useState('');
     const [manualDiscountType, setManualDiscountType] = useState<'persen' | 'flat'>('flat');
+    const [isVoucherOpen, setIsVoucherOpen] = useState(false);
+    const [isDiscountOpen, setIsDiscountOpen] = useState(false);
 
     // --- Cart table navigation + in-cell editing ---
     const cartTableRef = useRef<HTMLDivElement>(null);
@@ -246,6 +248,8 @@ export default function ClassicCashierPage() {
     useGlobalKeydown({ key: 'f2', handler: () => setIsHistoryOpen(true), enabled: !isReturnOpen });
     useGlobalKeydown({ key: 'f3', handler: handleParkAction, enabled: cart.length > 0 && !isReturnOpen });
     useGlobalKeydown({ key: 'f4', handler: () => setIsReturnOpen(true), enabled: !isHistoryOpen });
+    useGlobalKeydown({ key: 'f5', handler: () => setIsVoucherOpen(true), enabled: cart.length > 0 && !isReturnOpen && !isDiscountOpen });
+    useGlobalKeydown({ key: 'f6', handler: () => setIsDiscountOpen(true), enabled: cart.length > 0 && !isReturnOpen && !isVoucherOpen });
     useGlobalKeydown({ key: 'f8', handler: () => {
         const el = cashInputRef.current as HTMLInputElement | null;
         if (document.activeElement === el) {
@@ -535,6 +539,8 @@ export default function ClassicCashierPage() {
                             <span className="flex items-center gap-1.5"><Kbd>F2</Kbd> Riwayat</span>
                             <span className="flex items-center gap-1.5"><Kbd>F3</Kbd> Parkir</span>
                             <span className="flex items-center gap-1.5"><Kbd>F4</Kbd> Retur</span>
+                            <span className="flex items-center gap-1.5"><Kbd>F5</Kbd> Voucher</span>
+                            <span className="flex items-center gap-1.5"><Kbd>F6</Kbd> Diskon</span>
                             <span className="flex items-center gap-1.5"><Kbd>F8</Kbd> Bayar</span>
                         </div>
                         <span className="tabular-nums">{totalQty} items</span>
@@ -567,13 +573,13 @@ export default function ClassicCashierPage() {
                             {discountResult && (
                                 <>
                                     {discountResult.promoDiscount > 0 && (
-                                        <div className="flex justify-between text-sm text-green-600 dark:text-green-400">
+                                        <div className="flex justify-between text-sm text-success dark:text-success-foreground">
                                             <span>Promo & Voucher</span>
                                             <span className="font-semibold tabular-nums">-{formatIDR(discountResult.promoDiscount)}</span>
                                         </div>
                                     )}
                                     {discountResult.manualDiscount > 0 && (
-                                        <div className="flex justify-between text-sm text-green-600 dark:text-green-400">
+                                        <div className="flex justify-between text-sm text-success dark:text-success-foreground">
                                             <span>Diskon Kasir</span>
                                             <span className="font-semibold tabular-nums">-{formatIDR(discountResult.manualDiscount)}</span>
                                         </div>
@@ -583,9 +589,9 @@ export default function ClassicCashierPage() {
                             <div className="flex justify-between text-sm"><span className="text-muted-foreground">Pajak</span><span className="font-medium tabular-nums">{formatIDR(tax)}</span></div>
                             {cart.length > 0 && discountResult && discountResult.freeItems.length > 0 && (
                                 <div className="flex flex-wrap items-center gap-1 pt-0.5">
-                                    <Gift className="size-3.5 text-green-600 dark:text-green-400" />
+                                    <Gift className="size-3.5 text-success dark:text-success-foreground" />
                                     {discountResult.freeItems.map((f, i) => (
-                                        <span key={i} className="rounded bg-green-100 px-1.5 py-0.5 text-[10px] font-semibold text-green-700 dark:bg-green-950/60 dark:text-green-400">
+                                        <span key={i} className="rounded bg-success/10 px-1.5 py-0.5 text-[10px] font-semibold text-success-foreground dark:bg-success/20 dark:text-success-foreground">
                                             {f.freeQty}x {f.name} gratis
                                         </span>
                                     ))}
@@ -593,68 +599,36 @@ export default function ClassicCashierPage() {
                             )}
                         </div>
 
-                        {/* Voucher + manual discount */}
+                        {/* Voucher + manual discount (shortcut-triggered modals) */}
                         {cart.length > 0 && (
                             <div className="space-y-2">
-                                <div className="space-y-1.5">
-                                    <Label className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Kode Voucher</Label>
-                                    <div className="relative">
-                                        <TicketPercent className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                                        <Input
-                                            value={voucherCode}
-                                            onChange={(e) => setVoucherCode(e.target.value.toUpperCase())}
-                                            placeholder="Mis. HEMAT10"
-                                            className={cn(
-                                                "h-9 pl-8 pr-8 text-sm font-medium uppercase",
-                                                voucherCode && discountResult?.voucherCode && "border-green-500 bg-green-50 dark:bg-green-950/30"
-                                            )}
-                                            onKeyDown={(e) => e.key === 'Enter' && cashInputRef.current?.focus()}
-                                        />
+                                <div className="grid grid-cols-2 gap-2">
+                                    <Button variant="outline" size="sm" className="h-9 justify-start gap-2 font-medium" onClick={() => setIsVoucherOpen(true)}>
+                                        <TicketPercent className="size-4 text-muted-foreground" /> Voucher <Kbd>F5</Kbd>
+                                    </Button>
+                                    <Button variant="outline" size="sm" className="h-9 justify-start gap-2 font-medium" onClick={() => setIsDiscountOpen(true)}>
+                                        <Percent className="size-4 text-muted-foreground" /> Diskon <Kbd>F6</Kbd>
+                                    </Button>
+                                </div>
+                                {(voucherCode || manualDiscountInput) && (
+                                    <div className="flex flex-wrap gap-1.5">
                                         {voucherCode && (
-                                            <button onClick={() => setVoucherCode('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" aria-label="Hapus kode voucher" title="Hapus">
-                                                <XCircle className="size-4" />
+                                            <button onClick={() => setVoucherCode('')} className="group inline-flex items-center gap-1 rounded-md border border-primary/40 bg-primary/10 px-2 py-1 text-xs font-semibold text-primary" title="Hapus voucher">
+                                                <TicketPercent className="size-3.5" /> {voucherCode}
+                                                <XCircle className="size-3.5 opacity-60 transition-opacity group-hover:opacity-100" />
+                                            </button>
+                                        )}
+                                        {manualDiscountInput && (
+                                            <button onClick={() => setManualDiscountInput('')} className="group inline-flex items-center gap-1 rounded-md border border-warning/40 bg-warning/10 px-2 py-1 text-xs font-semibold text-warning dark:text-warning-foreground" title="Hapus diskon kasir">
+                                                <BadgePercent className="size-3.5" /> {manualDiscountType === 'persen' ? `${manualDiscountInput}%` : formatIDR(parsedManualDiscount)}
+                                                <XCircle className="size-3.5 opacity-60 transition-opacity group-hover:opacity-100" />
                                             </button>
                                         )}
                                     </div>
-                                    {voucherCode && !discountResult?.voucherCode && (
-                                        <p className="text-[10px] font-medium text-destructive">{discountResult?.errors?.[0] || 'Voucher tidak berlaku'}</p>
-                                    )}
-                                </div>
-
-                                <div className="space-y-1.5">
-                                    <Label className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Diskon Kasir</Label>
-                                    <div className="flex items-center gap-1.5">
-                                        <div className="relative flex-1">
-                                            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-sm font-semibold text-muted-foreground">{manualDiscountType === 'persen' ? '%' : 'Rp'}</span>
-                                            <Input
-                                                value={manualDiscountInput}
-                                                onChange={(e) => setManualDiscountInput(e.target.value.replace(/[^0-9.]/g, ''))}
-                                                placeholder={manualDiscountType === 'persen' ? '0' : 'Rp 0'}
-                                                inputMode="decimal"
-                                                className="h-9 pl-8 text-sm font-semibold tabular-nums"
-                                                onKeyDown={(e) => e.key === 'Enter' && cashInputRef.current?.focus()}
-                                            />
-                                        </div>
-                                        <div className="flex rounded-md border border-border overflow-hidden shrink-0">
-                                            <button
-                                                type="button"
-                                                onClick={() => setManualDiscountType('flat')}
-                                                aria-pressed={manualDiscountType === 'flat'}
-                                                className={cn("px-2.5 text-xs font-bold h-9 transition-colors", manualDiscountType === 'flat' ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:text-foreground")}
-                                            >
-                                                Rp
-                                            </button>
-                                            <button
-                                                type="button"
-                                                onClick={() => setManualDiscountType('persen')}
-                                                aria-pressed={manualDiscountType === 'persen'}
-                                                className={cn("px-2.5 text-xs font-bold h-9 transition-colors border-l border-border", manualDiscountType === 'persen' ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:text-foreground")}
-                                            >
-                                                %
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
+                                )}
+                                {voucherCode && !discountResult?.voucherCode && (
+                                    <p className="text-[10px] font-medium text-destructive">{discountResult?.errors?.[0] || 'Voucher tidak berlaku'}</p>
+                                )}
                             </div>
                         )}
 
@@ -682,7 +656,7 @@ export default function ClassicCashierPage() {
                                     type="text"
                                     inputMode='numeric'
                                     aria-label="Uang tunai dibayarkan"
-                                    className="h-10 border-2 pl-10 text-lg font-bold tracking-tight tabular-nums"
+                                    className="h-9 border-2 pl-10 text-lg font-bold tracking-tight tabular-nums"
                                     value={curr.value}
                                     onChange={curr.onChange}
                                     onKeyDown={(e) => {
@@ -699,7 +673,7 @@ export default function ClassicCashierPage() {
                             change >= 0 ? "border-success/60 bg-success/40" : "border-warning bg-warning/50"
                         )}>
                             <span className="flex items-center gap-2">
-                                <span className={cn("text-xs font-semibold uppercase tracking-widest", change >= 0 ? "text-success-foreground/80" : "text-warning-foreground/80")}>
+                                <span className={cn("text-xs font-semibold uppercase tracking-widest", change >= 0 ? "text-success-foreground" : "text-warning-foreground")}>
                                     {change >= 0 ? "Kembalian" : "Kurang"}
                                 </span>
                                 <span className={cn("text-lg font-bold tabular-nums", change >= 0 ? "text-success-foreground" : "text-warning-foreground")}>
@@ -840,7 +814,7 @@ export default function ClassicCashierPage() {
                                         <div className="bg-muted/30 p-4 rounded-lg space-y-2">
                                             <div className="flex justify-between"><span>Subtotal</span><span className="tabular-nums">{formatIDR(reviewingTx.subtotal)}</span></div>
                                             {(reviewingTx.discount_total || 0) > 0 && (
-                                                <div className="flex justify-between text-green-600 dark:text-green-400"><span>Diskon</span><span className="tabular-nums">-{formatIDR(reviewingTx.discount_total || 0)}</span></div>
+                                                <div className="flex justify-between text-success dark:text-success-foreground"><span>Diskon</span><span className="tabular-nums">-{formatIDR(reviewingTx.discount_total || 0)}</span></div>
                                             )}
                                             <div className="flex justify-between"><span>Pajak</span><span className="tabular-nums">{formatIDR(reviewingTx.tax_amount)}</span></div>
                                             <div className="flex justify-between font-black text-lg border-t pt-2"><span>Total</span><span className="tabular-nums">{formatIDR(reviewingTx.total)}</span></div>
@@ -872,6 +846,101 @@ export default function ClassicCashierPage() {
                     <DialogFooter className="p-4 border-t bg-muted/20">
                         <Button variant="ghost" onClick={() => setIsHistoryOpen(false)}>Tutup (Esc)</Button>
                         {reviewingTx && <Button onClick={() => addToQueue(reviewingTx)}><Printer className="mr-2 size-4"/> Cetak Ulang Struk</Button>}
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* --- VOUCHER MODAL (F5) --- */}
+            <Dialog open={isVoucherOpen} onOpenChange={(open) => !open && setIsVoucherOpen(false)}>
+                <DialogContent className="sm:max-w-sm">
+                    <DialogHeader>
+                        <DialogTitle>Kode Voucher</DialogTitle>
+                        <DialogDescription>Masukkan kode voucher untuk diskon transaksi ini.</DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-3">
+                        <div className="relative">
+                            <TicketPercent className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                            <Input
+                                autoFocus
+                                value={voucherCode}
+                                onChange={(e) => setVoucherCode(e.target.value.toUpperCase())}
+                                placeholder="Mis. HEMAT10"
+                                className="h-10 pl-9 pr-9 font-mono uppercase tracking-widest"
+                                onKeyDown={(e) => e.key === 'Enter' && setIsVoucherOpen(false)}
+                            />
+                            {voucherCode && (
+                                <button onClick={() => setVoucherCode('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" aria-label="Hapus kode voucher" title="Hapus">
+                                    <XCircle className="size-4" />
+                                </button>
+                            )}
+                        </div>
+                        {voucherCode && !discountResult?.voucherCode && (
+                            <p className="text-xs font-medium text-destructive">{discountResult?.errors?.[0] || 'Voucher tidak berlaku'}</p>
+                        )}
+                        {voucherCode && discountResult?.voucherCode && discountResult.voucherDiscount > 0 && (
+                            <div className="flex items-center justify-between rounded-md bg-success/10 px-3 py-2 text-sm">
+                                <span className="font-medium text-success dark:text-success-foreground">Voucher {voucherCode}</span>
+                                <span className="font-bold tabular-nums text-success dark:text-success-foreground">-{formatIDR(discountResult.voucherDiscount)}</span>
+                            </div>
+                        )}
+                    </div>
+                    <DialogFooter className="gap-2">
+                        <Button variant="ghost" onClick={() => { setVoucherCode(''); setIsVoucherOpen(false); }}>Hapus</Button>
+                        <Button onClick={() => setIsVoucherOpen(false)}>Selesai</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* --- MANUAL DISCOUNT MODAL (F6) --- */}
+            <Dialog open={isDiscountOpen} onOpenChange={(open) => !open && setIsDiscountOpen(false)}>
+                <DialogContent className="sm:max-w-sm">
+                    <DialogHeader>
+                        <DialogTitle>Diskon Kasir</DialogTitle>
+                        <DialogDescription>Potongan manual di luar promo, diterapkan ke total transaksi.</DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-3">
+                        <div className="flex items-center gap-1.5">
+                            <div className="relative flex-1">
+                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-muted-foreground">{manualDiscountType === 'persen' ? '%' : 'Rp'}</span>
+                                <Input
+                                    autoFocus
+                                    value={manualDiscountInput}
+                                    onChange={(e) => setManualDiscountInput(e.target.value.replace(/[^0-9.]/g, ''))}
+                                    placeholder={manualDiscountType === 'persen' ? '0' : 'Rp 0'}
+                                    inputMode="decimal"
+                                    className="h-10 pl-8 text-lg font-semibold tabular-nums"
+                                    onKeyDown={(e) => e.key === 'Enter' && setIsDiscountOpen(false)}
+                                />
+                            </div>
+                            <div className="flex shrink-0 overflow-hidden rounded-md border border-border">
+                                <button
+                                    type="button"
+                                    onClick={() => setManualDiscountType('flat')}
+                                    aria-pressed={manualDiscountType === 'flat'}
+                                    className={cn("px-3 text-xs font-bold h-10 transition-colors", manualDiscountType === 'flat' ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:text-foreground")}
+                                >
+                                    Rp
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setManualDiscountType('persen')}
+                                    aria-pressed={manualDiscountType === 'persen'}
+                                    className={cn("px-3 text-xs font-bold h-10 border-l border-border transition-colors", manualDiscountType === 'persen' ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:text-foreground")}
+                                >
+                                    %
+                                </button>
+                            </div>
+                        </div>
+                        {manualDiscountInput && discountResult && discountResult.manualDiscount > 0 && (
+                            <div className="flex items-center justify-between rounded-md bg-warning/10 px-3 py-2 text-sm">
+                                <span className="font-medium text-warning dark:text-warning-foreground">Diskon Kasir</span>
+                                <span className="font-bold tabular-nums text-warning dark:text-warning-foreground">-{formatIDR(discountResult.manualDiscount)}</span>
+                            </div>
+                        )}
+                    </div>
+                    <DialogFooter className="gap-2">
+                        <Button variant="ghost" onClick={() => { setManualDiscountInput(''); setIsDiscountOpen(false); }}>Hapus</Button>
+                        <Button onClick={() => setIsDiscountOpen(false)}>Selesai</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

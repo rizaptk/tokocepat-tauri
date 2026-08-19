@@ -109,7 +109,7 @@ function TransactionDetailDialog({ transaction, onOpenChange }: TransactionDetai
                                 <div className="border rounded-lg p-4 space-y-2 text-sm">
                                     <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span className="font-medium">{formatCurrency(transaction.subtotal)}</span></div>
                                     {transaction.discount_total ? (
-                                        <div className="flex justify-between text-green-600 dark:text-green-400"><span className="text-muted-foreground">Diskon</span><span className="font-medium">-{formatCurrency(transaction.discount_total)}</span></div>
+                                        <div className="flex justify-between text-success dark:text-success-foreground"><span className="text-muted-foreground">Diskon</span><span className="font-medium">-{formatCurrency(transaction.discount_total)}</span></div>
                                     ) : null}
                                     <div className="flex justify-between"><span className="text-muted-foreground">Pajak</span><span className="font-medium">{formatCurrency(transaction.tax_amount)}</span></div>
                                     <Separator/>

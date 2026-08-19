@@ -62,7 +62,7 @@ export default function ShiftsReportPage() {
 
     return (
         <div className="flex min-h-screen w-full flex-col bg-muted/40">
-           <header className="sticky top-0 flex h-12 items-center gap-4 border-b border-border/60 bg-background/80 px-4 backdrop-blur-md z-20">
+           <header className="sticky top-0 flex h-10 items-center gap-4 border-b border-border/60 bg-background/80 px-4 backdrop-blur-md z-20">
                 <Button variant="outline" size="icon" className="shrink-0" asChild>
                     <Link to="#" onClick={() => navigate(-1)}>
                         <ArrowLeft className="h-4 w-4" />
@@ -84,7 +84,7 @@ export default function ShiftsReportPage() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                             <DropdownMenuItem onSelect={handleExcelExport}>
-                                <FileDown className="mr-2 h-4 w-4 text-green-500"/> Excel (.xlsx)
+                                <FileDown className="mr-2 h-4 w-4 text-success"/> Excel (.xlsx)
                             </DropdownMenuItem>
                             <DropdownMenuItem onSelect={handlePdfExport}>
                                 <FileText className="mr-2 h-4 w-4 text-red-400"/> PDF (.pdf)

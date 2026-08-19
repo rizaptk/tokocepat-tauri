@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useDbStore } from '@/lib/db-store';
 import { useStore } from '@/lib/store';
+import { useSyncStore } from '@/lib/sync-store';
+import { useLicense } from '@/hooks/useLicense';
 import { generateDeviceFingerprint } from '@/lib/security';
 
 export type DeviceScopeValue = 'current' | 'all' | string;
@@ -19,14 +21,28 @@ interface DeviceNameMap {
  * - 'current' = only this device (default, resets on every app start)
  * - 'all' = all devices
  * - <deviceId> = a specific synced device
+ *
+ * The scope only applies when the user has a sync-enabled license AND the
+ * sync mode is switched on. Otherwise the scope is forced to 'current' so
+ * every report/dashboard is always filtered to this device.
  */
 export function useDeviceScope() {
     const { db, firesqlite, isInitialized } = useDbStore();
     const { shifts, activeShift } = useStore();
+    const { status, licenseDetails } = useLicense();
+    const isNetworkEnable = useSyncStore((s) => s.isNetworkEnable);
 
     const [scope, setScope] = useState<DeviceScopeValue>('current');
     const [currentDeviceId, setCurrentDeviceId] = useState<string | undefined>(undefined);
     const [deviceNames, setDeviceNames] = useState<DeviceNameMap>({});
+
+    const isLicensed = status === 'VALID' || status === 'EXPIRES_SOON';
+    const syncAllowed = isLicensed && licenseDetails?.isSyncAvailable === true && isNetworkEnable === true;
+
+    // Fall back to "this device" whenever sync is disabled or the license is lost.
+    useEffect(() => {
+        if (!syncAllowed) setScope('current');
+    }, [syncAllowed]);
 
     useEffect(() => {
         generateDeviceFingerprint().then(setCurrentDeviceId).catch(() => setCurrentDeviceId(undefined));
@@ -58,11 +74,18 @@ export function useDeviceScope() {
         }));
     }, [shifts, currentDeviceId, deviceNames]);
 
+    const effectiveScope: DeviceScopeValue = syncAllowed ? scope : 'current';
+
     const activeDeviceId = useMemo<string | undefined>(() => {
-        if (scope === 'all') return undefined;
-        if (scope === 'current') return currentDeviceId ?? activeShift?.device;
-        return scope;
-    }, [scope, currentDeviceId, activeShift?.device]);
+        if (effectiveScope === 'all') return undefined;
+        if (effectiveScope === 'current') return currentDeviceId ?? activeShift?.device;
+        return effectiveScope;
+    }, [effectiveScope, currentDeviceId, activeShift?.device]);
+
+    const setScopeSafe = useCallback((value: DeviceScopeValue) => {
+        if (!syncAllowed && value !== 'current') return;
+        setScope(value);
+    }, [syncAllowed]);
 
     const resolveScope = useCallback((id?: string): string | undefined => {
         if (!id || id === 'all') return undefined;
@@ -70,11 +93,12 @@ export function useDeviceScope() {
     }, []);
 
     return {
-        scope,
-        setScope,
+        scope: effectiveScope,
+        setScope: setScopeSafe,
         currentDeviceId,
         activeDeviceId,
         devices,
         resolveScope,
+        syncAllowed,
     };
 }

@@ -79,7 +79,7 @@ const MovementRow = React.memo(({
                     {movementTypeLabels[m.type]?.label || m.type}
                 </Badge>
             </div>
-            <div className={`${colStyles.perubahan} font-bold ${m.qty_change > 0 ? 'text-green-600' : 'text-red-600'}`}>
+            <div className={`${colStyles.perubahan} font-bold ${m.qty_change > 0 ? 'text-success dark:text-success-foreground' : 'text-destructive'}`}>
                 {m.qty_change > 0 ? `+${m.qty_change}` : m.qty_change}
             </div>
             <div className={`${colStyles.ref} text-xs italic`}>
@@ -261,10 +261,10 @@ export default function StockMovementReportPage() {
 
         // 3. Memoize movementTypeLabels
     const memoizedMovementTypeLabels = useMemo(() => ({
-        sale: { label: 'Penjualan', color: 'bg-red-500/10 text-red-700' },
-        restock: { label: 'Masuk', color: 'bg-green-500/10 text-green-700' },
-        initial_balance: { label: 'Penyesuaian', color: 'bg-blue-500/10 text-blue-700' },
-        correction: { label: 'Koreksi', color: 'bg-yellow-500/10 text-yellow-700' },
+        sale: { label: 'Penjualan', color: 'bg-destructive/10 text-destructive' },
+        restock: { label: 'Masuk', color: 'bg-success/10 text-success dark:text-success-foreground' },
+        initial_balance: { label: 'Penyesuaian', color: 'bg-primary/10 text-primary' },
+        correction: { label: 'Koreksi', color: 'bg-warning/10 text-warning dark:text-warning-foreground' },
         lost: { label: 'Hilang', color: 'bg-gray-500/10 text-gray-700' },
         damaged: { label: 'Rusak', color: 'bg-purple-500/10 text-purple-700' },
     }), []); 
@@ -298,7 +298,7 @@ export default function StockMovementReportPage() {
 
     return (
         <div className="flex min-h-screen w-full flex-col bg-muted/40">
-           <header className="sticky top-0 flex h-12 items-center gap-4 border-b border-border/60 bg-background/80 px-4 backdrop-blur-md z-20">
+           <header className="sticky top-0 flex h-10 items-center gap-4 border-b border-border/60 bg-background/80 px-4 backdrop-blur-md z-20">
                 <Button variant="outline" size="icon" className="shrink-0" asChild>
                     <Link to="#" onClick={() => nav(-1)}>
                         <ArrowLeft className="h-4 w-4" />
@@ -320,7 +320,7 @@ export default function StockMovementReportPage() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                             <DropdownMenuItem onSelect={handleExcelExport}>
-                                <FileDown className="mr-2 h-4 w-4 text-green-500"/> Excel (.xlsx)
+                                <FileDown className="mr-2 h-4 w-4 text-success"/> Excel (.xlsx)
                             </DropdownMenuItem>
                             <DropdownMenuItem onSelect={handlePdfExport}>
                                 <FileText className="mr-2 h-4 w-4 text-red-400"/> PDF (.pdf)
@@ -470,6 +470,9 @@ export default function StockMovementReportPage() {
                 </CardHeader>
                 
                 <CardContent className="py-0 px-6 flex-1 flex flex-col relative overflow-hidden">
+                    {/* Locked header + body into one horizontal scroll so columns stay aligned */}
+                    <div className="flex-1 min-h-0 overflow-x-auto">
+                        <div className="flex min-w-full h-full flex-col">
                     {/* Header Row */}
                     <div className="w-full border-b shrink-0">
                         <div className="flex items-center px-6 pb-2 pt-4 text-[13px] uppercase tracking-wider font-semibold text-muted-foreground hover:bg-muted/50">
@@ -483,7 +486,7 @@ export default function StockMovementReportPage() {
                     </div>
 
                     {/* Scrolling Body */}
-                    <div ref={parentRef} className="flex-1 overflow-auto scrollbar-thin relative">
+                    <div ref={parentRef} className="flex-1 overflow-y-auto scrollbar-thin relative">
                         <div style={{ height: `${rowVirtualizer.getTotalSize()}px`, width: '100%', position: 'relative' }}>
                             {isLoading ? (
                                 <div className="p-12 text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" /></div>
@@ -500,6 +503,8 @@ export default function StockMovementReportPage() {
                             ) : (
                                 <div className="p-20 text-center"><PackageSearch className="mx-auto h-8 w-8 text-muted-foreground opacity-20" /><p className="text-sm text-muted-foreground mt-2">Tidak ada mutasi.</p></div>
                             )}
+                        </div>
+                    </div>
                         </div>
                     </div>
                 </CardContent>

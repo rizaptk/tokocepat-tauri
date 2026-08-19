@@ -261,20 +261,20 @@ export const ProductForm = ({ productId, onSave, onCancel, catalogPrefill }: Pro
                                             <FormField control={form.control} name="is_active" render={({ field }) => (<FormItem className="flex flex-row items-center justify-between"><FormLabel>Status Aktif</FormLabel><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem>)} />
                                         </div>
                                     </div>
+                                    <FormField
+                                        control={form.control}
+                                        name="name"
+                                        rules={{ required: "Product name is required.", minLength: { value: 2, message: "Product name must be at least 2 characters." } }}
+                                        render={({ field }) => (<FormItem><FormLabel>Nama Produk</FormLabel><FormControl><Input placeholder="cth. Cokelat Batang" {...field} /></FormControl><FormMessage /></FormItem>)}
+                                    />
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-x-3 gap-y-3">
-                                        <FormField
-                                            control={form.control}
-                                            name="name"
-                                            rules={{ required: "Product name is required.", minLength: { value: 2, message: "Product name must be at least 2 characters." } }}
-                                            render={({ field }) => (<FormItem><FormLabel>Nama Produk</FormLabel><FormControl><Input placeholder="cth. Cokelat Batang" {...field} /></FormControl><FormMessage /></FormItem>)}
-                                        />
+                                        <FormField control={form.control} name="brand" render={({ field }) => (
+                                            <FormItem><FormLabel>Merek</FormLabel><FormControl><Input placeholder="Opsional, cth. Indofood" {...field} /></FormControl><FormMessage /></FormItem>
+                                        )} />
                                         <FormField control={form.control} name="category_id" render={({ field }) => (
-                                            <FormItem className="flex flex-col gap-2"><FormLabel>Kategori</FormLabel><FormControl><CategoryCombobox categories={categories} value={field.value} onChange={field.onChange} /></FormControl><FormMessage /></FormItem>
+                                            <FormItem><FormLabel>Kategori</FormLabel><FormControl><CategoryCombobox categories={categories} value={field.value} onChange={field.onChange} /></FormControl><FormMessage /></FormItem>
                                         )} />
                                     </div>
-                                    <FormField control={form.control} name="brand" render={({ field }) => (
-                                        <FormItem><FormLabel>Merek / Brand</FormLabel><FormControl><Input placeholder="Opsional, cth. Indofood" {...field} /></FormControl><FormDescription>Untuk membedakan produk dengan nama yang sama dari merek berbeda.</FormDescription><FormMessage /></FormItem>
-                                    )} />
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-x-3 gap-y-3">
                                         <FormField control={form.control} name="barcode" render={({ field }) => (
                                                 <FormItem><FormLabel>Barcode</FormLabel><FormControl>

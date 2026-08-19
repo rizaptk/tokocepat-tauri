@@ -27,7 +27,7 @@ export const settleConsignment = async (
         if (currentStock > 0) {
             const productRef = doc(db, 'products', row.id);
             // Queue product stock update to 0
-            batch.update(productRef, { stock: 0 });
+            batch.update(productRef, { stock: 0, updated_at: now });
 
             // Queue stock movement audit log creation
             const movementId = `sm-retur-${crypto.randomUUID().slice(0, 8)}`;
@@ -58,7 +58,7 @@ export const settleConsignment = async (
             const txDate = new Date(tx.created_at);
             const isInRange = dateRange.from && dateRange.to && txDate >= dateRange.from && txDate <= dateRange.to;
 
-            if (matchesConsignor && !item.is_consignment_settled && isInRange) {
+            if (matchesConsignor && tx.status === 'paid' && !item.is_consignment_settled && isInRange) {
                 hasChanges = true;
                 return {
                     ...item,

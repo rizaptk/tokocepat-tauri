@@ -74,7 +74,7 @@ export default function ShiftDetailsPage() {
     if (!shift) {
         return (
              <div className="flex min-h-screen w-full flex-col bg-muted/40">
-<header className="sticky top-0 flex h-12 items-center gap-4 border-b border-border/60 bg-background/80 px-4 backdrop-blur-md z-20">
+<header className="sticky top-0 flex h-10 items-center gap-4 border-b border-border/60 bg-background/80 px-4 backdrop-blur-md z-20">
                     <Button variant="outline" size="icon" className="shrink-0" asChild>
                         <Link to="#" onClick={() => nav(-1)}>
                             <ArrowLeft className="h-4 w-4" />
@@ -112,7 +112,7 @@ export default function ShiftDetailsPage() {
     
     return (
          <div className="flex min-h-screen w-full flex-col bg-muted/40">
-           <header className="sticky top-0 flex h-12 items-center gap-4 border-b border-border/60 bg-background/80 px-4 backdrop-blur-md z-20">
+           <header className="sticky top-0 flex h-10 items-center gap-4 border-b border-border/60 bg-background/80 px-4 backdrop-blur-md z-20">
                 <Button variant="outline" size="icon" className="shrink-0" asChild>
                     <Link to="#" onClick={() => nav(-1)}>
                         <ArrowLeft className="h-4 w-4" />
@@ -175,8 +175,8 @@ export default function ShiftDetailsPage() {
                                     <span>{formatCurrency(shift.declared_cash || 0)}</span>
                                 </div>
                             </div>
-                             <div className={`space-y-2 text-sm p-3 rounded-lg ${shift.variance !== 0 ? 'bg-destructive/10' : 'bg-green-500/10'}`}>
-                                 <div className={`flex items-center h-full justify-between font-bold text-lg ${shift.variance !== 0 ? 'text-destructive' : 'text-green-600'}`}>
+                             <div className={`space-y-2 text-sm p-3 rounded-lg ${shift.variance !== 0 ? 'bg-destructive/10' : 'bg-success/10'}`}>
+                                 <div className={`flex items-center h-full justify-between font-bold text-lg ${shift.variance !== 0 ? 'text-destructive' : 'text-success dark:text-success-foreground'}`}>
                                     <span>Selisih</span>
                                     <span>{formatCurrency(shift.variance || 0)}</span>
                                 </div>

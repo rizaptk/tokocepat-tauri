@@ -1,205 +1,174 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useStore } from '@/lib/store';
+import { buildNotifications, NotificationType, AppNotification } from '@/lib/notifications';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
-import { Bell, AlertTriangle, Package, ArchiveX, Check, X } from 'lucide-react';
+import { Bell, AlertTriangle, Package, ArchiveX, Clock, CheckCheck, X, ChevronDown } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { formatDistanceToNow } from 'date-fns';
+import { cn } from '@/lib/utils';
 
-type Notification = {
-    id: string;
-    type: 'low_stock' | 'out_of_stock' | 'void';
-    title: string;
-    description: string;
-    timestamp: string;
-    isRead?: boolean;
+const GROUP_ORDER: NotificationType[] = ['low_stock', 'out_of_stock', 'void', 'promo_expiry'];
+const GROUP_LABEL: Record<NotificationType, string> = {
+    low_stock: 'Stok Menipis',
+    out_of_stock: 'Stok Habis',
+    void: 'Transaksi Void',
+    promo_expiry: 'Promo & Voucher',
 };
 
-export function NotificationBell() {
-    const { products, productVariants, transactions, activeShift, readNotificationIds, markAsRead, dismissedNotificationIds, dismissNotification } = useStore();
-
-    const notifications = useMemo((): Notification[] => {
-        const notifs: Notification[] = [];
-
-        // Low Stock
-        const lowStockProducts = products.filter(p => p.track_stock && !p.has_variant && p.low_stock_alert != null && p.stock > 0 && p.stock <= p.low_stock_alert);
-        lowStockProducts.forEach(p => {
-            notifs.push({
-                id: `low-${p.id}`,
-                type: 'low_stock',
-                title: 'Stok Menipis',
-                description: `Sisa stok ${p.name} tinggal ${p.stock}.`,
-                timestamp: new Date().toISOString(),
-            });
-        });
-
-        const lowStockVariants = productVariants.filter(v => v.track_stock && v.low_stock_alert != null && v.stock > 0 && v.stock <= v.low_stock_alert);
-        lowStockVariants.forEach(v => {
-            const parent = products.find(p => p.id === v.product_id);
-            notifs.push({
-                id: `low-${v.id}`,
-                type: 'low_stock',
-                title: 'Stok Menipis',
-                description: `Sisa stok ${parent?.name} (${v.name}) tinggal ${v.stock}.`,
-                timestamp: new Date().toISOString(),
-            });
-        });
-
-        // Out of Stock
-        const outOfStockProducts = products.filter(p => p.track_stock && !p.has_variant && p.stock <= 0);
-        outOfStockProducts.forEach(p => {
-            notifs.push({
-                id: `out-${p.id}`,
-                type: 'out_of_stock',
-                title: 'Stok Habis',
-                description: `Stok ${p.name} telah kosong.`,
-                timestamp: new Date().toISOString(),
-            });
-        });
-
-        const outOfStockVariants = productVariants.filter(v => v.track_stock && v.stock <= 0);
-        outOfStockVariants.forEach(v => {
-            const parent = products.find(p => p.id === v.product_id);
-            notifs.push({
-                id: `out-${v.id}`,
-                type: 'out_of_stock',
-                title: 'Stok Habis',
-                description: `Stok ${parent?.name} (${v.name}) telah kosong.`,
-                timestamp: new Date().toISOString(),
-            });
-        });
-        
-        // Voided Transactions in current shift
-        if (activeShift) {
-            const voidedInShift = transactions.filter(tx => tx.shift_id === activeShift.id && tx.status === 'voided' && tx.voided_at);
-            voidedInShift.forEach(tx => {
-                notifs.push({
-                    id: `void-${tx.id}`,
-                    type: 'void',
-                    title: 'Transaksi Void',
-                    description: `Invoice ${tx.invoice_number} telah dibatalkan.`,
-                    timestamp: tx.voided_at!,
-                });
-            });
-        }
-
-        return notifs
-            .filter(n => !dismissedNotificationIds.includes(n.id))
-            .map(n => ({
-                ...n,
-                isRead: readNotificationIds.includes(n.id)
-            }))
-            .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-            .slice(0, 50);
-    }, [products, productVariants, transactions, activeShift, readNotificationIds, dismissedNotificationIds]);
-    
-    const notificationCount = notifications.length;
-
-    const getIcon = (type: Notification['type']) => {
-        switch(type) {
-            case 'low_stock': return <AlertTriangle className="h-4 w-4 text-orange-500" />;
-            case 'out_of_stock': return <Package className="h-4 w-4 text-destructive" />;
-            case 'void': return <ArchiveX className="h-4 w-4 text-muted-foreground" />;
-            default: return null;
-        }
+function getIcon(type: NotificationType) {
+    switch (type) {
+        case 'low_stock': return <AlertTriangle className="h-4 w-4 text-orange-500" />;
+        case 'out_of_stock': return <Package className="h-4 w-4 text-destructive" />;
+        case 'void': return <ArchiveX className="h-4 w-4 text-muted-foreground" />;
+        case 'promo_expiry': return <Clock className="h-4 w-4 text-primary" />;
+        default: return null;
     }
+}
+
+export function NotificationBell() {
+    const navigate = useNavigate();
+    const {
+        products, productVariants, transactions, activeShift, promos,
+        readNotificationIds, markAsRead, markAllNotificationsRead,
+        dismissedNotificationIds, dismissNotification,
+    } = useStore();
+
+    const notifications = useMemo(() => buildNotifications({
+        products,
+        productVariants,
+        transactions,
+        activeShiftId: activeShift?.id,
+        promos,
+        readNotificationIds,
+        dismissedNotificationIds,
+    }), [products, productVariants, transactions, activeShift, promos, readNotificationIds, dismissedNotificationIds]);
+
+    const groups = useMemo(() => GROUP_ORDER
+        .map(type => ({ type, items: notifications.filter(n => n.type === type) }))
+        .filter(g => g.items.length > 0), [notifications]);
+
+    const unreadCount = notifications.filter(n => !n.isRead).length;
+
+    const [expanded, setExpanded] = useState<Set<NotificationType>>(new Set());
+    const toggleExpanded = (type: NotificationType) =>
+        setExpanded(prev => {
+            const next = new Set(prev);
+            if (next.has(type)) next.delete(type); else next.add(type);
+            return next;
+        });
+
+    const handleOpen = (notif: AppNotification) => {
+        if (!notif.isRead) markAsRead(notif.id);
+        navigate(notif.route);
+    };
+
+    const handleMarkAll = () => {
+        const unread = notifications.filter(n => !n.isRead).map(n => n.id);
+        if (unread.length > 0) markAllNotificationsRead(unread);
+    };
 
     return (
         <Popover>
             <PopoverTrigger asChild>
                 <Button variant="outline" size="sm" className="relative size-9" aria-label="Notifikasi">
                     <Bell className="h-4 w-4" />
-                    {notificationCount > 0 && (
+                    {unreadCount > 0 && (
                         <Badge variant="destructive" className="absolute -top-2 -right-2 h-5 w-5 justify-center rounded-full p-0 text-xs">
-                            {notificationCount > 9 ? '9+' : notificationCount}
+                            {unreadCount > 9 ? '9+' : unreadCount}
                         </Badge>
                     )}
                 </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-80 p-0">
-                <div className="p-4 border-b">
-                    <h4 className="font-medium leading-none">Notifikasi</h4>
-                    <p className="text-sm text-muted-foreground">Pemberitahuan sistem terbaru.</p>
+            <PopoverContent className="w-[22rem] p-0">
+                <div className="flex items-center justify-between p-4 border-b">
+                    <div>
+                        <h4 className="font-medium leading-none">Notifikasi</h4>
+                        <p className="text-sm text-muted-foreground">Pemberitahuan sistem terbaru.</p>
+                    </div>
+                    {unreadCount > 0 && (
+                        <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs" onClick={handleMarkAll}>
+                            <CheckCheck className="h-3.5 w-3.5" />
+                            Tandai semua dibaca
+                        </Button>
+                    )}
                 </div>
                 <ScrollArea className="h-80">
-                   <div className="p-4 space-y-4">
-                        {notificationCount > 0 ? (
-                            notifications.map(notif => (
-                                // <div key={notif.id} className="grid grid-cols-[auto_1fr] items-start gap-3">
-                                //     <div className="flex items-center justify-center h-full pt-0.5">
-                                //         {getIcon(notif.type)}
-                                //     </div>
-                                //     <div className="space-y-1">
-                                //         <p className="text-sm font-medium leading-none">{notif.title}</p>
-                                //         <p className="text-sm text-muted-foreground">{notif.description}</p>
-                                //         <p className="text-xs text-muted-foreground">{formatDistanceToNow(new Date(notif.timestamp), { addSuffix: true })}</p>
-                                //     </div>
-                                // </div>
-                                <div 
-                                    key={notif.id} 
-                                    className={`group grid grid-cols-[auto_1fr_auto] items-start gap-3 p-3 rounded-lg transition-colors hover:bg-slate-50 ${
-                                        notif.isRead ? 'opacity-60' : 'bg-blue-50/40' // Distinct background for unread
-                                    }`}
-                                >
-                                    <div className="flex items-center justify-center h-full pt-0.5">
-                                        {getIcon(notif.type)}
-                                    </div>
-                                    <div className="space-y-1">
-                                        <div className="flex items-center gap-2">
-                                            <p className="text-sm font-medium leading-none">{notif.title}</p>
-                                            {/* Unread dot indicator */}
-                                            {!notif.isRead && <span className="h-1.5 w-1.5 rounded-full bg-blue-600" />}
+                    {groups.length > 0 ? (
+                        <div className="p-2 space-y-2">
+                            {groups.map(group => {
+                                const isExpanded = expanded.has(group.type);
+                                const visible = isExpanded ? group.items : group.items.slice(0, 3);
+                                return (
+                                    <div key={group.type} className="rounded-lg border">
+                                        <div className="flex items-center gap-2 px-3 py-2">
+                                            {getIcon(group.type)}
+                                            <span className="text-sm font-medium">{GROUP_LABEL[group.type]}</span>
+                                            <Badge variant="secondary" className="ml-auto">{group.items.length}</Badge>
                                         </div>
-                                        <p className="text-sm text-muted-foreground">{notif.description}</p>
-                                        <p className="text-xs text-muted-foreground">
-                                            {formatDistanceToNow(new Date(notif.timestamp), { addSuffix: true })}
-                                        </p>
-                                    </div>
-
-                                    {/* Actions */}
-                                    <div className="flex items-center justify-center h-full">
-                                        {notif.type === 'void' ? (
-                                            <Button 
-                                                variant="ghost" 
-                                                size="icon" 
-                                                className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    dismissNotification(notif.id);
-                                                }}
-                                                title="Hapus"
-                                                aria-label="Hapus notifikasi"
-                                            >
-                                                <X className="h-4 w-4" />
-                                            </Button>
-                                        ) : (
-                                            // Only show 'Mark as Read' if it isn't already read
-                                            !notif.isRead && (
-                                                <Button 
-                                                    variant="ghost" 
-                                                    size="icon" 
-                                                    className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        markAsRead(notif.id);
+                                        <div className="px-1 pb-1 space-y-0.5">
+                                            {visible.map(notif => (
+                                                <div
+                                                    key={notif.id}
+                                                    role="button"
+                                                    tabIndex={0}
+                                                    onClick={() => handleOpen(notif)}
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleOpen(notif); }
                                                     }}
-                                                    title="Tandai dibaca"
-                                                    aria-label="Tandai notifikasi dibaca"
+                                                    className={cn(
+                                                        'group grid cursor-pointer grid-cols-[auto_1fr_auto] items-start gap-3 rounded-md px-2 py-2 transition-colors hover:bg-muted/70',
+                                                        notif.isRead ? 'opacity-60' : 'bg-info/10'
+                                                    )}
                                                 >
-                                                    <Check className="h-4 w-4" />
-                                                </Button>
-                                            )
-                                        )}
+                                                    <div className="pt-0.5">
+                                                        <span className={cn('block h-2 w-2 rounded-full', notif.isRead ? 'bg-transparent' : 'bg-info')} />
+                                                    </div>
+                                                    <div className="min-w-0 space-y-0.5">
+                                                        <p className="truncate text-sm font-medium leading-none">{notif.description}</p>
+                                                        <p className="text-xs text-muted-foreground">
+                                                            {formatDistanceToNow(new Date(notif.timestamp), { addSuffix: true })}
+                                                        </p>
+                                                    </div>
+                                                    <div className="flex items-center">
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                dismissNotification(notif.id);
+                                                            }}
+                                                            title="Sembunyikan"
+                                                            aria-label="Sembunyikan notifikasi"
+                                                        >
+                                                            <X className="h-4 w-4" />
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                            {group.items.length > 3 && (
+                                                <button
+                                                    type="button"
+                                                    className="flex w-full items-center justify-center gap-1 py-1.5 text-xs text-muted-foreground hover:text-foreground"
+                                                    onClick={() => toggleExpanded(group.type)}
+                                                >
+                                                    <ChevronDown className={cn('h-3.5 w-3.5 transition-transform', isExpanded && 'rotate-180')} />
+                                                    {isExpanded ? 'Tutup' : `${group.items.length - 3} lainnya`}
+                                                </button>
+                                            )}
+                                        </div>
                                     </div>
-                                </div>
-                            ))
-                        ) : (
-                            <p className="text-sm text-muted-foreground text-center py-8">Tidak ada notifikasi baru.</p>
-                        )}
-                   </div>
+                                );
+                            })}
+                        </div>
+                    ) : (
+                        <p className="py-8 text-center text-sm text-muted-foreground">Tidak ada notifikasi baru.</p>
+                    )}
                 </ScrollArea>
             </PopoverContent>
         </Popover>
-    )
+    );
 }

@@ -20,6 +20,7 @@ const DashboardShiftDetail = lazy(() => import('./pages/Dashboard/shifts/[id]/pa
 const AuditReportPage = lazy(() => import('./pages/Dashboard/reports/profits/page'))
 const TaxReportPage = lazy(() => import('./pages/Dashboard/reports/tax/page'))
 const ConsignmentReportPage = lazy(() => import('./pages/Dashboard/reports/consignments/page'))
+const PromoReportPage = lazy(() => import('./pages/Dashboard/reports/promos/page'))
 const LicensePage = lazy(() => import('./pages/Dashboard/settings/License'))
 const PromosPage = lazy(() => import('./pages/Dashboard/promos/page'))
 const ProductLayout = lazy(() => import('./pages/Product/layout'))
@@ -49,6 +50,7 @@ function App() {
             <Route path="dashboard/reports/profit" element={<AuditReportPage />} />
             <Route path="dashboard/reports/tax" element={<TaxReportPage />} />
             <Route path="dashboard/reports/consignments" element={<ConsignmentReportPage />} />
+            <Route path="dashboard/reports/promos" element={<PromoReportPage />} />
             <Route path="dashboard/promos" element={<PromosPage />} />
             <Route path="dashboard/settings" element={<DashboardSettings />} />
             <Route path="dashboard/shifts/:id" element={<DashboardShiftDetail />} />

@@ -32,12 +32,6 @@ export function ProductCard({ product, onItemClick, isSelected, context = 'cashi
 
   // Images are optional and only shown in the product form; lists/cards use a
   // lightweight letter tile so rendering stays fast with large catalogs.
-  const tint = useMemo(() => {
-    let h = 0;
-    for (let i = 0; i < product.name.length; i++) h = (h * 31 + product.name.charCodeAt(i)) % 360;
-    return h;
-  }, [product.name]);
-
 
   const { activeId, navigationSource, clearNavigationSource } = useActiveProduct();
   const isActive = activeId === product.id;
@@ -92,8 +86,7 @@ export function ProductCard({ product, onItemClick, isSelected, context = 'cashi
         <CardHeader className="p-0 relative">
           <div className="relative sm:aspect-5/3 aspect-4/3 w-full bg-muted">
             <div
-              className="absolute inset-0 flex items-center justify-center"
-              style={{ background: `linear-gradient(135deg, hsl(${tint} 60% 92%), hsl(${tint} 55% 84%))` }}
+              className="absolute inset-0 flex items-center justify-center bg-primary/10"
             >
               <span className="text-5xl font-black text-primary/70 select-none">
                 {product.name.trim().charAt(0).toUpperCase()}
@@ -130,7 +123,7 @@ export function ProductCard({ product, onItemClick, isSelected, context = 'cashi
           </div>
           <div className="absolute top-2 right-1 z-10 flex gap-1">
               {isLowStock && (
-                  <Badge variant="destructive" className="bg-yellow-500/80 text-black backdrop-blur-sm items-center">
+                  <Badge variant="destructive" className="bg-warning text-warning-foreground items-center">
                       <TriangleAlert className="h-3 w-3" />
                   </Badge>
               )}

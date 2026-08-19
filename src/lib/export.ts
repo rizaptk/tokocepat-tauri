@@ -611,13 +611,12 @@ export const exportShiftDetailsToPdf = async (shift: any, transactions: Transact
         { label: 'Selisih:', value: formatCurrency(shift.variance || 0), color: shift.variance === 0 ? rgb(0, 0.5, 0) : rgb(0.8, 0, 0) }
     ];
 
-    let x = margin;
+    const x = margin;
     summaryData.forEach(item => {
         page.drawText(item.label, { x, y, font, size: fontSize });
         page.drawText(item.value, { x: x + 120, y, font: boldFont, size: fontSize, color: item.color || rgb(0, 0, 0) });
         y -= 15;
     });
-    y -= 15;
 
     y = drawTableHeader(page, y);
 
@@ -1570,4 +1569,155 @@ export const exportConsignorReportToPdf = async (
         : `laporan_payout_titipan_${rangeStr}.pdf`;
 
     await saveFileNative(pdfBytes, filename, [{ name: 'PDF', extensions: ['pdf'] }]);
+};
+
+// --- Promo & Voucher Performance Report ---
+export const exportPromoPerformanceToExcel = async (
+    summary: { totalDiscount: number; autoDiscount: number; voucherDiscount: number; manualDiscount: number; promoSharePct: number },
+    diskonRows: any[],
+    voucherRows: any[],
+    dateRange: { from: Date, to: Date },
+    storeName: string
+) => {
+    const workbook = XLSX.utils.book_new();
+
+    const summarySheet = XLSX.utils.json_to_sheet([
+        { 'Metrik': 'Total Diskon', 'Nilai': formatCurrency(summary.totalDiscount) },
+        { 'Metrik': 'Diskon Otomatis', 'Nilai': formatCurrency(summary.autoDiscount) },
+        { 'Metrik': 'Diskon Voucher', 'Nilai': formatCurrency(summary.voucherDiscount) },
+        { 'Metrik': 'Diskon Manual', 'Nilai': formatCurrency(summary.manualDiscount) },
+        { 'Metrik': '% Omzet Terdiskon', 'Nilai': `${summary.promoSharePct.toFixed(2)}%` },
+    ]);
+    XLSX.utils.book_append_sheet(workbook, summarySheet, 'Ringkasan');
+
+    const diskonSheet = XLSX.utils.json_to_sheet(diskonRows.map(r => ({
+        'Promo': r.name,
+        'Jenis': r.type,
+        'Transaksi': r.transactions,
+        'Total Diskon': r.totalDiscount,
+        'Rata-rata / Transaksi': r.avgPerTx,
+        '% Kontribusi': `${r.sharePct.toFixed(2)}%`,
+    })));
+    XLSX.utils.book_append_sheet(workbook, diskonSheet, 'Diskon');
+
+    const voucherSheet = XLSX.utils.json_to_sheet(voucherRows.map(r => ({
+        'Kode': r.code,
+        'Nama': r.name,
+        'Redeem': r.redeems,
+        'Total Nilai': r.totalValue,
+        'Kuota Terpakai': r.quotaUsed,
+        'Kuota Maks': r.quotaTotal || '-',
+        'Status': r.status,
+    })));
+    XLSX.utils.book_append_sheet(workbook, voucherSheet, 'Voucher');
+
+    const range = format(dateRange.from, 'yyyy-MM-dd') + '_to_' + format(dateRange.to, 'yyyy-MM-dd');
+    const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+    await saveFileNative(new Uint8Array(excelBuffer), `promo_report_${storeName.replace(/\s+/g, '_')}_${range}.xlsx`, [{ name: 'Excel', extensions: ['xlsx'] }]);
+};
+
+export const exportPromoPerformanceToPdf = async (
+    summary: { totalDiscount: number; autoDiscount: number; voucherDiscount: number; manualDiscount: number; promoSharePct: number },
+    diskonRows: any[],
+    voucherRows: any[],
+    dateRange: { from: Date, to: Date },
+    storeName: string
+) => {
+    const pdfDoc = await PDFDocument.create();
+    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+
+    const margin = 40;
+    const fontSize = 9;
+
+    let currentPage = pdfDoc.addPage(PageSizes.A4);
+    const { width, height } = currentPage.getSize();
+    let y = height - margin;
+
+    // --- HEADER ---
+    currentPage.drawText(`${storeName.toUpperCase()}`, { x: margin, y, font: boldFont, size: 16 });
+    y -= 18;
+    currentPage.drawText('LAPORAN PERFORMA PROMO & VOUCHER', { x: margin, y, font: boldFont, size: 11, color: rgb(0.3, 0.3, 0.3) });
+    y -= 15;
+    currentPage.drawText(`Periode: ${format(dateRange.from, 'dd MMM yyyy')} - ${format(dateRange.to, 'dd MMM yyyy')}`, { x: margin, y, font, size: 10 });
+    y -= 25;
+
+    // --- SUMMARY BOX ---
+    const boxHeight = 80;
+    const boxY = y - boxHeight;
+    currentPage.drawRectangle({
+        x: margin,
+        y: boxY,
+        width: width - (margin * 2),
+        height: boxHeight,
+        color: rgb(0.96, 0.96, 0.96),
+    });
+
+    const summaryRows = [
+        ['Total Diskon', formatCurrency(summary.totalDiscount)],
+        ['Diskon Otomatis', formatCurrency(summary.autoDiscount)],
+        ['Diskon Voucher', formatCurrency(summary.voucherDiscount)],
+        ['Diskon Manual', formatCurrency(summary.manualDiscount)],
+        ['% Omzet Terdiskon', `${summary.promoSharePct.toFixed(2)}%`],
+    ];
+    let kpiY = (boxY + boxHeight) - 15;
+    summaryRows.forEach(([label, value], i) => {
+        const col = i % 2 === 0 ? margin + 15 : margin + 220;
+        if (i > 0 && i % 2 === 0) kpiY -= 15;
+        currentPage.drawText(label, { x: col, y: kpiY, font, size: 8 });
+        currentPage.drawText(value, { x: col + 115, y: kpiY, font: boldFont, size: 8 });
+    });
+    y = boxY - 25;
+
+    const drawTableHeader = (page: any, yPos: number, headers: string[], colWidths: number[]) => {
+        let xPos = margin;
+        headers.forEach((h, i) => {
+            page.drawText(h, { x: xPos, y: yPos, font: boldFont, size: fontSize });
+            xPos += colWidths[i];
+        });
+        const lineY = yPos - 5;
+        page.drawLine({ start: { x: margin, y: lineY }, end: { x: width - margin, y: lineY }, thickness: 1 });
+        return lineY - 15;
+    };
+
+    const drawRows = (headers: string[], colWidths: number[], rows: string[][]) => {
+        y = drawTableHeader(currentPage, y, headers, colWidths);
+        for (const row of rows) {
+            if (y < 50) {
+                currentPage = pdfDoc.addPage(PageSizes.A4);
+                y = height - margin;
+                y = drawTableHeader(currentPage, y, headers, colWidths);
+            }
+            let xPos = margin;
+            row.forEach((cell, i) => {
+                const text = cell.length > 40 ? cell.substring(0, 38) + "..." : cell;
+                currentPage.drawText(text, { x: xPos, y, font, size: 8 });
+                xPos += colWidths[i];
+            });
+            y -= 14;
+        }
+        y -= 10;
+    };
+
+    // --- DISKON TABLE ---
+    currentPage.drawText('PER PROMO (DISKON)', { x: margin, y, font: boldFont, size: 11 });
+    y -= 16;
+    drawRows(
+        ['Promo', 'Jenis', 'Transaksi', 'Total Diskon', 'Kontribusi'],
+        [150, 120, 70, 110, 80],
+        diskonRows.map(r => [r.name, r.type, String(r.transactions), formatCurrency(r.totalDiscount), `${r.sharePct.toFixed(1)}%`])
+    );
+
+    // --- VOUCHER TABLE ---
+    currentPage.drawText('VOUCHER', { x: margin, y, font: boldFont, size: 11 });
+    y -= 16;
+    drawRows(
+        ['Kode', 'Nama', 'Redeem', 'Total Nilai', 'Kuota', 'Status'],
+        [90, 130, 55, 95, 60, 70],
+        voucherRows.map(r => [r.code, r.name, String(r.redeems), formatCurrency(r.totalValue), r.quotaTotal ? `${r.quotaUsed}/${r.quotaTotal}` : String(r.quotaUsed), r.status])
+    );
+
+    const pdfBytes = await pdfDoc.save();
+    const rangeStr = format(dateRange.from, 'yyyyMMdd') + '-' + format(dateRange.to, 'yyyyMMdd');
+    await saveFileNative(pdfBytes, `laporan_promo_${rangeStr}.pdf`, [{ name: 'PDF', extensions: ['pdf'] }]);
 };

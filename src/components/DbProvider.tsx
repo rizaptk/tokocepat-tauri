@@ -10,6 +10,7 @@ import {
 } from '@/lib/types';
 import { TokoCepatLogo } from "./TokoCepatLogo";
 import { generateDeviceFingerprint } from "@/lib/security";
+import { normalizePromo } from "@/lib/promo-model";
 
 export function DbProvider({ children }: { children: React.ReactNode }) {
     const { isInitialized, db, firesqlite } = useDbStore();
@@ -95,7 +96,7 @@ export function DbProvider({ children }: { children: React.ReactNode }) {
 
                 // Promotions & vouchers (discount engine rules)
                 subscribe(onSnapshot(collection(db, 'promos'), (snap: any) => {
-                    setPromos(snap.docs.map((d: any) => d.data() as Promotion));
+                    setPromos(snap.docs.map((d: any) => normalizePromo(d.data() as Promotion)));
                 }));
 
                 // Current Shifts

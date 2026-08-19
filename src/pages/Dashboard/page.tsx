@@ -91,7 +91,7 @@ export default function DashboardPage() {
     const revenue = filteredTransactions.reduce((sum, tx) => sum + tx.total, 0);
     const profit = filteredTransactions.reduce((sum, tx) => {
       const cost = tx.items.reduce((itemSum, item) => itemSum + ((item.cost_snapshot || 0) * item.qty), 0);
-      return sum + (tx.subtotal - cost);
+      return sum + (tx.subtotal - (tx.discount_total || 0) - cost);
     }, 0);
 
     return {
@@ -117,7 +117,7 @@ export default function DashboardPage() {
       }));
       filteredTransactions.forEach(tx => {
         const hour = new Date(tx.created_at).getHours();
-        const profit = tx.subtotal - tx.items.reduce((sum, item) => sum + (item.cost_snapshot || 0) * item.qty, 0);
+        const profit = tx.subtotal - (tx.discount_total || 0) - tx.items.reduce((sum, item) => sum + (item.cost_snapshot || 0) * item.qty, 0);
         data[hour].sales += tx.total;
         data[hour].profit += profit;
       });
@@ -139,7 +139,7 @@ export default function DashboardPage() {
 
       filteredTransactions.forEach(tx => {
         const dayKey = format(new Date(tx.created_at), 'yyyy-MM-dd');
-        const profit = tx.subtotal - tx.items.reduce((sum, item) => sum + (item.cost_snapshot || 0) * item.qty, 0);
+        const profit = tx.subtotal - (tx.discount_total || 0) - tx.items.reduce((sum, item) => sum + (item.cost_snapshot || 0) * item.qty, 0);
         if (data[dayKey]) {
           data[dayKey].sales += tx.total;
           data[dayKey].profit += profit;
@@ -201,7 +201,7 @@ export default function DashboardPage() {
               <Card>
                 <div className="p-3.5">
                   <p className="text-xs text-muted-foreground">Total Omzet</p>
-                  <p className="text-xl font-bold">
+                  <p className="text-xl font-light">
                     {formatCurrency(totalRevenue)}
                   </p>
                 </div>
@@ -210,7 +210,7 @@ export default function DashboardPage() {
               <Card>
                 <div className="p-3.5">
                   <p className="text-xs text-muted-foreground">Laba Kotor</p>
-                  <p className="text-xl font-bold text-success-foreground">
+                  <p className="text-xl font-light text-success-foreground">
                     {formatCurrency(totalProfit)}
                   </p>
                 </div>
@@ -219,7 +219,7 @@ export default function DashboardPage() {
               <Card>
                 <div className="p-3.5">
                   <p className="text-xs text-muted-foreground">Transaksi</p>
-                  <p className="text-xl font-bold">
+                  <p className="text-xl font-light">
                     {totalTransactions}
                   </p>
                 </div>
@@ -228,7 +228,7 @@ export default function DashboardPage() {
               <Card>
                 <div className="p-3.5">
                   <p className="text-xs text-muted-foreground">Stok Tipis</p>
-                  <p className="text-xl font-bold text-destructive">
+                  <p className="text-xl font-light text-destructive">
                     {lowStockItems.length}
                   </p>
                 </div>
@@ -341,7 +341,7 @@ export default function DashboardPage() {
                   <CardContent>
                     {lowStockItems.length === 0 ? (
                       <div className="text-center text-muted-foreground py-8">
-                        <CheckCircle className="mx-auto h-8 w-8 mb-2 text-green-500" />
+                        <CheckCircle className="mx-auto h-8 w-8 mb-2 text-success" />
                         <p>Semua stok aman.</p>
                       </div>
                     ) : (

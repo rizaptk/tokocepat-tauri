@@ -132,7 +132,7 @@ export const addProduct = async (productData: ProductFormData): Promise<Product 
         };
 
         await setDoc(doc(db, 'stock_movements', movementId), stockMovement);
-        await updateDoc(doc(db, 'products', newProduct.id), { stock: initialStock });
+        await updateDoc(doc(db, 'products', newProduct.id), { stock: initialStock, updated_at: now });
     }
 
     if (hasVariant && variants) {
@@ -154,7 +154,7 @@ export const updateProduct = async (id: string, productData: ProductFormData): P
     const { doc, updateDoc } = firesqlite;
     
     // Exclude stock and variants from direct update to enforce auditable changes
-    const { variants, stock, low_stock_alert, ...restOfProductData } = productData;
+    const { variants, stock: _stock, low_stock_alert: _low_stock_alert, ...restOfProductData } = productData;
     const hasVariant = !!(variants && variants.length > 0);
 
     const dataToUpdate = {

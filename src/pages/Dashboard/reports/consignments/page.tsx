@@ -119,19 +119,23 @@ export default function ConsignmentReportPage() {
                                 const dateKey = settleDate.split('T')[0]; // Group by day of payment
                                 const key = `${dateKey}_${consignor}_${pId}`;
 
-                                const price = item.price_snapshot;
+                                // Base the payout on the CHARGED value so promo/free units
+                                // (unit_discount) never pay the consignor retail value.
+                                const netUnit = Math.max(0, item.price_snapshot - (item.unit_discount || 0));
+                                const price = netUnit;
                                 const qty = item.qty;
+                                const chargedValue = netUnit * qty;
 
                                 const commType = item.product_snapshot.consignment_commission_type;
                                 const commVal = item.product_snapshot.consignment_commission_value || 0;
 
                                 let storeCommission = 0;
                                 if (commType === 'percentage') {
-                                    storeCommission = (price * qty) * (commVal / 100);
+                                    storeCommission = chargedValue * (commVal / 100);
                                 } else {
-                                    storeCommission = commVal * qty;
+                                    storeCommission = Math.min(commVal * qty, chargedValue);
                                 }
-                                const consignorShare = (price * qty) - storeCommission;
+                                const consignorShare = chargedValue - storeCommission;
 
                                 const existing = paidItemsMap.get(key);
                                 if (existing) {
@@ -175,6 +179,8 @@ export default function ConsignmentReportPage() {
 
             let unpaidSold = 0;
             let paidSold = 0;
+            let unpaidCharged = 0;
+            let paidCharged = 0;
 
             transactions.forEach(tx => {
                 if (tx.status === 'paid') {
@@ -184,10 +190,14 @@ export default function ConsignmentReportPage() {
                     if (isInRange) {
                         tx.items.forEach(item => {
                             if (item.product_snapshot.id === p.id) {
+                                // Charged value excludes promo/free-unit discounts.
+                                const charged = (item.price_snapshot - (item.unit_discount || 0)) * item.qty;
                                 if (item.is_consignment_settled === true) {
                                     paidSold += item.qty;
+                                    paidCharged += charged;
                                 } else {
                                     unpaidSold += item.qty;
+                                    unpaidCharged += charged;
                                 }
                             }
                         });
@@ -196,25 +206,29 @@ export default function ConsignmentReportPage() {
             });
 
             let activeSold = unpaidSold;
-            if (filterStatus === 'all') activeSold = unpaidSold + paidSold;
+            let activeCharged = unpaidCharged;
+            if (filterStatus === 'all') {
+                activeSold = unpaidSold + paidSold;
+                activeCharged = unpaidCharged + paidCharged;
+            }
 
             const commType = p.consignment_commission_type;
             const commVal = p.consignment_commission_value || 0;
 
             let storeCommission = 0;
             if (commType === 'percentage') {
-                storeCommission = (p.price * activeSold) * (commVal / 100);
+                storeCommission = activeCharged * (commVal / 100);
             } else {
-                storeCommission = commVal * activeSold;
+                storeCommission = Math.min(commVal * activeSold, activeCharged);
             }
 
-            const consignorShare = (p.price * activeSold) - storeCommission;
+            const consignorShare = activeCharged - storeCommission;
 
             return {
                 id: p.id,
                 consignorName: p.consignor_name || 'Tanpa Nama',
                 productName: p.name,
-                price: p.price,
+                price: activeSold > 0 ? Math.round((activeCharged / activeSold) * 100) / 100 : p.price,
                 supplied,
                 sold: activeSold,
                 unpaidSold,
@@ -299,7 +313,7 @@ export default function ConsignmentReportPage() {
     return (
         <div className="flex min-h-screen w-full flex-col bg-muted/40">
             {/* Header */}
-            <header className="sticky top-0 flex h-12 items-center gap-4 border-b border-border/60 bg-background/80 px-4 backdrop-blur-md z-20">
+            <header className="sticky top-0 flex h-10 items-center gap-4 border-b border-border/60 bg-background/80 px-4 backdrop-blur-md z-20">
                 <Button variant="outline" size="icon" className="shrink-0" asChild>
                     <Link to="#" onClick={() => nav(-1)}>
                         <ArrowLeft className="h-4 w-4" />
@@ -320,7 +334,7 @@ export default function ConsignmentReportPage() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                             <DropdownMenuItem onSelect={handleExcelExport}>
-                                <FileDown className="mr-2 h-4 w-4 text-green-500" /> Excel (.xlsx)
+                                <FileDown className="mr-2 h-4 w-4 text-success" /> Excel (.xlsx)
                             </DropdownMenuItem>
                             <DropdownMenuItem onSelect={handlePdfExport}>
                                 <FileText className="mr-2 h-4 w-4 text-red-400" /> PDF (.pdf)
@@ -338,31 +352,31 @@ export default function ConsignmentReportPage() {
                 {filterConsignor !== 'all' && filterStatus === 'unpaid' && (
                     <div className="space-y-3">
                         {!activeShift && (
-                            <div className="flex items-center gap-3 p-4 rounded-lg border border-amber-500/30 bg-amber-500/10 text-amber-800 dark:text-amber-400 animate-pulse">
-                                <AlertTriangle className="h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" />
+                            <div className="flex items-center gap-3 p-4 rounded-lg border border-warning/30 bg-warning/10 text-warning dark:text-warning-foreground animate-pulse">
+                                <AlertTriangle className="h-5 w-5 shrink-0 text-warning dark:text-warning-foreground" />
                                 <div className="text-sm font-medium">
                                     Sif kasir belum aktif. Silakan buka sif kasir terlebih dahulu untuk dapat memproses pelunasan dana ke penitip.
                                 </div>
                             </div>
                         )}
                         <Card className={cn(
-                            'border-amber-500/20 bg-amber-500/5 transition-colors duration-200',
+                            'border-warning/20 bg-warning/5 transition-colors duration-200',
                             !activeShift ? 'opacity-50 pointer-events-none' : ''
                         )}>
                             <CardHeader className="pb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                                 <div>
-                                    <CardTitle className="text-base font-bold text-amber-800 dark:text-amber-400 flex items-center gap-2">
-                                        <CheckCircle className="h-5 w-5 text-amber-600" />
+                                    <CardTitle className="text-base font-bold text-warning dark:text-warning-foreground flex items-center gap-2">
+                                        <CheckCircle className="h-5 w-5 text-warning dark:text-warning-foreground" />
                                         Proses Pelunasan: {filterConsignor}
                                     </CardTitle>
-                                    <CardDescription className="text-amber-800/80 dark:text-amber-400/80">
+                                    <CardDescription className="text-warning/80 dark:text-warning-foreground/80">
                                         Tombol ini akan melunasi seluruh bagi hasil penjualan belum lunas pada rentang tanggal, menarik sisa stok, dan memotong ekspektasi kas sif kasir.
                                     </CardDescription>
                                 </div>
                                 <Button 
                                     onClick={handleSettleConsignment} 
                                     disabled={isSettling || kpis.totalPayout === 0 || !activeShift}
-                                    className="bg-amber-600 hover:bg-amber-700 text-white font-bold h-11 px-6"
+                                    className="bg-warning text-white hover:bg-warning/90 font-bold h-11 px-6"
                                 >
                                     {isSettling ? (
                                         <>
@@ -389,7 +403,7 @@ export default function ConsignmentReportPage() {
                             <Package className="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold">
+                            <div className="text-2xl font-light">
                                 {filterStatus === 'paid' 
                                     ? kpis.totalOut.toLocaleString() 
                                     : kpis.totalIn.toLocaleString()
@@ -406,7 +420,7 @@ export default function ConsignmentReportPage() {
                             <Users className="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold">
+                            <div className="text-2xl font-light">
                                 {filterStatus === 'paid'
                                     ? calculatedReportData.length.toLocaleString()
                                     : kpis.totalOut.toLocaleString()
@@ -423,19 +437,19 @@ export default function ConsignmentReportPage() {
                             <DollarSign className="h-4 w-4 text-primary" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold text-primary">{formatCurrency(kpis.totalComm)}</div>
+                            <div className="text-2xl font-light text-primary">{formatCurrency(kpis.totalComm)}</div>
                         </CardContent>
                     </Card>
 
-                    <Card className="border-green-500/30 bg-green-500/5">
+                    <Card className="border-success/30 bg-success/5">
                         <CardHeader className="flex flex-row items-center justify-between pb-2">
-                            <CardTitle className="text-sm font-medium text-green-700 dark:text-green-400">
+                            <CardTitle className="text-sm font-medium text-success dark:text-success-foreground">
                                 {filterStatus === 'paid' ? 'Total Terbayar Lunas' : 'Siap Bayar ke Penitip'}
                             </CardTitle>
-                            <Wallet className="h-4 w-4 text-green-600" />
+                            <Wallet className="h-4 w-4 text-success dark:text-success-foreground" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold text-green-600 dark:text-green-400">{formatCurrency(kpis.totalPayout)}</div>
+                            <div className="text-2xl font-light text-success dark:text-success-foreground">{formatCurrency(kpis.totalPayout)}</div>
                         </CardContent>
                     </Card>
                 </div>
@@ -510,7 +524,7 @@ export default function ConsignmentReportPage() {
                                         <TableHead className="text-center">Kuantitas Lunas</TableHead>
                                         <TableHead className="text-center">Tipe Komisi</TableHead>
                                         <TableHead className="text-right">Komisi Toko</TableHead>
-                                        <TableHead className="text-right font-bold text-green-600 dark:text-green-400 bg-green-500/5">Total Dibayar</TableHead>
+                                        <TableHead className="text-right font-bold text-success dark:text-success-foreground bg-success/5">Total Dibayar</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -527,7 +541,7 @@ export default function ConsignmentReportPage() {
                                                 <TableCell>{row.consignorName}</TableCell>
                                                 <TableCell>{row.productName}</TableCell>
                                                 <TableCell className="text-right">{formatCurrency(row.price)}</TableCell>
-                                                <TableCell className="text-center font-bold text-green-600">{row.qty} unit</TableCell>
+                                                <TableCell className="text-center font-bold text-success dark:text-success-foreground">{row.qty} unit</TableCell>
                                                 <TableCell className="text-center text-xs">
                                                     {row.commissionType === 'flat' ? (
                                                         <span className="bg-muted px-2 py-1 rounded">Rp {row.commissionValue.toLocaleString()} (Flat)</span>
@@ -536,7 +550,7 @@ export default function ConsignmentReportPage() {
                                                     )}
                                                 </TableCell>
                                                 <TableCell className="text-right text-muted-foreground">{formatCurrency(row.storeCommission)}</TableCell>
-                                                <TableCell className="text-right font-bold text-green-600 dark:text-green-400 bg-green-500/5">
+                                                <TableCell className="text-right font-bold text-success dark:text-success-foreground bg-success/5">
                                                     {formatCurrency(row.consignorShare)}
                                                 </TableCell>
                                             </TableRow>
@@ -563,7 +577,7 @@ export default function ConsignmentReportPage() {
                                         <TableHead className="text-center">Ditarik</TableHead>
                                         <TableHead className="text-center">Tipe Komisi</TableHead>
                                         <TableHead className="text-right">Komisi Toko</TableHead>
-                                        <TableHead className="text-right font-bold text-green-600 dark:text-green-400">Hak Penitip</TableHead>
+                                        <TableHead className="text-right font-bold text-success dark:text-success-foreground">Hak Penitip</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -590,7 +604,7 @@ export default function ConsignmentReportPage() {
                                                     )}
                                                 </TableCell>
                                                 <TableCell className="text-right text-muted-foreground">{formatCurrency(row.storeCommission)}</TableCell>
-                                                <TableCell className="text-right font-bold text-green-600 dark:text-green-400 bg-green-500/5">
+                                                <TableCell className="text-right font-bold text-success dark:text-success-foreground bg-success/5">
                                                     {formatCurrency(row.consignorShare)}
                                                 </TableCell>
                                             </TableRow>

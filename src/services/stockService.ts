@@ -81,7 +81,7 @@ export const adjustStock = async (data: AdjustmentData): Promise<void> => {
 
     // 2. Update the product's stock level
     const productRef = doc(db, 'products', data.product_id);
-    await updateDoc(productRef, { stock: newStock });
+    await updateDoc(productRef, { stock: newStock, updated_at: now });
 };
 
 export const adjustVariantStock = async (variantId: string, type: StockMovementType, qty_change: number, reason: string): Promise<void> => {
@@ -112,5 +112,5 @@ export const adjustVariantStock = async (variantId: string, type: StockMovementT
     };
 
     await setDoc(doc(db, 'stock_movements', movementId), stockMovement);
-    await updateDoc(doc(db, 'product_variants', variantId), { stock: newStock });
+    await updateDoc(doc(db, 'product_variants', variantId), { stock: newStock, updated_at: now });
 };

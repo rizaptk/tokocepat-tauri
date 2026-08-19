@@ -16,7 +16,7 @@ export default function LicensePage() {
 
   return (
     <div className="flex h-screen w-full flex-col bg-muted/40">
-        <header className="sticky shrink-0 top-0 z-20 flex h-12 items-center gap-4 border-b border-border/60 bg-background/80 px-4 backdrop-blur-md justify-between">
+        <header className="sticky shrink-0 top-0 z-20 flex h-10 items-center gap-4 border-b border-border/60 bg-background/80 px-4 backdrop-blur-md justify-between">
             <Link to="/dashboard/settings">
                 <TokoCepatLogo />
             </Link>
