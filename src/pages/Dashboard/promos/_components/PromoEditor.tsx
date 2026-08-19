@@ -41,16 +41,16 @@ export const PromoEditor = ({ draft, isNew, onChange, onCancel, onSave, isSaving
 
     return (
         <Tabs value={activeTab} onValueChange={(v) => onTabChange(v as PromoEditorTab)} layoutId="promo-editor-tabs" className="h-full flex flex-col min-h-0">
-            <div className="px-3 py-2 shrink-0 border-b border-border/60">
-                <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger value="diskon"><Percent className="h-3.5 w-3.5 mr-2 text-primary" />Diskon</TabsTrigger>
-                    <TabsTrigger value="voucher"><TicketPercent className="h-3.5 w-3.5 mr-2 text-destructive" />Voucher</TabsTrigger>
+            <div className="px-3 py-2 grid grid-cols-1 shrink-0 border-b border-border/60">
+                <TabsList className="grid w-full grid-cols-2 min-w-96">
+                    <TabsTrigger value="diskon"><Percent className="w-3.5 h-3.5 mr-2 text-primary" />Diskon</TabsTrigger>
+                    <TabsTrigger value="voucher"><TicketPercent className="w-3.5 h-3.5 mr-2 text-destructive" />Voucher</TabsTrigger>
                 </TabsList>
             </div>
-            <TabsContent value="diskon" className="mt-0 min-h-0 flex-1 w-full">
+            <TabsContent value="diskon" className="grid grid-cols-1 w-full mt-0 overflow-x-auto min-h-0">
                 <DiskonForm {...common} />
             </TabsContent>
-            <TabsContent value="voucher" className="mt-0 min-h-0 flex-1 w-full">
+            <TabsContent value="voucher" className="grid grid-cols-1 w-full mt-0 overflow-x-auto min-h-0">
                 <VoucherForm {...common} existingCodes={existingCodes} />
             </TabsContent>
         </Tabs>

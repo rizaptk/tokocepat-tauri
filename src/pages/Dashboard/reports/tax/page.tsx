@@ -242,7 +242,7 @@ export default function TaxReportPage() {
                                         <TableRow><TableCell colSpan={4} className="text-center py-10"><Loader2 className="animate-spin mx-auto"/></TableCell></TableRow>
                                     ) : dailySummary.map((row, i) => (
                                         <TableRow key={i}>
-                                            <TableCell className="font-medium">{format(new Date(row.date), 'dd MMM yyyy')}</TableCell>
+                                            <TableCell>{format(new Date(row.date), 'dd MMM yyyy')}</TableCell>
                                             <TableCell className="text-right">{formatCurrency(row.taxableBase)}</TableCell>
                                             <TableCell className="text-right text-destructive">
                                                 {row.taxVoided > 0 ? `(${formatCurrency(row.taxVoided)})` : '-'}

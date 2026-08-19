@@ -191,7 +191,7 @@ export default function AuditReportPage() {
                             ) : auditData.map((row, i) => (
                                 <TableRow key={i}>
                                     <TableCell>
-                                        <div className="font-medium">{format(new Date(row.date), 'PP')}</div>
+                                        <div>{format(new Date(row.date), 'PP')}</div>
                                         <div className="text-xs text-muted-foreground font-mono">{row.shiftId.substring(0,8)}</div>
                                     </TableCell>
                                     <TableCell className="text-right">{formatCurrency(row.revenue)}</TableCell>

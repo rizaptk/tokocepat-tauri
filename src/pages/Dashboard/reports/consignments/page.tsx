@@ -537,9 +537,9 @@ export default function ConsignmentReportPage() {
                                     ) : calculatedReportData.length > 0 ? (
                                         calculatedReportData.map((row) => (
                                             <TableRow key={row.key}>
-                                                <TableCell className="font-semibold">{format(new Date(row.settledDate), 'dd MMM yyyy')}</TableCell>
+                                                <TableCell>{format(new Date(row.settledDate), 'dd MMM yyyy')}</TableCell>
                                                 <TableCell>{row.consignorName}</TableCell>
-                                                <TableCell>{row.productName}</TableCell>
+                                                <TableCell className="font-medium">{row.productName}</TableCell>
                                                 <TableCell className="text-right">{formatCurrency(row.price)}</TableCell>
                                                 <TableCell className="text-center font-bold text-success dark:text-success-foreground">{row.qty} unit</TableCell>
                                                 <TableCell className="text-center text-xs">
@@ -590,8 +590,8 @@ export default function ConsignmentReportPage() {
                                     ) : calculatedReportData.length > 0 ? (
                                         calculatedReportData.map((row) => (
                                             <TableRow key={row.id}>
-                                                <TableCell className="font-semibold">{row.consignorName}</TableCell>
-                                                <TableCell>{row.productName}</TableCell>
+                                                <TableCell className="font-medium">{row.consignorName}</TableCell>
+                                                <TableCell className="font-medium">{row.productName}</TableCell>
                                                 <TableCell className="text-right">{formatCurrency(row.price)}</TableCell>
                                                 <TableCell className="text-center">{row.supplied}</TableCell>
                                                 <TableCell className="text-center font-bold text-primary">{row.sold}</TableCell>

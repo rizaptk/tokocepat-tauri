@@ -19,11 +19,11 @@ type ProductListItemProps = {
 };
 
 const columnClass = {
-  checkbox: "flex items-center justify-center w-9 h-10",
-  name: "flex items-center gap-2 flex-1 min-w-0 h-10",
-  category: "hidden md:flex items-center text-sm opacity-70 truncate max-w-[160px] w-[160px] px-2 border-l border-l-border/50 h-10",
-  stock: "hidden sm:flex items-center justify-end gap-1 text-sm tabular-nums shrink-0 w-20 border-l border-l-border/50 px-2 text-right h-10",
-  price: "flex items-center justify-end shrink-0 text-right tabular-nums whitespace-nowrap w-28 border-l border-l-border/50 h-10"
+  checkbox: "flex items-center justify-center w-9 h-8",
+  name: "flex items-center gap-2 flex-1 min-w-0 h-8",
+  category: "hidden md:flex items-center text-sm opacity-70 truncate max-w-[160px] w-[160px] px-2 border-l border-l-border/50 h-8",
+  stock: "hidden sm:flex items-center justify-end gap-1 text-sm tabular-nums shrink-0 w-20 border-l border-l-border/50 px-2 text-right h-8",
+  price: "flex items-center justify-end shrink-0 text-right tabular-nums whitespace-nowrap w-28 border-l border-l-border/50 h-8"
 }
 
 export function ProductListItem({
@@ -79,7 +79,7 @@ export function ProductListItem({
 
 
   return (
-      <div className={cn('bg-card h-10')} ref={itemRef}>
+      <div className={cn('bg-card h-8')} ref={itemRef}>
         <div
           style={style}
           onClick={handleSelect}
@@ -88,7 +88,7 @@ export function ProductListItem({
           tabIndex={not_allowed ? -1 : 0}
           aria-disabled={not_allowed}
           className={cn(
-            "flex items-center px-3 gap-0 h-10 border-b-border border-x",
+            "flex items-center px-3 gap-0 h-8 border-b-border border-x",
             "transition-colors",
             "hover:bg-accent",
             "active:ring-1 active:ring-inset active:ring-primary",

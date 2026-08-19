@@ -15,10 +15,10 @@ import { useActiveProduct } from '@/lib/product-active-store';
 type ViewMode = 'card' | 'thumbnail' | 'list';
 
 const columnClass = {
-  name: "flex items-center gap-2 flex-1 min-w-0 h-9",
-  category: "hidden md:flex items-center text-sm text-muted-foreground truncate max-w-[160px] w-[160px] px-2 border-l border-l-border/50 h-9",
-  stock: "hidden sm:flex items-center justify-end gap-1 text-sm tabular-nums shrink-0 w-20 border-l border-l-border/50 px-2 text-right h-9",
-  price: "flex items-center justify-end shrink-0 text-right tabular-nums whitespace-nowrap w-28 border-l border-l-border/50 h-9"
+  name: "flex items-center gap-2 flex-1 min-w-0 h-8",
+  category: "hidden md:flex items-center text-sm text-muted-foreground truncate max-w-[160px] w-[160px] px-2 border-l border-l-border/50 h-8",
+  stock: "hidden sm:flex items-center justify-end gap-1 text-sm tabular-nums shrink-0 w-20 border-l border-l-border/50 px-2 text-right h-8",
+  price: "flex items-center justify-end shrink-0 text-right tabular-nums whitespace-nowrap w-28 border-l border-l-border/50 h-8"
 }
 
 type ProductListProps = {
@@ -35,7 +35,7 @@ type ProductListProps = {
 const CARD_MIN_WIDTH = 210;
 const CARD_ROW_HEIGHT = 260;
 const THUMBNAIL_ROW_HEIGHT = 72;
-const LIST_ROW_HEIGHT = 44;
+const LIST_ROW_HEIGHT = 36;
 
 // --- Components for Card Grid View ---
 
@@ -262,19 +262,19 @@ export function ProductList({ products, viewMode, isLoading, onItemClick, select
           <div className='flex w-full items-center h-8 border bg-card rounded-t border-b-0 px-3'>
             <div className={columnClass.name}>
               {context === 'product' && <div className="w-9 shrink-0" aria-hidden="true" />}
-              <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Nama</span>
+              <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Nama</span>
             </div>
             <div className={columnClass.category}>
-              <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Kategori</span>
+              <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Kategori</span>
             </div>
             {
               context !== 'cashier' &&
               <div className={columnClass.stock}>
-                <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Stok</span>
+                <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Stok</span>
               </div>
             }
             <div className={columnClass.price}>
-              <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Harga</span>
+              <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Harga</span>
             </div>
           </div>
         </div>

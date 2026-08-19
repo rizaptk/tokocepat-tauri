@@ -495,7 +495,7 @@ export default function PromosPage() {
                                                     return (
                                                         <TableRow
                                                             key={promo.id}
-                                                            className={cn('cursor-pointer', selectedId === promo.id && 'bg-primary/5')}
+                                                            className={cn('cursor-pointer', selectedId === promo.id && 'bg-primary/10 text-primary')}
                                                             onClick={() => handleSelect(promo)}
                                                         >
                                                             <TableCell>
@@ -575,7 +575,7 @@ export default function PromosPage() {
                                                     return (
                                                         <TableRow
                                                             key={promo.id}
-                                                            className={cn('cursor-pointer', selectedId === promo.id && 'bg-primary/5')}
+                                                            className={cn('cursor-pointer', selectedId === promo.id && 'bg-primary/10 text-primary')}
                                                             onClick={() => handleSelect(promo)}
                                                         >
                                                             <TableCell>

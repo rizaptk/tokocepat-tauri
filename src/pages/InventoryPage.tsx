@@ -116,8 +116,8 @@ const StockHistoryCards = memo(({selectedItem}: {selectedItem: { id: string, typ
                 const item = [...products, ...productVariants].find(i => i.id === firstHistory.product_id);
                 const over50 = group.length >= 50;
                 return (
-                    <Card key={firstHistory.product_id} className="overflow-hidden">
-                        <CardHeader className="px-4 pb-3 pt-4 border-b flex flex-row justify-between items-center">
+                    <Card key={firstHistory.product_id} className="overflow-hidden border-border/60">
+                        <CardHeader className="px-3 py-2 border-b border-border/60 flex flex-row justify-between items-center">
                             <CardTitle className="text-sm font-bold">{item?.name || 'Unknown Item'} {group.length > 1 && <Badge variant="success" className="ms-2 py-0.5 px-2 leading-none font-mono">{` ${group.length} ${over50 ? '+' : ''}`}</Badge>}</CardTitle>
                             <Button variant="ghost" size="sm">
                                 <Link to="/dashboard/reports/stock-movement" className="flex items-center gap-2">
@@ -280,16 +280,16 @@ const StockAdjustmentPanel = memo(({ selectedItem, onSave, onCancel }: { selecte
 
     return (
         <div className="flex flex-col h-full min-h-0">
-            <div className="pt-2 pb-1 px-4 flex items-center justify-between">
-                <h3 className="font-semibold text-base">Penyesuaian Stok</h3>
+            <div className="flex items-center justify-between px-4 py-3 border-b border-border/60">
+                <h3 className="text-sm font-semibold">Penyesuaian Stok</h3>
                 <WarehouseIcon className="size-4" />
             </div>
             <div className="flex-1 min-h-0 flex flex-col relative">
                 <ScrollShadow scrollRef={scrollRef} side="both" />
                 <ScrollArea ref={scrollRef} className="flex-1 min-h-0 [&>[data-radix-scroll-area-viewport]>div]:block! [&>[data-radix-scroll-area-viewport]>div]:h-full!">
-                    <div className="p-4 space-y-4 h-full">
+                    <div className="p-3 space-y-3 h-full">
                         {!item ? (
-                            <Card className="h-full">
+                            <Card className="h-full border-border/60">
                                 <div className="flex flex-col items-center justify-center text-center text-muted-foreground h-full p-8">
                                     <Package className="w-12 h-12 mb-4" />
                                     <p>Tidak ada item dipilih</p>
@@ -297,9 +297,9 @@ const StockAdjustmentPanel = memo(({ selectedItem, onSave, onCancel }: { selecte
                             </Card>
                         ) : (
                             <>
-                                <Card>
-                                    <CardHeader className="pb-2">
-                                        <CardTitle className="text-base">{item.itemType === 'variant' ? `${item.parentName} (${item.name})` : item.name}</CardTitle>
+                                <Card className="border-border/60">
+                                    <CardHeader className="px-3 py-2 border-b border-border/60">
+                                        <CardTitle className="text-sm">{item.itemType === 'variant' ? `${item.parentName} (${item.name})` : item.name}</CardTitle>
                                         <div className="flex justify-between items-center">
                                             <CardDescription>Stok Tersedia: <span className="font-bold text-foreground">{item.stock}</span></CardDescription>
                                             <Badge variant={badgeVariant as any} className="border border-border capitalize">
@@ -308,7 +308,7 @@ const StockAdjustmentPanel = memo(({ selectedItem, onSave, onCancel }: { selecte
                                             </Badge>
                                         </div>
                                     </CardHeader>
-                                    <CardContent className="space-y-2">
+                                    <CardContent className="space-y-3 px-3 py-3">
 
                                         <div>
                                             <Label>Aksi?</Label>
@@ -375,11 +375,11 @@ const StockAdjustmentPanel = memo(({ selectedItem, onSave, onCancel }: { selecte
                                 </Card>
 
                                 {mode && change !== 0 && (
-                                    <Card>
-                                        <CardHeader>
-                                            <CardTitle className="text-base">Ringkasan</CardTitle>
+                                    <Card className="border-border/60">
+                                        <CardHeader className="px-3 py-2 border-b border-border/60">
+                                            <CardTitle className="text-sm">Ringkasan</CardTitle>
                                         </CardHeader>
-                                        <CardContent className="space-y-2 text-sm">
+                                        <CardContent className="space-y-3 px-3 py-3 text-sm">
                                             <div className="flex justify-between">
                                                 <span className="text-muted-foreground">Stok Lama</span>
                                                 <span>{item.stock}</span>
@@ -409,7 +409,7 @@ const StockAdjustmentPanel = memo(({ selectedItem, onSave, onCancel }: { selecte
                 </ScrollArea>
             </div>
 
-            <div className="p-4 mt-auto flex gap-2">
+            <div className="p-4 mt-auto shrink-0 flex items-center gap-4">
                 {
                     item &&
                     <Button variant="outline" className="flex-1" onClick={onCancel}>
@@ -464,7 +464,7 @@ const InventoryListItem = ({ item, isSelected, onItemClick, onShowDetail, catego
         : '';
 
     return (
-        <div className="bg-card border-x border-b border-b-border/50 p-0 h-12">
+        <div className="bg-card border-x border-b border-b-border/50 p-0 h-9">
             <div
                 data-item
                 onClick={() => onItemClick(item)}
@@ -473,7 +473,7 @@ const InventoryListItem = ({ item, isSelected, onItemClick, onShowDetail, catego
                 role="button"
                 tabIndex={0}
                 className={cn(
-                    "group flex items-center px-4 transition-colors cursor-pointer  hover:bg-accent h-12 focus:outline-none focus-visible:bg-accent",
+                    "group flex items-center px-4 transition-colors cursor-pointer  hover:bg-accent h-9 focus:outline-none focus-visible:bg-accent",
                     isSelected ? "bg-primary/10 text-primary ring-1 ring-inset ring-primary" : ''
                 )}
             >
@@ -492,7 +492,7 @@ const InventoryListItem = ({ item, isSelected, onItemClick, onShowDetail, catego
                     <span className="truncate">{categoryName}</span>
                 </div>
                 <div className={ColumnClass.stock} title="Klik untuk menyesuaikan stok">
-                    <p className="font-bold text-base group-hover:text-primary transition-colors">{item.stock}</p>
+                    <p className="font-bold text-sm group-hover:text-primary transition-colors">{item.stock}</p>
                 </div>
             </div>
         </div>
@@ -765,7 +765,7 @@ export default function InventoryPage() {
                         {inventoryItems.length > 0 ? (
                             <>
                                 <div className="px-4 w-full">
-                                    <div className="rounded-t-lg h-10 w-full border bg-card flex items-center px-4">
+                                    <div className="rounded-t-lg h-8 w-full border bg-card flex items-center px-4">
                                         <div className={ColumnClass.name}>
                                             <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Nama Item</span>
                                         </div>
@@ -792,7 +792,7 @@ export default function InventoryPage() {
                                                 height={height}
                                                 width={width}
                                                 itemCount={inventoryItems.length}
-                                                itemSize={48}
+                                                itemSize={36}
                                             >
                                                 {Row}
                                             </List>

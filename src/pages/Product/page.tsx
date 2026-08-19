@@ -5,12 +5,6 @@ import { useToast } from "@/hooks/use-toast";
 
 // UI Components
 import { Button } from "@/components/ui/button";
-import {
-    Sheet,
-    SheetContent,
-    SheetHeader,
-    SheetTitle,
-} from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { ProductSearchBar } from "@/components/ProductSearchBar";
 import { ProductList } from "@/components/ProductList";
@@ -30,7 +24,7 @@ import { cn } from "@/lib/utils";
 
 
 // Icons
-import { PlusCircle, Printer, Package, Loader2 } from "lucide-react";
+import { Printer, Package, Loader2 } from "lucide-react";
 
 // Services
 import { useGlobalBarcodeScanner } from "@/hooks/use-global-barcode-scanner";
@@ -47,7 +41,6 @@ export default function ProductManagementPage() {
     const { products } = useStore();
     const { toast } = useToast();
     const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
-    const [isDrawerOpen, setIsDrawerOpen] = useState(false);
     const [activeTab, setActiveTab] = useState("product");
     const [promoCatalog, setPromoCatalog] = useState<CatalogProduct | null>(null);
     const { query } = useProductSearch();
@@ -87,9 +80,6 @@ export default function ProductManagementPage() {
     const handleSelectProduct = (product: Product) => {
         setSelectedProductId(product.id);
         setActiveTab("product");
-        if (window.innerWidth < 768) {
-            setIsDrawerOpen(true);
-        }
     };
 
     const handlePrintLabels = () => {
@@ -131,13 +121,6 @@ export default function ProductManagementPage() {
 
     useGlobalBarcodeScanner({ onScan: handleBarcodeScan });
 
-    const handleAddNew = () => {
-        setSelectedProductId(null);
-        setPromoCatalog(null);
-        setActiveTab("product");
-        setIsDrawerOpen(true);
-    }
-
     const handleCatalogSelect = (item: CatalogProduct) => {
         // Already promoted? Open that product instead.
         const existing = products.find(p => p.barcode === item.barcode);
@@ -149,27 +132,18 @@ export default function ProductManagementPage() {
         setPromoCatalog(item);
         setSelectedProductId(null);
         setActiveTab("product");
-        if (window.innerWidth < 768) {
-            setIsDrawerOpen(true);
-        }
     }
 
     const handleSaveChanges = () => {
         setSelectedProductId(null);
         setPromoCatalog(null);
         // data will refetch via zustand listener, no need for manual refresh
-        if (window.innerWidth < 768) {
-            setIsDrawerOpen(false);
-        }
     }
 
     const handleCloseEditor = () => {
         clearSelected();
         setSelectedProductId(null);
         setPromoCatalog(null);
-        if (window.innerWidth < 768) {
-            setIsDrawerOpen(false);
-        }
     }
 
     const [filter, setFilter] = useState('all');
@@ -342,9 +316,9 @@ export default function ProductManagementPage() {
     );
 
     return (
-        <div className="w-full h-[calc(100vh-3rem)] md:grid md:grid-cols-10 min-h-0">
+        <div className="w-full h-[calc(100vh-3rem)] grid grid-cols-10 min-h-0">
             {/* Left Panel: Product List */}
-            <div className="col-span-10 md:col-span-5 lg:col-span-6 h-full flex flex-col min-h-0">
+            <div className="col-span-5 lg:col-span-6 h-full flex flex-col min-h-0">
                 <div className="px-3 pt-3 pb-2 flex flex-col w-full gap-2">
                     <div className="flex items-center gap-2">
                         <ProductSearchBar
@@ -355,9 +329,6 @@ export default function ProductManagementPage() {
                             <DialogTrigger asChild>{dlgTrigger}</DialogTrigger>
                             {printDialogContent}
                         </Dialog>
-                        <Button onClick={handleAddNew} size="sm" className="shrink-0 h-8">
-                            <PlusCircle className="mr-1.5 h-4 w-4" /> Tambah
-                        </Button>
                     </div>
 
                     <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
@@ -516,8 +487,8 @@ export default function ProductManagementPage() {
                 </div>
             </div>
 
-            {/* Right Panel: Editor (Desktop) */}
-            <aside className="hidden md:block col-span-5 lg:col-span-4 h-full min-h-0">
+            {/* Right Panel: Editor */}
+            <aside className="col-span-5 lg:col-span-4 h-full min-h-0">
                 <ProductEditor
                     selectedProductId={selectedProductId}
                     onProductUpdate={handleSaveChanges}
@@ -527,23 +498,6 @@ export default function ProductManagementPage() {
                     catalogPrefill={promoCatalog}
                 />
             </aside>
-
-            {/* Editor Drawer (Mobile) */}
-            <Sheet open={isDrawerOpen} onOpenChange={setIsDrawerOpen}>
-                <SheetContent side="right" className="w-full sm:w-125 p-0 flex flex-col">
-                    <SheetHeader className="p-4 border-b shrink-0">
-                        <SheetTitle>{selectedProductId ? 'Ubah Produk' : promoCatalog ? 'Produk Baru dari Katalog' : 'Tambah Produk'}</SheetTitle>
-                    </SheetHeader>
-                    <ProductEditor
-                        selectedProductId={selectedProductId}
-                        onProductUpdate={handleSaveChanges}
-                        onClose={handleCloseEditor}
-                        activeTab={activeTab}
-                        onTabChange={setActiveTab}
-                        catalogPrefill={promoCatalog}
-                    />
-                </SheetContent>
-            </Sheet>
         </div>
     );
 }

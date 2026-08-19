@@ -119,7 +119,7 @@ components:
     padding: "4px 10px"
   table-head:
     textColor: "{colors.ledger-grey}"
-    height: "28px"
+    height: "24px"
     padding: "0 10px"
   card:
     backgroundColor: "{colors.panel-white}"
@@ -219,7 +219,7 @@ A Windows-flat, blue-grey, premium palette: cool neutral chrome for surfaces, on
 
 Tight, desktop-first, Windows-native. The app shell keeps its fixed left rail — the **Aurora Taskbar**: `48px` wide, dark chrome with the aurora drifting vertically through it, `border-right` one hairline, a `1px` gloss highlight across its top. Operating screens sit on the flat Win Chrome ground; the header is a `40px` (`h-10`) flat chrome band with a hairline underline.
 
-- **Density budget:** interactive controls `28–32px` (`h-7`/`h-8`); cash inputs `h-9` (36px); buttons default `h-8` (32px), small `h-7` (28px). Table headers `28px` (`h-7`), table cells `py-1.5` (28px rows) / `px-2.5`. Card padding `16px`. Top bars `40px`.
+- **Density budget:** interactive controls `28–32px` (`h-7`/`h-8`); cash inputs `h-9` (36px); buttons default `h-8` (32px), small `h-7` (28px). Table headers `24px` (`h-6`), table cells `py-1` (24px rows) / `px-2.5`. Card padding `16px`. Top bars `40px`.
 - **The cashier split:** search bar + cart table left, payment rail right (`w-72`, grows to `24rem` at `lg`). The totals panel is capped by the **Aero Blue grand-total bar**, and the change/paid readouts are Windows green/amber. The cart table supports full keyboard navigation — arrow keys move, Enter edits qty or picks variant, Escape commits — and `motion.tr` rows slide in with a spring.
 - **The receipt stage:** payment success renders the thermal tape centered on a deep near-black stage (`#0d0e12`), teeth torn at top and bottom, 264px wide, spooling line by line (see Elevation/Motion).
 - **Targets:** desktop Windows mouse+keyboard; keyboard density wins over casual touch; a sale must survive on Scan → F8 → Enter alone. F1 search, F2 history, F3 park, F4 return, F5 voucher, F6 discount, F8 cash focus.
@@ -271,7 +271,7 @@ Sharp and rectangular, with one licensed curve:
 - **In-cell qty edit (cart):** `w-16 h-7`, centered, bold, `ring-1 ring-primary` while editing; commits on blur or Enter.
 
 ### Tables
-- **Character:** ledger-dense, bank-thin. Head rows `h-7` (28px), uppercase `12px` labels, Hairline `border-b`; body cells `py-1.5` / `px-2.5`, `14px`; rows separated by 1px hairlines.
+- **Character:** ledger-dense, bank-thin. Head rows `h-6` (24px), uppercase `12px` labels, Hairline `border-b`; body cells `py-1` / `px-2.5`, `14px`; rows separated by 1px hairlines. Same `text-sm` body and `text-xs` uppercase heads everywhere — cashier cart, product, inventory, promo, and report tables share one layout.
 - **State:** hover fills Muted Field (`hover:bg-muted/40`); the keyboard-active cart row fills `bg-muted/40` and its focused cell gets a `bg-primary/10` wash. No zebra stripes — hover is the only row state.
 - **Money columns:** right-aligned, `font-bold tabular-nums`, whole Rupiah.
 - **Empty states:** centered `text-muted-foreground` with a `h-[40vh]`/`h-32` ghost cell.
@@ -302,7 +302,7 @@ Sharp and rectangular, with one licensed curve:
 ## Do's and Don'ts
 
 ### Do:
-- **Do** keep rows tight and line-heights short (28px table rows, `py-1.5` cells, 1.35 body) — density is the premium.
+- **Do** keep rows tight and line-heights short (24px table rows, `py-1` cells, 1.35 body) — density is the premium.
 - **Do** let the receipt tape print every rung of a sale in Consolas, right-aligned, tabular, whole-rupiah — proof is the product.
 - **Do** confine colour to Aero Blue actions and Windows' green/red/amber money states; a calm counter has one committed accent.
 - **Do** use the aurora only on the rail and the brand mark, at `0.16–0.20` opacity, drifting `18s`.

@@ -14,6 +14,8 @@ import { PlusCircle, Edit, Trash, Search, Inbox } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ScrollArea, ScrollAreaHandle } from '@/components/ui/scroll-area';
 import { ScrollShadow } from '@/components/ui/scrollshadow';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Card } from '@/components/ui/card';
 
 const CategoryManagerComponent = () => {
     const { categories, products } = useStore();
@@ -105,9 +107,9 @@ const CategoryManagerComponent = () => {
     };
 
     return (
-        <div className="h-full flex flex-col min-h-0">
+        <Card className="h-full flex flex-col min-h-0 border-border/60">
             <div className="flex justify-between items-center px-4 py-3 border-b border-border/60">
-                <h3 className="font-semibold">Kelola Kategori</h3>
+                <h3 className="text-sm font-semibold">Kelola Kategori</h3>
                 <Button size="sm" onClick={() => openDialog(null)}><PlusCircle className="mr-2 h-4 w-4" /> Tambah</Button>
             </div>
             <div className="px-4 py-2 border-b border-border/40">
@@ -127,19 +129,19 @@ const CategoryManagerComponent = () => {
                     <ScrollArea ref={scrollRef} className="h-full">
                         {filtered.length > 0 ? (
                             <div className="px-4 pb-2 pt-1">
-                                <table className="w-full caption-bottom text-sm">
-                                    <thead className="sticky top-0 z-10 bg-background/95 backdrop-blur">
-                                        <tr className="border-b transition-colors">
-                                            <th className="h-9 px-3 text-left align-middle text-xs font-medium uppercase tracking-wider text-muted-foreground">Nama Kategori</th>
-                                            <th className="h-9 px-3 text-right align-middle text-xs font-medium uppercase tracking-wider text-muted-foreground whitespace-nowrap">Produk</th>
-                                            <th className="h-9 px-3 w-28 text-right align-middle text-xs font-medium uppercase tracking-wider text-muted-foreground">Aksi</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
+                                <Table>
+                                    <TableHeader className="sticky top-0 z-10 bg-background/95 backdrop-blur">
+                                        <TableRow className="hover:bg-transparent">
+                                            <TableHead className="px-3 text-left whitespace-nowrap">Nama Kategori</TableHead>
+                                            <TableHead className="px-3 text-right whitespace-nowrap">Produk</TableHead>
+                                            <TableHead className="px-3 w-28 text-right">Aksi</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
                                         {filtered.map((cat, idx) => {
                                             const isActive = idx === activeIndex;
                                             return (
-                                                <tr
+                                                <TableRow
                                                     key={cat.id}
                                                     data-cat-index={idx}
                                                     onMouseEnter={() => setActiveIndex(idx)}
@@ -147,15 +149,15 @@ const CategoryManagerComponent = () => {
                                                     onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openDialog(cat); } }}
                                                     tabIndex={0}
                                                     className={cn(
-                                                        "group border-b transition-colors hover:bg-muted/50 cursor-pointer data-[state=selected]:bg-muted focus:outline-none focus-visible:bg-muted/70",
-                                                        isActive && "bg-primary/10"
+                                                        "group cursor-pointer data-[state=selected]:bg-muted focus:outline-none focus-visible:bg-muted/70",
+                                                        isActive && "bg-primary/10 text-primary"
                                                     )}
                                                 >
-                                                    <td className="p-2.5 px-3 align-middle font-medium truncate max-w-[200px]">{cat.name}</td>
-                                                    <td className="p-2.5 px-3 text-right text-muted-foreground tabular-nums whitespace-nowrap">
+                                                    <TableCell className="px-3 font-medium truncate max-w-[200px]">{cat.name}</TableCell>
+                                                    <TableCell className="px-3 text-right text-muted-foreground tabular-nums whitespace-nowrap">
                                                         {productCount(cat.id)}
-                                                    </td>
-                                                    <td className="p-2.5 px-3">
+                                                    </TableCell>
+                                                    <TableCell className="px-3">
                                                         <div className={cn(
                                                             "flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity",
                                                             isActive && "opacity-100"
@@ -181,12 +183,12 @@ const CategoryManagerComponent = () => {
                                                                 </AlertDialogContent>
                                                             </AlertDialog>
                                                         </div>
-                                                    </td>
-                                                </tr>
+                                                    </TableCell>
+                                                </TableRow>
                                             );
                                         })}
-                                    </tbody>
-                                </table>
+                                    </TableBody>
+                                </Table>
                             </div>
                         ) : (
                             <div className="flex h-full items-center justify-center text-center text-muted-foreground p-8">
@@ -208,7 +210,7 @@ const CategoryManagerComponent = () => {
                     <DialogFooter><Button variant="outline" onClick={() => setIsDialogOpen(false)}>Batal</Button><Button onClick={handleSave}>Simpan</Button></DialogFooter>
                 </DialogContent>
             </Dialog>
-        </div>
+        </Card>
     );
 };
 

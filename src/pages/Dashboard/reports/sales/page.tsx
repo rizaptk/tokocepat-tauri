@@ -67,10 +67,10 @@ const TransactionRow = React.memo(({
             }}
         >
             <div className={columnStyles.waktu}>
-                <div className="font-medium">{format(new Date(tx.created_at), 'dd MMM yyyy')}</div>
-                <div className="text-[12px] text-muted-foreground">{format(new Date(tx.created_at), 'p')}</div>
+                <div>{format(new Date(tx.created_at), 'dd MMM yyyy')}</div>
+                <div className="text-xs text-muted-foreground">{format(new Date(tx.created_at), 'p')}</div>
             </div>
-            <div className={`${columnStyles.invoice} font-mono text-[13px]`}>
+            <div className={`${columnStyles.invoice} font-mono text-xs`}>
                 {tx.invoice_number}
             </div>
             <div className={columnStyles.subtotal}>
@@ -128,7 +128,7 @@ export default function SalesReportPage() {
     const rowVirtualizer = useVirtualizer({
         count: filteredTransactions.length,
         getScrollElement: () => parentRef.current,
-        estimateSize: () => 60,
+        estimateSize: () => 44,
         overscan: 10,
     });
 
@@ -285,7 +285,7 @@ export default function SalesReportPage() {
                         <div className="flex min-w-full h-full flex-col">
                     {/* TABLE HEADER (Separated to stay static) */}
                     <div className="w-full border-b shrink-0">
-                        <div className="flex items-center h-12 px-6 pb-2 pt-4 text-sm font-medium text-muted-foreground hover:bg-muted/50">
+                        <div className="flex items-center h-8 px-6 text-xs font-medium uppercase tracking-wider text-muted-foreground hover:bg-muted/50">
                             <div className={columnStyles.waktu}>Waktu</div>
                             <div className={columnStyles.invoice}>Invoice</div>
                             <div className={columnStyles.subtotal}>Subtotal</div>

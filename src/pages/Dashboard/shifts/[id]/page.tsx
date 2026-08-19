@@ -209,7 +209,7 @@ export default function ShiftDetailsPage() {
                                             <TableCell>{createdAtDate ? createdAtDate.toLocaleTimeString() : 'N/A'}</TableCell>
                                             <TableCell className="font-mono text-xs">{tx.invoice_number}</TableCell>
                                             <TableCell>{tx.items.reduce((acc, item) => acc + item.qty, 0)}</TableCell>
-                                            <TableCell className="text-right font-medium">{formatCurrency(tx.total)}</TableCell>
+                                            <TableCell className="text-right font-bold">{formatCurrency(tx.total)}</TableCell>
                                             <TableCell className="text-right">
                                                 {tx.status !== 'voided' && (
                                                     <AlertDialog>

@@ -134,12 +134,12 @@ export default function VoidReportPage() {
                                     voidedTransactions.map((tx: Transaction) => (
                                         <TableRow key={tx.id} onClick={() => setSelectedTx(tx)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedTx(tx); } }} tabIndex={0} className="cursor-pointer focus:outline-none focus-visible:bg-muted">
                                             <TableCell>
-                                                <div className="font-medium">{tx.voided_at ? format(new Date(tx.voided_at), 'PP') : '-'}</div>
+                                                <div>{tx.voided_at ? format(new Date(tx.voided_at), 'PP') : '-'}</div>
                                                 <div className="text-sm text-muted-foreground">{tx.voided_at ? format(new Date(tx.voided_at), 'p') : '-'}</div>
                                             </TableCell>
                                             <TableCell className="font-mono text-xs">{tx.invoice_number}</TableCell>
                                             <TableCell className="text-sm text-muted-foreground italic">{tx.void_reason || 'Tanpa alasan.'}</TableCell>
-                                            <TableCell className="text-right font-medium">{formatCurrency(tx.total)}</TableCell>
+                                            <TableCell className="text-right font-bold">{formatCurrency(tx.total)}</TableCell>
                                         </TableRow>
                                     ))
                                 ) : (

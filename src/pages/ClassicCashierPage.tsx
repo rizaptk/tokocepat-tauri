@@ -386,7 +386,7 @@ export default function ClassicCashierPage() {
         <div className="flex h-screen w-full flex-col overflow-hidden bg-background">
             <Header />
 
-            <div className="flex min-h-0 flex-1 divide-x divide-border">
+            <div className="flex min-h-0 flex-1">
                 {/* LEFT: CART TABLE */}
                 <main className="flex min-w-0 flex-1 flex-col bg-card">
                     {/* Search bar */}
@@ -656,7 +656,7 @@ export default function ClassicCashierPage() {
                                     type="text"
                                     inputMode='numeric'
                                     aria-label="Uang tunai dibayarkan"
-                                    className="h-9 border-2 pl-10 text-lg font-bold tracking-tight tabular-nums"
+                                    className="h-12 pl-10 text-xl font-bold tracking-tight tabular-nums"
                                     value={curr.value}
                                     onChange={curr.onChange}
                                     onKeyDown={(e) => {

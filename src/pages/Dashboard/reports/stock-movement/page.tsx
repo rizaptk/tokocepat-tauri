@@ -63,7 +63,7 @@ const MovementRow = React.memo(({
             className="flex items-center px-6 border-b hover:bg-muted/30 transition-colors text-sm absolute top-0 left-0 w-full"
             style={{ height: `${virtualRow.size}px`, transform: `translateY(${virtualRow.start}px)` }}
         >
-            <div className={`${colStyles.waktu} text-[13px]`}>
+            <div className={colStyles.waktu}>
                 {format(new Date(m.created_at), 'dd MMM, HH:mm')}
             </div>
             <div className={`${colStyles.item} font-medium truncate`}>
@@ -245,7 +245,7 @@ export default function StockMovementReportPage() {
     const rowVirtualizer = useVirtualizer({
         count: reportData.length,
         getScrollElement: () => parentRef.current,
-        estimateSize: () => 52,
+        estimateSize: () => 44,
         overscan: 10,
     });
 
@@ -475,7 +475,7 @@ export default function StockMovementReportPage() {
                         <div className="flex min-w-full h-full flex-col">
                     {/* Header Row */}
                     <div className="w-full border-b shrink-0">
-                        <div className="flex items-center px-6 pb-2 pt-4 text-[13px] uppercase tracking-wider font-semibold text-muted-foreground hover:bg-muted/50">
+                        <div className="flex items-center px-6 h-8 text-xs uppercase tracking-wider font-semibold text-muted-foreground hover:bg-muted/50">
                             <div className={colStyles.waktu}>Waktu</div>
                             <div className={colStyles.item}>Item</div>
                             <div className={colStyles.type}>Tipe</div>

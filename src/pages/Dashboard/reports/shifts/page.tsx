@@ -130,7 +130,7 @@ export default function ShiftsReportPage() {
                                 filteredShifts.map((s: Shift) => (
                                     <TableRow key={s.id} onClick={() => navigate(`/dashboard/shifts/${s.id}`)} className="cursor-pointer">
                                         <TableCell>
-                                            <div className="font-medium">{s.closed_at ? format(new Date(s.closed_at), 'PP') : '-'}</div>
+                                            <div>{s.closed_at ? format(new Date(s.closed_at), 'PP') : '-'}</div>
                                             <div className="text-sm text-muted-foreground">
                                                 {s.opened_at && s.closed_at ? 
                                                     `${format(new Date(s.opened_at), 'p')} - ${format(new Date(s.closed_at), 'p')}`
@@ -139,9 +139,9 @@ export default function ShiftsReportPage() {
                                             </div>
                                         </TableCell>
                                         <TableCell>{devices.find(d => d.id === s.device)?.name || s.device || '-'}</TableCell>
-                                        <TableCell>{formatCurrency(s.opening_cash)}</TableCell>
-                                        <TableCell>{formatCurrency(s.system_cash || 0)}</TableCell>
-                                        <TableCell>{formatCurrency(s.declared_cash || 0)}</TableCell>
+                                        <TableCell className="text-right font-bold">{formatCurrency(s.opening_cash)}</TableCell>
+                                        <TableCell className="text-right font-bold">{formatCurrency(s.system_cash || 0)}</TableCell>
+                                        <TableCell className="text-right font-bold">{formatCurrency(s.declared_cash || 0)}</TableCell>
                                         <TableCell className={cn(s.variance !== 0 ? 'text-destructive' : '', 'font-bold')}>
                                             { s.variance !== 0 && <AlertTriangle className="inline h-4 w-4 mr-1"/> }
                                             {formatCurrency(s.variance || 0)}
