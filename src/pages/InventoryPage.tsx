@@ -11,7 +11,8 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { ProductSearchBar } from "@/components/ProductSearchBar";
+import { ProductSearchBar, type ProductSearchBarHandle } from "@/components/ProductSearchBar";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { PlusCircle, Plus, Minus, Calculator, Package, WarehouseIcon, History, ArrowUp, ArrowDown, ArrowRight, Zap, ClipboardList, RotateCcw, Loader2 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -594,6 +595,7 @@ const WorksheetColumnClass = {
     systemStock: "flex items-center justify-end shrink-0 text-right tabular-nums w-20 border-l border-l-border/50 px-2",
     physicalStock: "flex items-center justify-center shrink-0 w-28 border-l border-l-border/50 px-2",
     reason: "flex items-center justify-center shrink-0 w-44 border-l border-l-border/50 px-2",
+    notes: "flex items-center justify-center shrink-0 w-40 border-l border-l-border/50 px-2",
     diff: "flex items-center justify-end shrink-0 text-right tabular-nums font-semibold w-16 border-l border-l-border/50 px-2",
 };
 
@@ -603,17 +605,19 @@ type WorksheetRowData = {
     products: Product[];
     physicalCounts: Record<string, string>;
     rowReasons: Record<string, string>;
+    rowNotes: Record<string, string>;
     defaultReason: string;
     focusedId: string | null;
     onChange: (itemId: string, value: string) => void;
     onReasonChange: (itemId: string, value: string) => void;
+    onNotesChange: (itemId: string, value: string) => void;
     onFocus: (itemId: string | null) => void;
 };
 
 // Stable row component (react-window render prop) so the Stok Fisik input keeps
 // focus across keystrokes — an inline row function would remount rows each render.
 const WorksheetRow = memo(({ index, style, data }: { index: number; style: React.CSSProperties; data: WorksheetRowData }) => {
-    const { items, categories, products, physicalCounts, rowReasons, defaultReason, focusedId, onChange, onReasonChange, onFocus } = data;
+    const { items, categories, products, physicalCounts, rowReasons, rowNotes, defaultReason, focusedId, onChange, onReasonChange, onNotesChange, onFocus } = data;
     const item = items[index];
     const raw = physicalCounts[item.id] ?? '';
     const physical = raw.trim() === '' ? NaN : parseInt(raw, 10);
@@ -682,6 +686,15 @@ const WorksheetRow = memo(({ index, style, data }: { index: number; style: React
                         </SelectContent>
                     </Select>
                 </span>
+                <span className={WorksheetColumnClass.notes}>
+                    <Input
+                        type="text"
+                        placeholder="Catatan"
+                        className="h-7 w-full text-xs px-2"
+                        value={rowNotes[item.id] ?? ''}
+                        onChange={(e) => onNotesChange(item.id, e.target.value)}
+                    />
+                </span>
                 <span className={cn(
                     WorksheetColumnClass.diff,
                     invalid ? "text-destructive" : diff === null ? "text-muted-foreground/40" : diff === 0 ? "text-muted-foreground" : diff > 0 ? "text-success dark:text-success-foreground" : "text-destructive"
@@ -694,17 +707,17 @@ const WorksheetRow = memo(({ index, style, data }: { index: number; style: React
 });
 WorksheetRow.displayName = "WorksheetRow";
 
-const WorksheetGrid = memo(({ items, categories, physicalCounts, rowReasons, onChange, onReasonChange, worksheetReason, setWorksheetReason, worksheetBusy, onApply, dirtyCount, invalidCount }: {
+const WorksheetGrid = memo(({ items, categories, physicalCounts, rowReasons, rowNotes, onChange, onReasonChange, onNotesChange, worksheetReason, setWorksheetReason, dirtyCount, invalidCount }: {
     items: InventoryItemType[];
     categories: Category[];
     physicalCounts: Record<string, string>;
     rowReasons: Record<string, string>;
+    rowNotes: Record<string, string>;
     onChange: (itemId: string, value: string) => void;
     onReasonChange: (itemId: string, value: string) => void;
+    onNotesChange: (itemId: string, value: string) => void;
     worksheetReason: string;
     setWorksheetReason: (value: string) => void;
-    worksheetBusy: boolean;
-    onApply: () => void;
     dirtyCount: number;
     invalidCount: number;
 }) => {
@@ -712,9 +725,9 @@ const WorksheetGrid = memo(({ items, categories, physicalCounts, rowReasons, onC
     const [focusedId, setFocusedId] = useState<string | null>(null);
 
     const itemData: WorksheetRowData = {
-        items, categories, products, physicalCounts, rowReasons,
+        items, categories, products, physicalCounts, rowReasons, rowNotes,
         defaultReason: worksheetReason, focusedId,
-        onChange, onReasonChange, onFocus: setFocusedId,
+        onChange, onReasonChange, onNotesChange, onFocus: setFocusedId,
     };
 
     return (
@@ -734,11 +747,6 @@ const WorksheetGrid = memo(({ items, categories, physicalCounts, rowReasons, onC
                         {invalidCount > 0 && <span className="text-destructive font-semibold">, {invalidCount} invalid</span>}
                     </span>
                 </div>
-                <div className="flex-1" />
-                <Button size="sm" onClick={onApply} disabled={worksheetBusy || dirtyCount === 0 || invalidCount > 0} className="h-7">
-                    {worksheetBusy ? <Loader2 className="size-3.5 animate-spin mr-1.5" /> : <ClipboardList className="size-3.5 mr-1.5" />}
-                    Terapkan {dirtyCount > 0 ? `(${dirtyCount})` : ''}
-                </Button>
             </div>
             <div className="px-4 w-full">
                 <div className="rounded-t-lg h-8 w-full border bg-card flex items-center px-2">
@@ -760,6 +768,9 @@ const WorksheetGrid = memo(({ items, categories, physicalCounts, rowReasons, onC
                     </span>
                     <span className={WorksheetColumnClass.reason}>
                         <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Alasan</span>
+                    </span>
+                    <span className={WorksheetColumnClass.notes}>
+                        <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Catatan</span>
                     </span>
                     <span className={WorksheetColumnClass.diff}>
                         <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Selisih</span>
@@ -810,8 +821,13 @@ export default function InventoryPage() {
     // Worksheet (batch opname) state
     const [physicalCounts, setPhysicalCounts] = useState<Record<string, string>>({});
     const [worksheetRowReasons, setWorksheetRowReasons] = useState<Record<string, string>>({});
+    const [worksheetRowNotes, setWorksheetRowNotes] = useState<Record<string, string>>({});
     const [worksheetReason, setWorksheetReason] = useState('count-correction');
     const [worksheetBusy, setWorksheetBusy] = useState(false);
+
+    // Multi-search (worksheet only): scan/enter comma-separated terms to filter many items at once.
+    const [multiSearch, setMultiSearch] = useState(false);
+    const searchBarRef = useRef<ProductSearchBarHandle>(null);
 
     const outerRef = useRef<HTMLDivElement>(null);
     const thumbRef = useRef<HTMLDivElement>(null);
@@ -820,7 +836,7 @@ export default function InventoryPage() {
     const listRef = useRef<List>(null);
     const [isScrolling, setIsCrolling] = useState(false);
 
-    const { query } = useProductSearch();
+    const { query, setQuery } = useProductSearch();
 
     const inventoryItems: InventoryItemType[] = useMemo(() => {
         const stockTrackedProducts = products.filter(p => p.track_stock).map(p => ({ ...p, itemType: 'product' as const, stock: p.stock }));
@@ -874,13 +890,32 @@ export default function InventoryPage() {
         }
 
         if (!query.trim()) return combined;
+
+        if (multiSearch) {
+            // Multi-search: match ANY comma-separated term (keyword or barcode).
+            const terms = query.split(',').map(t => t.trim().toLowerCase()).filter(Boolean);
+            if (terms.length === 0) return combined;
+            return combined.filter(p => {
+                const nameToSearch = p.itemType === 'variant' ? `${(p as any).parentName} ${p.name}` : p.name;
+                const barcode = p.itemType === 'product' ? ((p as Product).barcode || '') : '';
+                const haystack = `${nameToSearch.toLowerCase()} ${barcode.toLowerCase()}`;
+                return terms.some(term => haystack.includes(term));
+            });
+        }
+
         return combined.filter(p => {
             const nameToSearch = p.itemType === 'variant' ? `${(p as any).parentName} ${p.name}` : p.name;
             return nameToSearch.toLowerCase().includes(query.toLowerCase());
         });
-    }, [products, productVariants, query, filter]);
+    }, [products, productVariants, query, filter, multiSearch]);
 
     const handleBarcodeScan = (barcode: string) => {
+        // In worksheet multi-search, a scan just appends the barcode to the search
+        // bar (comma-separated) so the grid filters to all scanned items at once.
+        if (multiSearch) {
+            searchBarRef.current?.appendTerm(barcode);
+            return;
+        }
         const product = products.find(p => p.barcode === barcode);
         if (product) {
             if (!product.track_stock) {
@@ -1055,6 +1090,10 @@ export default function InventoryPage() {
         setWorksheetRowReasons(prev => ({ ...prev, [itemId]: value }));
     };
 
+    const handleWorksheetNoteChange = (itemId: string, value: string) => {
+        setWorksheetRowNotes(prev => ({ ...prev, [itemId]: value }));
+    };
+
     const handleApplyWorksheet = async () => {
         if (worksheetInvalidRows.length > 0) {
             toast({ variant: 'destructive', title: 'Input Tidak Valid', description: `${worksheetInvalidRows.length} baris memiliki jumlah yang tidak valid (harus angka >= 0).` });
@@ -1079,11 +1118,13 @@ export default function InventoryPage() {
                     if (change === 0) return 'unchanged' as const;
                     const reasonId = worksheetRowReasons[it.id] ?? worksheetReason;
                     const reasonOption = reasonOptions.count.find(o => o.id === reasonId) || reasonOptions.count[0];
+                    const note = worksheetRowNotes[it.id]?.trim();
+                    const reason = note ? `${reasonOption.label}: ${note}` : reasonOption.label;
                     try {
                         if (it.itemType === 'product') {
-                            await adjustStock({ product_id: it.id, type: reasonOption.value, qty_change: change, reason: reasonOption.label });
+                            await adjustStock({ product_id: it.id, type: reasonOption.value, qty_change: change, reason });
                         } else {
-                            await adjustVariantStock(it.id, reasonOption.value, change, reasonOption.label);
+                            await adjustVariantStock(it.id, reasonOption.value, change, reason);
                         }
                         appliedIds.add(it.id);
                         return 'ok' as const;
@@ -1130,6 +1171,12 @@ export default function InventoryPage() {
         // Only one of "Mode Cepat" / "Worksheet" can be active at a time.
         if (next) setRapidInventoryMode(false);
         setSelectedItem(null);
+        // Leaving worksheet mode resets multi-search and clears the search bar.
+        if (!next) {
+            setMultiSearch(false);
+            setQuery('');
+            searchBarRef.current?.clear();
+        }
         // Keep physicalCounts so stok fisik values persist across mode switches.
     };
 
@@ -1164,10 +1211,19 @@ export default function InventoryPage() {
                         <div className="flex items-center gap-2 ">
                             <div className="grow">
                                 <ProductSearchBar
+                                    ref={searchBarRef}
                                     onBarcodeScan={handleBarcodeScan}
                                     onArrowNav={handleInventoryArrowNav}
+                                    multiSearch={multiSearch && worksheetInventoryMode}
+                                    placeholder={multiSearch ? "Multi: pisahkan kata kunci/barcode dengan koma..." : undefined}
                                 />
                             </div>
+                            {worksheetInventoryMode && (
+                                <label className="flex shrink-0 items-center gap-1.5 text-xs text-muted-foreground cursor-pointer select-none" title="Aktifkan pencarian banyak item sekaligus (pisahkan dengan koma, scan barcode menambah otomatis)">
+                                    <Checkbox id="multi-search" checked={multiSearch} onCheckedChange={(v) => setMultiSearch(!!v)} />
+                                    Multi
+                                </label>
+                            )}
                             <div className="md:hidden">
                                 <Button onClick={handleOpenAdjustmentSheet}>
                                     <PlusCircle className="mr-2 h-4 w-4" /> Penyesuaian
@@ -1213,6 +1269,26 @@ export default function InventoryPage() {
                             >
                                 <ClipboardList className="size-3.5 mr-1" /> Worksheet
                             </Button>
+
+                            <div className="ml-auto flex shrink-0 items-center gap-2">
+                                {!worksheetInventoryMode && rapidInventoryMode && (
+                                    <span className="text-xs text-muted-foreground whitespace-nowrap">
+                                        {worksheetDirtyRows.length > 0 ? <span className="font-semibold text-foreground">{worksheetDirtyRows.length}</span> : 0} selisih
+                                        {worksheetInvalidRows.length > 0 && <span className="text-destructive font-semibold">, {worksheetInvalidRows.length} invalid</span>}
+                                    </span>
+                                )}
+                                {worksheetInventoryMode && (
+                                    <Button
+                                        size="sm"
+                                        onClick={handleApplyWorksheet}
+                                        disabled={worksheetBusy || worksheetDirtyRows.length === 0 || worksheetInvalidRows.length > 0}
+                                        className="h-7 shrink-0"
+                                    >
+                                        {worksheetBusy ? <Loader2 className="size-3.5 animate-spin mr-1.5" /> : <ClipboardList className="size-3.5 mr-1.5" />}
+                                        Terapkan {worksheetDirtyRows.length > 0 ? `(${worksheetDirtyRows.length})` : ''}
+                                    </Button>
+                                )}
+                            </div>
                         </div>
                     </div>
                     <div className="flex-1 bg-background h-full min-h-0 flex flex-col">
@@ -1222,12 +1298,12 @@ export default function InventoryPage() {
                                 categories={categories}
                                 physicalCounts={physicalCounts}
                                 rowReasons={worksheetRowReasons}
+                                rowNotes={worksheetRowNotes}
                                 onChange={handleWorksheetChange}
                                 onReasonChange={handleWorksheetReasonChange}
+                                onNotesChange={handleWorksheetNoteChange}
                                 worksheetReason={worksheetReason}
                                 setWorksheetReason={setWorksheetReason}
-                                worksheetBusy={worksheetBusy}
-                                onApply={handleApplyWorksheet}
                                 dirtyCount={worksheetDirtyRows.length}
                                 invalidCount={worksheetInvalidRows.length}
                             />

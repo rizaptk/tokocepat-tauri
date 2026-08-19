@@ -28,6 +28,11 @@ export async function ensureIndexes(firesqlite: any, _db: any) {
             // For product search by name
             createIndex('products', 'name'),
 
+            // For product search by barcode / combined name+barcode lookups
+            // (cashier search, inventory worksheet multi-search, product page).
+            createIndex('products', 'barcode'),
+            createCompositeIndex('products', [{ field: 'name' }, { field: 'barcode' }]),
+
             // For variants lookup by product
             createIndex('product_variants', 'product_id'),
 

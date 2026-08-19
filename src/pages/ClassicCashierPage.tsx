@@ -12,7 +12,7 @@ import {
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Search, Trash2, Plus, Minus, ReceiptCent, Printer, CheckCircle2, LogIn, ParkingSquare, ArrowLeft, XCircle, TicketPercent, Gift, Percent, BadgePercent } from 'lucide-react';
+import { Search, Trash2, ReceiptCent, Printer, CheckCircle2, LogIn, ParkingSquare, ArrowLeft, XCircle, TicketPercent, Gift, BadgePercent, GitBranch, Handshake } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { VariantPanel } from '@/components/VariantPanel';
@@ -48,7 +48,7 @@ export default function ClassicCashierPage() {
     const { 
         products, cart, saveItemToCart, updateQuantity, removeFromCart, 
         checkout, activeShift, openShift, storeConfig, transactions,
-        parkCart, promos
+        parkCart, promos, categories
     } = useStore();
     
     const { toast } = useToast();
@@ -95,26 +95,29 @@ export default function ClassicCashierPage() {
     const [variantEditCartId, setVariantEditCartId] = useState<string | null>(null);
     const { activeIndex: cartActiveIndex, setActiveIndex: setCartActiveIndex, activeColumn: cartActiveColumn } = useTableNavigation({
         rowCount: cart.length,
-        columnCount: 7, // No | Produk | Merek | Harga | Qty | Subtotal | Hapus
+        columnCount: 11, // No | Var | Con | Produk | Merek | Kategori | Stok | Harga | Qty | Subtotal | Hapus
         bindTo: cartTableRef,
         onActivate: (index, column) => {
             const item = cart[index];
             if (!item) return;
-            if (column === 1 && item.has_variant) {
-                // Produk column: open variant selector when the item has variants
-                const base = products.find(p => p.id === item.id);
-                if (base) {
-                    setVariantEditItem(base);
-                    setVariantEditCartId(item.cartItemId);
+            if (column === 3) {
+                // Produk column: open variant selector when the item has variants,
+                // otherwise start an in-cell qty edit.
+                if (item.has_variant) {
+                    const base = products.find(p => p.id === item.id);
+                    if (base) {
+                        setVariantEditItem(base);
+                        setVariantEditCartId(item.cartItemId);
+                    }
+                } else {
+                    setQtyEditValue(String(item.quantity));
+                    setQtyEditId(item.cartItemId);
                 }
-            } else if (column === 4) {
+            } else if (column === 8) {
                 // Qty column (default for any line): start in-cell qty edit
                 setQtyEditValue(String(item.quantity));
                 setQtyEditId(item.cartItemId);
-            } else if (column === 1) {
-                setQtyEditValue(String(item.quantity));
-                setQtyEditId(item.cartItemId);
-            } else if (column === 6) {
+            } else if (column === 10) {
                 removeFromCart(item.cartItemId);
             }
         },
@@ -210,6 +213,8 @@ export default function ClassicCashierPage() {
 
 
     const change = (parseFloat(curr.raw) || 0) - total;
+
+    const categoryName = (item: CartItem) => categories.find(c => c.id === item.category_id)?.name;
 
     const handleParkAction = () => {
         if (cart.length > 0) {
@@ -386,8 +391,144 @@ export default function ClassicCashierPage() {
         <div className="flex h-screen w-full flex-col overflow-hidden bg-background">
             <Header />
 
-            <div className="flex min-h-0 flex-1">
-                {/* LEFT: CART TABLE */}
+            <div className="flex min-h-0 flex-1 flex-col">
+                {/* PAYMENT BAR (full width, above the search bar) */}
+                <div className="shrink-0 border-b border-border bg-card px-4 py-2">
+                    <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+                        {/* Grand total */}
+                        <div className="min-w-44">
+                            <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Grand Total · {totalQty} item</div>
+                            <AnimatePresence mode="wait">
+                                <motion.div
+                                    key={total}
+                                    initial={{ opacity: 0, y: reducedMotion ? 0 : 6 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, y: reducedMotion ? 0 : -6 }}
+                                    transition={reducedMotion ? { duration: 0 } : { type: 'spring', bounce: 0, duration: 0.3 }}
+                                    className="text-[2.5rem] font-light leading-none tracking-tight tabular-nums"
+                                >
+                                    {formatIDR(total)}
+                                </motion.div>
+                            </AnimatePresence>
+                        </div>
+
+                        {/* Summary */}
+                        <div className="space-y-0.5 text-sm">
+                            <div className="flex justify-between gap-6"><span className="text-muted-foreground">Subtotal</span><span className="font-medium tabular-nums">{formatIDR(subtotal)}</span></div>
+                            {discountResult && (
+                                <>
+                                    {discountResult.promoDiscount > 0 && (
+                                        <div className="flex justify-between gap-6 text-success dark:text-success-foreground">
+                                            <span>Promo & Voucher</span>
+                                            <span className="font-semibold tabular-nums">-{formatIDR(discountResult.promoDiscount)}</span>
+                                        </div>
+                                    )}
+                                    {discountResult.manualDiscount > 0 && (
+                                        <div className="flex justify-between gap-6 text-success dark:text-success-foreground">
+                                            <span>Diskon Kasir</span>
+                                            <span className="font-semibold tabular-nums">-{formatIDR(discountResult.manualDiscount)}</span>
+                                        </div>
+                                    )}
+                                </>
+                            )}
+                            <div className="flex justify-between gap-6"><span className="text-muted-foreground">Pajak</span><span className="font-medium tabular-nums">{formatIDR(tax)}</span></div>
+                            {cart.length > 0 && discountResult && discountResult.freeItems.length > 0 && (
+                                <div className="flex flex-wrap items-center gap-1 pt-0.5">
+                                    <Gift className="size-3.5 text-success dark:text-success-foreground" />
+                                    {discountResult.freeItems.map((f, i) => (
+                                        <span key={i} className="rounded bg-success/10 px-1.5 py-0.5 text-[10px] font-semibold text-success-foreground dark:bg-success/20 dark:text-success-foreground">
+                                            {f.freeQty}x {f.name} gratis
+                                        </span>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Applied voucher / discount chips + errors */}
+                        <div className="flex flex-col gap-1">
+                            {(voucherCode || manualDiscountInput) && (
+                                <div className="flex flex-wrap items-center gap-1.5">
+                                    {voucherCode && (
+                                        <button onClick={() => setVoucherCode('')} className="group inline-flex items-center gap-1 rounded-md border border-primary/40 bg-primary/10 px-2 py-1 text-xs font-semibold text-primary" title="Hapus voucher">
+                                            <TicketPercent className="size-3.5" /> {voucherCode}
+                                            <XCircle className="size-3.5 opacity-60 transition-opacity group-hover:opacity-100" />
+                                        </button>
+                                    )}
+                                    {manualDiscountInput && (
+                                        <button onClick={() => setManualDiscountInput('')} className="group inline-flex items-center gap-1 rounded-md border border-warning/40 bg-warning/10 px-2 py-1 text-xs font-semibold text-warning dark:text-warning-foreground" title="Hapus diskon kasir">
+                                            <BadgePercent className="size-3.5" /> {manualDiscountType === 'persen' ? `${manualDiscountInput}%` : formatIDR(parsedManualDiscount)}
+                                            <XCircle className="size-3.5 opacity-60 transition-opacity group-hover:opacity-100" />
+                                        </button>
+                                    )}
+                                </div>
+                            )}
+                            {voucherCode && !discountResult?.voucherCode && (
+                                <p className="text-[10px] font-medium text-destructive">{discountResult?.errors?.[0] || 'Voucher tidak berlaku'}</p>
+                            )}
+                        </div>
+
+                        <div className="flex-1" />
+
+                        {/* Quick cash + cash input + change */}
+                        <div className="flex items-end gap-3">
+                            {cashSuggestions.length > 0 && (
+                                <div className="space-y-1">
+                                    <Label className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Uang Tunai Cepat</Label>
+                                    <div className="grid grid-cols-3 gap-1.5">
+                                        {cashSuggestions.map(amt => (
+                                            <Button key={amt} variant="outline" size="sm" className="h-9 font-semibold text-xs tabular-nums whitespace-nowrap" onClick={() => curr.setRaw(amt.toString())}>
+                                                {amt === total ? "Uang Pas" : formatIDR(amt)}
+                                            </Button>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                            <div className="space-y-1">
+                                <Label className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Bayar Tunai · <Kbd>F8</Kbd></Label>
+                                <div className="relative">
+                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-lg font-semibold text-muted-foreground">Rp</span>
+                                    <Input
+                                        ref={cashInputRef}
+                                        type="text"
+                                        inputMode='numeric'
+                                        aria-label="Uang tunai dibayarkan"
+                                        className="h-9 w-40 pl-10 text-base font-bold tracking-tight tabular-nums"
+                                        value={curr.value}
+                                        onChange={curr.onChange}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter') handleProcessPayment();
+                                            if (e.key === 'Escape') { e.currentTarget.blur(); e.stopPropagation(); }
+                                        }}
+                                    />
+                                </div>
+                            </div>
+                            <div className={cn(
+                                "flex items-center justify-end rounded-lg border px-3 py-1.5",
+                                change >= 0 ? "border-success/60 bg-success/40" : "border-warning bg-warning/50"
+                            )}>
+                                <span className="flex items-center gap-2">
+                                    <span className={cn("text-xs font-semibold uppercase tracking-widest", change >= 0 ? "text-success-foreground" : "text-warning-foreground")}>
+                                        {change >= 0 ? "Kembalian" : "Kurang"}
+                                    </span>
+                                    <span className={cn("text-lg font-bold tabular-nums", change >= 0 ? "text-success-foreground" : "text-warning-foreground")}>
+                                        {change < 0 ? "-" : ""}{formatIDR(Math.abs(change))}
+                                    </span>
+                                </span>
+                            </div>
+                        </div>
+
+                        {/* Actions */}
+                        <div className="flex items-center gap-2">
+                            <Button variant="secondary" className="h-11 px-4 text-base font-black tracking-tight" onClick={handleParkAction} disabled={cart.length === 0}>
+                                <ParkingSquare className="mr-2 size-5" /> PARKIR
+                            </Button>
+                            <Button className="h-11 px-6 text-base font-black tracking-tight" disabled={change < 0 || cart.length === 0} onClick={handleProcessPayment}>
+                                <ReceiptCent className="mr-2 size-5" /> BAYAR
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+
                 <main className="flex min-w-0 flex-1 flex-col bg-card">
                     {/* Search bar */}
                     <div className="relative shrink-0 border-b border-border bg-muted/30 px-2.5 py-2">
@@ -435,10 +576,14 @@ export default function ClassicCashierPage() {
                             <TableHeader className="sticky top-0 z-10 border-b border-border bg-card">
                                 <TableRow className="hover:bg-transparent">
                                     <TableHead className="w-10">No</TableHead>
+                                    <TableHead className="w-8 text-center">Var</TableHead>
+                                    <TableHead className="w-8 text-center">Con</TableHead>
                                     <TableHead>Produk</TableHead>
                                     <TableHead className="w-32">Merek</TableHead>
+                                    <TableHead className="w-28">Kategori</TableHead>
+                                    <TableHead className="w-16 text-right">Stok</TableHead>
                                     <TableHead className="w-24 text-right">Harga</TableHead>
-                                    <TableHead className="w-28 text-center">Qty</TableHead>
+                                    <TableHead className="w-20 text-center">Qty</TableHead>
                                     <TableHead className="w-28 text-right">Subtotal</TableHead>
                                     <TableHead className="w-10"></TableHead>
                                 </TableRow>
@@ -446,7 +591,7 @@ export default function ClassicCashierPage() {
                             <TableBody>
                                 {cart.length === 0 ? (
                                     <TableRow>
-                                        <TableCell colSpan={7} className="h-[40vh] text-center text-muted-foreground">
+                                        <TableCell colSpan={11} className="h-[40vh] text-center text-muted-foreground">
                                             <div className="space-y-1">
                                                 <p className="font-medium text-foreground/70">Keranjang kosong</p>
                                                 <p className="text-sm">Cari produk, scan barcode, atau tekan <Kbd>F1</Kbd> untuk fokus pencarian.</p>
@@ -470,7 +615,13 @@ export default function ClassicCashierPage() {
                                                 onMouseEnter={() => setCartActiveIndex(idx)}
                                             >
                                                 <TableCell className={cn(cartActiveIndex === idx && cartActiveColumn === 0 && "bg-primary/10")}>{idx + 1}</TableCell>
-                                                <TableCell className={cn("font-normal", cartActiveIndex === idx && cartActiveColumn === 1 && "bg-primary/10")}>
+                                                <TableCell className={cn("text-center", cartActiveIndex === idx && cartActiveColumn === 1 && "bg-primary/10")}>
+                                                    {item.has_variant ? <span title="Memiliki varian" aria-label="Memiliki varian"><GitBranch className="mx-auto size-3.5 text-muted-foreground" /></span> : null}
+                                                </TableCell>
+                                                <TableCell className={cn("text-center", cartActiveIndex === idx && cartActiveColumn === 2 && "bg-primary/10")}>
+                                                    {item.is_consignment ? <span title="Konsinyasi" aria-label="Konsinyasi"><Handshake className="mx-auto size-3.5 text-warning dark:text-warning-foreground" /></span> : null}
+                                                </TableCell>
+                                                <TableCell className={cn("font-normal", cartActiveIndex === idx && cartActiveColumn === 3 && "bg-primary/10")}>
                                                     <div className="truncate">{item.name}</div>
                                                     {item.selectedVariant && (
                                                         <button
@@ -483,48 +634,48 @@ export default function ClassicCashierPage() {
                                                         </button>
                                                     )}
                                                 </TableCell>
-                                                <TableCell className={cn("whitespace-nowrap text-muted-foreground", cartActiveIndex === idx && cartActiveColumn === 2 && "bg-primary/10")}>
+                                                <TableCell className={cn("whitespace-nowrap text-muted-foreground", cartActiveIndex === idx && cartActiveColumn === 4 && "bg-primary/10")}>
                                                     <span className="truncate">{item.brand || '—'}</span>
                                                 </TableCell>
-                                                <TableCell className={cn("text-right tabular-nums whitespace-nowrap", cartActiveIndex === idx && cartActiveColumn === 3 && "bg-primary/10")}>{formatIDR(item.price)}</TableCell>
-                                                <TableCell className={cn(cartActiveIndex === idx && cartActiveColumn === 4 && "bg-primary/10")}>
+                                                <TableCell className={cn("whitespace-nowrap text-muted-foreground", cartActiveIndex === idx && cartActiveColumn === 5 && "bg-primary/10")}>
+                                                    <span className="truncate">{categoryName(item) || '—'}</span>
+                                                </TableCell>
+                                                <TableCell className={cn("text-right tabular-nums whitespace-nowrap", cartActiveIndex === idx && cartActiveColumn === 6 && "bg-primary/10")}>
+                                                    {item.selectedVariant?.stock ?? item.stock}
+                                                </TableCell>
+                                                <TableCell className={cn("text-right tabular-nums whitespace-nowrap", cartActiveIndex === idx && cartActiveColumn === 7 && "bg-primary/10")}>{formatIDR(item.price)}</TableCell>
+                                                <TableCell className={cn(cartActiveIndex === idx && cartActiveColumn === 8 && "bg-primary/10")}>
                                                     {qtyEditId === item.cartItemId ? (
-                                                        <div className="flex items-center justify-center gap-1">
-                                                            <input
-                                                                autoFocus
-                                                                type="number"
-                                                                min={1}
-                                                                value={qtyEditValue}
-                                                                onChange={(e) => setQtyEditValue(e.target.value)}
-                                                                onBlur={() => handleQtyCommit(item)}
-                                                                onKeyDown={(e) => {
-                                                                    e.stopPropagation();
-                                                                    if (e.key === 'Enter') { e.preventDefault(); handleQtyCommit(item); setCartActiveIndex(-1); }
-                                                                    if (e.key === 'Escape') { setQtyEditId(null); setQtyEditValue(''); }
-                                                                }}
-                                                                className="w-16 h-7 rounded-md border-border/70 bg-background text-center text-sm font-bold tabular-nums outline-none ring-1 ring-primary"
-                                                            />
-                                                        </div>
+                                                        <input
+                                                            autoFocus
+                                                            type="number"
+                                                            min={1}
+                                                            value={qtyEditValue}
+                                                            onChange={(e) => setQtyEditValue(e.target.value)}
+                                                            onBlur={() => handleQtyCommit(item)}
+                                                            onKeyDown={(e) => {
+                                                                e.stopPropagation();
+                                                                if (e.key === 'Enter') { e.preventDefault(); handleQtyCommit(item); setCartActiveIndex(-1); }
+                                                                if (e.key === 'Escape') { setQtyEditId(null); setQtyEditValue(''); }
+                                                            }}
+                                                            className="w-16 h-7 rounded-md border-border/70 bg-background text-center text-sm font-bold tabular-nums outline-none ring-1 ring-primary"
+                                                        />
                                                     ) : (
-                                                        <div className="flex items-center justify-center gap-1">
-<Button variant="ghost" size="icon" className="size-7" aria-label={`Kurangi jumlah ${item.name}`} onClick={() => updateQuantity(item.cartItemId, Math.max(1, item.quantity - 1))}><Minus className="size-3"/></Button>
-                                                            <button
-                                                                className={cn(
-                                                                "w-7 text-center font-bold tabular-nums rounded",
+                                                        <button
+                                                            className={cn(
+                                                                "w-7 mx-auto block text-center font-bold tabular-nums rounded",
                                                                 cartActiveIndex === idx && "bg-primary/15 ring-1 ring-primary/40"
                                                             )}
-                                                                onClick={() => { setQtyEditValue(String(item.quantity)); setQtyEditId(item.cartItemId); }}
-                                                                title="Klik untuk ubah jumlah"
-                                                                aria-label={`Ubah jumlah ${item.name}`}
-                                                            >
-                                                                {item.quantity}
-                                                            </button>
-                                                            <Button variant="ghost" size="icon" className="size-7" aria-label={`Tambah jumlah ${item.name}`} onClick={() => updateQuantity(item.cartItemId, item.quantity + 1)}><Plus className="size-3"/></Button>
-                                                        </div>
+                                                            onClick={() => { setQtyEditValue(String(item.quantity)); setQtyEditId(item.cartItemId); }}
+                                                            title="Klik untuk ubah jumlah"
+                                                            aria-label={`Ubah jumlah ${item.name}`}
+                                                        >
+                                                            {item.quantity}
+                                                        </button>
                                                     )}
                                                 </TableCell>
-                                                <TableCell className={cn("text-right font-bold tabular-nums whitespace-nowrap", cartActiveIndex === idx && cartActiveColumn === 5 && "bg-primary/10")}>{formatIDR(item.price * item.quantity)}</TableCell>
-                                                <TableCell className={cn(cartActiveIndex === idx && cartActiveColumn === 6 && "bg-primary/10")}>
+                                                <TableCell className={cn("text-right font-bold tabular-nums whitespace-nowrap", cartActiveIndex === idx && cartActiveColumn === 9 && "bg-primary/10")}>{formatIDR(item.price * item.quantity)}</TableCell>
+                                                <TableCell className={cn(cartActiveIndex === idx && cartActiveColumn === 10 && "bg-primary/10")}>
                                                     <Button variant="ghost" size="icon" className={cn("size-7 text-muted-foreground opacity-0 hover:text-destructive group-hover:opacity-100", cartActiveIndex === idx && "opacity-100")} aria-label={`Hapus ${item.name}`} onClick={() => removeFromCart(item.cartItemId)}><Trash2 className="size-4"/></Button>
                                                 </TableCell>
                                             </motion.tr>
@@ -549,153 +700,6 @@ export default function ClassicCashierPage() {
                         <span className="tabular-nums">{totalQty} items</span>
                     </div>
                 </main>
-
-                {/* RIGHT: PAYMENT RAIL */}
-                <aside className="flex w-72 shrink-0 flex-col border-l border-border bg-card min-w-56 lg:w-[24rem]">
-                    {/* Grand total */}
-                    <div className="shrink-0 border-b border-border bg-primary px-4 py-3 text-primary-foreground">
-                        <div className="text-[10px] font-semibold uppercase tracking-[0.2em] opacity-70">Grand Total · {totalQty} item</div>
-                        <AnimatePresence mode="wait">
-                            <motion.div
-                                key={total}
-                                initial={{ opacity: 0, y: reducedMotion ? 0 : 6 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: reducedMotion ? 0 : -6 }}
-                                transition={reducedMotion ? { duration: 0 } : { type: 'spring', bounce: 0, duration: 0.3 }}
-                                className="pt-1 text-[2.5rem] font-light leading-none tracking-tight tabular-nums"
-                            >
-                                {formatIDR(total)}
-                            </motion.div>
-                        </AnimatePresence>
-                    </div>
-
-                    <div className="flex min-h-0 flex-1 flex-col gap-y-4 overflow-auto px-4 py-4">
-                        {/* Summary */}
-                        <div className="space-y-1.5">
-                            <div className="flex justify-between text-sm"><span className="text-muted-foreground">Subtotal</span><span className="font-medium tabular-nums">{formatIDR(subtotal)}</span></div>
-                            {discountResult && (
-                                <>
-                                    {discountResult.promoDiscount > 0 && (
-                                        <div className="flex justify-between text-sm text-success dark:text-success-foreground">
-                                            <span>Promo & Voucher</span>
-                                            <span className="font-semibold tabular-nums">-{formatIDR(discountResult.promoDiscount)}</span>
-                                        </div>
-                                    )}
-                                    {discountResult.manualDiscount > 0 && (
-                                        <div className="flex justify-between text-sm text-success dark:text-success-foreground">
-                                            <span>Diskon Kasir</span>
-                                            <span className="font-semibold tabular-nums">-{formatIDR(discountResult.manualDiscount)}</span>
-                                        </div>
-                                    )}
-                                </>
-                            )}
-                            <div className="flex justify-between text-sm"><span className="text-muted-foreground">Pajak</span><span className="font-medium tabular-nums">{formatIDR(tax)}</span></div>
-                            {cart.length > 0 && discountResult && discountResult.freeItems.length > 0 && (
-                                <div className="flex flex-wrap items-center gap-1 pt-0.5">
-                                    <Gift className="size-3.5 text-success dark:text-success-foreground" />
-                                    {discountResult.freeItems.map((f, i) => (
-                                        <span key={i} className="rounded bg-success/10 px-1.5 py-0.5 text-[10px] font-semibold text-success-foreground dark:bg-success/20 dark:text-success-foreground">
-                                            {f.freeQty}x {f.name} gratis
-                                        </span>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Voucher + manual discount (shortcut-triggered modals) */}
-                        {cart.length > 0 && (
-                            <div className="space-y-2">
-                                <div className="grid grid-cols-2 gap-2">
-                                    <Button variant="outline" size="sm" className="h-9 justify-start gap-2 font-medium" onClick={() => setIsVoucherOpen(true)}>
-                                        <TicketPercent className="size-4 text-muted-foreground" /> Voucher <Kbd>F5</Kbd>
-                                    </Button>
-                                    <Button variant="outline" size="sm" className="h-9 justify-start gap-2 font-medium" onClick={() => setIsDiscountOpen(true)}>
-                                        <Percent className="size-4 text-muted-foreground" /> Diskon <Kbd>F6</Kbd>
-                                    </Button>
-                                </div>
-                                {(voucherCode || manualDiscountInput) && (
-                                    <div className="flex flex-wrap gap-1.5">
-                                        {voucherCode && (
-                                            <button onClick={() => setVoucherCode('')} className="group inline-flex items-center gap-1 rounded-md border border-primary/40 bg-primary/10 px-2 py-1 text-xs font-semibold text-primary" title="Hapus voucher">
-                                                <TicketPercent className="size-3.5" /> {voucherCode}
-                                                <XCircle className="size-3.5 opacity-60 transition-opacity group-hover:opacity-100" />
-                                            </button>
-                                        )}
-                                        {manualDiscountInput && (
-                                            <button onClick={() => setManualDiscountInput('')} className="group inline-flex items-center gap-1 rounded-md border border-warning/40 bg-warning/10 px-2 py-1 text-xs font-semibold text-warning dark:text-warning-foreground" title="Hapus diskon kasir">
-                                                <BadgePercent className="size-3.5" /> {manualDiscountType === 'persen' ? `${manualDiscountInput}%` : formatIDR(parsedManualDiscount)}
-                                                <XCircle className="size-3.5 opacity-60 transition-opacity group-hover:opacity-100" />
-                                            </button>
-                                        )}
-                                    </div>
-                                )}
-                                {voucherCode && !discountResult?.voucherCode && (
-                                    <p className="text-[10px] font-medium text-destructive">{discountResult?.errors?.[0] || 'Voucher tidak berlaku'}</p>
-                                )}
-                            </div>
-                        )}
-
-                        {/* Quick cash */}
-                        {cashSuggestions.length > 0 && (
-                            <div>
-                                <Label className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Uang Tunai Cepat</Label>
-                                <div className="mt-1.5 grid grid-cols-3 gap-1.5">
-                                    {cashSuggestions.map(amt => (
-                                        <Button key={amt} variant="outline" size="sm" className="h-8 font-semibold text-xs tabular-nums whitespace-nowrap" onClick={() => curr.setRaw(amt.toString())}>
-                                            {amt === total ? "Uang Pas" : formatIDR(amt)}
-                                        </Button>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Cash input */}
-                        <div className="space-y-1.5">
-                            <Label className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Bayar Tunai · <Kbd>F8</Kbd></Label>
-                            <div className="relative">
-                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-lg font-semibold text-muted-foreground">Rp</span>
-                                <Input 
-                                    ref={cashInputRef} 
-                                    type="text"
-                                    inputMode='numeric'
-                                    aria-label="Uang tunai dibayarkan"
-                                    className="h-12 pl-10 text-xl font-bold tracking-tight tabular-nums"
-                                    value={curr.value}
-                                    onChange={curr.onChange}
-                                    onKeyDown={(e) => {
-                                        if (e.key === 'Enter') handleProcessPayment();
-                                        if (e.key === 'Escape') { e.currentTarget.blur(); e.stopPropagation(); }
-                                    }}
-                                />
-                            </div>
-                        </div>
-
-                        {/* Change readout */}
-                        <div className={cn(
-                            "flex items-center justify-end rounded-lg border px-3 py-2.5",
-                            change >= 0 ? "border-success/60 bg-success/40" : "border-warning bg-warning/50"
-                        )}>
-                            <span className="flex items-center gap-2">
-                                <span className={cn("text-xs font-semibold uppercase tracking-widest", change >= 0 ? "text-success-foreground" : "text-warning-foreground")}>
-                                    {change >= 0 ? "Kembalian" : "Kurang"}
-                                </span>
-                                <span className={cn("text-lg font-bold tabular-nums", change >= 0 ? "text-success-foreground" : "text-warning-foreground")}>
-                                    {change < 0 ? "-" : ""}{formatIDR(Math.abs(change))}
-                                </span>
-                            </span>
-                        </div>
-                    </div>
-
-                    {/* Actions */}
-                    <div className="grid shrink-0 grid-cols-5 gap-2 border-t border-border p-2.5">
-                        <Button variant="secondary" className="col-span-2 h-12 text-lg font-black tracking-tight" onClick={handleParkAction} disabled={cart.length === 0}>
-                            <ParkingSquare className="mr-2 size-5" /> PARKIR
-                        </Button>
-                        <Button className="col-span-3 h-12 text-lg font-black tracking-tight" disabled={change < 0 || cart.length === 0} onClick={handleProcessPayment}>
-                            <ReceiptCent className="mr-2 size-5" /> BAYAR
-                        </Button>
-                    </div>
-                </aside>
             </div>
 
             <Dialog open={!!successData} onOpenChange={(open) => !open && setSuccessData(null)}>
