@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { ProductSearchBar } from "@/components/ProductSearchBar";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { PlusCircle, Plus, Minus, Calculator, Package, WarehouseIcon, History, ArrowUp, ArrowDown, ArrowRight } from "lucide-react";
+import { PlusCircle, Plus, Minus, Calculator, Package, WarehouseIcon, History, ArrowUp, ArrowDown, ArrowRight, Zap, ClipboardList, RotateCcw, Loader2 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useGlobalBarcodeScanner } from "@/hooks/use-global-barcode-scanner";
 import { cn, reasonMapping, typeConfig } from "@/lib/utils";
@@ -29,6 +29,7 @@ import { TokoCepatLogo } from "@/components/TokoCepatLogo";
 import { NotificationBell } from "@/components/NotificationBell";
 import { ThemeToggle } from "@/components/ThemeButtons";
 import { itemMapping } from "@/lib/utils"; 
+import { useSettingsStore } from "@/lib/settings";
 import { motion, AnimatePresence } from "framer-motion";
 import { usePrefersReducedMotion } from "@/hooks/usePrefersReducedMotion";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -55,6 +56,13 @@ const reasonOptions: Record<'add' | 'remove' | 'count', { id: string, value: Sto
         { id: 'count-audit', value: 'correction', label: 'Audit Akhir Bulan' },
         { id: 'count-other', value: 'correction', label: 'Lainnya' }
     ]
+};
+
+// Remembers the last reason picked per mode so rapid entry doesn't re-pick it each time.
+const lastReasonByMode: Record<'add' | 'remove' | 'count', string> = {
+    add: 'add-restock',
+    remove: 'remove-damaged',
+    count: 'count-correction',
 };
 
 type InventoryItemType = (Product & { itemType: 'product', stock: number }) 
@@ -170,17 +178,27 @@ const StockHistoryCards = memo(({selectedItem}: {selectedItem: { id: string, typ
     )
 })
 
-const StockAdjustmentPanel = memo(({ selectedItem, onSave, onCancel }: { selectedItem: { id: string, type: 'product' | 'variant' } | null; onSave: () => void; onCancel: () => void; }) => {
-    const [mode, setMode] = useState<'add' | 'remove' | 'count' | null>(null);
+export type AdjustmentResult = { itemId: string; itemType: 'product' | 'variant'; change: number; name: string };
+
+const StockAdjustmentPanel = memo(({ selectedItem, onSave, onCancel, rapidMode, lastAdjustment, onUndo }: {
+    selectedItem: { id: string, type: 'product' | 'variant' } | null;
+    onSave: (adjustment?: AdjustmentResult) => void;
+    onCancel: () => void;
+    rapidMode?: boolean;
+    lastAdjustment?: AdjustmentResult | null;
+    onUndo?: () => void;
+}) => {
+    const [mode, setMode] = useState<'add' | 'remove' | 'count' | null>(rapidMode ? 'count' : null);
     const [quantity, setQuantity] = useState('');
     const [actualCount, setActualCount] = useState('');
-    const [reason, setReason] = useState('');
+    const [reason, setReason] = useState(rapidMode ? lastReasonByMode.count : '');
     const [note, setNote] = useState('');
 
     const { products, productVariants } = useStore();
     const { toast } = useToast();
 
     const scrollRef = useRef<ScrollAreaHandle>(null);
+    const countInputRef = useRef<HTMLInputElement>(null);
 
     const item = useMemo((): InventoryItemType | null => {
         if (!selectedItem) return null;
@@ -199,13 +217,22 @@ const StockAdjustmentPanel = memo(({ selectedItem, onSave, onCancel }: { selecte
     // Reset form state when product changes
     useEffect(() => {
         if (selectedItem) {
-            setMode(null);
+            setMode(rapidMode ? 'count' : null);
             setQuantity('');
             setActualCount('');
-            setReason('');
+            setReason(rapidMode ? lastReasonByMode.count : '');
             setNote('');
         }
     }, [selectedItem]);
+
+    // In rapid mode, focus the physical-count input when the item changes so the
+    // operator can type the count immediately after scanning/picking an item.
+    useEffect(() => {
+        if (rapidMode && selectedItem && mode === 'count') {
+            const t = requestAnimationFrame(() => countInputRef.current?.focus());
+            return () => cancelAnimationFrame(t);
+        }
+    }, [rapidMode, selectedItem, mode]);
 
     // Calculate change and new stock for the preview
     const { change, newStock, isFormValid } = useMemo(() => {
@@ -269,8 +296,19 @@ const StockAdjustmentPanel = memo(({ selectedItem, onSave, onCancel }: { selecte
                 await adjustVariantStock(item.id, selectedOption.value, change, adjustmentReason);
             }
 
+            // Remember the chosen reason so the next item can default to it.
+            if (mode) lastReasonByMode[mode] = reason;
+
             toast({ title: 'Stok Berhasil Diperbarui', description: `Stok ${item.name} telah diperbarui menjadi ${newStock}.` });
-            onSave();
+
+            // Reset the form, keeping the item selected (selection lifecycle is
+            // handled by the parent: normal mode keeps it, rapid mode advances).
+            setQuantity('');
+            setActualCount('');
+            setNote('');
+            setMode(rapidMode ? 'count' : null);
+            setReason(rapidMode ? lastReasonByMode.count : '');
+            onSave({ itemId: item.id, itemType: item.itemType, change, name: item.name });
         } catch (error: any) {
             toast({ variant: 'destructive', title: 'Error', description: error.message });
         }
@@ -279,7 +317,17 @@ const StockAdjustmentPanel = memo(({ selectedItem, onSave, onCancel }: { selecte
     const { icon: ItemIcon, badge: badgeVariant } = typeConfig[selectedItem?.type|| 'product'];
 
     return (
-        <div className="flex flex-col h-full min-h-0">
+        <div
+            className="flex flex-col h-full min-h-0"
+            tabIndex={-1}
+            onKeyDown={(e) => {
+                if (rapidMode || mode === null) return;
+                const t = e.target as HTMLElement;
+                if (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable) return;
+                if (e.key === '+') { e.preventDefault(); setMode('add'); }
+                else if (e.key === '-') { e.preventDefault(); setMode('remove'); }
+            }}
+        >
             <div className="flex items-center justify-between px-4 py-3 border-b border-border/60">
                 <h3 className="text-sm font-semibold">Penyesuaian Stok</h3>
                 <WarehouseIcon className="size-4" />
@@ -307,26 +355,33 @@ const StockAdjustmentPanel = memo(({ selectedItem, onSave, onCancel }: { selecte
                                                 {itemMapping.get(item.itemType)}
                                             </Badge>
                                         </div>
+                                        {rapidMode && (item.itemType === 'product' ? (item as Product).barcode : (item as ProductVariant).sku) && (
+                                            <p className="font-mono text-[11px] text-muted-foreground truncate">
+                                                Barcode: {(item.itemType === 'product' ? (item as Product).barcode : (item as ProductVariant).sku)}
+                                            </p>
+                                        )}
                                     </CardHeader>
                                     <CardContent className="space-y-3 px-3 py-3">
 
-                                        <div>
-                                            <Label>Aksi?</Label>
-                                            <ButtonGroup className="w-full mt-2">
-                                                <Button variant={mode === 'add' ? 'success' : 'outline'} aria-pressed={mode === 'add'} onClick={() => setMode('add')} className="flex-1 h-10">
-                                                    <Plus className="w-4 h-4" />
-                                                    <span className="text-xs">Tambah</span>
-                                                </Button>
-                                                <Button variant={mode === 'remove' ? 'destructive' : 'outline'} aria-pressed={mode === 'remove'} onClick={() => setMode('remove')} className="flex-1 h-10">
-                                                    <Minus className="w-4 h-4" />
-                                                    <span className="text-xs">Kurang</span>
-                                                </Button>
-                                                <Button variant={mode === 'count' ? 'default' : 'outline'} aria-pressed={mode === 'count'} onClick={() => setMode('count')} className="flex-1 h-10">
-                                                    <Calculator className="w-4 h-4" />
-                                                    <span className="text-xs">Koreksi</span>
-                                                </Button>
-                                            </ButtonGroup>
-                                        </div>
+                                        {!rapidMode && (
+                                            <div>
+                                                <Label>Aksi?</Label>
+                                                <ButtonGroup className="w-full mt-2">
+                                                    <Button variant={mode === 'add' ? 'success' : 'outline'} aria-pressed={mode === 'add'} onClick={() => setMode('add')} className="flex-1 h-10">
+                                                        <Plus className="w-4 h-4" />
+                                                        <span className="text-xs">Tambah</span>
+                                                    </Button>
+                                                    <Button variant={mode === 'remove' ? 'destructive' : 'outline'} aria-pressed={mode === 'remove'} onClick={() => setMode('remove')} className="flex-1 h-10">
+                                                        <Minus className="w-4 h-4" />
+                                                        <span className="text-xs">Kurang</span>
+                                                    </Button>
+                                                    <Button variant={mode === 'count' ? 'default' : 'outline'} aria-pressed={mode === 'count'} onClick={() => setMode('count')} className="flex-1 h-10">
+                                                        <Calculator className="w-4 h-4" />
+                                                        <span className="text-xs">Koreksi</span>
+                                                    </Button>
+                                                </ButtonGroup>
+                                            </div>
+                                        )}
 
                                         {mode && (
                                             <div className="space-y-3 pt-2">
@@ -334,7 +389,7 @@ const StockAdjustmentPanel = memo(({ selectedItem, onSave, onCancel }: { selecte
                                                     <div className="grid grid-cols-2 gap-3">
                                                         <div className="space-y-2">
                                                             <Label htmlFor="quantity">Jumlah</Label>
-                                                            <Input id="quantity" type="number" placeholder="Angka" value={quantity} onChange={(e) => setQuantity(e.target.value)} min="1" />
+                                                            <Input id="quantity" type="number" placeholder="Angka" value={quantity} onChange={(e) => setQuantity(e.target.value)} min="1" onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSubmit(); } }} />
                                                         </div>
                                                         <div className="space-y-2">
                                                             <Label htmlFor="reason-select">Alasan</Label>
@@ -350,7 +405,7 @@ const StockAdjustmentPanel = memo(({ selectedItem, onSave, onCancel }: { selecte
                                                     <div className="grid grid-cols-2 gap-3">
                                                         <div className="space-y-2">
                                                             <Label htmlFor="actual-count">Stok Rill (Fisik)</Label>
-                                                            <Input id="actual-count" type="number" placeholder="cth. 142" value={actualCount} onChange={(e) => setActualCount(e.target.value)} />
+                                                            <Input ref={countInputRef} id="actual-count" type="number" placeholder="cth. 142" value={actualCount} onChange={(e) => setActualCount(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSubmit(); } }} />
                                                         </div>
                                                         {change !== 0 && (
                                                             <div className="space-y-2">
@@ -411,12 +466,20 @@ const StockAdjustmentPanel = memo(({ selectedItem, onSave, onCancel }: { selecte
 
             <div className="p-4 mt-auto shrink-0 flex items-center gap-4">
                 {
-                    item &&
+                    item && !rapidMode &&
                     <Button variant="outline" className="flex-1" onClick={onCancel}>
                         Batal
                     </Button>
                 }
-                <Button className="flex-1" onClick={handleSubmit} disabled={!isFormValid || !item || (mode === 'count' && change === 0)}>Simpan</Button>
+                {lastAdjustment && onUndo && (
+                    <Button variant="outline" className="flex-1" onClick={onUndo} title="Batalkan penyesuaian terakhir">
+                        <RotateCcw className="w-4 h-4 mr-1.5" />
+                        Undo Terakhir
+                    </Button>
+                )}
+                <Button className="flex-1" onClick={handleSubmit} disabled={!isFormValid || !item || (mode === 'count' && change === 0)}>
+                    {rapidMode ? 'Simpan & Lanjut' : 'Simpan'}
+                </Button>
             </div>
         </div>
     );
@@ -517,15 +580,192 @@ function FilterPill({ active, onClick, children }: { active: boolean; onClick: (
     );
 }
 
+const WorksheetColumnClass = {
+    no: "flex items-center justify-center shrink-0 w-10 text-xs text-muted-foreground",
+    name: "flex items-center gap-2 flex-1 min-w-0",
+    brand: "hidden sm:flex items-center text-sm text-muted-foreground truncate w-28 shrink-0 px-2 border-l border-l-border/50",
+    category: "hidden md:flex items-center text-sm text-muted-foreground truncate w-28 shrink-0 px-2 border-l border-l-border/50",
+    systemStock: "flex items-center justify-end shrink-0 text-right tabular-nums w-20 border-l border-l-border/50 px-2",
+    physicalStock: "flex items-center justify-center shrink-0 w-28 border-l border-l-border/50 px-2",
+    diff: "flex items-center justify-end shrink-0 text-right tabular-nums font-semibold w-16 border-l border-l-border/50 px-2",
+};
+
+const WorksheetGrid = memo(({ items, categories, physicalCounts, onChange, worksheetReason, setWorksheetReason, worksheetBusy, onApply, dirtyCount, invalidCount }: {
+    items: InventoryItemType[];
+    categories: Category[];
+    physicalCounts: Record<string, string>;
+    onChange: (itemId: string, value: string) => void;
+    worksheetReason: string;
+    setWorksheetReason: (value: string) => void;
+    worksheetBusy: boolean;
+    onApply: () => void;
+    dirtyCount: number;
+    invalidCount: number;
+}) => {
+    const { products } = useStore();
+    const [focusedId, setFocusedId] = useState<string | null>(null);
+
+    const itemLabel = (item: InventoryItemType) =>
+        item.itemType === 'variant' ? `${item.parentName} (${item.name})` : item.name;
+
+    const itemCategory = (item: InventoryItemType): string => {
+        if (item.itemType === 'product') {
+            return categories.find(c => c.id === item.category_id)?.name || 'N/A';
+        }
+        const parent = products.find(p => p.id === (item as ProductVariant).product_id);
+        return parent ? categories.find(c => c.id === parent.category_id)?.name || 'N/A' : 'N/A';
+    };
+
+    const itemBrand = (item: InventoryItemType): string => {
+        if (item.itemType === 'product') return (item as Product).brand || '';
+        const parent = products.find(p => p.id === (item as ProductVariant).product_id);
+        return parent?.brand || '';
+    };
+
+    const Row = ({ index, style }: { index: number; style: React.CSSProperties }) => {
+        const item = items[index];
+        const raw = physicalCounts[item.id] ?? '';
+        const physical = raw.trim() === '' ? NaN : parseInt(raw, 10);
+        const hasInput = raw.trim() !== '' && !isNaN(physical);
+        const diff = hasInput ? physical - item.stock : null;
+        const invalid = raw.trim() !== '' && (isNaN(physical) || physical < 0);
+        const isFocused = focusedId === item.id;
+
+        return (
+            <div style={style} className="px-4 pb-1">
+                <div
+                    className={cn(
+                        "group flex items-center h-9 border border-border/50 rounded-md bg-card px-2 transition-colors",
+                        isFocused ? "border-primary/60 ring-1 ring-inset ring-primary/30" : "hover:border-border",
+                        invalid && "border-destructive/60"
+                    )}
+                >
+                    <span className={WorksheetColumnClass.no}>{index + 1}</span>
+                    <span className={WorksheetColumnClass.name}>
+                        <span className="text-sm font-normal truncate">{itemLabel(item)}</span>
+                    </span>
+                    <span className={WorksheetColumnClass.brand}>
+                        <span className="truncate">{itemBrand(item) || '—'}</span>
+                    </span>
+                    <span className={WorksheetColumnClass.category}>
+                        <span className="truncate">{itemCategory(item)}</span>
+                    </span>
+                    <span className={WorksheetColumnClass.systemStock}>
+                        <span className="font-bold text-sm tabular-nums">{item.stock}</span>
+                    </span>
+                    <span className={WorksheetColumnClass.physicalStock}>
+                        <Input
+                            type="number"
+                            min="0"
+                            placeholder="Stok fisik"
+                            className="h-7 w-full text-sm tabular-nums px-2"
+                            value={raw}
+                            onChange={(e) => onChange(item.id, e.target.value)}
+                            onFocus={() => setFocusedId(item.id)}
+                            onBlur={() => setFocusedId(null)}
+                        />
+                    </span>
+                    <span className={cn(
+                        WorksheetColumnClass.diff,
+                        invalid ? "text-destructive" : diff === null ? "text-muted-foreground/40" : diff === 0 ? "text-muted-foreground" : diff > 0 ? "text-success dark:text-success-foreground" : "text-destructive"
+                    )}>
+                        {invalid ? '⚠' : diff === null ? '·' : diff > 0 ? `+${diff}` : diff}
+                    </span>
+                </div>
+            </div>
+        );
+    };
+
+    return (
+        <div className="flex-1 min-h-0 flex flex-col">
+            <div className="px-4 pt-2 pb-2 flex items-center gap-2 flex-wrap">
+                <div className="flex items-center gap-1.5">
+                    <Select value={worksheetReason} onValueChange={setWorksheetReason}>
+                        <SelectTrigger className="h-7 w-56 text-xs">
+                            <SelectValue placeholder="Alasan untuk semua" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {reasonOptions.count.map(opt => <SelectItem key={opt.id} value={opt.id}>{opt.label}</SelectItem>)}
+                        </SelectContent>
+                    </Select>
+                    <span className="text-xs text-muted-foreground whitespace-nowrap">
+                        {dirtyCount > 0 ? <span className="font-semibold text-foreground">{dirtyCount}</span> : 0} selisih
+                        {invalidCount > 0 && <span className="text-destructive font-semibold">, {invalidCount} invalid</span>}
+                    </span>
+                </div>
+                <div className="flex-1" />
+                <Button size="sm" onClick={onApply} disabled={worksheetBusy || dirtyCount === 0 || invalidCount > 0} className="h-7">
+                    {worksheetBusy ? <Loader2 className="size-3.5 animate-spin mr-1.5" /> : <ClipboardList className="size-3.5 mr-1.5" />}
+                    Terapkan {dirtyCount > 0 ? `(${dirtyCount})` : ''}
+                </Button>
+            </div>
+            <div className="px-4 w-full">
+                <div className="rounded-t-lg h-8 w-full border bg-card flex items-center px-2">
+                    <span className={WorksheetColumnClass.no}>No</span>
+                    <span className={WorksheetColumnClass.name}>
+                        <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Nama Item</span>
+                    </span>
+                    <span className={WorksheetColumnClass.brand}>
+                        <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Merek</span>
+                    </span>
+                    <span className={WorksheetColumnClass.category}>
+                        <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Kategori</span>
+                    </span>
+                    <span className={WorksheetColumnClass.systemStock}>
+                        <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Stok</span>
+                    </span>
+                    <span className={WorksheetColumnClass.physicalStock}>
+                        <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Stok Fisik</span>
+                    </span>
+                    <span className={WorksheetColumnClass.diff}>
+                        <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Selisih</span>
+                    </span>
+                </div>
+            </div>
+            <div className="flex-1 min-h-0 relative overflow-hidden">
+                {items.length > 0 ? (
+                    <AutoSizer>
+                        {({ height, width }) => (
+                            <List
+                                className="no-scrollbar"
+                                height={height}
+                                width={width}
+                                itemCount={items.length}
+                                itemSize={40}
+                                itemKey={(index) => items[index].id}
+                            >
+                                {Row}
+                            </List>
+                        )}
+                    </AutoSizer>
+                ) : (
+                    <div className="flex flex-col items-center justify-center text-center text-muted-foreground h-full p-8">
+                        <Package className="w-12 h-12 mb-4" />
+                        <p>Tidak ada item yang ditemukan</p>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+});
+WorksheetGrid.displayName = "WorksheetGrid";
+
 export default function InventoryPage() {
     const reducedMotion = usePrefersReducedMotion();
     const { products, categories, productVariants } = useStore();
     const { toast } = useToast();
+    const { rapidInventoryMode, setRapidInventoryMode, worksheetInventoryMode, setWorksheetInventoryMode } = useSettingsStore();
     const [selectedItem, setSelectedItem] = useState<{ id: string; type: 'product' | 'variant' } | null>(null);
     const [detailProductId, setDetailProductId] = useState<string | null>(null);
     const [isDetailOpen, setIsDetailOpen] = useState(false);
     const [isSheetOpen, setIsSheetOpen] = useState(false);
     const [filter, setFilter] = useState('all');
+    const [lastAdjustment, setLastAdjustment] = useState<AdjustmentResult | null>(null);
+
+    // Worksheet (batch opname) state
+    const [physicalCounts, setPhysicalCounts] = useState<Record<string, string>>({});
+    const [worksheetReason, setWorksheetReason] = useState('count-correction');
+    const [worksheetBusy, setWorksheetBusy] = useState(false);
 
     const outerRef = useRef<HTMLDivElement>(null);
     const thumbRef = useRef<HTMLDivElement>(null);
@@ -696,10 +936,47 @@ export default function InventoryPage() {
         }
     }
 
-    const handleSave = () => {
-        setSelectedItem(null);
+    const handleSave = (adjustment?: AdjustmentResult) => {
+        if (adjustment) setLastAdjustment(adjustment);
+
+        // Rapid mode: keep the panel open and advance to the next row so the
+        // operator can keep counting. Barcode-driven flows just scan the next item.
+        if (rapidInventoryMode) {
+            if (selectedItem) {
+                const idx = inventoryItems.findIndex(i => i.id === selectedItem.id);
+                if (idx >= 0 && idx + 1 < inventoryItems.length) {
+                    const next = inventoryItems[idx + 1];
+                    setSelectedItem({ id: next.id, type: next.itemType });
+                    listRef.current?.scrollToItem(idx + 1);
+                }
+            }
+            return;
+        }
+
+        // Normal mode: keep the item selected on desktop so the updated stock +
+        // history stay visible; close the sheet on small screens.
         if (window.innerWidth < 768) {
             setIsSheetOpen(false);
+        }
+    }
+
+    const handleUndo = async () => {
+        if (!lastAdjustment) return;
+        try {
+            if (lastAdjustment.itemType === 'product') {
+                await adjustStock({
+                    product_id: lastAdjustment.itemId,
+                    type: 'correction',
+                    qty_change: -lastAdjustment.change,
+                    reason: 'Koreksi: Pembatalan',
+                });
+            } else {
+                await adjustVariantStock(lastAdjustment.itemId, 'correction', -lastAdjustment.change, 'Koreksi: Pembatalan');
+            }
+            toast({ title: 'Penyesuaian Dibatalkan', description: `Perubahan stok ${lastAdjustment.name} telah dibatalkan.` });
+            setLastAdjustment(null);
+        } catch (error: any) {
+            toast({ variant: 'destructive', title: 'Error', description: error.message });
         }
     }
 
@@ -707,6 +984,99 @@ export default function InventoryPage() {
         setSelectedItem(null);
         setIsSheetOpen(false);
     }
+
+    // ---- Worksheet (batch opname) ----
+
+    const worksheetDirtyRows = useMemo(() => inventoryItems.filter(it => {
+        const raw = physicalCounts[it.id];
+        if (raw === undefined || raw.trim() === '') return false;
+        const physical = parseInt(raw, 10);
+        return !isNaN(physical) && physical >= 0 && physical !== it.stock;
+    }), [inventoryItems, physicalCounts]);
+
+    const worksheetInvalidRows = useMemo(() => inventoryItems.filter(it => {
+        const raw = physicalCounts[it.id];
+        if (raw === undefined || raw.trim() === '') return false;
+        const physical = parseInt(raw, 10);
+        return isNaN(physical) || physical < 0;
+    }), [inventoryItems, physicalCounts]);
+
+    const handleWorksheetChange = (itemId: string, value: string) => {
+        setPhysicalCounts(prev => ({ ...prev, [itemId]: value }));
+    };
+
+    const handleApplyWorksheet = async () => {
+        if (worksheetInvalidRows.length > 0) {
+            toast({ variant: 'destructive', title: 'Input Tidak Valid', description: `${worksheetInvalidRows.length} baris memiliki jumlah yang tidak valid (harus angka >= 0).` });
+            return;
+        }
+        if (worksheetDirtyRows.length === 0) {
+            toast({ title: 'Tidak Ada Perubahan', description: 'Tidak ada selisih yang perlu diperbarui.' });
+            return;
+        }
+
+        const reasonOption = reasonOptions.count.find(o => o.id === worksheetReason) || reasonOptions.count[0];
+        setWorksheetBusy(true);
+        let ok = 0, unchanged = 0, failed = 0;
+        const appliedIds = new Set<string>();
+        const rows = [...worksheetDirtyRows];
+
+        try {
+            for (let i = 0; i < rows.length; i += 10) {
+                const chunk = rows.slice(i, i + 10);
+                const results = await Promise.all(chunk.map(async it => {
+                    const physical = parseInt(physicalCounts[it.id], 10);
+                    const change = physical - it.stock;
+                    if (change === 0) return 'unchanged' as const;
+                    try {
+                        if (it.itemType === 'product') {
+                            await adjustStock({ product_id: it.id, type: reasonOption.value, qty_change: change, reason: reasonOption.label });
+                        } else {
+                            await adjustVariantStock(it.id, reasonOption.value, change, reasonOption.label);
+                        }
+                        appliedIds.add(it.id);
+                        return 'ok' as const;
+                    } catch {
+                        return 'failed' as const;
+                    }
+                }));
+                results.forEach(r => {
+                    if (r === 'ok') ok++;
+                    else if (r === 'unchanged') unchanged++;
+                    else failed++;
+                });
+            }
+        } finally {
+            setWorksheetBusy(false);
+        }
+
+        toast({
+            title: 'Opname Selesai',
+            description: `${ok} item diperbarui${unchanged ? `, ${unchanged} tanpa perubahan` : ''}${failed ? `, ${failed} gagal` : ''}.`,
+            variant: failed > 0 ? 'destructive' : undefined,
+        });
+
+        if (appliedIds.size > 0) {
+            setPhysicalCounts(prev => {
+                const next = { ...prev };
+                appliedIds.forEach(id => delete next[id]);
+                return next;
+            });
+        }
+    };
+
+    const handleToggleRapid = () => {
+        setRapidInventoryMode(!rapidInventoryMode);
+        if (!rapidInventoryMode) setSelectedItem(null);
+    };
+
+    const handleToggleWorksheet = () => {
+        setWorksheetInventoryMode(!worksheetInventoryMode);
+        setSelectedItem(null);
+        if (!worksheetInventoryMode) {
+            setPhysicalCounts({});
+        }
+    };
 
     const Row = memo(({ index, style }: { index: number, style: React.CSSProperties }) => {
         return (
@@ -759,10 +1129,52 @@ export default function InventoryPage() {
 
                             <FilterPill active={filter === 'low_stock'} onClick={() => setFilter('low_stock')}>Stok Tipis</FilterPill>
                             <FilterPill active={filter === 'out_of_stock'} onClick={() => setFilter('out_of_stock')}>Habis</FilterPill>
+
+                            <Separator orientation="vertical" className="h-4 my-auto" />
+
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                className={cn(
+                                    "rounded-md px-2.5 h-7 shrink-0 text-xs",
+                                    rapidInventoryMode ? "bg-primary text-primary-foreground hover:bg-primary/90" : "text-muted-foreground hover:text-foreground"
+                                )}
+                                aria-pressed={rapidInventoryMode}
+                                onClick={handleToggleRapid}
+                                title="Mode Cepat: scan/pilih item lalu ketik stok fisik dan Enter untuk lanjut"
+                            >
+                                <Zap className="size-3.5 mr-1" /> Mode Cepat
+                            </Button>
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                className={cn(
+                                    "rounded-md px-2.5 h-7 shrink-0 text-xs",
+                                    worksheetInventoryMode ? "bg-primary text-primary-foreground hover:bg-primary/90" : "text-muted-foreground hover:text-foreground"
+                                )}
+                                aria-pressed={worksheetInventoryMode}
+                                onClick={handleToggleWorksheet}
+                                title="Worksheet Opname: isi stok fisik banyak item sekaligus lalu terapkan"
+                            >
+                                <ClipboardList className="size-3.5 mr-1" /> Worksheet
+                            </Button>
                         </div>
                     </div>
                     <div className="flex-1 bg-background h-full min-h-0 flex flex-col">
-                        {inventoryItems.length > 0 ? (
+                        {worksheetInventoryMode ? (
+                            <WorksheetGrid
+                                items={inventoryItems}
+                                categories={categories}
+                                physicalCounts={physicalCounts}
+                                onChange={handleWorksheetChange}
+                                worksheetReason={worksheetReason}
+                                setWorksheetReason={setWorksheetReason}
+                                worksheetBusy={worksheetBusy}
+                                onApply={handleApplyWorksheet}
+                                dirtyCount={worksheetDirtyRows.length}
+                                invalidCount={worksheetInvalidRows.length}
+                            />
+                        ) : inventoryItems.length > 0 ? (
                             <>
                                 <div className="px-4 w-full">
                                     <div className="rounded-t-lg h-8 w-full border bg-card flex items-center px-4">
@@ -813,7 +1225,7 @@ export default function InventoryPage() {
                     </div>
                 </div>
 
-                <aside className="hidden md:block col-span-4 lg:col-span-4 h-full min-h-0">
+                <aside className={`hidden md:block h-full min-h-0 ${worksheetInventoryMode ? 'col-span-3 lg:col-span-3' : 'col-span-4 lg:col-span-4'}`}>
                     <AnimatePresence mode="wait" initial={false}>
                         <motion.div
                             key={selectedItem ? `${selectedItem.type}-${selectedItem.id}` : 'none'}
@@ -823,7 +1235,14 @@ export default function InventoryPage() {
                             transition={reducedMotion ? { duration: 0 } : { duration: 0.18, ease: 'easeOut' }}
                             className="h-full min-h-0"
                         >
-                            <StockAdjustmentPanel onSave={handleSave} onCancel={handleCancel} selectedItem={selectedItem} />
+                            <StockAdjustmentPanel
+                                onSave={handleSave}
+                                onCancel={handleCancel}
+                                selectedItem={selectedItem}
+                                rapidMode={rapidInventoryMode}
+                                lastAdjustment={lastAdjustment}
+                                onUndo={handleUndo}
+                            />
                         </motion.div>
                     </AnimatePresence>
                 </aside>
@@ -842,7 +1261,14 @@ export default function InventoryPage() {
                                 transition={reducedMotion ? { duration: 0 } : { duration: 0.2, ease: 'easeOut' }}
                                 className="h-full min-h-0"
                             >
-                                <StockAdjustmentPanel onSave={handleSave} onCancel={handleCancel} selectedItem={selectedItem} />
+                                <StockAdjustmentPanel
+                                    onSave={handleSave}
+                                    onCancel={handleCancel}
+                                    selectedItem={selectedItem}
+                                    rapidMode={rapidInventoryMode}
+                                    lastAdjustment={lastAdjustment}
+                                    onUndo={handleUndo}
+                                />
                             </motion.div>
                         </AnimatePresence>
                     </SheetContent>

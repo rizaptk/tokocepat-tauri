@@ -22,6 +22,12 @@ interface SettingsState {
 
     showMode: ModeLocation,
     setShowMode: (showMode: Partial<ModeLocation>) => void,
+
+    rapidInventoryMode: boolean,
+    setRapidInventoryMode: (value: boolean) => void,
+
+    worksheetInventoryMode: boolean,
+    setWorksheetInventoryMode: (value: boolean) => void,
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -37,6 +43,10 @@ export const useSettingsStore = create<SettingsState>()(
             noModifier: false,
         },
         setShowToast: (showToast: Partial<ToastList>) => set((state) => ({showToast: { ...state.showToast, ...showToast }})),
+        rapidInventoryMode: false,
+        setRapidInventoryMode: (value: boolean) => set({ rapidInventoryMode: value }),
+        worksheetInventoryMode: false,
+        setWorksheetInventoryMode: (value: boolean) => set({ worksheetInventoryMode: value }),
         }),
         {
             name: 'tokoc-settings',
