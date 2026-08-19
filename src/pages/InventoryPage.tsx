@@ -180,13 +180,15 @@ const StockHistoryCards = memo(({selectedItem}: {selectedItem: { id: string, typ
 
 export type AdjustmentResult = { itemId: string; itemType: 'product' | 'variant'; change: number; name: string };
 
-const StockAdjustmentPanel = memo(({ selectedItem, onSave, onCancel, rapidMode, lastAdjustment, onUndo }: {
+const StockAdjustmentPanel = memo(({ selectedItem, onSave, onCancel, rapidMode, lastAdjustment, onUndo, physicalCounts, onPhysicalCountChange }: {
     selectedItem: { id: string, type: 'product' | 'variant' } | null;
     onSave: (adjustment?: AdjustmentResult) => void;
     onCancel: () => void;
     rapidMode?: boolean;
     lastAdjustment?: AdjustmentResult | null;
     onUndo?: () => void;
+    physicalCounts?: Record<string, string>;
+    onPhysicalCountChange?: (itemId: string, value: string) => void;
 }) => {
     const [mode, setMode] = useState<'add' | 'remove' | 'count' | null>(rapidMode ? 'count' : null);
     const [quantity, setQuantity] = useState('');
@@ -214,15 +216,17 @@ const StockAdjustmentPanel = memo(({ selectedItem, onSave, onCancel, rapidMode, 
         }
     }, [selectedItem, products, productVariants]);
 
-    // Reset form state when product changes
+    // Reset form state when product changes. Pre-fill the physical count from the
+    // shared record so values persist across Mode Cepat / normal / Worksheet.
     useEffect(() => {
         if (selectedItem) {
             setMode(rapidMode ? 'count' : null);
             setQuantity('');
-            setActualCount('');
+            setActualCount(physicalCounts?.[selectedItem.id] ?? '');
             setReason(rapidMode ? lastReasonByMode.count : '');
             setNote('');
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selectedItem]);
 
     // In rapid mode, focus the physical-count input when the item changes so the
@@ -308,6 +312,8 @@ const StockAdjustmentPanel = memo(({ selectedItem, onSave, onCancel, rapidMode, 
             setNote('');
             setMode(rapidMode ? 'count' : null);
             setReason(rapidMode ? lastReasonByMode.count : '');
+            // Clear the shared physical-count record so the worksheet doesn't re-apply it.
+            onPhysicalCountChange?.(item.id, '');
             onSave({ itemId: item.id, itemType: item.itemType, change, name: item.name });
         } catch (error: any) {
             toast({ variant: 'destructive', title: 'Error', description: error.message });
@@ -405,7 +411,7 @@ const StockAdjustmentPanel = memo(({ selectedItem, onSave, onCancel, rapidMode, 
                                                     <div className="grid grid-cols-2 gap-3">
                                                         <div className="space-y-2">
                                                             <Label htmlFor="actual-count">Stok Rill (Fisik)</Label>
-                                                            <Input ref={countInputRef} id="actual-count" type="number" placeholder="cth. 142" value={actualCount} onChange={(e) => setActualCount(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSubmit(); } }} />
+                                                            <Input ref={countInputRef} id="actual-count" type="number" placeholder="cth. 142" value={actualCount} onChange={(e) => { setActualCount(e.target.value); onPhysicalCountChange?.(item?.id ?? '', e.target.value); }} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSubmit(); } }} />
                                                         </div>
                                                         {change !== 0 && (
                                                             <div className="space-y-2">
@@ -587,14 +593,114 @@ const WorksheetColumnClass = {
     category: "hidden md:flex items-center text-sm text-muted-foreground truncate w-28 shrink-0 px-2 border-l border-l-border/50",
     systemStock: "flex items-center justify-end shrink-0 text-right tabular-nums w-20 border-l border-l-border/50 px-2",
     physicalStock: "flex items-center justify-center shrink-0 w-28 border-l border-l-border/50 px-2",
+    reason: "flex items-center justify-center shrink-0 w-44 border-l border-l-border/50 px-2",
     diff: "flex items-center justify-end shrink-0 text-right tabular-nums font-semibold w-16 border-l border-l-border/50 px-2",
 };
 
-const WorksheetGrid = memo(({ items, categories, physicalCounts, onChange, worksheetReason, setWorksheetReason, worksheetBusy, onApply, dirtyCount, invalidCount }: {
+type WorksheetRowData = {
+    items: InventoryItemType[];
+    categories: Category[];
+    products: Product[];
+    physicalCounts: Record<string, string>;
+    rowReasons: Record<string, string>;
+    defaultReason: string;
+    focusedId: string | null;
+    onChange: (itemId: string, value: string) => void;
+    onReasonChange: (itemId: string, value: string) => void;
+    onFocus: (itemId: string | null) => void;
+};
+
+// Stable row component (react-window render prop) so the Stok Fisik input keeps
+// focus across keystrokes — an inline row function would remount rows each render.
+const WorksheetRow = memo(({ index, style, data }: { index: number; style: React.CSSProperties; data: WorksheetRowData }) => {
+    const { items, categories, products, physicalCounts, rowReasons, defaultReason, focusedId, onChange, onReasonChange, onFocus } = data;
+    const item = items[index];
+    const raw = physicalCounts[item.id] ?? '';
+    const physical = raw.trim() === '' ? NaN : parseInt(raw, 10);
+    const hasInput = raw.trim() !== '' && !isNaN(physical);
+    const diff = hasInput ? physical - item.stock : null;
+    const invalid = raw.trim() !== '' && (isNaN(physical) || physical < 0);
+    const isFocused = focusedId === item.id;
+    const rowReason = rowReasons[item.id] ?? defaultReason;
+
+    const itemLabel = item.itemType === 'variant' ? `${item.parentName} (${item.name})` : item.name;
+
+    let categoryName = 'N/A';
+    let brand = '';
+    if (item.itemType === 'product') {
+        categoryName = categories.find(c => c.id === item.category_id)?.name || 'N/A';
+        brand = (item as Product).brand || '';
+    } else {
+        const parent = products.find(p => p.id === (item as ProductVariant).product_id);
+        if (parent) {
+            categoryName = categories.find(c => c.id === parent.category_id)?.name || 'N/A';
+            brand = parent.brand || '';
+        }
+    }
+
+    return (
+        <div style={style} className="px-4 pb-1">
+            <div
+                className={cn(
+                    "group flex items-center h-9 border border-border/50 rounded-md bg-card px-2 transition-colors",
+                    isFocused ? "border-primary/60 ring-1 ring-inset ring-primary/30" : "hover:border-border",
+                    invalid && "border-destructive/60"
+                )}
+            >
+                <span className={WorksheetColumnClass.no}>{index + 1}</span>
+                <span className={WorksheetColumnClass.name}>
+                    <span className="text-sm font-normal truncate">{itemLabel}</span>
+                </span>
+                <span className={WorksheetColumnClass.brand}>
+                    <span className="truncate">{brand || '—'}</span>
+                </span>
+                <span className={WorksheetColumnClass.category}>
+                    <span className="truncate">{categoryName}</span>
+                </span>
+                <span className={WorksheetColumnClass.systemStock}>
+                    <span className="font-bold text-sm tabular-nums">{item.stock}</span>
+                </span>
+                <span className={WorksheetColumnClass.physicalStock}>
+                    <Input
+                        type="number"
+                        min="0"
+                        placeholder="Stok fisik"
+                        className="h-7 w-full text-sm tabular-nums px-2"
+                        value={raw}
+                        onChange={(e) => onChange(item.id, e.target.value)}
+                        onFocus={() => onFocus(item.id)}
+                        onBlur={() => onFocus(null)}
+                    />
+                </span>
+                <span className={WorksheetColumnClass.reason}>
+                    <Select value={rowReason} onValueChange={(v) => onReasonChange(item.id, v)}>
+                        <SelectTrigger className="h-7 w-full text-xs">
+                            <SelectValue placeholder="Alasan" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {reasonOptions.count.map(opt => <SelectItem key={opt.id} value={opt.id}>{opt.label}</SelectItem>)}
+                        </SelectContent>
+                    </Select>
+                </span>
+                <span className={cn(
+                    WorksheetColumnClass.diff,
+                    invalid ? "text-destructive" : diff === null ? "text-muted-foreground/40" : diff === 0 ? "text-muted-foreground" : diff > 0 ? "text-success dark:text-success-foreground" : "text-destructive"
+                )}>
+                    {invalid ? '⚠' : diff === null ? '·' : diff > 0 ? `+${diff}` : diff}
+                </span>
+            </div>
+        </div>
+    );
+});
+WorksheetRow.displayName = "WorksheetRow";
+
+const WorksheetGrid = memo(({ items, categories, physicalCounts, rowReasons, onChange, onReasonChange, worksheetReason, setWorksheetReason, worksheetBusy, onApply, dirtyCount, invalidCount }: {
     items: InventoryItemType[];
     categories: Category[];
     physicalCounts: Record<string, string>;
+    rowReasons: Record<string, string>;
     onChange: (itemId: string, value: string) => void;
+    onReasonChange: (itemId: string, value: string) => void;
     worksheetReason: string;
     setWorksheetReason: (value: string) => void;
     worksheetBusy: boolean;
@@ -605,75 +711,10 @@ const WorksheetGrid = memo(({ items, categories, physicalCounts, onChange, works
     const { products } = useStore();
     const [focusedId, setFocusedId] = useState<string | null>(null);
 
-    const itemLabel = (item: InventoryItemType) =>
-        item.itemType === 'variant' ? `${item.parentName} (${item.name})` : item.name;
-
-    const itemCategory = (item: InventoryItemType): string => {
-        if (item.itemType === 'product') {
-            return categories.find(c => c.id === item.category_id)?.name || 'N/A';
-        }
-        const parent = products.find(p => p.id === (item as ProductVariant).product_id);
-        return parent ? categories.find(c => c.id === parent.category_id)?.name || 'N/A' : 'N/A';
-    };
-
-    const itemBrand = (item: InventoryItemType): string => {
-        if (item.itemType === 'product') return (item as Product).brand || '';
-        const parent = products.find(p => p.id === (item as ProductVariant).product_id);
-        return parent?.brand || '';
-    };
-
-    const Row = ({ index, style }: { index: number; style: React.CSSProperties }) => {
-        const item = items[index];
-        const raw = physicalCounts[item.id] ?? '';
-        const physical = raw.trim() === '' ? NaN : parseInt(raw, 10);
-        const hasInput = raw.trim() !== '' && !isNaN(physical);
-        const diff = hasInput ? physical - item.stock : null;
-        const invalid = raw.trim() !== '' && (isNaN(physical) || physical < 0);
-        const isFocused = focusedId === item.id;
-
-        return (
-            <div style={style} className="px-4 pb-1">
-                <div
-                    className={cn(
-                        "group flex items-center h-9 border border-border/50 rounded-md bg-card px-2 transition-colors",
-                        isFocused ? "border-primary/60 ring-1 ring-inset ring-primary/30" : "hover:border-border",
-                        invalid && "border-destructive/60"
-                    )}
-                >
-                    <span className={WorksheetColumnClass.no}>{index + 1}</span>
-                    <span className={WorksheetColumnClass.name}>
-                        <span className="text-sm font-normal truncate">{itemLabel(item)}</span>
-                    </span>
-                    <span className={WorksheetColumnClass.brand}>
-                        <span className="truncate">{itemBrand(item) || '—'}</span>
-                    </span>
-                    <span className={WorksheetColumnClass.category}>
-                        <span className="truncate">{itemCategory(item)}</span>
-                    </span>
-                    <span className={WorksheetColumnClass.systemStock}>
-                        <span className="font-bold text-sm tabular-nums">{item.stock}</span>
-                    </span>
-                    <span className={WorksheetColumnClass.physicalStock}>
-                        <Input
-                            type="number"
-                            min="0"
-                            placeholder="Stok fisik"
-                            className="h-7 w-full text-sm tabular-nums px-2"
-                            value={raw}
-                            onChange={(e) => onChange(item.id, e.target.value)}
-                            onFocus={() => setFocusedId(item.id)}
-                            onBlur={() => setFocusedId(null)}
-                        />
-                    </span>
-                    <span className={cn(
-                        WorksheetColumnClass.diff,
-                        invalid ? "text-destructive" : diff === null ? "text-muted-foreground/40" : diff === 0 ? "text-muted-foreground" : diff > 0 ? "text-success dark:text-success-foreground" : "text-destructive"
-                    )}>
-                        {invalid ? '⚠' : diff === null ? '·' : diff > 0 ? `+${diff}` : diff}
-                    </span>
-                </div>
-            </div>
-        );
+    const itemData: WorksheetRowData = {
+        items, categories, products, physicalCounts, rowReasons,
+        defaultReason: worksheetReason, focusedId,
+        onChange, onReasonChange, onFocus: setFocusedId,
     };
 
     return (
@@ -682,7 +723,7 @@ const WorksheetGrid = memo(({ items, categories, physicalCounts, onChange, works
                 <div className="flex items-center gap-1.5">
                     <Select value={worksheetReason} onValueChange={setWorksheetReason}>
                         <SelectTrigger className="h-7 w-56 text-xs">
-                            <SelectValue placeholder="Alasan untuk semua" />
+                            <SelectValue placeholder="Alasan default" />
                         </SelectTrigger>
                         <SelectContent>
                             {reasonOptions.count.map(opt => <SelectItem key={opt.id} value={opt.id}>{opt.label}</SelectItem>)}
@@ -717,6 +758,9 @@ const WorksheetGrid = memo(({ items, categories, physicalCounts, onChange, works
                     <span className={WorksheetColumnClass.physicalStock}>
                         <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Stok Fisik</span>
                     </span>
+                    <span className={WorksheetColumnClass.reason}>
+                        <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Alasan</span>
+                    </span>
                     <span className={WorksheetColumnClass.diff}>
                         <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Selisih</span>
                     </span>
@@ -733,8 +777,9 @@ const WorksheetGrid = memo(({ items, categories, physicalCounts, onChange, works
                                 itemCount={items.length}
                                 itemSize={40}
                                 itemKey={(index) => items[index].id}
+                                itemData={itemData}
                             >
-                                {Row}
+                                {WorksheetRow}
                             </List>
                         )}
                     </AutoSizer>
@@ -764,6 +809,7 @@ export default function InventoryPage() {
 
     // Worksheet (batch opname) state
     const [physicalCounts, setPhysicalCounts] = useState<Record<string, string>>({});
+    const [worksheetRowReasons, setWorksheetRowReasons] = useState<Record<string, string>>({});
     const [worksheetReason, setWorksheetReason] = useState('count-correction');
     const [worksheetBusy, setWorksheetBusy] = useState(false);
 
@@ -1005,6 +1051,10 @@ export default function InventoryPage() {
         setPhysicalCounts(prev => ({ ...prev, [itemId]: value }));
     };
 
+    const handleWorksheetReasonChange = (itemId: string, value: string) => {
+        setWorksheetRowReasons(prev => ({ ...prev, [itemId]: value }));
+    };
+
     const handleApplyWorksheet = async () => {
         if (worksheetInvalidRows.length > 0) {
             toast({ variant: 'destructive', title: 'Input Tidak Valid', description: `${worksheetInvalidRows.length} baris memiliki jumlah yang tidak valid (harus angka >= 0).` });
@@ -1015,7 +1065,6 @@ export default function InventoryPage() {
             return;
         }
 
-        const reasonOption = reasonOptions.count.find(o => o.id === worksheetReason) || reasonOptions.count[0];
         setWorksheetBusy(true);
         let ok = 0, unchanged = 0, failed = 0;
         const appliedIds = new Set<string>();
@@ -1028,6 +1077,8 @@ export default function InventoryPage() {
                     const physical = parseInt(physicalCounts[it.id], 10);
                     const change = physical - it.stock;
                     if (change === 0) return 'unchanged' as const;
+                    const reasonId = worksheetRowReasons[it.id] ?? worksheetReason;
+                    const reasonOption = reasonOptions.count.find(o => o.id === reasonId) || reasonOptions.count[0];
                     try {
                         if (it.itemType === 'product') {
                             await adjustStock({ product_id: it.id, type: reasonOption.value, qty_change: change, reason: reasonOption.label });
@@ -1066,16 +1117,20 @@ export default function InventoryPage() {
     };
 
     const handleToggleRapid = () => {
-        setRapidInventoryMode(!rapidInventoryMode);
-        if (!rapidInventoryMode) setSelectedItem(null);
+        const next = !rapidInventoryMode;
+        setRapidInventoryMode(next);
+        // Only one of "Mode Cepat" / "Worksheet" can be active at a time.
+        if (next) setWorksheetInventoryMode(false);
+        setSelectedItem(null);
     };
 
     const handleToggleWorksheet = () => {
-        setWorksheetInventoryMode(!worksheetInventoryMode);
+        const next = !worksheetInventoryMode;
+        setWorksheetInventoryMode(next);
+        // Only one of "Mode Cepat" / "Worksheet" can be active at a time.
+        if (next) setRapidInventoryMode(false);
         setSelectedItem(null);
-        if (!worksheetInventoryMode) {
-            setPhysicalCounts({});
-        }
+        // Keep physicalCounts so stok fisik values persist across mode switches.
     };
 
     const Row = memo(({ index, style }: { index: number, style: React.CSSProperties }) => {
@@ -1104,7 +1159,7 @@ export default function InventoryPage() {
                 </div>
             </header>
             <div className="w-full h-[calc(100vh-3rem)] md:grid md:grid-cols-10 min-h-0">
-                <div className="col-span-10 md:col-span-6 lg:col-span-6 h-full flex flex-col min-h-0">
+                <div className={`h-full flex flex-col min-h-0 ${worksheetInventoryMode ? 'col-span-10' : 'col-span-10 md:col-span-6 lg:col-span-6'}`}>
                     <div className="flex flex-col gap-4 p-4">
                         <div className="flex items-center gap-2 ">
                             <div className="grow">
@@ -1166,7 +1221,9 @@ export default function InventoryPage() {
                                 items={inventoryItems}
                                 categories={categories}
                                 physicalCounts={physicalCounts}
+                                rowReasons={worksheetRowReasons}
                                 onChange={handleWorksheetChange}
+                                onReasonChange={handleWorksheetReasonChange}
                                 worksheetReason={worksheetReason}
                                 setWorksheetReason={setWorksheetReason}
                                 worksheetBusy={worksheetBusy}
@@ -1225,7 +1282,8 @@ export default function InventoryPage() {
                     </div>
                 </div>
 
-                <aside className={`hidden md:block h-full min-h-0 ${worksheetInventoryMode ? 'col-span-3 lg:col-span-3' : 'col-span-4 lg:col-span-4'}`}>
+                {!worksheetInventoryMode && (
+                <aside className="hidden md:block col-span-4 lg:col-span-4 h-full min-h-0">
                     <AnimatePresence mode="wait" initial={false}>
                         <motion.div
                             key={selectedItem ? `${selectedItem.type}-${selectedItem.id}` : 'none'}
@@ -1242,10 +1300,13 @@ export default function InventoryPage() {
                                 rapidMode={rapidInventoryMode}
                                 lastAdjustment={lastAdjustment}
                                 onUndo={handleUndo}
+                                physicalCounts={physicalCounts}
+                                onPhysicalCountChange={handleWorksheetChange}
                             />
                         </motion.div>
                     </AnimatePresence>
                 </aside>
+            )}
 
                 <Sheet open={isSheetOpen} onOpenChange={handleSheetOpenChange}>
                     <SheetContent side="right" className="w-full sm:w-125 p-0 flex flex-col h-full min-h-0">
@@ -1268,6 +1329,8 @@ export default function InventoryPage() {
                                     rapidMode={rapidInventoryMode}
                                     lastAdjustment={lastAdjustment}
                                     onUndo={handleUndo}
+                                    physicalCounts={physicalCounts}
+                                    onPhysicalCountChange={handleWorksheetChange}
                                 />
                             </motion.div>
                         </AnimatePresence>
