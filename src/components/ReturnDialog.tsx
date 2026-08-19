@@ -6,12 +6,13 @@ import { useLoadTransactions } from '@/hooks/useLoadTransaction';
 import { useGlobalBarcodeScanner } from '@/hooks/use-global-barcode-scanner';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
-import { Search, ArrowLeft, Undo2, Minus, Plus, CheckCircle2, XCircle } from 'lucide-react';
+import { Search, ArrowLeft, Undo2, Minus, Plus, CheckCircle2, XCircle, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { formatIDR } from "@/lib/format";
 
@@ -282,17 +283,18 @@ export default function ReturnDialog({ open, onOpenChange }: ReturnDialogProps) 
                                     <Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                                     <Input
                                         ref={inputRef}
-                                        className="h-10 pl-9 font-mono font-medium tracking-wide"
+                                        className="h-10 pl-9 pr-12 font-mono font-medium tracking-wide"
                                         placeholder="INV-MMDD-XXXX — scan struk atau ketik"
                                         value={invoiceInput}
                                         onChange={(e) => setInvoiceInput(e.target.value)}
                                         onKeyDown={(e) => e.key === 'Enter' && handleLookup()}
                                         autoFocus
                                     />
+                                    {isLookingUp && <Loader2 className="absolute right-3 top-1/2 size-4 -translate-y-1/2 animate-spin text-muted-foreground" />}
                                 </div>
-                                <Button className="w-full h-10" onClick={() => handleLookup()} disabled={isLookingUp}>
-                                    {isLookingUp ? 'Mencari...' : 'Cari Transaksi'}
-                                </Button>
+                                <p className="text-xs text-muted-foreground">
+                                    {isLookingUp ? 'Mencari transaksi…' : 'Tekan Enter atau scan barcode struk untuk mencari.'}
+                                </p>
                             </div>
 
                             {error && <p className="text-sm font-medium text-destructive">{error}</p>}
@@ -302,21 +304,30 @@ export default function ReturnDialog({ open, onOpenChange }: ReturnDialogProps) 
                                     Riwayat Transaksi (30 hari terakhir)
                                 </Label>
                                 <div className="border rounded-lg overflow-hidden max-h-[45vh] overflow-y-auto">
-                                    {candidateTransactions.length === 0 ? (
-                                        <p className="p-4 text-sm text-center text-muted-foreground">Tidak ada transaksi yang cocok.</p>
-                                    ) : (
-                                        candidateTransactions.map(tx => (
-                                            <button
-                                                key={tx.id}
-                                                className="w-full flex items-center justify-between gap-3 px-4 py-2.5 text-sm hover:bg-accent border-b last:border-0"
-                                                onClick={() => openTicket(tx)}
-                                            >
-                                                <span className="font-mono font-bold shrink-0">{tx.invoice_number}</span>
-                                                <span className="text-xs text-muted-foreground shrink-0">{format(new Date(tx.created_at), 'dd MMM yyyy, HH:mm')}</span>
-                                                <span className="font-bold tabular-nums ml-auto">{formatIDR(tx.total)}</span>
-                                            </button>
-                                        ))
-                                    )}
+                                    <Table>
+                                        <TableHeader className="sticky top-0 z-10 border-b border-border bg-card">
+                                            <TableRow className="hover:bg-transparent">
+                                                <TableHead className="w-40">Waktu</TableHead>
+                                                <TableHead>Invoice</TableHead>
+                                                <TableHead className="w-32 text-right">Total</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {candidateTransactions.length === 0 ? (
+                                                <TableRow>
+                                                    <TableCell colSpan={3} className="h-24 text-center text-muted-foreground">Tidak ada transaksi yang cocok.</TableCell>
+                                                </TableRow>
+                                            ) : (
+                                                candidateTransactions.map(tx => (
+                                                    <TableRow key={tx.id} className="cursor-pointer hover:bg-accent" onClick={() => openTicket(tx)}>
+                                                        <TableCell className="whitespace-nowrap text-muted-foreground">{format(new Date(tx.created_at), 'dd MMM yyyy, HH:mm')}</TableCell>
+                                                        <TableCell className="font-mono font-bold">{tx.invoice_number}</TableCell>
+                                                        <TableCell className="text-right font-bold tabular-nums">{formatIDR(tx.total)}</TableCell>
+                                                    </TableRow>
+                                                ))
+                                            )}
+                                        </TableBody>
+                                    </Table>
                                 </div>
                             </div>
                         </>

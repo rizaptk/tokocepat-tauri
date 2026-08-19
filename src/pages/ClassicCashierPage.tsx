@@ -12,7 +12,7 @@ import {
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Search, Trash2, ReceiptCent, Printer, CheckCircle2, LogIn, ParkingSquare, ArrowLeft, XCircle, TicketPercent, Gift, BadgePercent, GitBranch, Handshake } from 'lucide-react';
+import { Search, Trash2, ReceiptCent, Printer, CheckCircle2, LogIn, ArrowLeft, XCircle, TicketPercent, Gift, BadgePercent, GitBranch, Handshake } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { VariantPanel } from '@/components/VariantPanel';
@@ -100,7 +100,7 @@ export default function ClassicCashierPage() {
         onActivate: (index, column) => {
             const item = cart[index];
             if (!item) return;
-            if (column === 3) {
+            if (column === 1) {
                 // Produk column: open variant selector when the item has variants,
                 // otherwise start an in-cell qty edit.
                 if (item.has_variant) {
@@ -394,10 +394,17 @@ export default function ClassicCashierPage() {
             <div className="flex min-h-0 flex-1 flex-col">
                 {/* PAYMENT BAR (full width, above the search bar) */}
                 <div className="shrink-0 border-b border-border bg-card px-4 py-2">
-                    <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+                    <div className="flex flex-wrap items-center gap-x-8 gap-y-2">
                         {/* Grand total */}
                         <div className="min-w-44">
-                            <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Grand Total · {totalQty} item</div>
+                            <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                                Grand Total · {totalQty} item
+                                {cart.length > 0 && curr.raw !== '' && (
+                                    <span className={cn(change >= 0 ? "text-success dark:text-success-foreground" : "text-warning dark:text-warning-foreground")}>
+                                        {' '}· {change >= 0 ? 'Kembalian' : 'Kurang'}
+                                    </span>
+                                )}
+                            </div>
                             <AnimatePresence mode="wait">
                                 <motion.div
                                     key={total}
@@ -469,22 +476,28 @@ export default function ClassicCashierPage() {
 
                         <div className="flex-1" />
 
-                        {/* Quick cash + cash input + change */}
+                        {/* Quick cash (inline with Bayar label) + cash input + change */}
                         <div className="flex items-end gap-3">
-                            {cashSuggestions.length > 0 && (
-                                <div className="space-y-1">
-                                    <Label className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Uang Tunai Cepat</Label>
-                                    <div className="grid grid-cols-3 gap-1.5">
-                                        {cashSuggestions.map(amt => (
-                                            <Button key={amt} variant="outline" size="sm" className="h-9 font-semibold text-xs tabular-nums whitespace-nowrap" onClick={() => curr.setRaw(amt.toString())}>
-                                                {amt === total ? "Uang Pas" : formatIDR(amt)}
-                                            </Button>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
                             <div className="space-y-1">
-                                <Label className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Bayar Tunai · <Kbd>F8</Kbd></Label>
+                                <div className="flex items-baseline gap-2">
+                                    <Label className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Bayar</Label>
+                                    {cashSuggestions.length > 0 && (
+                                        <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                            <span className="text-[10px] font-semibold uppercase tracking-widest">Uang tunai cepat:</span>
+                                            {cashSuggestions.map(amt => (
+                                                <button
+                                                    key={amt}
+                                                    type="button"
+                                                    className="px-0.5 font-semibold text-foreground/80 underline decoration-dotted underline-offset-2 hover:text-primary"
+                                                    onClick={() => curr.setRaw(amt.toString())}
+                                                    title={amt === total ? 'Bayar uang pas' : 'Isi uang tunai cepat'}
+                                                >
+                                                    {amt === total ? 'Pas' : `${Math.round(amt / 1000)}K`}
+                                                </button>
+                                            ))}
+                                        </span>
+                                    )}
+                                </div>
                                 <div className="relative">
                                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-lg font-semibold text-muted-foreground">Rp</span>
                                     <Input
@@ -503,26 +516,18 @@ export default function ClassicCashierPage() {
                                 </div>
                             </div>
                             <div className={cn(
-                                "flex items-center justify-end rounded-lg border px-3 py-1.5",
+                                "flex h-9 items-center justify-end rounded-lg border px-3",
                                 change >= 0 ? "border-success/60 bg-success/40" : "border-warning bg-warning/50"
                             )}>
-                                <span className="flex items-center gap-2">
-                                    <span className={cn("text-xs font-semibold uppercase tracking-widest", change >= 0 ? "text-success-foreground" : "text-warning-foreground")}>
-                                        {change >= 0 ? "Kembalian" : "Kurang"}
-                                    </span>
-                                    <span className={cn("text-lg font-bold tabular-nums", change >= 0 ? "text-success-foreground" : "text-warning-foreground")}>
-                                        {change < 0 ? "-" : ""}{formatIDR(Math.abs(change))}
-                                    </span>
+                                <span className={cn("text-lg font-bold tabular-nums", change >= 0 ? "text-success-foreground" : "text-warning-foreground")}>
+                                    {change < 0 ? "-" : ""}{formatIDR(Math.abs(change))}
                                 </span>
                             </div>
                         </div>
 
                         {/* Actions */}
-                        <div className="flex items-center gap-2">
-                            <Button variant="secondary" className="h-11 px-4 text-base font-black tracking-tight" onClick={handleParkAction} disabled={cart.length === 0}>
-                                <ParkingSquare className="mr-2 size-5" /> PARKIR
-                            </Button>
-                            <Button className="h-11 px-6 text-base font-black tracking-tight" disabled={change < 0 || cart.length === 0} onClick={handleProcessPayment}>
+                        <div className="flex items-stretch self-stretch">
+                            <Button className="h-full min-w-36 px-6 text-base font-black tracking-tight" disabled={change < 0 || cart.length === 0} onClick={handleProcessPayment}>
                                 <ReceiptCent className="mr-2 size-5" /> BAYAR
                             </Button>
                         </div>
@@ -576,9 +581,9 @@ export default function ClassicCashierPage() {
                             <TableHeader className="sticky top-0 z-10 border-b border-border bg-card">
                                 <TableRow className="hover:bg-transparent">
                                     <TableHead className="w-10">No</TableHead>
+                                    <TableHead>Produk</TableHead>
                                     <TableHead className="w-8 text-center">Var</TableHead>
                                     <TableHead className="w-8 text-center">Con</TableHead>
-                                    <TableHead>Produk</TableHead>
                                     <TableHead className="w-32">Merek</TableHead>
                                     <TableHead className="w-28">Kategori</TableHead>
                                     <TableHead className="w-16 text-right">Stok</TableHead>
@@ -615,13 +620,7 @@ export default function ClassicCashierPage() {
                                                 onMouseEnter={() => setCartActiveIndex(idx)}
                                             >
                                                 <TableCell className={cn(cartActiveIndex === idx && cartActiveColumn === 0 && "bg-primary/10")}>{idx + 1}</TableCell>
-                                                <TableCell className={cn("text-center", cartActiveIndex === idx && cartActiveColumn === 1 && "bg-primary/10")}>
-                                                    {item.has_variant ? <span title="Memiliki varian" aria-label="Memiliki varian"><GitBranch className="mx-auto size-3.5 text-muted-foreground" /></span> : null}
-                                                </TableCell>
-                                                <TableCell className={cn("text-center", cartActiveIndex === idx && cartActiveColumn === 2 && "bg-primary/10")}>
-                                                    {item.is_consignment ? <span title="Konsinyasi" aria-label="Konsinyasi"><Handshake className="mx-auto size-3.5 text-warning dark:text-warning-foreground" /></span> : null}
-                                                </TableCell>
-                                                <TableCell className={cn("font-normal", cartActiveIndex === idx && cartActiveColumn === 3 && "bg-primary/10")}>
+                                                <TableCell className={cn("font-normal", cartActiveIndex === idx && cartActiveColumn === 1 && "bg-primary/10")}>
                                                     <div className="truncate">{item.name}</div>
                                                     {item.selectedVariant && (
                                                         <button
@@ -633,6 +632,12 @@ export default function ClassicCashierPage() {
                                                             Var: {item.selectedVariant.name}
                                                         </button>
                                                     )}
+                                                </TableCell>
+                                                <TableCell className={cn("text-center", cartActiveIndex === idx && cartActiveColumn === 2 && "bg-primary/10")}>
+                                                    {item.has_variant ? <span title="Memiliki varian" aria-label="Memiliki varian"><GitBranch className="mx-auto size-3.5 text-muted-foreground" /></span> : null}
+                                                </TableCell>
+                                                <TableCell className={cn("text-center", cartActiveIndex === idx && cartActiveColumn === 3 && "bg-primary/10")}>
+                                                    {item.is_consignment ? <span title="Konsinyasi" aria-label="Konsinyasi"><Handshake className="mx-auto size-3.5 text-warning dark:text-warning-foreground" /></span> : null}
                                                 </TableCell>
                                                 <TableCell className={cn("whitespace-nowrap text-muted-foreground", cartActiveIndex === idx && cartActiveColumn === 4 && "bg-primary/10")}>
                                                     <span className="truncate">{item.brand || '—'}</span>
@@ -908,35 +913,25 @@ export default function ClassicCashierPage() {
                     <div className="space-y-3">
                         <div className="flex items-center gap-1.5">
                             <div className="relative flex-1">
-                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-muted-foreground">{manualDiscountType === 'persen' ? '%' : 'Rp'}</span>
                                 <Input
                                     autoFocus
                                     value={manualDiscountInput}
                                     onChange={(e) => setManualDiscountInput(e.target.value.replace(/[^0-9.]/g, ''))}
-                                    placeholder={manualDiscountType === 'persen' ? '0' : 'Rp 0'}
+                                    placeholder="0"
                                     inputMode="decimal"
-                                    className="h-10 pl-8 text-lg font-semibold tabular-nums"
+                                    className="h-10 text-lg font-semibold tabular-nums"
                                     onKeyDown={(e) => e.key === 'Enter' && setIsDiscountOpen(false)}
                                 />
                             </div>
-                            <div className="flex shrink-0 overflow-hidden rounded-md border border-border">
-                                <button
-                                    type="button"
-                                    onClick={() => setManualDiscountType('flat')}
-                                    aria-pressed={manualDiscountType === 'flat'}
-                                    className={cn("px-3 text-xs font-bold h-10 transition-colors", manualDiscountType === 'flat' ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:text-foreground")}
-                                >
-                                    Rp
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => setManualDiscountType('persen')}
-                                    aria-pressed={manualDiscountType === 'persen'}
-                                    className={cn("px-3 text-xs font-bold h-10 border-l border-border transition-colors", manualDiscountType === 'persen' ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:text-foreground")}
-                                >
-                                    %
-                                </button>
-                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setManualDiscountType(t => t === 'flat' ? 'persen' : 'flat')}
+                                aria-pressed={true}
+                                title={manualDiscountType === 'flat' ? 'Diskon dalam Rupiah — klik untuk persen' : 'Diskon dalam persen — klik untuk Rupiah'}
+                                className="flex h-10 w-14 shrink-0 items-center justify-center rounded-md border border-border text-xs font-bold transition-colors bg-muted text-foreground hover:border-primary/50 hover:text-primary"
+                            >
+                                {manualDiscountType === 'flat' ? 'Rp' : '%'}
+                            </button>
                         </div>
                         {manualDiscountInput && discountResult && discountResult.manualDiscount > 0 && (
                             <div className="flex items-center justify-between rounded-md bg-warning/10 px-3 py-2 text-sm">

@@ -707,7 +707,7 @@ const WorksheetRow = memo(({ index, style, data }: { index: number; style: React
 });
 WorksheetRow.displayName = "WorksheetRow";
 
-const WorksheetGrid = memo(({ items, categories, physicalCounts, rowReasons, rowNotes, onChange, onReasonChange, onNotesChange, worksheetReason, setWorksheetReason, dirtyCount, invalidCount }: {
+const WorksheetGrid = memo(({ items, categories, physicalCounts, rowReasons, rowNotes, onChange, onReasonChange, onNotesChange }: {
     items: InventoryItemType[];
     categories: Category[];
     physicalCounts: Record<string, string>;
@@ -716,38 +716,18 @@ const WorksheetGrid = memo(({ items, categories, physicalCounts, rowReasons, row
     onChange: (itemId: string, value: string) => void;
     onReasonChange: (itemId: string, value: string) => void;
     onNotesChange: (itemId: string, value: string) => void;
-    worksheetReason: string;
-    setWorksheetReason: (value: string) => void;
-    dirtyCount: number;
-    invalidCount: number;
 }) => {
     const { products } = useStore();
     const [focusedId, setFocusedId] = useState<string | null>(null);
 
     const itemData: WorksheetRowData = {
         items, categories, products, physicalCounts, rowReasons, rowNotes,
-        defaultReason: worksheetReason, focusedId,
+        defaultReason: reasonOptions.count[0].id, focusedId,
         onChange, onReasonChange, onNotesChange, onFocus: setFocusedId,
     };
 
     return (
         <div className="flex-1 min-h-0 flex flex-col">
-            <div className="px-4 pt-2 pb-2 flex items-center gap-2 flex-wrap">
-                <div className="flex items-center gap-1.5">
-                    <Select value={worksheetReason} onValueChange={setWorksheetReason}>
-                        <SelectTrigger className="h-7 w-56 text-xs">
-                            <SelectValue placeholder="Alasan default" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {reasonOptions.count.map(opt => <SelectItem key={opt.id} value={opt.id}>{opt.label}</SelectItem>)}
-                        </SelectContent>
-                    </Select>
-                    <span className="text-xs text-muted-foreground whitespace-nowrap">
-                        {dirtyCount > 0 ? <span className="font-semibold text-foreground">{dirtyCount}</span> : 0} selisih
-                        {invalidCount > 0 && <span className="text-destructive font-semibold">, {invalidCount} invalid</span>}
-                    </span>
-                </div>
-            </div>
             <div className="px-4 w-full">
                 <div className="rounded-t-lg h-8 w-full border bg-card flex items-center px-2">
                     <span className={WorksheetColumnClass.no}>No</span>
@@ -822,7 +802,6 @@ export default function InventoryPage() {
     const [physicalCounts, setPhysicalCounts] = useState<Record<string, string>>({});
     const [worksheetRowReasons, setWorksheetRowReasons] = useState<Record<string, string>>({});
     const [worksheetRowNotes, setWorksheetRowNotes] = useState<Record<string, string>>({});
-    const [worksheetReason, setWorksheetReason] = useState('count-correction');
     const [worksheetBusy, setWorksheetBusy] = useState(false);
 
     // Multi-search (worksheet only): scan/enter comma-separated terms to filter many items at once.
@@ -1116,7 +1095,7 @@ export default function InventoryPage() {
                     const physical = parseInt(physicalCounts[it.id], 10);
                     const change = physical - it.stock;
                     if (change === 0) return 'unchanged' as const;
-                    const reasonId = worksheetRowReasons[it.id] ?? worksheetReason;
+                    const reasonId = worksheetRowReasons[it.id] ?? reasonOptions.count[0].id;
                     const reasonOption = reasonOptions.count.find(o => o.id === reasonId) || reasonOptions.count[0];
                     const note = worksheetRowNotes[it.id]?.trim();
                     const reason = note ? `${reasonOption.label}: ${note}` : reasonOption.label;
@@ -1271,12 +1250,6 @@ export default function InventoryPage() {
                             </Button>
 
                             <div className="ml-auto flex shrink-0 items-center gap-2">
-                                {!worksheetInventoryMode && rapidInventoryMode && (
-                                    <span className="text-xs text-muted-foreground whitespace-nowrap">
-                                        {worksheetDirtyRows.length > 0 ? <span className="font-semibold text-foreground">{worksheetDirtyRows.length}</span> : 0} selisih
-                                        {worksheetInvalidRows.length > 0 && <span className="text-destructive font-semibold">, {worksheetInvalidRows.length} invalid</span>}
-                                    </span>
-                                )}
                                 {worksheetInventoryMode && (
                                     <Button
                                         size="sm"
@@ -1302,10 +1275,6 @@ export default function InventoryPage() {
                                 onChange={handleWorksheetChange}
                                 onReasonChange={handleWorksheetReasonChange}
                                 onNotesChange={handleWorksheetNoteChange}
-                                worksheetReason={worksheetReason}
-                                setWorksheetReason={setWorksheetReason}
-                                dirtyCount={worksheetDirtyRows.length}
-                                invalidCount={worksheetInvalidRows.length}
                             />
                         ) : inventoryItems.length > 0 ? (
                             <>
