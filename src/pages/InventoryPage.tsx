@@ -46,7 +46,7 @@ const reasonOptions: Record<'add' | 'remove' | 'count', { id: string, value: Sto
         { id: 'remove-damaged', value: 'damaged', label: 'Barang Rusak' },
         { id: 'remove-lost', value: 'lost', label: 'Barang Hilang' },
         { id: 'remove-internal', value: 'correction', label: 'Pemakaian Internal' },
-        { id: 'remove-consignor-return', value: 'correction', label: 'Retur Titipan / Konsinyasi' },
+        { id: 'remove-consignor-return', value: 'correction', label: 'Retur Konsinyasi' },
         { id: 'remove-other', value: 'correction', label: 'Lainnya' }
     ],
     count: [
@@ -478,10 +478,10 @@ const InventoryListItem = ({ item, isSelected, onItemClick, onShowDetail, catego
                 )}
             >
                 <div className={ColumnClass.name}>
-                    <p className="font-medium truncate">{displayName}</p>
+                    <p className="text-sm font-normal truncate">{displayName}</p>
                     {isConsignment && (
                         <span className="text-[10px] text-warning dark:text-warning-foreground font-semibold truncate">
-                            Titipan: {consignorName} ({formattedCommission})
+                            Konsinyasi: {consignorName} ({formattedCommission})
                         </span>
                     )}
                 </div>
@@ -752,7 +752,7 @@ export default function InventoryPage() {
                         <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
                             <FilterPill active={filter === 'all'} onClick={() => setFilter('all')}>All</FilterPill>
                             <FilterPill active={filter === 'product'} onClick={() => setFilter('product')}>Produk</FilterPill>
-                            <FilterPill active={filter === 'consignment'} onClick={() => setFilter('consignment')}>Titipan / Konsinyasi</FilterPill>
+                            <FilterPill active={filter === 'consignment'} onClick={() => setFilter('consignment')}>Konsinyasi</FilterPill>
                             <FilterPill active={filter === 'variant'} onClick={() => setFilter('variant')}>Varian</FilterPill>
 
                             <Separator orientation="vertical" className="h-4 my-auto" />

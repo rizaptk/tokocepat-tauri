@@ -16,8 +16,8 @@ type ViewMode = 'card' | 'thumbnail' | 'list';
 
 const columnClass = {
   name: "flex items-center gap-2 flex-1 min-w-0 h-8",
+  brand: "hidden sm:flex items-center text-sm text-muted-foreground truncate max-w-[140px] w-[140px] px-2 border-l border-l-border/50 h-8",
   category: "hidden md:flex items-center text-sm text-muted-foreground truncate max-w-[160px] w-[160px] px-2 border-l border-l-border/50 h-8",
-  stock: "hidden sm:flex items-center justify-end gap-1 text-sm tabular-nums shrink-0 w-20 border-l border-l-border/50 px-2 text-right h-8",
   price: "flex items-center justify-end shrink-0 text-right tabular-nums whitespace-nowrap w-28 border-l border-l-border/50 h-8"
 }
 
@@ -264,15 +264,12 @@ export function ProductList({ products, viewMode, isLoading, onItemClick, select
               {context === 'product' && <div className="w-9 shrink-0" aria-hidden="true" />}
               <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Nama</span>
             </div>
+            <div className={columnClass.brand}>
+              <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Merek</span>
+            </div>
             <div className={columnClass.category}>
               <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Kategori</span>
             </div>
-            {
-              context !== 'cashier' &&
-              <div className={columnClass.stock}>
-                <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Stok</span>
-              </div>
-            }
             <div className={columnClass.price}>
               <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Harga</span>
             </div>

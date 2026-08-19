@@ -1,7 +1,6 @@
 import { Product } from "@/lib/types";
 import { useStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
-import { TriangleAlert } from "lucide-react";
 import { useMemo, useRef, useEffect, useCallback } from "react";
 import React from "react";
 import { Badge } from "../ui/badge";
@@ -21,8 +20,8 @@ type ProductListItemProps = {
 const columnClass = {
   checkbox: "flex items-center justify-center w-9 h-8",
   name: "flex items-center gap-2 flex-1 min-w-0 h-8",
-  category: "hidden md:flex items-center text-sm opacity-70 truncate max-w-[160px] w-[160px] px-2 border-l border-l-border/50 h-8",
-  stock: "hidden sm:flex items-center justify-end gap-1 text-sm tabular-nums shrink-0 w-20 border-l border-l-border/50 px-2 text-right h-8",
+  brand: "hidden sm:flex items-center text-sm text-muted-foreground truncate max-w-[140px] w-[140px] px-2 border-l border-l-border/50 h-8",
+  category: "hidden md:flex items-center text-sm text-muted-foreground truncate max-w-[160px] w-[160px] px-2 border-l border-l-border/50 h-8",
   price: "flex items-center justify-end shrink-0 text-right tabular-nums whitespace-nowrap w-28 border-l border-l-border/50 h-8"
 }
 
@@ -61,7 +60,6 @@ export function ProductListItem({
 
     
     const isOutOfStock = product.has_variant ? totalVariantStock <= 0 : (product.track_stock && product.stock <= 0);
-    const isLowStock = product.track_stock && product.low_stock_alert != null && product.stock > 0 && product.stock <= product.low_stock_alert;
     const is_active = product.is_active;
     const not_allowed = context === "cashier" && (isOutOfStock || !is_active);
     
@@ -70,12 +68,6 @@ export function ProductListItem({
         onItemClick(product);
       }
     },[not_allowed, onItemClick, product])
-
-  const stockDisplay = useMemo(() => {
-    if (product.has_variant) return totalVariantStock;
-    if (product.track_stock) return product.stock;
-    return null;
-  }, [product, totalVariantStock]);
 
 
   return (
@@ -111,9 +103,8 @@ export function ProductListItem({
                 />
               </div>
             )}
-            <span className="font-medium truncate">
+            <span className="text-sm font-normal truncate">
               {product.name}
-              {product.brand && <span className="text-muted-foreground font-normal"> · {product.brand}</span>}
             </span>
           </div>
 
@@ -127,26 +118,16 @@ export function ProductListItem({
             )
           }
 
+          {/* BRAND (hide earlier on small screens) */}
+          <span className={columnClass.brand}>
+            <span className={cn("truncate", !product.brand && "text-muted-foreground/40")}>{product.brand || '—'}</span>
+          </span>
+
           {/* CATEGORY (hide earlier on small screens) */}
           {category && (
             <span className={columnClass.category}>
               {category.name}
             </span>
-          )}
-
-          {/* STOCK */}
-          {context !== "cashier" && (
-            <div
-              className={cn(
-                columnClass.stock,
-                (isLowStock && !product.has_variant) || (stockDisplay !== null && stockDisplay <= 0)
-                  ? "text-destructive font-medium"
-                  : "text-muted-foreground"
-              )}
-            >
-              {isLowStock && !product.has_variant && <TriangleAlert className="h-3.5 w-3.5" />}
-              {stockDisplay !== null ? stockDisplay : '-'}
-            </div>
           )}
 
 

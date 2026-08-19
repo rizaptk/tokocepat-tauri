@@ -95,7 +95,7 @@ export default function ClassicCashierPage() {
     const [variantEditCartId, setVariantEditCartId] = useState<string | null>(null);
     const { activeIndex: cartActiveIndex, setActiveIndex: setCartActiveIndex, activeColumn: cartActiveColumn } = useTableNavigation({
         rowCount: cart.length,
-        columnCount: 6, // No | Produk | Harga | Qty | Subtotal | Hapus
+        columnCount: 7, // No | Produk | Merek | Harga | Qty | Subtotal | Hapus
         bindTo: cartTableRef,
         onActivate: (index, column) => {
             const item = cart[index];
@@ -107,14 +107,14 @@ export default function ClassicCashierPage() {
                     setVariantEditItem(base);
                     setVariantEditCartId(item.cartItemId);
                 }
-            } else if (column === 3) {
+            } else if (column === 4) {
                 // Qty column (default for any line): start in-cell qty edit
                 setQtyEditValue(String(item.quantity));
                 setQtyEditId(item.cartItemId);
             } else if (column === 1) {
                 setQtyEditValue(String(item.quantity));
                 setQtyEditId(item.cartItemId);
-            } else if (column === 5) {
+            } else if (column === 6) {
                 removeFromCart(item.cartItemId);
             }
         },
@@ -406,23 +406,22 @@ export default function ClassicCashierPage() {
                                 autoFocus
                             />
                             {searchResults.length > 0 && (
-                                <div role="listbox" className="absolute top-full -left-0.5 -right-0.5 z-50 mt-1 overflow-hidden rounded-b-lg border border-t-0 border-border bg-popover shadow-xl">
+                                <div role="listbox" className="absolute top-full -left-0.5 -right-0.5 z-50 mt-1 max-h-96 overflow-auto rounded-b-lg border border-t-0 border-border bg-popover shadow-xl">
                                     {searchResults.map((p, i) => (
                                         <div 
                                             key={p.id}
                                             role="option"
                                             aria-selected={searchIndex === i}
                                             className={cn(
-                                                "flex cursor-pointer items-center justify-between px-3 py-2.5 text-sm transition-colors",
+                                                "flex w-full cursor-pointer items-center gap-2 px-3 py-1.5 text-sm transition-colors",
                                                 searchIndex === i ? "bg-primary text-primary-foreground" : "hover:bg-accent"
                                             )}
                                             onClick={() => handleProductSelect(p)}
                                         >
-                                            <div className="min-w-0">
-                                                <p className="truncate font-medium">{p.name}{p.brand && <span className="font-normal text-muted-foreground"> · {p.brand}</span>}</p>
-                                                <p className={cn("text-xs", searchIndex === i ? "text-primary-foreground/70" : "text-muted-foreground")}>{p.barcode || 'Tanpa barcode'}</p>
-                                            </div>
-                                            <p className="shrink-0 pl-3 font-bold tabular-nums">{formatIDR(p.price)}</p>
+                                            <span className="min-w-0 flex-1 truncate font-normal">{p.name}</span>
+                                            <span className={cn("w-28 shrink-0 truncate", searchIndex === i ? "text-primary-foreground/70" : "text-muted-foreground")}>{p.brand || '—'}</span>
+                                            <span className={cn("w-32 shrink-0 truncate font-mono text-xs", searchIndex === i ? "text-primary-foreground/70" : "text-muted-foreground")}>{p.barcode || 'Tanpa barcode'}</span>
+                                            <span className="w-24 shrink-0 text-right font-bold tabular-nums">{formatIDR(p.price)}</span>
                                         </div>
                                     ))}
                                 </div>
@@ -437,16 +436,17 @@ export default function ClassicCashierPage() {
                                 <TableRow className="hover:bg-transparent">
                                     <TableHead className="w-10">No</TableHead>
                                     <TableHead>Produk</TableHead>
-                                    <TableHead className="text-right">Harga</TableHead>
-                                    <TableHead className="w-32 text-center">Qty</TableHead>
-                                    <TableHead className="text-right">Subtotal</TableHead>
+                                    <TableHead className="w-32">Merek</TableHead>
+                                    <TableHead className="w-24 text-right">Harga</TableHead>
+                                    <TableHead className="w-28 text-center">Qty</TableHead>
+                                    <TableHead className="w-28 text-right">Subtotal</TableHead>
                                     <TableHead className="w-10"></TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {cart.length === 0 ? (
                                     <TableRow>
-                                        <TableCell colSpan={6} className="h-[40vh] text-center text-muted-foreground">
+                                        <TableCell colSpan={7} className="h-[40vh] text-center text-muted-foreground">
                                             <div className="space-y-1">
                                                 <p className="font-medium text-foreground/70">Keranjang kosong</p>
                                                 <p className="text-sm">Cari produk, scan barcode, atau tekan <Kbd>F1</Kbd> untuk fokus pencarian.</p>
@@ -470,8 +470,8 @@ export default function ClassicCashierPage() {
                                                 onMouseEnter={() => setCartActiveIndex(idx)}
                                             >
                                                 <TableCell className={cn(cartActiveIndex === idx && cartActiveColumn === 0 && "bg-primary/10")}>{idx + 1}</TableCell>
-                                                <TableCell className={cn("font-medium", cartActiveIndex === idx && cartActiveColumn === 1 && "bg-primary/10")}>
-                                                    <div className="truncate">{item.name}{item.brand && <span className="text-muted-foreground"> · {item.brand}</span>}</div>
+                                                <TableCell className={cn("font-normal", cartActiveIndex === idx && cartActiveColumn === 1 && "bg-primary/10")}>
+                                                    <div className="truncate">{item.name}</div>
                                                     {item.selectedVariant && (
                                                         <button
                                                             className="mt-0.5 h-4 rounded-sm px-1 text-[10px] font-medium text-primary underline decoration-dotted underline-offset-2 hover:text-primary/80"
@@ -483,8 +483,11 @@ export default function ClassicCashierPage() {
                                                         </button>
                                                     )}
                                                 </TableCell>
-                                                <TableCell className={cn("text-right tabular-nums", cartActiveIndex === idx && cartActiveColumn === 2 && "bg-primary/10")}>{formatIDR(item.price)}</TableCell>
-                                                <TableCell className={cn(cartActiveIndex === idx && cartActiveColumn === 3 && "bg-primary/10")}>
+                                                <TableCell className={cn("whitespace-nowrap text-muted-foreground", cartActiveIndex === idx && cartActiveColumn === 2 && "bg-primary/10")}>
+                                                    <span className="truncate">{item.brand || '—'}</span>
+                                                </TableCell>
+                                                <TableCell className={cn("text-right tabular-nums whitespace-nowrap", cartActiveIndex === idx && cartActiveColumn === 3 && "bg-primary/10")}>{formatIDR(item.price)}</TableCell>
+                                                <TableCell className={cn(cartActiveIndex === idx && cartActiveColumn === 4 && "bg-primary/10")}>
                                                     {qtyEditId === item.cartItemId ? (
                                                         <div className="flex items-center justify-center gap-1">
                                                             <input
@@ -520,8 +523,8 @@ export default function ClassicCashierPage() {
                                                         </div>
                                                     )}
                                                 </TableCell>
-                                                <TableCell className={cn("text-right font-bold tabular-nums", cartActiveIndex === idx && cartActiveColumn === 4 && "bg-primary/10")}>{formatIDR(item.price * item.quantity)}</TableCell>
-                                                <TableCell className={cn(cartActiveIndex === idx && cartActiveColumn === 5 && "bg-primary/10")}>
+                                                <TableCell className={cn("text-right font-bold tabular-nums whitespace-nowrap", cartActiveIndex === idx && cartActiveColumn === 5 && "bg-primary/10")}>{formatIDR(item.price * item.quantity)}</TableCell>
+                                                <TableCell className={cn(cartActiveIndex === idx && cartActiveColumn === 6 && "bg-primary/10")}>
                                                     <Button variant="ghost" size="icon" className={cn("size-7 text-muted-foreground opacity-0 hover:text-destructive group-hover:opacity-100", cartActiveIndex === idx && "opacity-100")} aria-label={`Hapus ${item.name}`} onClick={() => removeFromCart(item.cartItemId)}><Trash2 className="size-4"/></Button>
                                                 </TableCell>
                                             </motion.tr>

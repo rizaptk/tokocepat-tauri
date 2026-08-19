@@ -42,8 +42,7 @@ export const searchCatalog = async (q: string): Promise<CatalogProduct[]> => {
             || (p.brand || '').toLowerCase().includes(query)
             || (p.brand_owner || '').toLowerCase().includes(query)
             || (p.generic_name || '').toLowerCase().includes(query)
-        )
-        .slice(0, 40);
+        );
 };
 
 export const getCatalogItemByBarcode = async (barcode: string): Promise<CatalogProduct | undefined> => {
@@ -52,9 +51,10 @@ export const getCatalogItemByBarcode = async (barcode: string): Promise<CatalogP
 };
 
 /**
- * Reactive catalog search: debounced, async, resolves to the top 40 matches.
- * `loading` is true only while the catalog is being fetched for the first time
- * (the ~11k-row IPC read can be slow); cached searches resolve instantly.
+ * Reactive catalog search: debounced, async, resolves to all matching rows
+ * (the caller paginates for rendering). `loading` is true only while the
+ * catalog is being fetched for the first time (the ~11k-row IPC read can be
+ * slow); cached searches resolve instantly.
  */
 export const useCatalogSearch = (query: string): { hits: CatalogProduct[]; loading: boolean } => {
     const [hits, setHits] = useState<CatalogProduct[]>([]);

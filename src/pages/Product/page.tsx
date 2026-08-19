@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { useStore } from "@/lib/store";
 import { Product, CatalogProduct } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
@@ -171,6 +171,39 @@ export default function ProductManagementPage() {
         const productBarcodes = new Set(products.map(p => p.barcode).filter(Boolean));
         return catalogHits.filter(item => !productBarcodes.has(item.barcode));
     }, [catalogHits, products]);
+
+    // Infinite scroll: render the first `catalogVisibleCount` hits, then load
+    // more in batches as the user scrolls the catalog result list.
+    const CATALOG_PAGE_SIZE = 40;
+    const [catalogVisibleCount, setCatalogVisibleCount] = useState(CATALOG_PAGE_SIZE);
+    const catalogSentinelRef = useRef<HTMLDivElement>(null);
+    const catalogScrollRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        setCatalogVisibleCount(CATALOG_PAGE_SIZE);
+    }, [query]);
+
+    useEffect(() => {
+        const sentinel = catalogSentinelRef.current;
+        const scrollRoot = catalogScrollRef.current;
+        if (!sentinel || !scrollRoot) return;
+
+        const observer = new IntersectionObserver(
+            (entries) => {
+                if (entries[0]?.isIntersecting) {
+                    setCatalogVisibleCount(prev => Math.min(prev + CATALOG_PAGE_SIZE, filteredCatalogHits.length));
+                }
+            },
+            { root: scrollRoot, rootMargin: '200px' }
+        );
+        observer.observe(sentinel);
+        return () => observer.disconnect();
+    }, [query, filteredCatalogHits.length]);
+
+    const visibleCatalogHits = useMemo(
+        () => filteredCatalogHits.slice(0, catalogVisibleCount),
+        [filteredCatalogHits, catalogVisibleCount]
+    );
 
     const displayedProducts = useMemo(() => {
         let items = [...products];
@@ -411,7 +444,7 @@ export default function ProductManagementPage() {
                                         </div>
                                     </div>
                                 ) : filteredCatalogHits.length > 0 ? (
-                                    <div className="min-h-0 flex-1 overflow-auto no-scrollbar">
+                                    <div ref={catalogScrollRef} className="min-h-0 flex-1 overflow-auto no-scrollbar">
                                         <div className="px-3 pt-2 pb-1 flex items-center gap-2 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
                                             <PackageSearch className="size-3.5" />
                                             Katalog Referensi ({filteredCatalogHits.length}) — pilih lalu simpan untuk menjadikannya produk
@@ -434,9 +467,14 @@ export default function ProductManagementPage() {
                                                 target.focus();
                                             }}
                                         >
-                                            {filteredCatalogHits.map(item => (
+                                            {visibleCatalogHits.map(item => (
                                                 <CatalogHitRow key={item.id} item={item} onSelect={() => handleCatalogSelect(item)} />
                                             ))}
+                                            {visibleCatalogHits.length < filteredCatalogHits.length && (
+                                                <div ref={catalogSentinelRef} className="flex items-center justify-center gap-2 py-3 text-xs text-muted-foreground">
+                                                    <Loader2 className="size-3.5 animate-spin" /> Memuat lebih banyak...
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 ) : (
