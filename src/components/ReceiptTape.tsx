@@ -10,6 +10,7 @@ export interface ReceiptLineItem {
     variant?: string;
     qty: number;
     price: number;
+    discount?: number;
 }
 
 export interface ReceiptSnapshot {
@@ -21,6 +22,8 @@ export interface ReceiptSnapshot {
     tax: number;
     total: number;
     promoDiscount: number;
+    voucherDiscount: number;
+    voucherCode?: string;
     manualDiscount: number;
     dateISO: string;
 }
@@ -198,13 +201,31 @@ export function ReceiptTape({ data, storeName, storeAddress, footer, className }
                     ) : null}
                 </div>
             );
-            list.push(<LedgerRow key={`p${i}`} label={`${item.qty} x ${formatIDNumber(item.price)}`} value={formatIDNumber(item.price * item.qty)} />);
+            const gross = item.price * item.qty;
+            const net = gross - (item.discount || 0);
+            list.push(<LedgerRow key={`p${i}`} label={`${item.qty} x ${formatIDNumber(item.price)}`} value={formatIDNumber(net)} />);
+            if ((item.discount || 0) > 0) {
+                list.push(
+                    <div
+                        key={`d${i}`}
+                        className="font-mono text-right"
+                        style={{ color: INK_MUTED, fontSize: 9, lineHeight: 1.3 }}
+                    >
+                        Diskon -{formatIDNumber(item.discount || 0)}
+                    </div>
+                );
+            }
         });
 
         list.push(<div key="rule2" className="font-mono" style={{ borderTop: `1px solid ${RULE}` }} />);
         list.push(<LedgerRow key="subtotal" label="Subtotal" value={formatIDNumber(data.subtotal)} strong />);
-        if (data.promoDiscount > 0) {
-            list.push(<LedgerRow key="promo" label="Promo & Voucher" value={`-${formatIDNumber(data.promoDiscount)}`} muted />);
+        const promoExclVoucher = data.promoDiscount - (data.voucherDiscount || 0);
+        if (promoExclVoucher > 0) {
+            list.push(<LedgerRow key="promo" label="Promo & Diskon Produk" value={`-${formatIDNumber(promoExclVoucher)}`} muted />);
+        }
+        if ((data.voucherDiscount || 0) > 0) {
+            const vLabel = data.voucherCode ? `Voucher ${data.voucherCode}` : 'Voucher';
+            list.push(<LedgerRow key="voucher" label={vLabel} value={`-${formatIDNumber(data.voucherDiscount)}`} muted />);
         }
         if (data.manualDiscount > 0) {
             list.push(<LedgerRow key="manual" label="Diskon Kasir" value={`-${formatIDNumber(data.manualDiscount)}`} muted />);

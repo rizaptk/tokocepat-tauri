@@ -30,6 +30,9 @@ export interface DiscountOptions {
     voucherCode?: string;
     manualDiscount?: number;
     manualDiscountType?: 'flat' | 'persen';
+    /** When set, the cashier-entered manual discount applies ONLY to this cart
+     *  line instead of the whole transaction. */
+    manualDiscountTargetItemId?: string;
     /** Actual redeems per voucher code, derived from transactions (source of truth). */
     usageCounts?: Record<string, number>;
 }
@@ -394,17 +397,24 @@ export const evaluateDiscounts = (
     }
 
     // --- 3. Manual cashier discount ---
+    // Applies ONLY to the selected cart line when a target is given (the
+    // highlighted row in the cashier), otherwise it is distributed across every
+    // line (legacy whole-transaction behaviour).
     let manualDiscount = 0;
     const manualInput = opts.manualDiscount || 0;
     if (manualInput > 0) {
-        const remainingBase = lines.reduce((s, l) => s + Math.max(0, chargeableBase(l) - l.autoAmount - l.sharedAmount), 0);
+        const target = opts.manualDiscountTargetItemId
+            ? lines.find(l => l.cartItemId === opts.manualDiscountTargetItemId)
+            : undefined;
+        const pool = target ? [target] : lines;
+        const remainingBase = pool.reduce((s, l) => s + Math.max(0, chargeableBase(l) - l.autoAmount - l.sharedAmount), 0);
         if (opts.manualDiscountType === 'persen') {
             manualDiscount = Math.min(round(remainingBase * (Math.min(manualInput, 100) / 100)), remainingBase);
         } else {
             manualDiscount = Math.min(round(manualInput), remainingBase);
         }
         manualDiscount = Math.max(0, manualDiscount);
-        distribute(lines, manualDiscount);
+        distribute(pool, manualDiscount);
     }
 
     // --- Per-line snapshots + tax ---

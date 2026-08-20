@@ -83,9 +83,11 @@ export default function ClassicCashierPage() {
     const [searchIndex, setSearchIndex] = useState(-1);
 
     // --- Discount engine state (voucher + manual cashier discount) ---
-    const [voucherCode, setVoucherCode] = useState('');
+    const [voucherCode, setVoucherCode] = useState('');   // applied code (used by engine)
+    const [voucherInput, setVoucherInput] = useState(''); // draft typed in the F5 modal
     const [manualDiscountInput, setManualDiscountInput] = useState('');
     const [manualDiscountType, setManualDiscountType] = useState<'persen' | 'flat'>('flat');
+    const [manualDiscountTargetItemId, setManualDiscountTargetItemId] = useState<string | null>(null);
     const [isVoucherOpen, setIsVoucherOpen] = useState(false);
     const [isDiscountOpen, setIsDiscountOpen] = useState(false);
 
@@ -196,9 +198,31 @@ export default function ClassicCashierPage() {
             voucherCode,
             manualDiscount: parsedManualDiscount,
             manualDiscountType,
+            manualDiscountTargetItemId: manualDiscountInput ? (manualDiscountTargetItemId ?? undefined) : undefined,
             usageCounts: voucherUsage,
         });
-    }, [cart, storeConfig, promos, voucherCode, parsedManualDiscount, manualDiscountType, voucherUsage]);
+    }, [cart, storeConfig, promos, voucherCode, parsedManualDiscount, manualDiscountType, manualDiscountTargetItemId, manualDiscountInput, voucherUsage]);
+
+    const applyVoucher = () => {
+        setVoucherCode(voucherInput.trim().toUpperCase());
+        setIsVoucherOpen(false);
+    };
+
+    const applyManualDiscount = () => {
+        if (cartActiveIndex >= 0) {
+            setManualDiscountTargetItemId(cart[cartActiveIndex]?.cartItemId ?? null);
+        }
+        setIsDiscountOpen(false);
+    };
+
+    // When the manual discount modal opens, lock the target to the highlighted
+    // row so the live preview reflects the item the cashier sees selected.
+    useEffect(() => {
+        if (isDiscountOpen && cartActiveIndex >= 0) {
+            const item = cart[cartActiveIndex];
+            if (item) setManualDiscountTargetItemId(item.cartItemId);
+        }
+    }, [isDiscountOpen]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const { subtotal, tax, total, totalQty } = useMemo(() => {
         const qty = cart.reduce((sum, item) => sum + item.quantity, 0);
@@ -216,6 +240,9 @@ export default function ClassicCashierPage() {
     }, [cart, discountResult, storeConfig]);
 
     const hasDiscountError = (discountResult?.errors?.length ?? 0) > 0;
+
+    const reviewingVoucherAmount = reviewingTx?.applied_promos?.find(p => p.kind === 'voucher')?.amount ?? 0;
+    const reviewingPromoAmount = (reviewingTx?.promo_discount || 0) - reviewingVoucherAmount;
 
     // --- ADAPTED: Smart Cash Suggestions (from PaymentModal.tsx) ---
     const cashSuggestions = useMemo(() => {
@@ -279,8 +306,8 @@ export default function ClassicCashierPage() {
     useGlobalKeydown({ key: 'f2', handler: () => setIsHistoryOpen(true), enabled: !isReturnOpen });
     useGlobalKeydown({ key: 'f3', handler: handleParkAction, enabled: cart.length > 0 && !isReturnOpen });
     useGlobalKeydown({ key: 'f4', handler: () => setIsReturnOpen(true), enabled: !isHistoryOpen });
-    useGlobalKeydown({ key: 'f5', handler: () => setIsVoucherOpen(true), enabled: cart.length > 0 && !isReturnOpen && !isDiscountOpen });
-    useGlobalKeydown({ key: 'f6', handler: () => setIsDiscountOpen(true), enabled: cart.length > 0 && !isReturnOpen && !isVoucherOpen });
+    useGlobalKeydown({ key: 'f5', handler: () => { setVoucherInput(voucherCode); setIsVoucherOpen(true); }, enabled: cart.length > 0 && !isReturnOpen && !isDiscountOpen });
+    useGlobalKeydown({ key: 'f6', handler: () => { if (cartActiveIndex < 0) setCartActiveIndex(cart.length - 1); setIsDiscountOpen(true); }, enabled: cart.length > 0 && !isReturnOpen && !isVoucherOpen });
     useGlobalKeydown({ key: 'f8', handler: () => {
         const el = cashInputRef.current as HTMLInputElement | null;
         if (document.activeElement === el) {
@@ -347,6 +374,7 @@ export default function ClassicCashierPage() {
         }
         try {
             const invoiceNum = `INV-${Date.now().toString().slice(-6)}`;
+            const lineDiscounts = new Map((discountResult?.lines ?? []).map(l => [l.cartItemId, l]));
             const snapshot: ReceiptSnapshot = {
                 invoice: invoiceNum,
                 change,
@@ -356,11 +384,14 @@ export default function ClassicCashierPage() {
                     variant: item.selectedVariant?.name,
                     qty: item.quantity,
                     price: item.price,
+                    discount: lineDiscounts.get(item.cartItemId)?.lineDiscount ?? 0,
                 })),
                 subtotal,
                 tax,
                 total,
                 promoDiscount: discountResult?.promoDiscount ?? 0,
+                voucherDiscount: discountResult?.voucherDiscount ?? 0,
+                voucherCode: discountResult?.voucherCode ?? (voucherCode || undefined),
                 manualDiscount: discountResult?.manualDiscount ?? 0,
                 dateISO: new Date().toISOString(),
             };
@@ -368,6 +399,7 @@ export default function ClassicCashierPage() {
                 voucherCode,
                 manualDiscount: parsedManualDiscount,
                 manualDiscountType,
+                manualDiscountTargetItemId: manualDiscountInput ? manualDiscountTargetItemId ?? undefined : undefined,
             });
             // Printer menyala → struk ditangani antrean cetak fisik.
             // Printer nonaktif → hanya tampilkan tape di layar jika opsi diaktifkan;
@@ -377,7 +409,9 @@ export default function ClassicCashierPage() {
             }
             curr.setRaw('0');
             setVoucherCode('');
+            setVoucherInput('');
             setManualDiscountInput('');
+            setManualDiscountTargetItemId(null);
         } catch (error) {
             toast({ variant: "destructive", title: "Gagal memproses pembayaran" });
         }
@@ -481,8 +515,9 @@ export default function ClassicCashierPage() {
                                         </button>
                                     )}
                                     {manualDiscountInput && (
-                                        <button onClick={() => setManualDiscountInput('')} className="group inline-flex items-center gap-1 rounded-md border border-warning/40 bg-warning/10 px-2 py-1 text-xs font-semibold text-warning dark:text-warning-foreground" title="Hapus diskon kasir">
+                                        <button onClick={() => { setManualDiscountInput(''); setManualDiscountTargetItemId(null); }} className="group inline-flex items-center gap-1 rounded-md border border-warning/40 bg-warning/10 px-2 py-1 text-xs font-semibold text-warning dark:text-warning-foreground" title="Hapus diskon kasir">
                                             <BadgePercent className="size-3.5" /> {manualDiscountType === 'persen' ? `${manualDiscountInput}%` : formatIDR(parsedManualDiscount)}
+                                            {manualDiscountTargetItemId && <span className="hidden sm:inline text-muted-foreground">· {cart.find(c => c.cartItemId === manualDiscountTargetItemId)?.name}</span>}
                                             <XCircle className="size-3.5 opacity-60 transition-opacity group-hover:opacity-100" />
                                         </button>
                                     )}
@@ -605,15 +640,15 @@ export default function ClassicCashierPage() {
 
                     {/* Cart table */}
                     <div className="min-h-0 flex-1 overflow-auto outline-none" ref={cartTableRef} tabIndex={0}>
-                        <Table>
+                        <Table className="table-fixed">
                             <TableHeader className="sticky top-0 z-10 border-b border-border bg-card">
                                 <TableRow className="hover:bg-transparent">
                                     <TableHead className="w-10">No</TableHead>
-                                    <TableHead>Produk</TableHead>
+                                    <TableHead className="min-w-40">Produk</TableHead>
                                     <TableHead className="w-8 text-center">Var</TableHead>
                                     <TableHead className="w-8 text-center">Con</TableHead>
-                                    <TableHead className="w-32">Merek</TableHead>
-                                    <TableHead className="w-28">Kategori</TableHead>
+                                    <TableHead className="w-28">Merek</TableHead>
+                                    <TableHead className="w-24">Kategori</TableHead>
                                     <TableHead className="w-16 text-right">Stok</TableHead>
                                     <TableHead className="w-24 text-right">Harga</TableHead>
                                     <TableHead className="w-20 text-center">Qty</TableHead>
@@ -677,7 +712,7 @@ export default function ClassicCashierPage() {
                                                     {item.selectedVariant?.stock ?? item.stock}
                                                 </TableCell>
                                                 <TableCell className={cn("text-right tabular-nums whitespace-nowrap", cartActiveIndex === idx && cartActiveColumn === 7 && "bg-primary/10")}>{formatIDR(item.price)}</TableCell>
-                                                <TableCell className={cn(cartActiveIndex === idx && cartActiveColumn === 8 && "bg-primary/10")}>
+                                                <TableCell className={cn("text-center", cartActiveIndex === idx && cartActiveColumn === 8 && "bg-primary/10")}>
                                                     {qtyEditId === item.cartItemId ? (
                                                         <input
                                                             autoFocus
@@ -691,12 +726,12 @@ export default function ClassicCashierPage() {
                                                                 if (e.key === 'Enter') { e.preventDefault(); handleQtyCommit(item); setCartActiveIndex(-1); }
                                                                 if (e.key === 'Escape') { setQtyEditId(null); setQtyEditValue(''); }
                                                             }}
-                                                            className="w-16 h-7 rounded-md border-border/70 bg-background text-center text-sm font-bold tabular-nums outline-none ring-1 ring-primary"
+                                                            className="mx-auto block h-7 w-16 rounded-md border-border/70 bg-background text-center text-sm font-bold tabular-nums outline-none ring-1 ring-primary"
                                                         />
                                                     ) : (
                                                         <button
                                                             className={cn(
-                                                                "w-7 mx-auto block text-center font-bold tabular-nums rounded",
+                                                                "mx-auto block w-16 text-center font-bold tabular-nums rounded",
                                                                 cartActiveIndex === idx && "bg-primary/15 ring-1 ring-primary/40"
                                                             )}
                                                             onClick={() => { setQtyEditValue(String(item.quantity)); setQtyEditId(item.cartItemId); }}
@@ -853,8 +888,14 @@ export default function ClassicCashierPage() {
                                         <h4 className="font-bold text-muted-foreground uppercase text-xs tracking-widest">Informasi Pembayaran</h4>
                                         <div className="bg-muted/30 p-4 rounded-lg space-y-2">
                                             <div className="flex justify-between"><span>Subtotal</span><span className="tabular-nums">{formatIDR(reviewingTx.subtotal)}</span></div>
-                                            {(reviewingTx.discount_total || 0) > 0 && (
-                                                <div className="flex justify-between text-success dark:text-success-foreground"><span>Diskon</span><span className="tabular-nums">-{formatIDR(reviewingTx.discount_total || 0)}</span></div>
+                                            {reviewingPromoAmount > 0 && (
+                                                <div className="flex justify-between text-success dark:text-success-foreground"><span>Promo & Diskon Produk</span><span className="tabular-nums">-{formatIDR(reviewingPromoAmount)}</span></div>
+                                            )}
+                                            {reviewingTx.voucher_code && reviewingVoucherAmount > 0 && (
+                                                <div className="flex justify-between text-success dark:text-success-foreground"><span>Voucher ({reviewingTx.voucher_code})</span><span className="tabular-nums">-{formatIDR(reviewingVoucherAmount)}</span></div>
+                                            )}
+                                            {(reviewingTx.manual_discount || 0) > 0 && (
+                                                <div className="flex justify-between text-success dark:text-success-foreground"><span>Diskon Kasir</span><span className="tabular-nums">-{formatIDR(reviewingTx.manual_discount || 0)}</span></div>
                                             )}
                                             <div className="flex justify-between"><span>Pajak</span><span className="tabular-nums">{formatIDR(reviewingTx.tax_amount)}</span></div>
                                             <div className="flex justify-between font-black text-lg border-t pt-2"><span>Total</span><span className="tabular-nums">{formatIDR(reviewingTx.total)}</span></div>
@@ -895,38 +936,30 @@ export default function ClassicCashierPage() {
                 <DialogContent className="sm:max-w-sm">
                     <DialogHeader>
                         <DialogTitle>Kode Voucher</DialogTitle>
-                        <DialogDescription>Masukkan kode voucher untuk diskon transaksi ini.</DialogDescription>
+                        <DialogDescription>Masukkan kode voucher. Kode hanya diterapkan saat Anda menekan Selesai.</DialogDescription>
                     </DialogHeader>
                     <div className="space-y-3">
                         <div className="relative">
                             <TicketPercent className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                             <Input
                                 autoFocus
-                                value={voucherCode}
-                                onChange={(e) => setVoucherCode(e.target.value.toUpperCase())}
+                                value={voucherInput}
+                                onChange={(e) => setVoucherInput(e.target.value.toUpperCase())}
                                 placeholder="Mis. HEMAT10"
                                 className="h-10 pl-9 pr-9 font-mono uppercase tracking-widest"
-                                onKeyDown={(e) => e.key === 'Enter' && setIsVoucherOpen(false)}
+                                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); applyVoucher(); } }}
                             />
-                            {voucherCode && (
-                                <button onClick={() => setVoucherCode('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" aria-label="Hapus kode voucher" title="Hapus">
+                            {voucherInput && (
+                                <button onClick={() => setVoucherInput('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" aria-label="Hapus kode voucher" title="Hapus">
                                     <XCircle className="size-4" />
                                 </button>
                             )}
                         </div>
-                        {voucherCode && !discountResult?.voucherCode && (
-                            <p className="text-xs font-medium text-destructive">{discountResult?.errors?.[0] || 'Voucher tidak berlaku'}</p>
-                        )}
-                        {voucherCode && discountResult?.voucherCode && discountResult.voucherDiscount > 0 && (
-                            <div className="flex items-center justify-between rounded-md bg-success/10 px-3 py-2 text-sm">
-                                <span className="font-medium text-success dark:text-success-foreground">Voucher {voucherCode}</span>
-                                <span className="font-bold tabular-nums text-success dark:text-success-foreground">-{formatIDR(discountResult.voucherDiscount)}</span>
-                            </div>
-                        )}
+                        <p className="text-xs text-muted-foreground">Kode baru menggantikan kode yang sedang aktif.</p>
                     </div>
                     <DialogFooter className="gap-2">
-                        <Button variant="ghost" onClick={() => { setVoucherCode(''); setIsVoucherOpen(false); }}>Hapus</Button>
-                        <Button onClick={() => setIsVoucherOpen(false)}>Selesai</Button>
+                        <Button variant="ghost" onClick={() => { setVoucherCode(''); setVoucherInput(''); setIsVoucherOpen(false); }}>Hapus</Button>
+                        <Button onClick={applyVoucher}>Selesai</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
@@ -936,9 +969,13 @@ export default function ClassicCashierPage() {
                 <DialogContent className="sm:max-w-sm">
                     <DialogHeader>
                         <DialogTitle>Diskon Kasir</DialogTitle>
-                        <DialogDescription>Potongan manual di luar promo, diterapkan ke total transaksi.</DialogDescription>
+                        <DialogDescription>Potongan manual diterapkan hanya ke item yang sedang dipilih (baris ter-highlight).</DialogDescription>
                     </DialogHeader>
                     <div className="space-y-3">
+                        <div className="rounded-md border border-border bg-muted/30 px-3 py-2 text-sm">
+                            <span className="text-muted-foreground">Diterapkan ke: </span>
+                            <span className="font-semibold">{cartActiveIndex >= 0 && cart[cartActiveIndex] ? cart[cartActiveIndex].name : '-'}</span>
+                        </div>
                         <div className="flex items-center gap-1.5">
                             <div className="relative flex-1">
                                 <Input
@@ -948,7 +985,7 @@ export default function ClassicCashierPage() {
                                     placeholder="0"
                                     inputMode="decimal"
                                     className="h-10 text-lg font-semibold tabular-nums"
-                                    onKeyDown={(e) => e.key === 'Enter' && setIsDiscountOpen(false)}
+                                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); applyManualDiscount(); } }}
                                 />
                             </div>
                             <button
@@ -969,8 +1006,8 @@ export default function ClassicCashierPage() {
                         )}
                     </div>
                     <DialogFooter className="gap-2">
-                        <Button variant="ghost" onClick={() => { setManualDiscountInput(''); setIsDiscountOpen(false); }}>Hapus</Button>
-                        <Button onClick={() => setIsDiscountOpen(false)}>Selesai</Button>
+                        <Button variant="ghost" onClick={() => { setManualDiscountInput(''); setManualDiscountTargetItemId(null); setIsDiscountOpen(false); }}>Hapus</Button>
+                        <Button onClick={applyManualDiscount}>Selesai</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

@@ -343,7 +343,9 @@ export default function ReturnDialog({ open, onOpenChange }: ReturnDialogProps) 
                                             <div className="flex-1 min-w-0">
                                                 <p className="text-sm font-medium truncate">{l.item.product_snapshot.name}</p>
                                                 <p className="text-xs text-muted-foreground tabular-nums">
-                                                    {formatIDR(l.item.price_snapshot)} · beli {l.purchased} · sudah {l.already} · sisa {l.remaining}
+                                                    {formatIDR(l.item.price_snapshot)}
+                                                    {(l.item.unit_discount || 0) > 0 ? ` → net ${formatIDR(Math.max(0, l.item.price_snapshot - (l.item.unit_discount || 0)))} setelah diskon` : ''}
+                                                    {' · beli ' + l.purchased + ' · sudah ' + l.already + ' · sisa ' + l.remaining}
                                                 </p>
                                             </div>
                                             <div className="flex items-center gap-1 shrink-0">
