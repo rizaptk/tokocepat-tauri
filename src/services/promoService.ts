@@ -347,7 +347,14 @@ export const evaluateDiscounts = (
     if (code) {
         voucherPromo = activePromos.find(p => p.kind === 'voucher' && (p.code || '').toUpperCase() === code);
         if (!voucherPromo) {
-            errors.push(`Kode voucher "${code}" tidak ditemukan.`);
+            const byCode = promos.find(p => p.kind === 'voucher' && (p.code || '').toUpperCase() === code);
+            if (!byCode) {
+                errors.push(`Kode voucher "${code}" tidak ditemukan.`);
+            } else if (!byCode.is_active) {
+                errors.push(`Voucher "${byCode.name}" sedang nonaktif.`);
+            } else {
+                errors.push(`Voucher "${byCode.name}" belum berlaku atau sudah berakhir.`);
+            }
         } else {
             const voucher = voucherPromo;
             // Voucher may stack on top of a diskon, so it is scoped to its own lines.

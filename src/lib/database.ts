@@ -38,6 +38,9 @@ export async function ensureIndexes(firesqlite: any, _db: any) {
 
             // For promo/voucher listing and sync ordering
             createIndex('promos', 'created_at'),
+
+            // For cashier voucher lookup by code (authoritative DB resolution)
+            createIndex('promos', 'code'),
         ]);
         console.log("Database indexes are up to date.");
     } catch (error) {

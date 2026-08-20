@@ -1,7 +1,9 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { useStore } from '@/lib/store';
+import { useDbStore } from '@/lib/db-store';
+import { normalizePromo } from '@/lib/promo-model';
 import { Header } from '@/components/Header';
-import { Product, CartItem, ProductVariant, Transaction } from '@/lib/types';
+import { Product, CartItem, ProductVariant, Transaction, Promotion } from '@/lib/types';
 import { useProductSearch } from '@/lib/useProductSearch';
 import { useGlobalBarcodeScanner } from '@/hooks/use-global-barcode-scanner';
 import { useToast } from '@/hooks/use-toast';
@@ -48,7 +50,7 @@ export default function ClassicCashierPage() {
     const { 
         products, cart, saveItemToCart, updateQuantity, removeFromCart, 
         checkout, activeShift, openShift, storeConfig, transactions,
-        parkCart, promos, categories
+        parkCart, promos, setPromos, categories
     } = useStore();
     
     const { toast } = useToast();
@@ -86,6 +88,30 @@ export default function ClassicCashierPage() {
     const [manualDiscountType, setManualDiscountType] = useState<'persen' | 'flat'>('flat');
     const [isVoucherOpen, setIsVoucherOpen] = useState(false);
     const [isDiscountOpen, setIsDiscountOpen] = useState(false);
+
+    // Authoritative DB resolution of the entered voucher code: newly created (or
+    // synced-from-another-device) vouchers are merged into the store so the live
+    // discount preview AND checkout both see them even if the snapshot is delayed.
+    useEffect(() => {
+        const code = voucherCode.trim().toUpperCase();
+        if (!code) return;
+        if (promos.some(p => p.kind === 'voucher' && (p.code || '').toUpperCase() === code)) return;
+        let mounted = true;
+        const resolve = async () => {
+            const { db, firesqlite } = useDbStore.getState();
+            if (!db || !firesqlite) return;
+            try {
+                const { collection, query, where, getDocs } = firesqlite;
+                const snap = await getDocs(query(collection(db, 'promos'), where('code', 'eq', code)));
+                const found = snap.docs?.[0] ? normalizePromo(snap.docs[0].data() as Promotion) : null;
+                if (mounted && found && !promos.some(p => p.id === found.id)) {
+                    setPromos([...promos, found]);
+                }
+            } catch { /* the snapshot will deliver it eventually */ }
+        };
+        resolve();
+        return () => { mounted = false; };
+    }, [voucherCode, promos]);
 
     // --- Cart table navigation + in-cell editing ---
     const cartTableRef = useRef<HTMLDivElement>(null);
@@ -397,14 +423,7 @@ export default function ClassicCashierPage() {
                     <div className="flex flex-wrap items-center gap-x-8 gap-y-2">
                         {/* Grand total */}
                         <div className="min-w-44">
-                            <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                                Grand Total · {totalQty} item
-                                {cart.length > 0 && curr.raw !== '' && (
-                                    <span className={cn(change >= 0 ? "text-success dark:text-success-foreground" : "text-warning dark:text-warning-foreground")}>
-                                        {' '}· {change >= 0 ? 'Kembalian' : 'Kurang'}
-                                    </span>
-                                )}
-                            </div>
+                            <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Grand Total · {totalQty} item</div>
                             <AnimatePresence mode="wait">
                                 <motion.div
                                     key={total}
@@ -479,21 +498,23 @@ export default function ClassicCashierPage() {
                         {/* Quick cash (inline with Bayar label) + cash input + change */}
                         <div className="flex items-end gap-3">
                             <div className="space-y-1">
-                                <div className="flex items-baseline gap-2">
+                                <div className="flex items-baseline gap-1.5">
                                     <Label className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Bayar</Label>
                                     {cashSuggestions.length > 0 && (
-                                        <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                                            <span className="text-[10px] font-semibold uppercase tracking-widest">Uang tunai cepat:</span>
-                                            {cashSuggestions.map(amt => (
-                                                <button
-                                                    key={amt}
-                                                    type="button"
-                                                    className="px-0.5 font-semibold text-foreground/80 underline decoration-dotted underline-offset-2 hover:text-primary"
-                                                    onClick={() => curr.setRaw(amt.toString())}
-                                                    title={amt === total ? 'Bayar uang pas' : 'Isi uang tunai cepat'}
-                                                >
-                                                    {amt === total ? 'Pas' : `${Math.round(amt / 1000)}K`}
-                                                </button>
+                                        <span className="flex items-baseline gap-0.5 text-xs text-muted-foreground">
+                                            <span className="mr-0.5">-</span>
+                                            {cashSuggestions.map((amt, i) => (
+                                                <span key={amt} className="flex items-baseline">
+                                                    <button
+                                                        type="button"
+                                                        className="px-0.5 font-semibold text-foreground/80 underline decoration-dotted underline-offset-2 hover:text-primary"
+                                                        onClick={() => curr.setRaw(amt.toString())}
+                                                        title={amt === total ? 'Bayar uang pas' : 'Isi uang tunai cepat'}
+                                                    >
+                                                        {amt === total ? 'Pas' : `${Math.round(amt / 1000)}K`}
+                                                    </button>
+                                                    {i < cashSuggestions.length - 1 && <span className="mx-0.5 text-muted-foreground">,</span>}
+                                                </span>
                                             ))}
                                         </span>
                                     )}
@@ -515,13 +536,20 @@ export default function ClassicCashierPage() {
                                     />
                                 </div>
                             </div>
-                            <div className={cn(
-                                "flex h-9 items-center justify-end rounded-lg border px-3",
-                                change >= 0 ? "border-success/60 bg-success/40" : "border-warning bg-warning/50"
-                            )}>
-                                <span className={cn("text-lg font-bold tabular-nums", change >= 0 ? "text-success-foreground" : "text-warning-foreground")}>
-                                    {change < 0 ? "-" : ""}{formatIDR(Math.abs(change))}
-                                </span>
+                            <div className="space-y-1">
+                                <div className="flex h-4 items-end justify-end">
+                                    <span className={cn("text-[10px] font-semibold uppercase tracking-widest", change >= 0 ? "text-success-foreground" : "text-warning-foreground")}>
+                                        {change >= 0 ? 'Kembalian' : 'Kurang'}
+                                    </span>
+                                </div>
+                                <div className={cn(
+                                    "flex h-9 w-40 items-center justify-end overflow-hidden rounded-lg border px-3",
+                                    change >= 0 ? "border-success/60 bg-success/40" : "border-warning bg-warning/50"
+                                )}>
+                                    <span className={cn("truncate text-lg font-bold tabular-nums", change >= 0 ? "text-success-foreground" : "text-warning-foreground")}>
+                                        {change < 0 ? "-" : ""}{formatIDR(Math.abs(change))}
+                                    </span>
+                                </div>
                             </div>
                         </div>
 
