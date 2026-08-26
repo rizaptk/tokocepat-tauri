@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect, memo, useRef, useTransition } from "react
 import { useStore } from "@/lib/store";
 import { Product, StockMovementType, Category, ProductVariant, StockMovement } from "@/lib/types";
 import { adjustStock, adjustVariantStock, getStockMovementsByProducts } from "@/services/stockService";
+import { normalizeProductUoms } from "@/lib/uom";
 import { useToast } from "@/hooks/use-toast";
 import { FixedSizeList as List } from 'react-window';
 import AutoSizer from 'react-virtualized-auto-sizer';
@@ -152,10 +153,13 @@ const StockHistoryCards = memo(({selectedItem}: {selectedItem: { id: string, typ
                                             <div className="flex-1 min-w-0">
                                                 <div className="flex justify-between items-start mb-0.5">
                                                     <span className="text-[11px] text-muted-foreground uppercase tracking-wider font-bold">
-                                                        {hisType}
+                                                        {hisType} {history.uom_name ? `· ${history.uom_name}` : ''}
                                                     </span>
                                                     <div className={cn("font-bold text-sm tabular-nums", isPositive ? "text-success dark:text-success-foreground" : "text-destructive")}>
-                                                        {isPositive ? `+${history.qty_change}` : history.qty_change}
+                                                        <span>{isPositive ? `+${history.qty_change}` : history.qty_change}</span>
+                                                        {history.uom_name && history.qty_change_uom != null && history.uom_factor !== 1 && (
+                                                            <span className="ml-1 text-xs font-normal">({history.qty_change_uom > 0 ? `+${history.qty_change_uom}` : history.qty_change_uom} {history.uom_name})</span>
+                                                        )}
                                                     </div>
                                                 </div>
                                                 <div className="flex justify-between items-end gap-2 truncate">
@@ -196,6 +200,7 @@ const StockAdjustmentPanel = memo(({ selectedItem, onSave, onCancel, rapidMode, 
     const [actualCount, setActualCount] = useState('');
     const [reason, setReason] = useState(rapidMode ? lastReasonByMode.count : '');
     const [note, setNote] = useState('');
+    const [selectedUomId, setSelectedUomId] = useState<string | null>(null);
 
     const { products, productVariants } = useStore();
     const { toast } = useToast();
@@ -217,6 +222,16 @@ const StockAdjustmentPanel = memo(({ selectedItem, onSave, onCancel, rapidMode, 
         }
     }, [selectedItem, products, productVariants]);
 
+    const productForUom: Product | null = useMemo(() => {
+        if (!item) return null;
+        if (item.itemType === 'product') return item as unknown as Product;
+        return products.find(p => p.id === (item as ProductVariant).product_id) || null;
+    }, [item, products]);
+    const normUoms = useMemo(() => productForUom ? normalizeProductUoms(productForUom).uoms! : [], [productForUom]);
+    const selectedUom = useMemo(() => normUoms.find(u => u.id === selectedUomId) || normUoms.find(u => u.isBase) || normUoms[0], [normUoms, selectedUomId]);
+    const uomFactor = selectedUom?.factor || 1;
+    const uomName = selectedUom?.name || productForUom?.baseUom || 'Pcs';
+
     // Reset form state when product changes. Pre-fill the physical count from the
     // shared record so values persist across Mode Cepat / normal / Worksheet.
     useEffect(() => {
@@ -226,6 +241,7 @@ const StockAdjustmentPanel = memo(({ selectedItem, onSave, onCancel, rapidMode, 
             setActualCount(physicalCounts?.[selectedItem.id] ?? '');
             setReason(rapidMode ? lastReasonByMode.count : '');
             setNote('');
+            setSelectedUomId(null);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selectedItem]);
@@ -239,7 +255,7 @@ const StockAdjustmentPanel = memo(({ selectedItem, onSave, onCancel, rapidMode, 
         }
     }, [rapidMode, selectedItem, mode]);
 
-    // Calculate change and new stock for the preview
+    // Calculate change and new stock for the preview — UOM-aware (qty in selected UOM → base Pcs)
     const { change, newStock, isFormValid } = useMemo(() => {
         if (!item || !mode) return { change: 0, newStock: 0, isFormValid: false };
 
@@ -248,15 +264,17 @@ const StockAdjustmentPanel = memo(({ selectedItem, onSave, onCancel, rapidMode, 
         let formIsValid = false;
 
         if (mode === 'add' || mode === 'remove') {
-            const qty = parseInt(quantity, 10);
+            const qty = parseFloat(quantity);
             if (!isNaN(qty) && qty > 0) {
-                changeVal = mode === 'add' ? qty : -qty;
+                const base = Math.round(qty * uomFactor);
+                changeVal = mode === 'add' ? base : -base;
                 formIsValid = !!reason;
             }
         } else if (mode === 'count') {
-            const count = parseInt(actualCount, 10);
+            const count = parseFloat(actualCount);
             if (!isNaN(count)) {
-                changeVal = count - currentStock;
+                const baseCount = Math.round(count * uomFactor);
+                changeVal = baseCount - currentStock;
                 // Form is valid if reason is selected, OR if there's no change (no action needed).
                 formIsValid = changeVal !== 0 ? !!reason : true;
             }
@@ -267,7 +285,7 @@ const StockAdjustmentPanel = memo(({ selectedItem, onSave, onCancel, rapidMode, 
             newStock: currentStock + changeVal,
             isFormValid: formIsValid
         };
-    }, [mode, quantity, actualCount, reason, item]);
+    }, [mode, quantity, actualCount, reason, item, uomFactor]);
 
     const handleSubmit = async () => {
         if (!isFormValid || !item || !mode) {
@@ -290,15 +308,25 @@ const StockAdjustmentPanel = memo(({ selectedItem, onSave, onCancel, rapidMode, 
 
             const adjustmentReason = note ? `${selectedOption.label}: ${note}` : selectedOption.label;
 
+            const qtyChangeUom = mode === 'count' ? (change / uomFactor) : (parseFloat(quantity) || 0) * (mode === 'remove' ? -1 : 1);
             if (item.itemType === 'product') {
                 await adjustStock({
                     product_id: item.id,
                     type: selectedOption.value,
                     qty_change: change,
                     reason: adjustmentReason,
+                    qty_change_uom: qtyChangeUom,
+                    uom_id: selectedUom?.id,
+                    uom_name: uomName,
+                    uom_factor: uomFactor,
                 });
             } else if (item.itemType === 'variant') {
-                await adjustVariantStock(item.id, selectedOption.value, change, adjustmentReason);
+                await adjustVariantStock(item.id, selectedOption.value, change, adjustmentReason, {
+                    qty_change_uom: qtyChangeUom,
+                    uom_id: selectedUom?.id,
+                    uom_name: uomName,
+                    uom_factor: uomFactor,
+                });
             }
 
             // Remember the chosen reason so the next item can default to it.
@@ -393,11 +421,25 @@ const StockAdjustmentPanel = memo(({ selectedItem, onSave, onCancel, rapidMode, 
                                         {mode && (
                                             <div className="space-y-3 pt-2">
                                                 {mode === 'add' || mode === 'remove' ? (
-                                                    <div className="grid grid-cols-2 gap-3">
+                                                    <div className="grid grid-cols-3 gap-3">
                                                         <div className="space-y-2">
                                                             <Label htmlFor="quantity">Jumlah</Label>
                                                             <Input id="quantity" type="number" placeholder="Angka" value={quantity} onChange={(e) => setQuantity(e.target.value)} min="1" onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSubmit(); } }} />
                                                         </div>
+                                                        {normUoms.length > 1 ? (
+                                                            <div className="space-y-2">
+                                                                <Label>Satuan</Label>
+                                                                <Select value={selectedUom?.id} onValueChange={setSelectedUomId}>
+                                                                    <SelectTrigger><SelectValue /></SelectTrigger>
+                                                                    <SelectContent>{normUoms.map(u => <SelectItem key={u.id} value={u.id}>{u.name} ×{u.factor}</SelectItem>)}</SelectContent>
+                                                                </Select>
+                                                            </div>
+                                                        ) : (
+                                                            <div className="space-y-2">
+                                                                <Label>Satuan</Label>
+                                                                <div className="h-9 flex items-center px-3 border rounded-md bg-muted text-sm">{uomName}</div>
+                                                            </div>
+                                                        )}
                                                         <div className="space-y-2">
                                                             <Label htmlFor="reason-select">Alasan</Label>
                                                             <Select value={reason} onValueChange={setReason}>
@@ -409,11 +451,25 @@ const StockAdjustmentPanel = memo(({ selectedItem, onSave, onCancel, rapidMode, 
                                                         </div>
                                                     </div>
                                                 ) : (
-                                                    <div className="grid grid-cols-2 gap-3">
+                                                    <div className="grid grid-cols-3 gap-3">
                                                         <div className="space-y-2">
                                                             <Label htmlFor="actual-count">Stok Rill (Fisik)</Label>
                                                             <Input ref={countInputRef} id="actual-count" type="number" placeholder="cth. 142" value={actualCount} onChange={(e) => { setActualCount(e.target.value); onPhysicalCountChange?.(item?.id ?? '', e.target.value); }} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSubmit(); } }} />
                                                         </div>
+                                                        {normUoms.length > 1 ? (
+                                                            <div className="space-y-2">
+                                                                <Label>Satuan</Label>
+                                                                <Select value={selectedUom?.id} onValueChange={setSelectedUomId}>
+                                                                    <SelectTrigger><SelectValue /></SelectTrigger>
+                                                                    <SelectContent>{normUoms.map(u => <SelectItem key={u.id} value={u.id}>{u.name} ×{u.factor}</SelectItem>)}</SelectContent>
+                                                                </Select>
+                                                            </div>
+                                                        ) : (
+                                                            <div className="space-y-2">
+                                                                <Label>Satuan</Label>
+                                                                <div className="h-9 flex items-center px-3 border rounded-md bg-muted text-sm">{uomName}</div>
+                                                            </div>
+                                                        )}
                                                         {change !== 0 && (
                                                             <div className="space-y-2">
                                                                 <Label htmlFor="reason-count">Alasan Selisih</Label>

@@ -46,6 +46,10 @@ type AdjustmentData = {
     type: StockMovementType;
     qty_change: number;
     reason: string;
+    qty_change_uom?: number;
+    uom_id?: string;
+    uom_name?: string;
+    uom_factor?: number;
 }
 
 export const adjustStock = async (data: AdjustmentData): Promise<void> => {
@@ -70,6 +74,10 @@ export const adjustStock = async (data: AdjustmentData): Promise<void> => {
         product_name_snapshot: product.name,
         type: data.type,
         qty_change: data.qty_change,
+        qty_change_uom: data.qty_change_uom,
+        uom_id: data.uom_id,
+        uom_name: data.uom_name,
+        uom_factor: data.uom_factor,
         reason: data.reason,
         reference_id: `manual-${movementId}`,
         created_at: now,
@@ -84,7 +92,7 @@ export const adjustStock = async (data: AdjustmentData): Promise<void> => {
     await updateDoc(productRef, { stock: newStock, updated_at: now });
 };
 
-export const adjustVariantStock = async (variantId: string, type: StockMovementType, qty_change: number, reason: string): Promise<void> => {
+export const adjustVariantStock = async (variantId: string, type: StockMovementType, qty_change: number, reason: string, uom?: { qty_change_uom?: number; uom_id?: string; uom_name?: string; uom_factor?: number }): Promise<void> => {
     const { db, firesqlite } = useDbStore.getState();
     const { productVariants, products } = useStore.getState();
     if (!db || !firesqlite) throw new Error("Database not initialized");
@@ -106,6 +114,10 @@ export const adjustVariantStock = async (variantId: string, type: StockMovementT
         product_name_snapshot: productNameSnapshot,
         type: type,
         qty_change: qty_change,
+        qty_change_uom: uom?.qty_change_uom,
+        uom_id: uom?.uom_id,
+        uom_name: uom?.uom_name,
+        uom_factor: uom?.uom_factor,
         reason: reason,
         reference_id: `manual-var-${movementId}`,
         created_at: now,
