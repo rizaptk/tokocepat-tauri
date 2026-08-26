@@ -14,7 +14,7 @@ import {
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Search, Trash2, ReceiptCent, Printer, CheckCircle2, LogIn, ArrowLeft, XCircle, TicketPercent, Gift, BadgePercent, GitBranch, Handshake } from 'lucide-react';
+import { Search, Trash2, ReceiptCent, Printer, CheckCircle2, LogIn, ArrowLeft, XCircle, TicketPercent, Gift, BadgePercent, GitBranch, Handshake, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { VariantPanel } from '@/components/VariantPanel';
@@ -85,51 +85,73 @@ export default function ClassicCashierPage() {
     // --- Discount engine state (voucher + manual cashier discount) ---
     const [voucherCode, setVoucherCode] = useState('');   // applied code (used by engine)
     const [voucherInput, setVoucherInput] = useState(''); // draft typed in the F5 modal
+    const [voucherClaimMsg, setVoucherClaimMsg] = useState<string | null>(null);
+    const [voucherResolving, setVoucherResolving] = useState(false);
     const [manualDiscountInput, setManualDiscountInput] = useState('');
     const [manualDiscountType, setManualDiscountType] = useState<'persen' | 'flat'>('flat');
     const [manualDiscountTargetItemId, setManualDiscountTargetItemId] = useState<string | null>(null);
     const [isVoucherOpen, setIsVoucherOpen] = useState(false);
     const [isDiscountOpen, setIsDiscountOpen] = useState(false);
 
-    // Resolve an applied voucher code that is missing from the live promos
-    // snapshot (brand-new or synced-from-another-device). Primary source is the
-    // store; fallback scans the whole `promos` collection client-side so the
-    // claim never depends on a field index being present/backfilled.
-    useEffect(() => {
-        const code = voucherCode.trim().toUpperCase();
-        if (!code) return;
-        if (promos.some(p => p.kind === 'voucher' && (p.code || '').toUpperCase() === code)) return;
-        let cancelled = false;
-        const resolve = async () => {
-            const { db, firesqlite } = useDbStore.getState();
-            if (!db || !firesqlite) return;
-            const { collection: coll, query, where, getDocs } = firesqlite;
-            const pick = (rows: any[]) =>
-                rows.map(r => normalizePromo(r as Promotion))
-                    .find(p => p.kind === 'voucher' && (p.code || '').toUpperCase() === code);
-            try {
-                let found: Promotion | null | undefined = null;
-                // 1) Fast path: indexed equality query.
-                try {
-                    const snap = await getDocs(query(coll(db, 'promos'), where('code', 'eq', code)));
-                    found = snap.docs?.[0] ? pick([snap.docs[0].data()]) : null;
-                } catch { /* fall through to scan */ }
-                // 2) Index-independent full scan (promos stays a tiny collection).
-                if (!found) {
+    // Deterministic voucher claim: resolve the code (store snapshot first, then an
+    // index-free scan of the whole `promos` collection), validate it, and either
+    // apply it or keep the modal open with the exact reason. Claiming can never
+    // fail silently.
+    const claimVoucher = async () => {
+        if (voucherResolving) return;
+        const code = voucherInput.trim().toUpperCase();
+        if (!code) {
+            setVoucherCode('');
+            setVoucherClaimMsg(null);
+            setIsVoucherOpen(false);
+            return;
+        }
+        setVoucherResolving(true);
+        try {
+            let promo = promos.find(p => p.kind === 'voucher' && (p.code || '').toUpperCase() === code);
+            if (!promo) {
+                const { db, firesqlite } = useDbStore.getState();
+                if (db && firesqlite) {
+                    const { collection: coll, getDocs } = firesqlite;
                     const all = await getDocs(coll(db, 'promos'));
-                    found = all.docs?.length ? pick(all.docs.map((d: any) => d.data())) : null;
-                }
-                if (!cancelled && found) {
-                    const current = useStore.getState().promos;
-                    if (!current.some(p => p.id === found!.id)) {
-                        setPromos([...current, found]);
+                    const row = (all.docs || [])
+                        .map((d: any) => normalizePromo(d.data() as Promotion))
+                        .find(p => p.kind === 'voucher' && (p.code || '').toUpperCase() === code);
+                    if (row) {
+                        const current = useStore.getState().promos;
+                        if (!current.some(p => p.id === row.id)) setPromos([...current, row]);
+                        promo = row;
                     }
                 }
-            } catch { /* the snapshot will deliver it eventually */ }
-        };
-        resolve();
-        return () => { cancelled = true; };
-    }, [voucherCode, promos]);
+            }
+            if (!promo) {
+                setVoucherClaimMsg(`Kode "${code}" tidak ditemukan. Buat voucher di menu Promo & Voucher terlebih dahulu.`);
+                return;
+            }
+            if (!promo.is_active) {
+                setVoucherClaimMsg(`Voucher "${promo.name}" sedang nonaktif. Aktifkan di menu Promo & Voucher.`);
+                return;
+            }
+            const now = Date.now();
+            const startMs = promo.starts_at ? new Date(promo.starts_at).getTime() : 0;
+            const endMs = promo.ends_at ? new Date(promo.ends_at).getTime() : Number.POSITIVE_INFINITY;
+            if (startMs > now) {
+                setVoucherClaimMsg(`Voucher "${promo.name}" baru berlaku mulai ${format(new Date(startMs), "d MMM, HH:mm")}.`);
+                return;
+            }
+            if (endMs <= now) {
+                setVoucherClaimMsg(`Voucher "${promo.name}" sudah kedaluwarsa (${format(new Date(endMs), "d MMM, HH:mm")}).`);
+                return;
+            }
+            setVoucherCode(code);
+            setVoucherClaimMsg(null);
+            setIsVoucherOpen(false);
+        } catch {
+            setVoucherClaimMsg('Gagal memeriksa kode voucher. Coba lagi.');
+        } finally {
+            setVoucherResolving(false);
+        }
+    };
 
     // --- Cart table navigation + in-cell editing ---
     const cartTableRef = useRef<HTMLDivElement>(null);
@@ -219,16 +241,8 @@ export default function ClassicCashierPage() {
         });
     }, [cart, storeConfig, promos, voucherCode, parsedManualDiscount, manualDiscountType, manualDiscountTargetItemId, manualDiscountInput, voucherUsage]);
 
-    // The typed draft is committed on ANY modal close (Selesai / Enter / Esc /
-    // outside click) so a stray dismissal can never silently drop the code.
-    const commitVoucherDraft = () => {
-        setVoucherCode(voucherInput.trim().toUpperCase());
-    };
-
-    const closeVoucherModal = () => {
-        commitVoucherDraft();
-        setIsVoucherOpen(false);
-    };
+    // The typed draft is committed only through claimVoucher (Selesai / Enter) so
+    // every claim is validated; Esc / outside click cancels without changes.
 
     const applyManualDiscount = () => {
         if (cartActiveIndex >= 0) {
@@ -328,7 +342,7 @@ export default function ClassicCashierPage() {
     useGlobalKeydown({ key: 'f2', handler: () => setIsHistoryOpen(true), enabled: !isReturnOpen });
     useGlobalKeydown({ key: 'f3', handler: handleParkAction, enabled: cart.length > 0 && !isReturnOpen });
     useGlobalKeydown({ key: 'f4', handler: () => setIsReturnOpen(true), enabled: !isHistoryOpen });
-    useGlobalKeydown({ key: 'f5', handler: () => { setVoucherInput(voucherCode); setIsVoucherOpen(true); }, enabled: cart.length > 0 && !isReturnOpen && !isDiscountOpen });
+    useGlobalKeydown({ key: 'f5', handler: () => { setVoucherInput(voucherCode); setVoucherClaimMsg(null); setIsVoucherOpen(true); }, enabled: cart.length > 0 && !isReturnOpen && !isDiscountOpen });
     useGlobalKeydown({ key: 'f6', handler: () => { if (cartActiveIndex < 0) setCartActiveIndex(cart.length - 1); setIsDiscountOpen(true); }, enabled: cart.length > 0 && !isReturnOpen && !isVoucherOpen });
     useGlobalKeydown({ key: 'f8', handler: () => {
         const el = cashInputRef.current as HTMLInputElement | null;
@@ -546,7 +560,7 @@ export default function ClassicCashierPage() {
                                 </div>
                             )}
                             {voucherCode && !discountResult?.voucherCode && (
-                                <p className="text-[10px] font-medium text-destructive">{discountResult?.errors?.[0] || 'Voucher tidak berlaku'}</p>
+                                <p className="text-[10px] font-medium text-destructive">{discountResult?.errors?.[0] || `Voucher ${voucherCode} tidak dapat diterapkan`}</p>
                             )}
                         </div>
 
@@ -954,11 +968,11 @@ export default function ClassicCashierPage() {
             </Dialog>
 
             {/* --- VOUCHER MODAL (F5) --- */}
-            <Dialog open={isVoucherOpen} onOpenChange={(open) => { if (!open) closeVoucherModal(); }}>
+            <Dialog open={isVoucherOpen} onOpenChange={(open) => { if (!open) setIsVoucherOpen(false); }}>
                 <DialogContent className="sm:max-w-sm">
                     <DialogHeader>
                         <DialogTitle>Kode Voucher</DialogTitle>
-                        <DialogDescription>Masukkan kode voucher. Kode diterapkan saat modal ditutup.</DialogDescription>
+                        <DialogDescription>Masukkan kode lalu tekan Selesai untuk memeriksa dan menerapkan voucher.</DialogDescription>
                     </DialogHeader>
                     <div className="space-y-3">
                         <div className="relative">
@@ -966,22 +980,27 @@ export default function ClassicCashierPage() {
                             <Input
                                 autoFocus
                                 value={voucherInput}
-                                onChange={(e) => setVoucherInput(e.target.value.toUpperCase())}
+                                onChange={(e) => { setVoucherInput(e.target.value.toUpperCase()); setVoucherClaimMsg(null); }}
                                 placeholder="Mis. HEMAT10"
                                 className="h-10 pl-9 pr-9 font-mono uppercase tracking-widest"
-                                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); closeVoucherModal(); } }}
+                                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); claimVoucher(); } }}
                             />
                             {voucherInput && (
-                                <button onClick={() => setVoucherInput('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" aria-label="Hapus kode voucher" title="Hapus">
+                                <button onClick={() => { setVoucherInput(''); setVoucherClaimMsg(null); }} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" aria-label="Hapus kode voucher" title="Hapus">
                                     <XCircle className="size-4" />
                                 </button>
                             )}
                         </div>
+                        {voucherClaimMsg && (
+                            <p className="text-xs font-medium text-destructive">{voucherClaimMsg}</p>
+                        )}
                         <p className="text-xs text-muted-foreground">Kode baru menggantikan kode yang sedang aktif.</p>
                     </div>
                     <DialogFooter className="gap-2">
-                        <Button variant="ghost" onClick={() => { setVoucherCode(''); setVoucherInput(''); setIsVoucherOpen(false); }}>Hapus</Button>
-                        <Button onClick={closeVoucherModal}>Selesai</Button>
+                        <Button variant="ghost" onClick={() => { setVoucherCode(''); setVoucherInput(''); setVoucherClaimMsg(null); setIsVoucherOpen(false); }}>Hapus</Button>
+                        <Button onClick={claimVoucher} disabled={voucherResolving}>
+                            {voucherResolving ? (<><Loader2 className="mr-2 size-4 animate-spin" /> Memeriksa…</>) : 'Selesai'}
+                        </Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
