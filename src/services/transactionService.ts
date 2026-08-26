@@ -192,8 +192,13 @@ export const createTransaction = async (
                 consignment_commission_value: item.consignment_commission_value,
             },
             price_snapshot: item.price,
+            price_base_snapshot: (item as any).pricePerBase || item.price / ((item as any).selectedUomFactor || 1),
             cost_snapshot: effectiveCost, // Saved as cost_snapshot (HPP)
             qty: item.quantity,
+            qty_base: (item as any).qtyBase ?? item.quantity * ((item as any).selectedUomFactor || 1),
+            uom_id: (item as any).selectedUomId,
+            uom_name: (item as any).selectedUomName,
+            uom_factor: (item as any).selectedUomFactor || 1,
             subtotal: item.price * item.quantity, // GROSS line total (includes free-unit retail value)
             is_consignment_settled: item.is_consignment ? false : undefined,
             // Discount snapshot from the engine (0 for legacy/unpromoted lines)
@@ -226,6 +231,9 @@ export const createTransaction = async (
 
     // 2. Update stock and create stock movements
     for (const cartItem of cart) {
+        const qtyBase = (cartItem as any).qtyBase ?? cartItem.quantity * ((cartItem as any).selectedUomFactor || 1);
+        const uomName = (cartItem as any).selectedUomName;
+        const uomFactor = (cartItem as any).selectedUomFactor || 1;
         if (cartItem.selectedVariant) {
             // Deduct stock from the specific variant if it tracks stock
             if (cartItem.selectedVariant.track_stock) {
@@ -233,7 +241,7 @@ export const createTransaction = async (
                 const variantSnap = await getDoc(variantRef);
                 if (variantSnap.exists()) {
                     const currentStock = variantSnap.data()?.stock;
-                    await updateDoc(variantRef, { stock: currentStock - cartItem.quantity, updated_at: createdAt });
+                    await updateDoc(variantRef, { stock: currentStock - qtyBase, updated_at: createdAt });
 
                     const movementId = `sm-var-${transactionId}-${cartItem.selectedVariant.id}`;
                     const stockMovement: StockMovement = {
@@ -241,8 +249,11 @@ export const createTransaction = async (
                         product_id: cartItem.selectedVariant.id, // Reference variant ID
                         product_name_snapshot: `${cartItem.name} (${cartItem.selectedVariant.name})`,
                         type: 'sale',
-                        reason: `Penjualan Varian: ${cartItem.name}`,
-                        qty_change: -cartItem.quantity,
+                        reason: `Penjualan Varian: ${cartItem.name}${uomName ? ` (${qtyBase} ${uomName} ×${uomFactor})` : ''}`,
+                        qty_change: -qtyBase,
+                        qty_change_uom: -cartItem.quantity,
+                        uom_name: uomName,
+                        uom_factor: uomFactor,
                         reference_id: transactionId,
                         created_at: createdAt,
                     };
@@ -254,7 +265,7 @@ export const createTransaction = async (
             const productSnap = await getDoc(productRef);
             if (productSnap.exists()) {
                 const currentStock = productSnap.data()?.stock;
-                await updateDoc(productRef, { stock: currentStock - cartItem.quantity, updated_at: createdAt });
+                await updateDoc(productRef, { stock: currentStock - qtyBase, updated_at: createdAt });
 
                 const movementId = `sm-${transactionId}-${cartItem.id}`;
                 const stockMovement: StockMovement = {
@@ -262,8 +273,11 @@ export const createTransaction = async (
                     product_id: cartItem.id,
                     product_name_snapshot: cartItem.name,
                     type: 'sale',
-                    reason: `Penjualan Produk: ${cartItem.name}`,
-                    qty_change: -cartItem.quantity,
+                    reason: `Penjualan Produk: ${cartItem.name}${uomName ? ` (${qtyBase} ${uomName} ×${uomFactor})` : ''}`,
+                    qty_change: -qtyBase,
+                    qty_change_uom: -cartItem.quantity,
+                    uom_name: uomName,
+                    uom_factor: uomFactor,
                     reference_id: transactionId,
                     created_at: createdAt,
                 };

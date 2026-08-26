@@ -27,6 +27,8 @@ import { useCurrencyFormat } from '@/hooks/useCurrencyFormat';
 import { voidTransaction } from '@/services/transactionService';
 import { evaluateDiscounts } from '@/services/promoService';
 import { DEFAULT_STORE_CONFIG } from '@/lib/defaults';
+import { normalizeProductUoms } from '@/lib/uom';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { format } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ReceiptTape, type ReceiptSnapshot } from '@/components/ReceiptTape';
@@ -49,10 +51,12 @@ const Kbd = ({ children }: { children: React.ReactNode }) => (
 
 export default function ClassicCashierPage() {
     const { 
-        products, cart, saveItemToCart, updateQuantity, removeFromCart, 
+        products, cart, saveItemToCart, updateQuantity, updateCartItemUom, removeFromCart, 
         checkout, activeShift, openShift, storeConfig, transactions,
-        parkCart, promos, setPromos, categories
+        parkCart, promos, setPromos, categories, customers, customerGroups
     } = useStore();
+    const [isWholesaleMode, setIsWholesaleMode] = useState(false);
+    const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
     
     const { toast } = useToast();
     const { addToQueue } = usePrintStore();
@@ -78,6 +82,20 @@ export default function ClassicCashierPage() {
     // Refs for keyboard focus
     const cashInputRef = useRef<HTMLInputElement>(null);
     const searchInputRef = useRef<HTMLInputElement>(null);
+
+    const selectedCustomer = useMemo(() => customers.find(c => c.id === selectedCustomerId) || null, [customers, selectedCustomerId]);
+    const selectedGroupId = selectedCustomer?.groupId || undefined;
+
+    // Re-price cart when customer group changes in wholesale mode (Group Base -> Qty Tier)
+    useEffect(() => {
+        if (!isWholesaleMode || cart.length === 0) return;
+        // Delay to ensure selectedCustomer state propagated
+        for (const it of cart) {
+            const norm = normalizeProductUoms(it as any);
+            const uomId = (it as any).selectedUomId || norm.uoms?.find(u=>u.isBase)?.id;
+            if (uomId) updateCartItemUom(it.cartItemId, uomId, selectedGroupId);
+        }
+    }, [selectedGroupId, isWholesaleMode]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const [successData, setSuccessData] = useState<ReceiptSnapshot | null>(null);
     const [itemToSelectVariant, setItemToSelectVariant] = useState<Product | null>(null);
@@ -162,7 +180,7 @@ export default function ClassicCashierPage() {
     const [variantEditCartId, setVariantEditCartId] = useState<string | null>(null);
     const { activeIndex: cartActiveIndex, setActiveIndex: setCartActiveIndex, activeColumn: cartActiveColumn } = useTableNavigation({
         rowCount: cart.length,
-        columnCount: 11, // No | Var | Con | Produk | Merek | Kategori | Stok | Harga | Qty | Subtotal | Hapus
+        columnCount: 12, // No | Produk | Var | Con | Merek | Kategori | Stok | Harga | Satuan | Qty | Subtotal | Hapus
         bindTo: cartTableRef,
         onActivate: (index, column) => {
             const item = cart[index];
@@ -180,11 +198,11 @@ export default function ClassicCashierPage() {
                     setQtyEditValue(String(item.quantity));
                     setQtyEditId(item.cartItemId);
                 }
-            } else if (column === 8) {
+            } else if (column === 9) {
                 // Qty column (default for any line): start in-cell qty edit
                 setQtyEditValue(String(item.quantity));
                 setQtyEditId(item.cartItemId);
-            } else if (column === 10) {
+            } else if (column === 11) {
                 removeFromCart(item.cartItemId);
             }
         },
@@ -201,6 +219,11 @@ export default function ClassicCashierPage() {
         if (qtyEditId !== item.cartItemId) return;
         const qty = Math.max(1, Math.floor(Number(qtyEditValue) || 1));
         updateQuantity(item.cartItemId, qty);
+        const norm = normalizeProductUoms(item as any);
+        if (norm.isWholesaleEnabled && norm.wholesaleTiers && norm.wholesaleTiers.length > 0) {
+            const uomId = (item as any).selectedUomId || norm.uoms?.find(u=>u.isBase)?.id;
+            if (uomId) updateCartItemUom(item.cartItemId, uomId, selectedGroupId);
+        }
         setQtyEditId(null);
         setQtyEditValue('');
     };
@@ -678,6 +701,35 @@ export default function ClassicCashierPage() {
                         </div>
                     </div>
 
+                    {/* Wholesale bar */}
+                    <div className="flex shrink-0 items-center gap-3 border-b border-border bg-amber-50/60 px-2.5 py-1.5">
+                        <label className="flex items-center gap-2 text-xs font-medium">
+                            <input type="checkbox" checked={isWholesaleMode} onChange={e=>setIsWholesaleMode(e.target.checked)} className="h-3.5 w-3.5 rounded border" />
+                            Mode Grosir
+                        </label>
+                        {isWholesaleMode && (
+                            <>
+                                <div className="h-4 w-px bg-border" />
+                                <Select value={selectedCustomerId || ''} onValueChange={v=>setSelectedCustomerId(v||null)}>
+                                    <SelectTrigger className="h-7 w-64 text-xs"><SelectValue placeholder="Pilih pelanggan (Umum jika kosong)" /></SelectTrigger>
+                                    <SelectContent>
+                                        {customers.map(c=>{
+                                            const g=customerGroups.find(gr=>gr.id===c.groupId);
+                                            return <SelectItem key={c.id} value={c.id}>{c.name} {g?`· ${g.name}`:''}</SelectItem>;
+                                        })}
+                                    </SelectContent>
+                                </Select>
+                                {selectedCustomer && (
+                                    <span className="text-xs text-muted-foreground">
+                                        TOP {selectedCustomer.topDays ?? customerGroups.find(g=>g.id===selectedCustomer.groupId)?.topDays ?? 0} hari
+                                        {selectedCustomer.creditLimit ? ` · Limit ${formatIDR(selectedCustomer.creditLimit)}` : ''}
+                                    </span>
+                                )}
+                                <span className="ml-auto text-[10px] text-muted-foreground">Harga grosir otomatis per qty Pcs</span>
+                            </>
+                        )}
+                    </div>
+
                     {/* Cart table */}
                     <div className="min-h-0 flex-1 overflow-auto outline-none" ref={cartTableRef} tabIndex={0}>
                         <Table className="table-fixed">
@@ -691,6 +743,7 @@ export default function ClassicCashierPage() {
                                     <TableHead className="w-24">Kategori</TableHead>
                                     <TableHead className="w-16 text-right">Stok</TableHead>
                                     <TableHead className="w-24 text-right">Harga</TableHead>
+                                    <TableHead className="w-20 text-center">Satuan</TableHead>
                                     <TableHead className="w-20 text-center">Qty</TableHead>
                                     <TableHead className="w-28 text-right">Subtotal</TableHead>
                                     <TableHead className="w-10"></TableHead>
@@ -699,7 +752,7 @@ export default function ClassicCashierPage() {
                             <TableBody>
                                 {cart.length === 0 ? (
                                     <TableRow>
-                                        <TableCell colSpan={11} className="h-[40vh] text-center text-muted-foreground">
+                                        <TableCell colSpan={12} className="h-[40vh] text-center text-muted-foreground">
                                             <div className="space-y-1">
                                                 <p className="font-medium text-foreground/70">Keranjang kosong</p>
                                                 <p className="text-sm">Cari produk, scan barcode, atau tekan <Kbd>F1</Kbd> untuk fokus pencarian.</p>
@@ -753,6 +806,19 @@ export default function ClassicCashierPage() {
                                                 </TableCell>
                                                 <TableCell className={cn("text-right tabular-nums whitespace-nowrap", cartActiveIndex === idx && cartActiveColumn === 7 && "bg-primary/10")}>{formatIDR(item.price)}</TableCell>
                                                 <TableCell className={cn("text-center", cartActiveIndex === idx && cartActiveColumn === 8 && "bg-primary/10")}>
+                                                    {(() => {
+                                                        const norm = normalizeProductUoms(item as any);
+                                                        const uoms = norm.uoms || [];
+                                                        if (uoms.length <= 1) return <span className="text-xs">{uoms[0]?.name || norm.baseUom || 'Pcs'}</span>;
+                                                        return (
+                                                            <Select value={(item as any).selectedUomId || uoms.find(u=>u.isBase)?.id} onValueChange={v => updateCartItemUom(item.cartItemId, v, selectedGroupId)}>
+                                                                <SelectTrigger className="h-7 w-full text-xs"><SelectValue /></SelectTrigger>
+                                                                <SelectContent>{uoms.map(u => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}</SelectContent>
+                                                            </Select>
+                                                        );
+                                                    })()}
+                                                </TableCell>
+                                                <TableCell className={cn("text-center", cartActiveIndex === idx && cartActiveColumn === 9 && "bg-primary/10")}>
                                                     {qtyEditId === item.cartItemId ? (
                                                         <input
                                                             autoFocus
@@ -782,8 +848,8 @@ export default function ClassicCashierPage() {
                                                         </button>
                                                     )}
                                                 </TableCell>
-                                                <TableCell className={cn("text-right font-bold tabular-nums whitespace-nowrap", cartActiveIndex === idx && cartActiveColumn === 9 && "bg-primary/10")}>{formatIDR(item.price * item.quantity)}</TableCell>
-                                                <TableCell className={cn(cartActiveIndex === idx && cartActiveColumn === 10 && "bg-primary/10")}>
+                                                <TableCell className={cn("text-right font-bold tabular-nums whitespace-nowrap", cartActiveIndex === idx && cartActiveColumn === 10 && "bg-primary/10")}>{formatIDR(item.price * item.quantity)}</TableCell>
+                                                <TableCell className={cn(cartActiveIndex === idx && cartActiveColumn === 11 && "bg-primary/10")}>
                                                     <Button variant="ghost" size="icon" className={cn("size-7 text-muted-foreground opacity-0 hover:text-destructive group-hover:opacity-100", cartActiveIndex === idx && "opacity-100")} aria-label={`Hapus ${item.name}`} onClick={() => removeFromCart(item.cartItemId)}><Trash2 className="size-4"/></Button>
                                                 </TableCell>
                                             </motion.tr>

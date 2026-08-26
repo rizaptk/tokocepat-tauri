@@ -12,6 +12,7 @@ import { TokoCepatLogo } from "./TokoCepatLogo";
 import { generateDeviceFingerprint } from "@/lib/security";
 import { normalizePromo } from "@/lib/promo-model";
 import { DEFAULT_STORE_CONFIG } from "@/lib/defaults";
+import { normalizeProductUoms } from "@/lib/uom";
 
 export function DbProvider({ children }: { children: React.ReactNode }) {
     const { isInitialized, db, firesqlite } = useDbStore();
@@ -82,7 +83,7 @@ export function DbProvider({ children }: { children: React.ReactNode }) {
 
                 // PRODUCTS: The "Anchor" for Tier 1
                 subscribe(onSnapshot(collection(db, 'products'), (snap: any) => {
-                    const productList = snap.docs.map((d: any) => d.data() as Product);
+                    const productList = snap.docs.map((d: any) => normalizeProductUoms(d.data() as Product));
                     setProducts(productList);
                     
                     // Once we have products, we consider the primary UI "Loaded"

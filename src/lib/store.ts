@@ -10,7 +10,7 @@ import { parkCartInDb, deletePendingCartFromDb } from '@/services/pendingCartSer
 import { useSettingsStore } from './settings';
 import { usePrintStore } from './print-store';
 import { DEFAULT_STORE_CONFIG } from '@/lib/defaults';
-import { getUom, resolvePricePerUom, toBaseQty } from '@/lib/uom';
+import { getUom, resolvePricePerUom, toBaseQty, normalizeProductUoms } from '@/lib/uom';
 
 
 // This represents an item that has had a variant selected but is not yet in the cart
@@ -196,11 +196,20 @@ export const useStore = create<StoreState>()(
                         return;
                     }
 
+                    const normProd = normalizeProductUoms(productInState);
+                    const baseUom = normProd.uoms!.find(u => u.isBase) || normProd.uoms![0];
+                    const pricePerBase = finalPrice; // already per base (variant price included)
+                    const pricePerUom = baseUom.price ?? pricePerBase * baseUom.factor;
                     const newCartItem: CartItem = {
                         ...productInState,
                         cartItemId: `cart-item-${crypto.randomUUID().slice(0, 8)}`,
                         quantity: 1,
-                        price: finalPrice,
+                        qtyBase: toBaseQty(1, baseUom.factor),
+                        price: pricePerUom,
+                        pricePerBase,
+                        selectedUomId: baseUom.id,
+                        selectedUomName: baseUom.name,
+                        selectedUomFactor: baseUom.factor,
                         selectedVariant: finalVariant,
                     };
                     set({ cart: [...cart, newCartItem] });
@@ -247,16 +256,30 @@ export const useStore = create<StoreState>()(
                     : itemToUpdate.stock;
 
                 const isStockTracked = itemToUpdate.has_variant || itemToUpdate.track_stock;
+                const factor = (itemToUpdate as any).selectedUomFactor || 1;
+                const qtyBase = toBaseQty(newQuantity, factor);
+                // Wholesale tier re-pricing on qty change (Group Base -> Qty Tier)
+                let pricePerUom = itemToUpdate.price;
+                const norm = normalizeProductUoms(itemToUpdate as any);
+                if (norm.isWholesaleEnabled) {
+                    const uom = getUom(itemToUpdate as any, (itemToUpdate as any).selectedUomId);
+                    pricePerUom = resolvePricePerUom(itemToUpdate as any, uom, qtyBase);
+                }
 
-                if (isStockTracked && quantity > stockLimit) {
-                    toast({ variant: 'destructive', description: `Stok ${itemToUpdate.name} sisa ${stockLimit}.` });
-                    newQuantity = stockLimit;
+                if (isStockTracked && qtyBase > stockLimit) {
+                    const maxUomQty = Math.floor(stockLimit / factor);
+                    toast({ variant: 'destructive', description: `Stok ${itemToUpdate.name} sisa ${stockLimit} ${norm.baseUom || 'Pcs'} (${maxUomQty} ${ (itemToUpdate as any).selectedUomName || norm.baseUom}).` });
+                    newQuantity = maxUomQty > 0 ? maxUomQty : 1;
                 }
 
                 set({
-                    cart: cart.map(item =>
-                        item.cartItemId === cartItemId ? { ...item, quantity: newQuantity } : item
-                    )
+                    cart: cart.map(item => {
+                        if (item.cartItemId !== cartItemId) return item;
+                        const newQtyBase = toBaseQty(newQuantity, factor);
+                        const uom = getUom(item as any, (item as any).selectedUomId);
+                        const newPrice = norm.isWholesaleEnabled ? resolvePricePerUom(item as any, uom, newQtyBase) : pricePerUom;
+                        return { ...item, quantity: newQuantity, qtyBase: newQtyBase, price: newPrice, pricePerBase: newPrice / factor } as any;
+                    })
                 });
             },
 
