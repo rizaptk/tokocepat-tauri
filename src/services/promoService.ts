@@ -141,7 +141,10 @@ export const evaluateDiscounts = (
 
     const grossSubtotal = lines.reduce((sum, l) => sum + l.grossAmount, 0);
 
-    const activePromos = promos.map(normalizePromo).filter(isPromoLive);
+    // NOTE: must wrap in an arrow — `filter(isPromoLive)` would pass the array
+    // INDEX as isPromoLive's `now` parameter, killing every promo whose
+    // starts_at is after 1970 (i.e. all of them).
+    const activePromos = promos.map(normalizePromo).filter(p => isPromoLive(p));
 
     const cartById = new Map(cart.map(c => [c.cartItemId, c]));
     const getItem = (l: DiscountLine) => cartById.get(l.cartItemId);
