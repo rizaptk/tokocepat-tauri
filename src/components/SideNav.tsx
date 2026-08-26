@@ -9,6 +9,7 @@ import {
     ShieldAlert,
     Gift,
     Users,
+    Wallet,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/lib/ismobile-store';
@@ -26,6 +27,7 @@ const navItems = [
     { href: '/inventory', label: 'Inventori', icon: Warehouse },
     { href: '/dashboard/promos', label: 'Promo', icon: Gift },
     { href: '/dashboard/customers', label: 'Pelanggan', icon: Users },
+    { href: '/dashboard/piutang', label: 'Piutang', icon: Wallet },
     { href: '/dashboard/reports', label: 'Laporan', icon: BarChartIcon },
     { href: '/dashboard/settings', label: 'Pengaturan', icon: Settings },
 ];

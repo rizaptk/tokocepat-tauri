@@ -24,6 +24,7 @@ const PromoReportPage = lazy(() => import('./pages/Dashboard/reports/promos/page
 const LicensePage = lazy(() => import('./pages/Dashboard/settings/License'))
 const PromosPage = lazy(() => import('./pages/Dashboard/promos/page'))
 const CustomersPage = lazy(() => import('./pages/Dashboard/customers/page'))
+const PiutangPage = lazy(() => import('./pages/Dashboard/piutang/page'))
 const ProductLayout = lazy(() => import('./pages/Product/layout'))
 const ProductHome = lazy(() => import('./pages/Product/page'))
 
@@ -54,6 +55,7 @@ function App() {
             <Route path="dashboard/reports/promos" element={<PromoReportPage />} />
             <Route path="dashboard/promos" element={<PromosPage />} />
             <Route path="dashboard/customers" element={<CustomersPage />} />
+            <Route path="dashboard/piutang" element={<PiutangPage />} />
             <Route path="dashboard/settings" element={<DashboardSettings />} />
             <Route path="dashboard/shifts/:id" element={<DashboardShiftDetail />} />
 
