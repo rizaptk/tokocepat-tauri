@@ -365,32 +365,40 @@ export const evaluateDiscounts = (
                 const item = cartById.get(l.cartItemId);
                 return item ? matchesPromo(item, voucher) : false;
             });
-            const base = voucherLines.reduce((s, l) => s + Math.max(0, chargeableBase(l) - l.autoAmount), 0);
-            const minPurchase = voucher.min_purchase || 0;
-            let quotaAllowed = true;
-            if (base <= 0) {
-                quotaAllowed = false;
-            } else if (orderBase() < minPurchase) {
-                errors.push(`Voucher ${voucher.name} butuh minimal belanja ${minPurchase.toLocaleString('id-ID')}.`);
-                quotaAllowed = false;
-            } else if (typeof voucher.max_uses === 'number' && voucher.max_uses > 0) {
-                const used = (opts.usageCounts?.[code] || 0) + (voucher.uses_count || 0);
-                if (used >= voucher.max_uses) {
-                    errors.push(`Voucher ${voucher.name} sudah habis digunakan.`);
+            if (voucherLines.length === 0) {
+                errors.push(`Voucher ${voucher.name} tidak berlaku untuk item di keranjang.`);
+            } else {
+                const base = voucherLines.reduce((s, l) => s + Math.max(0, chargeableBase(l) - l.autoAmount), 0);
+                const minPurchase = voucher.min_purchase || 0;
+                let quotaAllowed = true;
+                if (base <= 0) {
                     quotaAllowed = false;
+                } else if (orderBase() < minPurchase) {
+                    errors.push(`Voucher ${voucher.name} butuh minimal belanja ${minPurchase.toLocaleString('id-ID')}.`);
+                    quotaAllowed = false;
+                } else if (typeof voucher.max_uses === 'number' && voucher.max_uses > 0) {
+                    const used = (opts.usageCounts?.[code] || 0) + (voucher.uses_count || 0);
+                    if (used >= voucher.max_uses) {
+                        errors.push(`Voucher ${voucher.name} sudah habis digunakan.`);
+                        quotaAllowed = false;
+                    }
                 }
-            }
-            if (quotaAllowed) {
-                const value = voucher.discount_value || 0;
-                if (voucher.discount_type === 'flat') {
-                    voucherDiscount = Math.min(round(value), base);
-                } else {
-                    voucherDiscount = Math.min(round(base * (value / 100)), base);
-                }
-                voucherDiscount = Math.max(0, voucherDiscount);
-                if (voucherDiscount > 0) {
-                    voucherCode = code;
-                    distribute(voucherLines, voucherDiscount);
+                if (quotaAllowed) {
+                    const value = voucher.discount_value || 0;
+                    if (value <= 0) {
+                        errors.push(`Voucher ${voucher.name} belum memiliki nilai diskon.`);
+                    } else {
+                        if (voucher.discount_type === 'flat') {
+                            voucherDiscount = Math.min(round(value), base);
+                        } else {
+                            voucherDiscount = Math.min(round(base * (value / 100)), base);
+                        }
+                        voucherDiscount = Math.max(0, voucherDiscount);
+                        if (voucherDiscount > 0) {
+                            voucherCode = code;
+                            distribute(voucherLines, voucherDiscount);
+                        }
+                    }
                 }
             }
         }

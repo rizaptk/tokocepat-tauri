@@ -91,28 +91,44 @@ export default function ClassicCashierPage() {
     const [isVoucherOpen, setIsVoucherOpen] = useState(false);
     const [isDiscountOpen, setIsDiscountOpen] = useState(false);
 
-    // Authoritative DB resolution of the entered voucher code: newly created (or
-    // synced-from-another-device) vouchers are merged into the store so the live
-    // discount preview AND checkout both see them even if the snapshot is delayed.
+    // Resolve an applied voucher code that is missing from the live promos
+    // snapshot (brand-new or synced-from-another-device). Primary source is the
+    // store; fallback scans the whole `promos` collection client-side so the
+    // claim never depends on a field index being present/backfilled.
     useEffect(() => {
         const code = voucherCode.trim().toUpperCase();
         if (!code) return;
         if (promos.some(p => p.kind === 'voucher' && (p.code || '').toUpperCase() === code)) return;
-        let mounted = true;
+        let cancelled = false;
         const resolve = async () => {
             const { db, firesqlite } = useDbStore.getState();
             if (!db || !firesqlite) return;
+            const { collection: coll, query, where, getDocs } = firesqlite;
+            const pick = (rows: any[]) =>
+                rows.map(r => normalizePromo(r as Promotion))
+                    .find(p => p.kind === 'voucher' && (p.code || '').toUpperCase() === code);
             try {
-                const { collection, query, where, getDocs } = firesqlite;
-                const snap = await getDocs(query(collection(db, 'promos'), where('code', 'eq', code)));
-                const found = snap.docs?.[0] ? normalizePromo(snap.docs[0].data() as Promotion) : null;
-                if (mounted && found && !promos.some(p => p.id === found.id)) {
-                    setPromos([...promos, found]);
+                let found: Promotion | null | undefined = null;
+                // 1) Fast path: indexed equality query.
+                try {
+                    const snap = await getDocs(query(coll(db, 'promos'), where('code', 'eq', code)));
+                    found = snap.docs?.[0] ? pick([snap.docs[0].data()]) : null;
+                } catch { /* fall through to scan */ }
+                // 2) Index-independent full scan (promos stays a tiny collection).
+                if (!found) {
+                    const all = await getDocs(coll(db, 'promos'));
+                    found = all.docs?.length ? pick(all.docs.map((d: any) => d.data())) : null;
+                }
+                if (!cancelled && found) {
+                    const current = useStore.getState().promos;
+                    if (!current.some(p => p.id === found!.id)) {
+                        setPromos([...current, found]);
+                    }
                 }
             } catch { /* the snapshot will deliver it eventually */ }
         };
         resolve();
-        return () => { mounted = false; };
+        return () => { cancelled = true; };
     }, [voucherCode, promos]);
 
     // --- Cart table navigation + in-cell editing ---
@@ -203,8 +219,14 @@ export default function ClassicCashierPage() {
         });
     }, [cart, storeConfig, promos, voucherCode, parsedManualDiscount, manualDiscountType, manualDiscountTargetItemId, manualDiscountInput, voucherUsage]);
 
-    const applyVoucher = () => {
+    // The typed draft is committed on ANY modal close (Selesai / Enter / Esc /
+    // outside click) so a stray dismissal can never silently drop the code.
+    const commitVoucherDraft = () => {
         setVoucherCode(voucherInput.trim().toUpperCase());
+    };
+
+    const closeVoucherModal = () => {
+        commitVoucherDraft();
         setIsVoucherOpen(false);
     };
 
@@ -932,11 +954,11 @@ export default function ClassicCashierPage() {
             </Dialog>
 
             {/* --- VOUCHER MODAL (F5) --- */}
-            <Dialog open={isVoucherOpen} onOpenChange={(open) => !open && setIsVoucherOpen(false)}>
+            <Dialog open={isVoucherOpen} onOpenChange={(open) => { if (!open) closeVoucherModal(); }}>
                 <DialogContent className="sm:max-w-sm">
                     <DialogHeader>
                         <DialogTitle>Kode Voucher</DialogTitle>
-                        <DialogDescription>Masukkan kode voucher. Kode hanya diterapkan saat Anda menekan Selesai.</DialogDescription>
+                        <DialogDescription>Masukkan kode voucher. Kode diterapkan saat modal ditutup.</DialogDescription>
                     </DialogHeader>
                     <div className="space-y-3">
                         <div className="relative">
@@ -947,7 +969,7 @@ export default function ClassicCashierPage() {
                                 onChange={(e) => setVoucherInput(e.target.value.toUpperCase())}
                                 placeholder="Mis. HEMAT10"
                                 className="h-10 pl-9 pr-9 font-mono uppercase tracking-widest"
-                                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); applyVoucher(); } }}
+                                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); closeVoucherModal(); } }}
                             />
                             {voucherInput && (
                                 <button onClick={() => setVoucherInput('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" aria-label="Hapus kode voucher" title="Hapus">
@@ -959,7 +981,7 @@ export default function ClassicCashierPage() {
                     </div>
                     <DialogFooter className="gap-2">
                         <Button variant="ghost" onClick={() => { setVoucherCode(''); setVoucherInput(''); setIsVoucherOpen(false); }}>Hapus</Button>
-                        <Button onClick={applyVoucher}>Selesai</Button>
+                        <Button onClick={closeVoucherModal}>Selesai</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
