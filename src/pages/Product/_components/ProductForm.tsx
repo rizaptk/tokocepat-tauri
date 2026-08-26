@@ -40,6 +40,9 @@ export interface VariantFormData {
     low_stock_alert?: number;
 }
 
+import type { UomDef, WholesaleTier, GroupPrice } from '@/lib/types';
+import { normalizeProductUoms } from '@/lib/uom';
+
 export interface ProductFormData {
     name: string;
     brand?: string;
@@ -61,6 +64,12 @@ export interface ProductFormData {
     consignor_name?: string;
     consignment_commission_type?: 'percentage' | 'flat';
     consignment_commission_value?: number;
+
+    baseUom?: string;
+    uoms?: UomDef[];
+    isWholesaleEnabled?: boolean;
+    wholesaleTiers?: WholesaleTier[];
+    groupPrices?: GroupPrice[];
 }
 
 interface ProductFormProps {
@@ -80,7 +89,12 @@ const initialFormValues: ProductFormData = {
     is_consignment: false,
     consignor_name: "",
     consignment_commission_type: "percentage",
-    consignment_commission_value: 0
+    consignment_commission_value: 0,
+    baseUom: "Pcs",
+    uoms: [{ id: "uom-base", name: "Pcs", factor: 1, isBase: true }],
+    isWholesaleEnabled: false,
+    wholesaleTiers: [],
+    groupPrices: [],
 };
 
 export const ProductForm = ({ productId, onSave, onCancel, catalogPrefill }: ProductFormProps) => {
@@ -110,6 +124,7 @@ export const ProductForm = ({ productId, onSave, onCancel, catalogPrefill }: Pro
     useEffect(() => {
         if (product) {
             const variantsForProduct = productVariants.filter(v => v.product_id === product.id);
+            const norm = normalizeProductUoms(product as any);
             form.reset({
                 name: product.name, brand: product.brand || "", category_id: product.category_id,
                 sku: product.sku, barcode: product.barcode,
@@ -123,6 +138,11 @@ export const ProductForm = ({ productId, onSave, onCancel, catalogPrefill }: Pro
                 consignor_name: product.consignor_name || "",
                 consignment_commission_type: product.consignment_commission_type || "percentage",
                 consignment_commission_value: product.consignment_commission_value || 0,
+                baseUom: norm.baseUom || "Pcs",
+                uoms: norm.uoms || [{ id: "uom-base", name: "Pcs", factor: 1, isBase: true }],
+                isWholesaleEnabled: product.isWholesaleEnabled || false,
+                wholesaleTiers: product.wholesaleTiers || [],
+                groupPrices: product.groupPrices || [],
             });
         } else if (catalogPrefill) {
             const matchedCategory = categories.find(c =>
@@ -443,6 +463,80 @@ export const ProductForm = ({ productId, onSave, onCancel, catalogPrefill }: Pro
                                             render={({ field }) => (<FormItem><FormLabel>Batas Stok Minimum</FormLabel><FormControl><Input type="number" placeholder="10" {...field} disabled={hasVariant || !form.watch('track_stock')} onChange={(e) => field.onChange(Number(e.target.value))} /></FormControl><FormMessage /></FormItem>)}
                                         />
                                     </div>
+                                    {/* Multi-UOM */}
+                                    <Card className="border-border/40 bg-muted/10">
+                                        <CardHeader className="px-3 py-2"><CardTitle className="text-sm">Satuan (UOM) — stok dilacak dalam {form.watch('baseUom') || 'Pcs'}</CardTitle></CardHeader>
+                                        <CardContent className="space-y-2 px-3 py-2">
+                                            <FormField control={form.control} name="baseUom" render={({ field }) => (
+                                                <FormItem><FormLabel>Satuan Dasar</FormLabel><FormControl>
+                                                    <select value={field.value} onChange={e=>{
+                                                        const v=e.target.value; field.onChange(v);
+                                                        const cur=form.getValues('uoms')||[];
+                                                        const has=cur.some(u=>u.isBase);
+                                                        if(has){ form.setValue('uoms', cur.map(u=>u.isBase?{...u,name:v}:u)); }
+                                                    }} className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm">
+                                                        {["Pcs","Pack","Dus","Karton","Lusin","Kg","Sachet","Box","Roll","Item"].map(o=><option key={o} value={o}>{o}</option>)}
+                                                    </select>
+                                                </FormControl><FormDescription>Semua stok disimpan dalam satuan ini. Varian berbagi daftar satuan.</FormDescription></FormItem>
+                                            )} />
+                                            <div className="space-y-2">
+                                                {(form.watch('uoms')||[]).map((u:any,idx:number)=>(
+                                                    <div key={u.id||idx} className="flex gap-2 items-end">
+                                                        <div className="flex-1"><label className="text-xs">Nama</label><Input value={u.name} onChange={e=>{
+                                                            const cur=[...(form.getValues('uoms')||[])]; cur[idx]={...cur[idx],name:e.target.value}; form.setValue('uoms',cur);
+                                                        }} placeholder="Dus" disabled={u.isBase} /></div>
+                                                        <div className="w-20"><label className="text-xs">Faktor</label><Input type="number" value={u.factor} onChange={e=>{
+                                                            const cur=[...(form.getValues('uoms')||[])]; cur[idx]={...cur[idx],factor: Number(e.target.value)||1}; form.setValue('uoms',cur);
+                                                        }} disabled={u.isBase} /></div>
+                                                        <div className="w-28"><label className="text-xs">Harga/UOM</label><Input type="number" value={u.price??''} placeholder={String((form.getValues('price')||0)*(u.factor||1))} onChange={e=>{
+                                                            const cur=[...(form.getValues('uoms')||[])]; cur[idx]={...cur[idx],price: e.target.value?Number(e.target.value):undefined}; form.setValue('uoms',cur);
+                                                        }} /></div>
+                                                        {!u.isBase && <Button type="button" variant="ghost" size="sm" onClick={()=>{
+                                                            const cur=(form.getValues('uoms')||[]).filter((_:any,i:number)=>i!==idx); form.setValue('uoms',cur);
+                                                        }}>Hapus</Button>}
+                                                        {u.isBase && <span className="text-xs text-muted-foreground px-2">Base</span>}
+                                                    </div>
+                                                ))}
+                                                <Button type="button" variant="outline" size="sm" onClick={()=>{
+                                                    const cur=form.getValues('uoms')||[]; form.setValue('uoms',[...cur,{id:`uom-${Date.now()}`,name:"Pack",factor:6,isBase:false}]);
+                                                }}><PlusCircle className="mr-2 h-4 w-4" /> Tambah Satuan</Button>
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+
+                                    {/* Grosir Tiers */}
+                                    <Card className="border-border/40 bg-muted/10">
+                                        <CardHeader className="px-3 py-2 flex flex-row items-center justify-between"><CardTitle className="text-sm">Harga Grosir (Qty Tier)</CardTitle>
+                                            <FormField control={form.control} name="isWholesaleEnabled" render={({ field }) => (
+                                                <FormItem className="flex items-center gap-2 m-0"><FormControl><Switch checked={!!field.value} onCheckedChange={field.onChange} /></FormControl><span className="text-xs">{field.value?"Aktif":"Nonaktif"}</span></FormItem>
+                                            )} />
+                                        </CardHeader>
+                                        {form.watch('isWholesaleEnabled') && (
+                                            <CardContent className="space-y-2 px-3 py-2">
+                                                <div className="text-xs text-muted-foreground">Threshold dalam {form.watch('baseUom')||'Pcs'}. Harga per {form.watch('baseUom')||'Pcs'}. Contoh: 12–49 → Rp9.000</div>
+                                                {(form.watch('wholesaleTiers')||[]).map((t:any,idx:number)=>(
+                                                    <div key={t.id||idx} className="flex gap-2 items-end">
+                                                        <div className="w-20"><label className="text-xs">Min</label><Input type="number" value={t.minQty} onChange={e=>{
+                                                            const cur=[...(form.getValues('wholesaleTiers')||[])]; cur[idx]={...cur[idx],minQty:Number(e.target.value)||0}; form.setValue('wholesaleTiers',cur);
+                                                        }} /></div>
+                                                        <div className="w-20"><label className="text-xs">Maks</label><Input type="number" value={t.maxQty??''} placeholder="∞" onChange={e=>{
+                                                            const cur=[...(form.getValues('wholesaleTiers')||[])]; cur[idx]={...cur[idx],maxQty:e.target.value?Number(e.target.value):undefined}; form.setValue('wholesaleTiers',cur);
+                                                        }} /></div>
+                                                        <div className="flex-1"><label className="text-xs">Harga/Pcs</label><Input type="number" value={t.price} onChange={e=>{
+                                                            const cur=[...(form.getValues('wholesaleTiers')||[])]; cur[idx]={...cur[idx],price:Number(e.target.value)||0}; form.setValue('wholesaleTiers',cur);
+                                                        }} /></div>
+                                                        <Button type="button" variant="ghost" size="sm" onClick={()=>{
+                                                            const cur=(form.getValues('wholesaleTiers')||[]).filter((_:any,i:number)=>i!==idx); form.setValue('wholesaleTiers',cur);
+                                                        }}>Hapus</Button>
+                                                    </div>
+                                                ))}
+                                                <Button type="button" variant="outline" size="sm" onClick={()=>{
+                                                    const cur=form.getValues('wholesaleTiers')||[]; form.setValue('wholesaleTiers',[...cur,{id:`tier-${Date.now()}`,minQty:cur.length?Math.max(...cur.map((c:any)=>c.maxQty||c.minQty))+1:12,price:0,label:`Tier ${cur.length+1}`}]);
+                                                }}><PlusCircle className="mr-2 h-4 w-4" /> Tambah Tier</Button>
+                                            </CardContent>
+                                        )}
+                                    </Card>
+
                                     <Separator />
                                     <FormField control={form.control} name="has_variant" render={({ field }) => (<FormItem className="flex flex-row items-center justify-between"><FormLabel>Gunakan Varian</FormLabel><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem>)} />
                                     {hasVariant && (<div className="space-y-4">{variantFields.map((field, index) => (<VariantItem key={field.id} index={index} field={field} form={form} removeVariant={removeVariant} isEditing={isEditing} />))}<Button type="button" variant="outline" size="sm" onClick={() => appendVariant({ name: '', additional_price: 0, stock: 0, sku: '', track_stock: true, low_stock_alert: 0 })}><PlusCircle className="mr-2 h-4 w-4" /> Tambah Varian</Button></div>)}

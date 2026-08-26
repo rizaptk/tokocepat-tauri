@@ -41,6 +41,11 @@ export async function ensureIndexes(firesqlite: any, _db: any) {
 
             // For cashier voucher lookup by code (authoritative DB resolution)
             createIndex('promos', 'code'),
+
+            // Customers & groups (grosir)
+            createIndex('customers', 'name'),
+            createIndex('customers', 'groupId'),
+            createIndex('customer_groups', 'rank'),
         ]);
         console.log("Database indexes are up to date.");
     } catch (error) {

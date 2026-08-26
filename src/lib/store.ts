@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { Product, CartItem, Transaction, Category, ProductVariant, Shift, StoreConfig, PendingCart, StockMovement, CustomAccessType, Promotion } from '@/lib/types';
+import { Product, CartItem, Transaction, Category, ProductVariant, Shift, StoreConfig, PendingCart, StockMovement, CustomAccessType, Promotion, Customer, CustomerGroup } from '@/lib/types';
 import { toast } from '@/hooks/use-toast';
 import { openShift as openShiftService, closeShift as closeShiftService } from '@/services/shiftService';
 import { createTransaction } from '@/services/transactionService';
@@ -10,6 +10,7 @@ import { parkCartInDb, deletePendingCartFromDb } from '@/services/pendingCartSer
 import { useSettingsStore } from './settings';
 import { usePrintStore } from './print-store';
 import { DEFAULT_STORE_CONFIG } from '@/lib/defaults';
+import { getUom, resolvePricePerUom, toBaseQty } from '@/lib/uom';
 
 
 // This represents an item that has had a variant selected but is not yet in the cart
@@ -28,6 +29,8 @@ interface StoreState {
     pendingCarts: PendingCart[];
     stockMovements: StockMovement[];
     promos: Promotion[];
+    customers: Customer[];
+    customerGroups: CustomerGroup[];
     customAccess: CustomAccessType | null;
     readNotificationIds: string[];
     dismissedNotificationIds: string[];
@@ -47,9 +50,12 @@ interface StoreState {
     setPendingCarts: (carts: PendingCart[]) => void;
     setStockMovements: (movements: StockMovement[]) => void;
     setPromos: (promos: Promotion[]) => void;
+    setCustomers: (customers: Customer[]) => void;
+    setCustomerGroups: (groups: CustomerGroup[]) => void;
     saveItemToCart: (itemData: Product | CartItem | ItemWithVariant, selectedVariant?: ProductVariant) => void;
     removeFromCart: (cartItemId: string) => void;
     updateQuantity: (cartItemId: string, quantity: number) => void;
+    updateCartItemUom: (cartItemId: string, uomId: string, groupId?: string) => void;
     clearCart: () => void;
     checkout: (cashReceived: number, options?: DiscountOptions) => Promise<Transaction | null>;
     createReturn: (params: { originalTx: Transaction; returnLines: ReturnLine[]; reason: string; conditionOk: boolean }) => Promise<Transaction | null>;
@@ -76,6 +82,8 @@ export const useStore = create<StoreState>()(
             pendingCarts: [],
             stockMovements: [],
             promos: [],
+            customers: [],
+            customerGroups: [],
             customAccess: null,
             readNotificationIds: [],
             dismissedNotificationIds: [],
@@ -113,6 +121,8 @@ export const useStore = create<StoreState>()(
             setPendingCarts: (carts) => set({ pendingCarts: carts.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()) }),
             setStockMovements: (movements) => set({ stockMovements: movements.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()) }),
             setPromos: (promos) => set({ promos: promos.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()) }),
+            setCustomers: (customers) => set({ customers }),
+            setCustomerGroups: (groups) => set({ customerGroups: groups }),
 
             saveItemToCart: (itemData: Product | CartItem | ItemWithVariant, selectedVariant?: ProductVariant) => {
                 const { products, cart, activeShift } = get();
@@ -205,6 +215,19 @@ export const useStore = create<StoreState>()(
             removeFromCart: (cartItemId: string) => {
                 set(state => ({
                     cart: state.cart.filter(item => item.cartItemId !== cartItemId)
+                }));
+            },
+
+            updateCartItemUom: (cartItemId: string, uomId: string, groupId?: string) => {
+                const { cart } = get();
+                const idx = cart.findIndex(i => i.cartItemId === cartItemId);
+                if (idx < 0) return;
+                const item = cart[idx] as any;
+                const uom = getUom(item, uomId);
+                const qtyBase = toBaseQty(item.quantity, uom.factor);
+                const pricePerUom = resolvePricePerUom(item, uom, qtyBase, groupId);
+                set(state => ({
+                    cart: state.cart.map(c => c.cartItemId === cartItemId ? { ...c, selectedUomId: uom.id, selectedUomName: uom.name, selectedUomFactor: uom.factor, price: pricePerUom, pricePerBase: pricePerUom / uom.factor, qtyBase } as any : c)
                 }));
             },
 
@@ -391,7 +414,7 @@ export const useStore = create<StoreState>()(
             },
             partialize: (state) =>
                 Object.fromEntries(
-                    Object.entries(state).filter(([key]) => !['products', 'transactions', 'productVariants', 'categories', 'shifts', 'activeShift', 'storeConfig', 'pendingCarts', 'stockMovements', 'promos'].includes(key))
+                    Object.entries(state).filter(([key]) => !['products', 'transactions', 'productVariants', 'categories', 'shifts', 'activeShift', 'storeConfig', 'pendingCarts', 'stockMovements', 'promos', 'customers', 'customerGroups'].includes(key))
                 ),
         }
     )

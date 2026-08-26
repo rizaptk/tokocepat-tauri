@@ -38,6 +38,28 @@ export interface ProductVariant {
     updated_at?: string;
 }
 
+export interface UomDef {
+  id: string;
+  name: string; // e.g. Pcs, Dus, Pack, Lusin, Kg
+  factor: number; // how many base units per 1 of this UOM
+  price?: number; // override price per 1 UOM; undefined = basePrice * factor
+  barcode?: string;
+  isBase: boolean;
+}
+
+export interface WholesaleTier {
+  id: string;
+  minQty: number; // inclusive, in base units (Pcs)
+  maxQty?: number; // inclusive, undefined = ∞
+  price: number; // price per base unit at this tier
+  label?: string;
+}
+
+export interface GroupPrice {
+  groupId: string;
+  price: number; // price per base unit for this customer group
+}
+
 export interface Product {
   id: string;
   sku?: string;
@@ -60,13 +82,26 @@ export interface Product {
   consignor_name?: string;
   consignment_commission_type?: 'percentage' | 'flat';
   consignment_commission_value?: number;
+
+  // Multi-UOM & wholesale (v0.5 grosir)
+  baseUom?: string; // default "Pcs"
+  uoms?: UomDef[];
+  wholesaleTiers?: WholesaleTier[];
+  groupPrices?: GroupPrice[];
+  isWholesaleEnabled?: boolean;
 }
 
 export interface CartItem extends Product {
   cartItemId: string; // A unique ID for this specific instance in the cart
-  quantity: number;
-  // `price` in a CartItem will now represent the final calculated price including variants
+  quantity: number; // qty in selected UOM
+  qtyBase?: number; // qty in base units (Pcs) — derived
+  // `price` in a CartItem will now represent the final calculated price per selected UOM
+  pricePerBase?: number; // price per base unit after tier/group resolution
   selectedVariant?: ProductVariant;
+  // UOM selection (shared across variants)
+  selectedUomId?: string;
+  selectedUomName?: string;
+  selectedUomFactor?: number;
   // Transient flags used by the discount engine / checkout (never persisted to the cart store)
   isFreeItem?: boolean;
   freeFromPromoId?: string;
@@ -123,9 +158,14 @@ export interface TransactionItem {
     id: string;
     transaction_id: string;
     product_snapshot: Omit<Product, 'stock' | 'track_stock' | 'has_variant' | 'is_active' | 'low_stock_alert'>;
-    price_snapshot: number;
+    price_snapshot: number; // per selected UOM
+    price_base_snapshot?: number; // per base unit
     cost_snapshot?: number;
-    qty: number;
+    qty: number; // qty in selected UOM
+    qty_base?: number;
+    uom_id?: string;
+    uom_name?: string;
+    uom_factor?: number;
     subtotal: number;
     is_consignment_settled?: boolean; // true jika sudah dilunasi ke vendor, false jika belum
     consignment_settled_at?: string;  // timestamp kapan pelunasan dilakukan
@@ -176,6 +216,16 @@ export interface Transaction {
   manual_discount?: number;  // cashier-entered manual discount
   voucher_code?: string;
   applied_promos?: AppliedPromoRecord[];
+
+  // Wholesale / customer snapshot (v0.5 grosir)
+  is_wholesale?: boolean;
+  customer_id?: string;
+  customer_name_snapshot?: string;
+  customer_group_snapshot?: string;
+  due_date?: string;
+  term_days?: number;
+  payment_status?: 'lunas' | 'piutang' | 'lunas_sebagian';
+  amount_paid_snapshot?: number;
 }
 
 export type StockMovementType = 'sale' | 'restock' | 'correction' | 'lost' | 'damaged' | 'initial_balance' | 'return';
@@ -185,10 +235,48 @@ export interface StockMovement {
     product_id: string;
     product_name_snapshot: string;
     type: StockMovementType;
-    qty_change: number; // can be negative
+    qty_change: number; // can be negative — always in base units (Pcs)
+    qty_change_uom?: number;
+    uom_id?: string;
+    uom_name?: string;
+    uom_factor?: number;
     reason?: string;
     reference_id: string; // transaction_id for sales, or a unique ID for manual adjustments
     created_at: string;
+}
+
+export interface CustomerGroup {
+  id: string;
+  name: string; // Umum, Reseller, Agen, Distributor
+  rank: number;
+  topDays: number; // default term of payment in days (0 = COD)
+  discountPercent?: number;
+  color?: string;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface Customer {
+  id: string;
+  name: string;
+  phone?: string;
+  address?: string;
+  groupId?: string;
+  topDays?: number; // override group's topDays
+  creditLimit?: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at?: string;
+}
+
+export interface CustomerPayment {
+  id: string;
+  customer_id: string;
+  transaction_id: string;
+  amount: number;
+  method?: string;
+  created_at: string;
+  note?: string;
 }
 
 export interface Shift {

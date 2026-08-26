@@ -6,7 +6,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { 
     Product, ProductVariant, 
     Shift, StoreConfig, Category, PendingCart, 
-    CustomAccessType, Promotion
+    CustomAccessType, Promotion, Customer, CustomerGroup
 } from '@/lib/types';
 import { TokoCepatLogo } from "./TokoCepatLogo";
 import { generateDeviceFingerprint } from "@/lib/security";
@@ -18,7 +18,7 @@ export function DbProvider({ children }: { children: React.ReactNode }) {
     const { 
         setProducts, setProductVariants, 
         setShifts, setStoreConfig, setCustomAccess,
-        setCategories, setPendingCarts, setPromos
+        setCategories, setPendingCarts, setPromos, setCustomers, setCustomerGroups
     } = useStore();
     
     const [isDataLoaded, setIsDataLoaded] = useState(false);
@@ -123,6 +123,33 @@ export function DbProvider({ children }: { children: React.ReactNode }) {
                         setCustomAccess(snap.data() as CustomAccessType);
                     }
                 }));
+
+                // Customers & Groups (grosir)
+                subscribe(onSnapshot(collection(db, 'customers'), (snap: any) => {
+                    setCustomers(snap.docs.map((d: any) => d.data() as Customer));
+                }));
+                subscribe(onSnapshot(collection(db, 'customer_groups'), (snap: any) => {
+                    setCustomerGroups(snap.docs.map((d: any) => d.data() as CustomerGroup));
+                }));
+                // Seed default customer groups if missing
+                {
+                    const groupsSnap = await (async () => {
+                        const { getDocs } = firesqlite;
+                        try { return await getDocs(collection(db, 'customer_groups')); } catch { return null; }
+                    })();
+                    if (groupsSnap && groupsSnap.docs.length === 0) {
+                        const { setDoc } = firesqlite;
+                        const defaults: CustomerGroup[] = [
+                            { id: 'grp-umum', name: 'Umum', rank: 0, topDays: 0, is_active: true, created_at: new Date().toISOString() },
+                            { id: 'grp-reseller', name: 'Reseller', rank: 1, topDays: 7, is_active: true, created_at: new Date().toISOString() },
+                            { id: 'grp-agen', name: 'Agen', rank: 2, topDays: 14, is_active: true, created_at: new Date().toISOString() },
+                            { id: 'grp-distributor', name: 'Distributor', rank: 3, topDays: 30, is_active: true, created_at: new Date().toISOString() },
+                        ];
+                        for (const g of defaults) {
+                            try { await setDoc(doc(db, 'customer_groups', g.id), g); } catch {}
+                        }
+                    }
+                }
 
 
             } catch (error: any) {

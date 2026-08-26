@@ -10,9 +10,11 @@ const formatCurrency = (amount: number) => {
 // Character width per paper size.
 // 58mm printers are typically 32 characters wide.
 // 80mm printers are typically 42-48 characters wide.
+// 112mm / dot-matrix wide is ~64-72 chars; use 64 for safe raw ESC/POS.
 const PAPER_WIDTH_CHARS: Record<PaperWidth, number> = {
     '58mm': 32,
     '80mm': 48,
+    '112mm': 64,
 };
 
 // Two-column layout: the right column is always kept right-aligned on the same

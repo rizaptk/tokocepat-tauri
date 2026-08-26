@@ -2,7 +2,7 @@ import { PrinterCandidate } from '@/services/printerDetect';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-export type PaperWidth = '58mm' | '80mm';
+export type PaperWidth = '58mm' | '80mm' | '112mm';
 
 interface PrinterState {
   savedPrinter: string | null;
