@@ -114,8 +114,13 @@ export function generateReceiptBinary(
     encoder.align('left'); // Reset to left for body
     encoder
         .line(`Inv: ${transaction.invoice_number}`)
-        .line(`Date: ${formatDate(transaction.created_at)}`)
-        .rule({ char: '-' }); 
+        .line(`Date: ${formatDate(transaction.created_at)}`);
+    if ((transaction as any).is_wholesale && (transaction as any).customer_name_snapshot) {
+        encoder.line(`Pelanggan: ${(transaction as any).customer_name_snapshot}${(transaction as any).customer_group_snapshot ? ` (${(transaction as any).customer_group_snapshot})` : ''}`);
+        if ((transaction as any).due_date) encoder.line(`Jatuh Tempo: ${formatDate((transaction as any).due_date)}`);
+        if ((transaction as any).payment_status && (transaction as any).payment_status !== 'lunas') encoder.line(`Status: ${(transaction as any).payment_status} ${ (transaction as any).term_days ? `TOP ${ (transaction as any).term_days} hari` : ''}`);
+    }
+    encoder.rule({ char: '-' }); 
 
     // --- Items ---
     transaction.items.forEach(item => {
@@ -124,7 +129,8 @@ export function generateReceiptBinary(
 
         // Price details — show the NET line total (gross minus discounts) so a
         // discounted or free line prints what the customer actually paid.
-        const qtyAndPrice = `${item.qty} x ${formatCurrency(item.price_snapshot)}`;
+        const uomLabel = (item as any).uom_name ? ` ${(item as any).uom_name}` : '';
+        const qtyAndPrice = `${item.qty}${uomLabel} x ${formatCurrency(item.price_snapshot)}`;
         const discount = item.discount_amount || 0;
         const netItemTotal = item.subtotal - discount;
         const lineTotal = item.is_free_item ? 0 : netItemTotal;

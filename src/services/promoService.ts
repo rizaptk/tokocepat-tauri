@@ -35,6 +35,9 @@ export interface DiscountOptions {
     manualDiscountTargetItemId?: string;
     /** Actual redeems per voucher code, derived from transactions (source of truth). */
     usageCounts?: Record<string, number>;
+    // Wholesale context (v0.5 grosir) — Group Base -> Qty Tier
+    customerId?: string;
+    isWholesale?: boolean;
 }
 
 export interface DiscountResult {

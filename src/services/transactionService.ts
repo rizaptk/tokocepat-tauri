@@ -148,6 +148,20 @@ export const createTransaction = async (
     const transactionId = `tx-${crypto.randomUUID().slice(0, 8)}`;
     const invoiceNumber = `INV-${createdAt.substring(5,7)}${createdAt.substring(8,10)}-${crypto.randomUUID().slice(0,4).toUpperCase()}`;
 
+    // Wholesale customer context (Group Base -> Qty Tier)
+    let wholesaleCustomer: any = null;
+    let wholesaleGroup: any = null;
+    if (options.isWholesale && options.customerId) {
+        const { customers, customerGroups } = useStore.getState();
+        wholesaleCustomer = customers.find(c => c.id === options.customerId) || null;
+        if (wholesaleCustomer) wholesaleGroup = customerGroups.find(g => g.id === wholesaleCustomer.groupId) || null;
+    }
+    const termDays = wholesaleCustomer ? (wholesaleCustomer.topDays ?? wholesaleGroup?.topDays ?? 0) : 0;
+    const dueDate = termDays > 0 ? new Date(new Date(createdAt).getTime() + termDays * 24 * 60 * 60 * 1000).toISOString() : undefined;
+    const paymentStatus: Transaction['payment_status'] = options.isWholesale && wholesaleCustomer
+        ? (cashReceived >= total ? 'lunas' : cashReceived > 0 ? 'lunas_sebagian' : 'piutang')
+        : 'lunas';
+
     const newTransaction: Transaction = {
       id: transactionId,
       invoice_number: invoiceNumber,
@@ -222,6 +236,14 @@ export const createTransaction = async (
       manual_discount: discount.manualDiscount,
       voucher_code: discount.voucherCode,
       applied_promos: discount.appliedPromos,
+      // Wholesale snapshot
+      is_wholesale: !!options.isWholesale,
+      customer_id: wholesaleCustomer?.id,
+      customer_name_snapshot: wholesaleCustomer?.name,
+      customer_group_snapshot: wholesaleGroup?.name,
+      due_date: dueDate,
+      term_days: termDays || undefined,
+      payment_status: paymentStatus,
     };
 
 

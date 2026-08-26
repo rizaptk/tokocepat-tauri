@@ -430,7 +430,8 @@ export default function ClassicCashierPage() {
     };
 
     const handleProcessPayment = async () => {
-        if (change < 0 || cart.length === 0) return;
+        const isWholesalePiutang = isWholesaleMode && !!selectedCustomerId;
+        if ((!isWholesalePiutang && change < 0) || cart.length === 0) return;
         if (hasDiscountError) {
             toast({ variant: "destructive", title: "Promo tidak valid", description: discountResult?.errors?.[0] });
             return;
@@ -462,6 +463,8 @@ export default function ClassicCashierPage() {
                 voucherCode,
                 manualDiscount: parsedManualDiscount,
                 manualDiscountType,
+                isWholesale: isWholesaleMode,
+                customerId: selectedCustomerId || undefined,
                 manualDiscountTargetItemId: manualDiscountInput ? manualDiscountTargetItemId ?? undefined : undefined,
             });
             // Printer menyala → struk ditangani antrean cetak fisik.
@@ -653,7 +656,7 @@ export default function ClassicCashierPage() {
 
                         {/* Actions */}
                         <div className="flex items-stretch self-stretch">
-                            <Button className="h-full min-w-36 px-6 text-base font-black tracking-tight" disabled={change < 0 || cart.length === 0} onClick={handleProcessPayment}>
+                            <Button className="h-full min-w-36 px-6 text-base font-black tracking-tight" disabled={(! (isWholesaleMode && selectedCustomerId) && change < 0) || cart.length === 0} onClick={handleProcessPayment}>
                                 <ReceiptCent className="mr-2 size-5" /> BAYAR
                             </Button>
                         </div>
