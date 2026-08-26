@@ -240,77 +240,84 @@ export default function PromosPage() {
 
     const handleSave = async () => {
         if (!draft) return;
-        if (!draft.name.trim()) {
+        // The shared left-panel selection is the scope the user sees and edits —
+        // sync it into the draft so validation and the saved rule match the UI.
+        const effectiveDraft: Promotion = {
+            ...draft,
+            applies_to_product_ids: [...selectedProductIds],
+            applies_to_category_ids: [...selectedCategoryIds],
+        };
+        if (!effectiveDraft.name.trim()) {
             toast({ variant: 'destructive', title: 'Nama wajib diisi' });
             return;
         }
-        if (!draft.starts_at || !draft.ends_at) {
+        if (!effectiveDraft.starts_at || !effectiveDraft.ends_at) {
             toast({ variant: 'destructive', title: 'Rentang berlaku wajib diisi' });
             return;
         }
-        if (new Date(draft.ends_at) <= new Date(draft.starts_at)) {
+        if (new Date(effectiveDraft.ends_at) <= new Date(effectiveDraft.starts_at)) {
             toast({ variant: 'destructive', title: 'Jadwal salah', description: 'Tanggal berakhir harus setelah tanggal mulai.' });
             return;
         }
 
-        if (draft.kind === 'voucher') {
-            if (!draft.code?.trim()) {
+        if (effectiveDraft.kind === 'voucher') {
+            if (!effectiveDraft.code?.trim()) {
                 toast({ variant: 'destructive', title: 'Kode voucher wajib diisi' });
                 return;
             }
             const clash = vouchers.find(p =>
-                p.id !== draft.id && (p.code || '').toUpperCase() === (draft.code || '').toUpperCase()
+                p.id !== effectiveDraft.id && (p.code || '').toUpperCase() === (effectiveDraft.code || '').toUpperCase()
             );
             if (clash) {
-                toast({ variant: 'destructive', title: 'Kode sudah dipakai', description: `Kode "${draft.code}" sudah digunakan pada voucher ${clash.name}.` });
+                toast({ variant: 'destructive', title: 'Kode sudah dipakai', description: `Kode "${effectiveDraft.code}" sudah digunakan pada voucher ${clash.name}.` });
                 return;
             }
-            if ((draft.discount_value || 0) <= 0) {
+            if ((effectiveDraft.discount_value || 0) <= 0) {
                 toast({ variant: 'destructive', title: 'Besar diskon wajib diisi' });
                 return;
             }
         } else {
-            if ((draft.applies_to_product_ids?.length || 0) === 0 && (draft.applies_to_category_ids?.length || 0) === 0) {
+            if ((effectiveDraft.applies_to_product_ids?.length || 0) === 0 && (effectiveDraft.applies_to_category_ids?.length || 0) === 0) {
                 toast({ variant: 'destructive', title: 'Pilih produk/kategori dulu', description: 'Diskon butuh minimal satu produk atau kategori di panel kiri.' });
                 return;
             }
-            if (draft.kind === 'flat' && (draft.discount_value || 0) <= 0) {
+            if (effectiveDraft.kind === 'flat' && (effectiveDraft.discount_value || 0) <= 0) {
                 toast({ variant: 'destructive', title: 'Besar diskon wajib diisi' });
                 return;
             }
-            if (draft.kind === 'bogo' && (!draft.buy_quantity || draft.buy_quantity < 1)) {
+            if (effectiveDraft.kind === 'bogo' && (!effectiveDraft.buy_quantity || effectiveDraft.buy_quantity < 1)) {
                 toast({ variant: 'destructive', title: 'Jumlah beli (X) wajib diisi' });
                 return;
             }
-            if (draft.kind === 'criteria') {
-                const r = draft.reward_type || 'discount';
-                if ((r === 'discount' || r === 'discount_product') && (draft.discount_value || 0) <= 0) {
+            if (effectiveDraft.kind === 'criteria') {
+                const r = effectiveDraft.reward_type || 'discount';
+                if ((r === 'discount' || r === 'discount_product') && (effectiveDraft.discount_value || 0) <= 0) {
                     toast({ variant: 'destructive', title: 'Besar diskon wajib diisi' });
                     return;
                 }
-                if ((r === 'bonus_product' || r === 'discount_product') && !(draft.reward_product_ids?.length)) {
+                if ((r === 'bonus_product' || r === 'discount_product') && !(effectiveDraft.reward_product_ids?.length)) {
                     toast({ variant: 'destructive', title: 'Pilih produk hadiah' });
                     return;
                 }
             }
-            if (draft.kind === 'conditional') {
-                if (!draft.min_purchase || draft.min_purchase <= 0) {
+            if (effectiveDraft.kind === 'conditional') {
+                if (!effectiveDraft.min_purchase || effectiveDraft.min_purchase <= 0) {
                     toast({ variant: 'destructive', title: 'Minimal belanja wajib diisi' });
                     return;
                 }
-                const r = draft.reward_type || 'discount';
-                if (r === 'discount' && (draft.discount_value || 0) <= 0) {
+                const r = effectiveDraft.reward_type || 'discount';
+                if (r === 'discount' && (effectiveDraft.discount_value || 0) <= 0) {
                     toast({ variant: 'destructive', title: 'Besar diskon wajib diisi' });
                     return;
                 }
-                if (r === 'bonus_product' && !(draft.reward_product_ids?.length)) {
+                if (r === 'bonus_product' && !(effectiveDraft.reward_product_ids?.length)) {
                     toast({ variant: 'destructive', title: 'Pilih produk bonus' });
                     return;
                 }
             }
         }
 
-        const clean = buildClean(draft);
+        const clean = buildClean(effectiveDraft);
         setIsSaving(true);
         try {
             await savePromo(clean);

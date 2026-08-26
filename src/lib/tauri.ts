@@ -325,15 +325,17 @@ export function onSnapshot(
                         hasChanged = true;
                     } 
                     else if (kind === 'update') {
-                        // RESTORED: Logical Timestamp Comparison (LWW)
-                        if (newTime >= oldTime) {
+                        // LWW when the delta carries a timestamp; deltas without
+                        // one are always accepted so the UI can never be left
+                        // stranded on a stale row.
+                        if (newTime === 0 || newTime >= oldTime) {
                             localCache.set(doc_id, data);
                             hasChanged = true;
                         }
                     } 
                     else if (kind === 'delete') {
-                        // RESTORED: Prevent stale deletes from killing new data
-                        if (existing && newTime >= oldTime) {
+                        // Same rule as updates: never strand stale rows.
+                        if (!existing || newTime === 0 || newTime >= oldTime) {
                             localCache.delete(doc_id);
                             hasChanged = true;
                         }

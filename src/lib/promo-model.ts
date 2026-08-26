@@ -11,18 +11,47 @@ const LEGACY_TO_FLAT: Record<string, PromoKind> = {
  * versions into the new unified 'flat' kind. Applied on DB snapshot, in the
  * engine, and defensively in the UI so old rules keep working as-is.
  */
+/**
+ * Repair schedule timestamps written by older builds:
+ *  - malformed ISO missing the seconds component ("2026-09-01T11:00.000Z")
+ *  - epoch numbers (ms / µs) from Date objects serialized by legacy writes
+ *  - anything unparseable is dropped (→ no bound on that side)
+ */
+const sanitizeDate = (v: unknown): string | undefined => {
+    if (v === undefined || v === null || v === '') return undefined;
+    if (typeof v === 'number') {
+        if (!isFinite(v) || v <= 0) return undefined;
+        const ms = v > 1e14 ? Math.round(v / 1000) : v;
+        const d = new Date(ms);
+        return isNaN(d.getTime()) ? undefined : d.toISOString();
+    }
+    if (typeof v !== 'string') return undefined;
+    let d = new Date(v);
+    if (isNaN(d.getTime())) {
+        const repaired = v.trim().replace(/^(.*T\d{2}:\d{2})(\.\d{1,3})?(Z|[+-]\d{2}:?\d{2})?$/, '$1:00$2$3');
+        d = new Date(repaired);
+    }
+    return isNaN(d.getTime()) ? undefined : d.toISOString();
+};
+
 export const normalizePromo = (p: Promotion): Promotion => {
     if (!p || typeof p.kind !== 'string') return p;
     const mapped = LEGACY_TO_FLAT[p.kind as string];
-    if (mapped) return { ...p, kind: mapped };
-    return p;
+    const next = mapped ? { ...p, kind: mapped } : p;
+    const starts_at = sanitizeDate(next.starts_at);
+    const ends_at = sanitizeDate(next.ends_at);
+    if (starts_at === next.starts_at && ends_at === next.ends_at) return next;
+    return { ...next, starts_at, ends_at };
 };
 
-/** A promo only applies when active AND inside its validity window. */
+/** A promo only applies when active AND inside its validity window.
+ *  Unparseable dates impose no constraint (NaN comparisons are false). */
 export const isPromoLive = (p: Promotion, now: number = Date.now()): boolean => {
     if (!p.is_active) return false;
-    if (p.starts_at && new Date(p.starts_at).getTime() > now) return false;
-    if (p.ends_at && new Date(p.ends_at).getTime() <= now) return false;
+    const starts = p.starts_at ? new Date(p.starts_at).getTime() : NaN;
+    if (!isNaN(starts) && starts > now) return false;
+    const ends = p.ends_at ? new Date(p.ends_at).getTime() : NaN;
+    if (!isNaN(ends) && ends <= now) return false;
     return true;
 };
 
