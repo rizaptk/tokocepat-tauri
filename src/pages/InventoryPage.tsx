@@ -662,24 +662,32 @@ type WorksheetRowData = {
     physicalCounts: Record<string, string>;
     rowReasons: Record<string, string>;
     rowNotes: Record<string, string>;
+    rowUoms: Record<string, string>;
     defaultReason: string;
     focusedId: string | null;
     onChange: (itemId: string, value: string) => void;
     onReasonChange: (itemId: string, value: string) => void;
     onNotesChange: (itemId: string, value: string) => void;
+    onUomChange: (itemId: string, value: string) => void;
     onFocus: (itemId: string | null) => void;
 };
 
 // Stable row component (react-window render prop) so the Stok Fisik input keeps
 // focus across keystrokes — an inline row function would remount rows each render.
 const WorksheetRow = memo(({ index, style, data }: { index: number; style: React.CSSProperties; data: WorksheetRowData }) => {
-    const { items, categories, products, physicalCounts, rowReasons, rowNotes, defaultReason, focusedId, onChange, onReasonChange, onNotesChange, onFocus } = data;
+    const { items, categories, products, physicalCounts, rowReasons, rowNotes, rowUoms, defaultReason, focusedId, onChange, onReasonChange, onNotesChange, onUomChange, onFocus } = data;
     const item = items[index];
     const raw = physicalCounts[item.id] ?? '';
-    const physical = raw.trim() === '' ? NaN : parseInt(raw, 10);
-    const hasInput = raw.trim() !== '' && !isNaN(physical);
-    const diff = hasInput ? physical - item.stock : null;
-    const invalid = raw.trim() !== '' && (isNaN(physical) || physical < 0);
+    const physicalUom = raw.trim() === '' ? NaN : parseFloat(raw);
+    const hasInput = raw.trim() !== '' && !isNaN(physicalUom);
+    const productForUom: Product | null = item.itemType === 'product' ? (item as unknown as Product) : products.find(p => p.id === (item as ProductVariant).product_id) || null;
+    const normUoms = productForUom ? normalizeProductUoms(productForUom).uoms! : [];
+    const selectedUomId = rowUoms[item.id] || normUoms.find(u => u.isBase)?.id || normUoms[0]?.id;
+    const selectedUom = normUoms.find(u => u.id === selectedUomId) || normUoms.find(u => u.isBase) || normUoms[0];
+    const factor = selectedUom?.factor || 1;
+    const physicalBase = hasInput ? Math.round(physicalUom * factor) : NaN;
+    const diff = hasInput ? physicalBase - item.stock : null;
+    const invalid = raw.trim() !== '' && (isNaN(physicalUom) || physicalUom < 0);
     const isFocused = focusedId === item.id;
     const rowReason = rowReasons[item.id] ?? defaultReason;
 
@@ -720,17 +728,23 @@ const WorksheetRow = memo(({ index, style, data }: { index: number; style: React
                 <span className={WorksheetColumnClass.systemStock}>
                     <span className="font-bold text-sm tabular-nums">{item.stock}</span>
                 </span>
-                <span className={WorksheetColumnClass.physicalStock}>
+                <span className={cn(WorksheetColumnClass.physicalStock, "gap-1")}>
                     <Input
                         type="number"
                         min="0"
                         placeholder="Stok fisik"
-                        className="h-7 w-full text-sm tabular-nums px-2"
+                        className="h-7 flex-1 text-sm tabular-nums px-2"
                         value={raw}
                         onChange={(e) => onChange(item.id, e.target.value)}
                         onFocus={() => onFocus(item.id)}
                         onBlur={() => onFocus(null)}
                     />
+                    {normUoms.length > 1 && (
+                        <Select value={selectedUom?.id} onValueChange={v => onUomChange(item.id, v)}>
+                            <SelectTrigger className="h-7 w-20 text-xs"><SelectValue /></SelectTrigger>
+                            <SelectContent>{normUoms.map(u => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}</SelectContent>
+                        </Select>
+                    )}
                 </span>
                 <span className={WorksheetColumnClass.reason}>
                     <Select value={rowReason} onValueChange={(v) => onReasonChange(item.id, v)}>
@@ -763,23 +777,25 @@ const WorksheetRow = memo(({ index, style, data }: { index: number; style: React
 });
 WorksheetRow.displayName = "WorksheetRow";
 
-const WorksheetGrid = memo(({ items, categories, physicalCounts, rowReasons, rowNotes, onChange, onReasonChange, onNotesChange }: {
+const WorksheetGrid = memo(({ items, categories, physicalCounts, rowReasons, rowNotes, rowUoms, onChange, onReasonChange, onNotesChange, onUomChange }: {
     items: InventoryItemType[];
     categories: Category[];
     physicalCounts: Record<string, string>;
     rowReasons: Record<string, string>;
     rowNotes: Record<string, string>;
+    rowUoms: Record<string, string>;
     onChange: (itemId: string, value: string) => void;
     onReasonChange: (itemId: string, value: string) => void;
     onNotesChange: (itemId: string, value: string) => void;
+    onUomChange: (itemId: string, value: string) => void;
 }) => {
     const { products } = useStore();
     const [focusedId, setFocusedId] = useState<string | null>(null);
 
     const itemData: WorksheetRowData = {
-        items, categories, products, physicalCounts, rowReasons, rowNotes,
+        items, categories, products, physicalCounts, rowReasons, rowNotes, rowUoms,
         defaultReason: reasonOptions.count[0].id, focusedId,
-        onChange, onReasonChange, onNotesChange, onFocus: setFocusedId,
+        onChange, onReasonChange, onNotesChange, onUomChange, onFocus: setFocusedId,
     };
 
     return (
@@ -858,6 +874,7 @@ export default function InventoryPage() {
     const [physicalCounts, setPhysicalCounts] = useState<Record<string, string>>({});
     const [worksheetRowReasons, setWorksheetRowReasons] = useState<Record<string, string>>({});
     const [worksheetRowNotes, setWorksheetRowNotes] = useState<Record<string, string>>({});
+    const [worksheetRowUoms, setWorksheetRowUoms] = useState<Record<string, string>>({});
     const [worksheetBusy, setWorksheetBusy] = useState(false);
 
     // Multi-search (worksheet only): scan/enter comma-separated terms to filter many items at once.
@@ -1328,9 +1345,11 @@ export default function InventoryPage() {
                                 physicalCounts={physicalCounts}
                                 rowReasons={worksheetRowReasons}
                                 rowNotes={worksheetRowNotes}
+                                rowUoms={worksheetRowUoms}
                                 onChange={handleWorksheetChange}
                                 onReasonChange={handleWorksheetReasonChange}
                                 onNotesChange={handleWorksheetNoteChange}
+                                onUomChange={(id, v) => setWorksheetRowUoms(prev => ({ ...prev, [id]: v }))}
                             />
                         ) : inventoryItems.length > 0 ? (
                             <>

@@ -98,7 +98,7 @@ const initialFormValues: ProductFormData = {
 };
 
 export const ProductForm = ({ productId, onSave, onCancel, catalogPrefill }: ProductFormProps) => {
-    const { products, categories, productVariants } = useStore();
+    const { products, categories, productVariants, customerGroups } = useStore();
     const { toast } = useToast();
     const isEditing = !!productId;
     const product = useMemo(() => productId === null ? undefined : products.find(p => p.id === productId), [productId, products]);
@@ -535,6 +535,37 @@ export const ProductForm = ({ productId, onSave, onCancel, catalogPrefill }: Pro
                                                 }}><PlusCircle className="mr-2 h-4 w-4" /> Tambah Tier</Button>
                                             </CardContent>
                                         )}
+                                    </Card>
+
+                                    {/* Harga per Grup Pelanggan */}
+                                    <Card className="border-border/40 bg-muted/10">
+                                        <CardHeader className="px-3 py-2"><CardTitle className="text-sm">Harga per Grup Pelanggan (opsional)</CardTitle></CardHeader>
+                                        <CardContent className="space-y-2 px-3 py-2">
+                                            <div className="text-xs text-muted-foreground">Override harga/Pcs untuk grup Reseller/Agen/Distributor. Kosong = pakai harga grosir/umum.</div>
+                                            {(form.watch('groupPrices')||[]).map((gp:any,idx:number)=>{
+                                                return (
+                                                    <div key={gp.groupId||idx} className="flex gap-2 items-end">
+                                                        <div className="flex-1"><label className="text-xs">Grup</label>
+                                                            <select value={gp.groupId} onChange={e=>{
+                                                                const cur=[...(form.getValues('groupPrices')||[])]; cur[idx]={...cur[idx],groupId:e.target.value}; form.setValue('groupPrices',cur);
+                                                            }} className="w-full h-9 rounded-md border border-input bg-background px-2 text-sm">
+                                                                <option value="">Pilih grup</option>
+                                                                {customerGroups.map((g:any)=><option key={g.id} value={g.id}>{g.name} (TOP {g.topDays}d)</option>)}
+                                                            </select>
+                                                        </div>
+                                                        <div className="w-32"><label className="text-xs">Harga/Pcs</label><Input type="number" value={gp.price} onChange={e=>{
+                                                            const cur=[...(form.getValues('groupPrices')||[])]; cur[idx]={...cur[idx],price:Number(e.target.value)||0}; form.setValue('groupPrices',cur);
+                                                        }} /></div>
+                                                        <Button type="button" variant="ghost" size="sm" onClick={()=>{
+                                                            const cur=(form.getValues('groupPrices')||[]).filter((_:any,i:number)=>i!==idx); form.setValue('groupPrices',cur);
+                                                        }}>Hapus</Button>
+                                                    </div>
+                                                );
+                                            })}
+                                            <Button type="button" variant="outline" size="sm" onClick={()=>{
+                                                const cur=form.getValues('groupPrices')||[]; form.setValue('groupPrices',[...cur,{groupId:'',price:0}]);
+                                            }}><PlusCircle className="mr-2 h-4 w-4" /> Tambah Harga Grup</Button>
+                                        </CardContent>
                                     </Card>
 
                                     <Separator />

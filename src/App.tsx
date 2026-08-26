@@ -25,6 +25,7 @@ const LicensePage = lazy(() => import('./pages/Dashboard/settings/License'))
 const PromosPage = lazy(() => import('./pages/Dashboard/promos/page'))
 const CustomersPage = lazy(() => import('./pages/Dashboard/customers/page'))
 const PiutangPage = lazy(() => import('./pages/Dashboard/piutang/page'))
+const WholesaleCashierPage = lazy(() => import('./pages/WholesaleCashierPage'))
 const ProductLayout = lazy(() => import('./pages/Product/layout'))
 const ProductHome = lazy(() => import('./pages/Product/page'))
 
@@ -38,6 +39,7 @@ function App() {
             <Route index element={<HomePage />} />
             <Route path="aktivasi" element={<ActivationPage />} />
             <Route path="cashier" element={<CashierPage />} />
+            <Route path="cashier/grosir" element={<WholesaleCashierPage />} />
             <Route path="inventory" element={<InventoryPage />} />
             <Route path="license" element={<LicensePage />} />
 

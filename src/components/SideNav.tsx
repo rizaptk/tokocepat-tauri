@@ -10,6 +10,7 @@ import {
     Gift,
     Users,
     Wallet,
+    Truck,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/lib/ismobile-store';
@@ -23,6 +24,7 @@ import { useStore } from '@/lib/store';
 const navItems = [
     { href: '/dashboard', label: 'Dashboard', icon: LayoutGrid },
     { href: '/cashier', label: 'Kasir', icon: ShoppingCart },
+    { href: '/cashier/grosir', label: 'Grosir', icon: Truck },
     { href: '/product', label: 'Produk', icon: Package },
     { href: '/inventory', label: 'Inventori', icon: Warehouse },
     { href: '/dashboard/promos', label: 'Promo', icon: Gift },
