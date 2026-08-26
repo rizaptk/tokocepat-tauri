@@ -26,6 +26,7 @@ import { Badge } from '@/components/ui/badge';
 import { useCurrencyFormat } from '@/hooks/useCurrencyFormat';
 import { voidTransaction } from '@/services/transactionService';
 import { evaluateDiscounts } from '@/services/promoService';
+import { DEFAULT_STORE_CONFIG } from '@/lib/defaults';
 import { format } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ReceiptTape, type ReceiptSnapshot } from '@/components/ReceiptTape';
@@ -228,18 +229,21 @@ export default function ClassicCashierPage() {
     useEffect(() => { setSearchIndex(-1); }, [query]);
 
     // --- Totals Calculation (discount engine: BOGO + voucher + manual) ---
+    // A missing store config must never disable the engine — fall back to the
+    // default (DbProvider seeds the real doc on boot).
+    const activeStoreConfig = storeConfig ?? DEFAULT_STORE_CONFIG;
     const parsedManualDiscount = parseFloat(manualDiscountInput) || 0;
 
     const discountResult = useMemo(() => {
-        if (!storeConfig || cart.length === 0) return null;
-        return evaluateDiscounts(cart, storeConfig, promos, {
+        if (cart.length === 0) return null;
+        return evaluateDiscounts(cart, activeStoreConfig, promos, {
             voucherCode,
             manualDiscount: parsedManualDiscount,
             manualDiscountType,
             manualDiscountTargetItemId: manualDiscountInput ? (manualDiscountTargetItemId ?? undefined) : undefined,
             usageCounts: voucherUsage,
         });
-    }, [cart, storeConfig, promos, voucherCode, parsedManualDiscount, manualDiscountType, manualDiscountTargetItemId, manualDiscountInput, voucherUsage]);
+    }, [cart, activeStoreConfig, promos, voucherCode, parsedManualDiscount, manualDiscountType, manualDiscountTargetItemId, manualDiscountInput, voucherUsage]);
 
     // The typed draft is committed only through claimVoucher (Selesai / Enter) so
     // every claim is validated; Esc / outside click cancels without changes.
@@ -835,9 +839,9 @@ export default function ClassicCashierPage() {
                                 <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-white/[0.05] to-transparent" />
                                 <ReceiptTape
                                     data={successData}
-                                    storeName={storeConfig?.store_name || 'Toko Cepat'}
-                                    storeAddress={storeConfig?.address}
-                                    footer={storeConfig?.receipt_footer}
+                                    storeName={activeStoreConfig.store_name || 'Toko Cepat'}
+                                    storeAddress={activeStoreConfig.address}
+                                    footer={activeStoreConfig.receipt_footer}
                                 />
                             </div>
 

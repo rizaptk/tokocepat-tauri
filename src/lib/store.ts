@@ -9,6 +9,7 @@ import { evaluateDiscounts, DiscountOptions } from '@/services/promoService';
 import { parkCartInDb, deletePendingCartFromDb } from '@/services/pendingCartService';
 import { useSettingsStore } from './settings';
 import { usePrintStore } from './print-store';
+import { DEFAULT_STORE_CONFIG } from '@/lib/defaults';
 
 
 // This represents an item that has had a variant selected but is not yet in the cart
@@ -264,10 +265,11 @@ export const useStore = create<StoreState>()(
             },
 
             checkout: async (cashReceived: number, options?: DiscountOptions): Promise<Transaction | null> => {
-                const { cart, activeShift, storeConfig, transactions, promos } = get();
+                const { cart, activeShift, transactions, promos } = get();
+                const storeConfig = get().storeConfig ?? DEFAULT_STORE_CONFIG;
 
-                if (!activeShift || !storeConfig) {
-                    toast({ variant: 'destructive', title: 'Gagal', description: 'Sif atau konfigurasi hilang.' });
+                if (!activeShift) {
+                    toast({ variant: 'destructive', title: 'Gagal', description: 'Sif tidak aktif.' });
                     return null;
                 }
 
@@ -291,10 +293,11 @@ export const useStore = create<StoreState>()(
             },
 
             createReturn: async (params): Promise<Transaction | null> => {
-                const { activeShift, storeConfig, transactions } = get();
+                const { activeShift, transactions } = get();
+                const storeConfig = get().storeConfig ?? DEFAULT_STORE_CONFIG;
 
-                if (!activeShift || !storeConfig) {
-                    toast({ variant: 'destructive', title: 'Gagal', description: 'Sif atau konfigurasi hilang.' });
+                if (!activeShift) {
+                    toast({ variant: 'destructive', title: 'Gagal', description: 'Sif tidak aktif.' });
                     return null;
                 }
 

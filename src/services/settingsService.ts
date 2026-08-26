@@ -10,8 +10,10 @@ export const updateStoreConfig = async (data: StoreConfigData): Promise<void> =>
     const { db, firesqlite } = useDbStore.getState();
     if (!db || !firesqlite) throw new Error("Database not initialized");
 
-    const { doc, updateDoc } = firesqlite;
-    
+    // merge-set (not updateDoc) so saving also CREATES store_config/main when
+    // it does not exist yet — updateDoc throws on a missing doc.
+    const { doc, setDoc } = firesqlite;
+
     const configRef = doc(db, 'store_config', 'main');
-    await updateDoc(configRef, data);
+    await setDoc(configRef, data, { merge: true });
 };

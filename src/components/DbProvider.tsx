@@ -11,6 +11,7 @@ import {
 import { TokoCepatLogo } from "./TokoCepatLogo";
 import { generateDeviceFingerprint } from "@/lib/security";
 import { normalizePromo } from "@/lib/promo-model";
+import { DEFAULT_STORE_CONFIG } from "@/lib/defaults";
 
 export function DbProvider({ children }: { children: React.ReactNode }) {
     const { isInitialized, db, firesqlite } = useDbStore();
@@ -53,9 +54,20 @@ export function DbProvider({ children }: { children: React.ReactNode }) {
 
                 // --- TIER 1: CRITICAL DATA (UI Essential) ---
 
-                // Store Configuration
-                subscribe(onSnapshot(doc(db, 'store_config', 'main'), (snap: any) => {
-                    if (snap.exists()) setStoreConfig(snap.data() as StoreConfig);
+                // Store Configuration. Seeds a default doc when missing — nothing else in the
+                // app creates `store_config/main`, and without it the discount engine and
+                // checkout silently refuse to run.
+                let storeConfigSeeded = false;
+                subscribe(onSnapshot(doc(db, 'store_config', 'main'), async (snap: any) => {
+                    if (snap.exists()) {
+                        setStoreConfig(snap.data() as StoreConfig);
+                    } else if (isMounted && !storeConfigSeeded) {
+                        storeConfigSeeded = true;
+                        try {
+                            const { setDoc } = firesqlite;
+                            await setDoc(doc(db, 'store_config', 'main'), DEFAULT_STORE_CONFIG);
+                        } catch { /* the settings form can create it via save */ }
+                    }
                 }));
 
                 // Categories
