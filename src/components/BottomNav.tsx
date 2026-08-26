@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutGrid, MoreHorizontal, Package, ShoppingCart, Warehouse, BarChart as BarChartIcon, Settings } from 'lucide-react';
+import { LayoutGrid, MoreHorizontal, Package, ShoppingCart, Warehouse, BarChart as BarChartIcon, Settings, Gift, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useEffect, useState } from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -14,6 +14,8 @@ const navItems = [
 
 const moreNavItems = [
   { href: '/inventory', label: 'Inventori', icon: Warehouse },
+  { href: '/dashboard/promos', label: 'Promo', icon: Gift },
+  { href: '/dashboard/customers', label: 'Pelanggan', icon: Users },
   { href: '/dashboard/reports', label: 'Laporan', icon: BarChartIcon },
   { href: '/dashboard/settings', label: 'Pengaturan', icon: Settings },
 ];
