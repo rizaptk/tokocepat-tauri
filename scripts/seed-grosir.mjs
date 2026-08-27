@@ -257,12 +257,12 @@ console.log(` - customers.json: ${customers.length} customers`);
 console.log(` - promos.json: ${promos.length} promos (allowWholesale true)`);
 
 console.log(`\nInject (PowerShell, upsert via set --fromfile --batch, DB: ${dbPath}):`);
-console.log(`Get-ChildItem seed/*.json | ForEach-Object { & "C:\\Dev\\bin\\firelite-cli" --db "${dbPath}" set --fromfile $_.FullName --batch true }`);
+console.log(`Get-ChildItem seed/*.json | ForEach-Object { $col = $_.BaseName; & "C:\\Dev\\bin\\firelite-cli" --db "${dbPath}" set $col --fromfile $_.FullName --batch true }`);
 console.log(`\nOr per-collection (batch upsert):`);
-console.log(`firelite-cli --db "${dbPath}" set --fromfile seed/products.json --batch true`);
-console.log(`firelite-cli --db "${dbPath}" set --fromfile seed/customer_groups.json --batch true`);
-console.log(`firelite-cli --db "${dbPath}" set --fromfile seed/customers.json --batch true`);
-console.log(`firelite-cli --db "${dbPath}" set --fromfile seed/promos.json --batch true`);
+console.log(`firelite-cli --db "${dbPath}" set products --fromfile seed/products.json --batch true`);
+console.log(`firelite-cli --db "${dbPath}" set customer_groups --fromfile seed/customer_groups.json --batch true`);
+console.log(`firelite-cli --db "${dbPath}" set customers --fromfile seed/customers.json --batch true`);
+console.log(`firelite-cli --db "${dbPath}" set promos --fromfile seed/promos.json --batch true`);
 console.log(`\nIf batch unsupported, fallback per-doc:`);
 console.log(`Get-Content seed/products.json | ConvertFrom-Json | ForEach-Object { $_ | ConvertTo-Json -Compress | Out-File temp.json; firelite-cli --db "${dbPath}" set products/$($_.id) --fromfile temp.json }`);
 console.log(`\nVerify:`);

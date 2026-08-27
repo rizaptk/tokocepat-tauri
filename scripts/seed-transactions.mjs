@@ -212,6 +212,8 @@ console.log(` - Wholesale: ${transactions.filter(t=>t.is_wholesale).length}, Ret
 console.log(` - Piutang: ${transactions.filter(t=>t.payment_status==='piutang').length}, Cicilan: ${transactions.filter(t=>t.payment_status==='lunas_sebagian').length}`);
 console.log(` - With promo: ${transactions.filter(t=> (t.applied_promos||[]).length>0).length}`);
 console.log(`\nInject (append, DB: ${dbPath}):`);
-console.log(`firelite-cli --db "${dbPath}" set --fromfile seed/shifts.json --batch true`);
-console.log(`firelite-cli --db "${dbPath}" set --fromfile seed/transactions.json --batch true`);
+console.log(`firelite-cli --db "${dbPath}" set shifts --fromfile seed/shifts.json --batch true`);
+console.log(`firelite-cli --db "${dbPath}" set transactions --fromfile seed/transactions.json --batch true`);
+console.log(`\nPowerShell loop:`);
+console.log(`Get-ChildItem seed/shifts.json,seed/transactions.json | ForEach-Object { $col = $_.BaseName; & "C:\\Dev\\bin\\firelite-cli" --db "${dbPath}" set $col --fromfile $_.FullName --batch true }`);
 console.log(`\nVerify: firelite-cli --db "${dbPath}" query transactions --limit 5`);
