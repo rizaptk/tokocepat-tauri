@@ -783,12 +783,12 @@ fn status_title_label(status: &LicenseStatus, details: &Option<serde_json::Value
     }
 }
 
-/// Updates the main window title to `TokoCepat v{version} — {status}`.
+/// Updates the main window title to `Kastoko v{version} — {status}`.
 fn apply_status_title<R: Runtime>(app: &AppHandle<R>, status: &LicenseStatus, details: &Option<serde_json::Value>) {
     #[cfg(desktop)]
     if let Some(window) = app.get_webview_window("main") {
         let _ = window.set_title(&format!(
-            "TokoCepat v{} — {}",
+            "Kastoko v{} — {}",
             env!("CARGO_PKG_VERSION"),
             status_title_label(status, details)
         ));

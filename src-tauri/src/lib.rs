@@ -112,7 +112,7 @@ pub fn run() {
             #[cfg(desktop)]
             {
                 if let Some(window) = app.get_webview_window("main") {
-                    let _ = window.set_title(&format!("TokoCepat v{}", version));
+                    let _ = window.set_title(&format!("Kastoko v{}", version));
                 }
             }
 

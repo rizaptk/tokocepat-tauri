@@ -1,17 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" role="img" aria-labelledby="title">
-<title id="title">Kastoko — Stacked Transaction + Check (B)</title>
+<title id="title">Kastoko B — Maximized stack, small check, transparent aurora border</title>
 <defs>
-  <!-- Rounded square bg gradient (aurora) -->
-  <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
-    <stop offset="0%" stop-color="#7b2cf0"/>
-    <stop offset="55%" stop-color="#3a0ca3"/>
+  <linearGradient id="borderGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+    <stop offset="0%" stop-color="#5ad2d6"/>
+    <stop offset="45%" stop-color="#7b2cf0"/>
     <stop offset="100%" stop-color="#0a84ff"/>
   </linearGradient>
-  <radialGradient id="glow" cx="35%" cy="28%" r="75%">
-    <stop offset="0%" stop-color="#5ad2d6" stop-opacity="0.55"/>
-    <stop offset="55%" stop-color="#9671ee" stop-opacity="0.35"/>
-    <stop offset="100%" stop-color="#0a84ff" stop-opacity="0"/>
-  </radialGradient>
   <linearGradient id="neon" x1="0%" y1="0%" x2="100%" y2="100%">
     <stop offset="0%" stop-color="#7af8ff"/>
     <stop offset="100%" stop-color="#0a84ff"/>
@@ -21,38 +15,37 @@
     <stop offset="55%" stop-color="#00d0ff"/>
     <stop offset="100%" stop-color="#0a84ff"/>
   </linearGradient>
-  <filter id="neonGlow" x="-50%" y="-50%" width="200%" height="200%">
-    <feGaussianBlur in="SourceGraphic" stdDeviation="8" result="blur"/>
-    <feColorMatrix type="matrix" values="0 0 0 0 0  0 0 0 0 0.9  0 0 0 0 1  0 0 0 0.9 0" result="glowColor"/>
-    <feMerge><feMergeNode in="glowColor"/><feMergeNode in="SourceGraphic"/></feMerge>
+  <filter id="softGlow" x="-40%" y="-40%" width="180%" height="180%">
+    <feGaussianBlur in="SourceGraphic" stdDeviation="6" result="b"/>
+    <feColorMatrix type="matrix" values="0 0 0 0 0  0 0 0 0 0.85  0 0 0 0 1  0 0 0 0.75 0"/>
+    <feMerge><feMergeNode in="SourceGraphic"/></feMerge>
   </filter>
 </defs>
-<!-- Outer rounded square -->
-<rect x="72" y="72" rx="128" ry="128" width="880" height="880" fill="url(#bg)" stroke="#5ad2d6" stroke-opacity="0.35" stroke-width="4"/>
-<rect x="72" y="72" rx="128" ry="128" width="880" height="880" fill="url(#glow)"/>
-<!-- Subtle inner highlight -->
-<rect x="72" y="72" rx="128" ry="128" width="880" height="880" fill="none" stroke="white" stroke-opacity="0.08" stroke-width="2"/>
-<!-- Back card (behind) -->
-<g opacity="0.95">
-  <rect x="220" y="420" rx="48" ry="48" width="560" height="360" fill="#1a1040" stroke="url(#neon)" stroke-width="14" stroke-linejoin="round" transform="rotate(-14 500 600)"/>
-  <rect x="236" y="436" rx="40" ry="40" width="528" height="328" fill="none" stroke="white" stroke-opacity="0.06" stroke-width="2" transform="rotate(-14 500 600)"/>
+<!-- Transparent canvas — no fill. Border alone carries aurora (as requested) -->
+<rect x="48" y="48" rx="128" ry="128" width="928" height="928" fill="none" stroke="url(#borderGrad)" stroke-width="10" opacity="0.95"/>
+<rect x="48" y="48" rx="128" ry="128" width="928" height="928" fill="none" stroke="white" stroke-opacity="0.06" stroke-width="1.5"/>
+<!-- Back card — maximal -->
+<g opacity="0.98">
+  <rect x="150" y="380" rx="42" ry="42" width="700" height="380" fill="#1a1040" stroke="url(#neon)" stroke-width="18" stroke-linejoin="round" transform="rotate(-12 500 570)"/>
 </g>
-<!-- Front card -->
+<!-- Front card — maximal, slight overlap for depth -->
 <g>
-  <rect x="240" y="340" rx="48" ry="48" width="560" height="360" fill="#1e0f4a" stroke="url(#neon)" stroke-width="16" stroke-linejoin="round" transform="rotate(-12 520 520)"/>
-  <!-- card chip dots (like Mastercard) -->
-  <circle cx="380" cy="460" r="28" fill="#ff3b8e" opacity="0.0"/>
-  <circle cx="360" cy="470" r="18" fill="#ff7ab6" opacity="0.85"/>
-  <circle cx="384" cy="470" r="18" fill="#ffd166" opacity="0.85"/>
-  <circle cx="372" cy="470" r="18" fill="#ff9f1c" opacity="0.55"/>
+  <rect x="165" y="300" rx="42" ry="42" width="700" height="380" fill="#1e0f4a" stroke="url(#neon)" stroke-width="20" stroke-linejoin="round" transform="rotate(-10 515 490)"/>
+  <!-- subtle inner card highlight -->
+  <rect x="183" y="318" rx="34" ry="34" width="664" height="344" fill="none" stroke="white" stroke-opacity="0.05" stroke-width="2" transform="rotate(-10 515 490)"/>
+  <!-- chip dots (minimal, still visible at 32px) -->
+  <g transform="rotate(-10 515 490)">
+    <circle cx="300" cy="420" r="20" fill="#ff7ab6" opacity="0.9"/>
+    <circle cx="326" cy="420" r="20" fill="#ffd166" opacity="0.9"/>
+  </g>
 </g>
-<!-- Checkmark — bold, neon bordered -->
-<g filter="url(#neonGlow)">
-  <!-- outer dark stroke for separation -->
-  <path d="M 392 620 L 512 740 L 760 400 L 680 320 L 512 600 L 452 540 Z" fill="none" stroke="#08122e" stroke-width="28" stroke-linejoin="round" stroke-linecap="round" opacity="0.95"/>
+<!-- Check — shrunk ~72% vs previous, centered lower-right for small-icon legibility -->
+<g filter="url(#softGlow)">
+  <!-- separation stroke -->
+  <path d="M 430 620 L 500 690 L 700 440 L 650 390 L 500 560 L 470 520 Z" fill="none" stroke="#08122e" stroke-width="22" stroke-linejoin="round" stroke-linecap="round"/>
   <!-- neon outline -->
-  <path d="M 392 620 L 512 740 L 760 400 L 680 320 L 512 600 L 452 540 Z" fill="none" stroke="#7af8ff" stroke-width="10" stroke-linejoin="round" stroke-linecap="round" opacity="0.95"/>
+  <path d="M 430 620 L 500 690 L 700 440 L 650 390 L 500 560 L 470 520 Z" fill="none" stroke="#7af8ff" stroke-width="8" stroke-linejoin="round" stroke-linecap="round"/>
   <!-- fill -->
-  <path d="M 400 620 L 512 728 L 752 408 L 676 332 L 512 584 L 460 540 Z" fill="url(#checkFill)" stroke="white" stroke-opacity="0.18" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M 438 618 L 500 680 L 692 448 L 646 402 L 500 548 L 478 520 Z" fill="url(#checkFill)" stroke="white" stroke-opacity="0.14" stroke-width="1.6" stroke-linejoin="round"/>
 </g>
 </svg>
