@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useStore } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Trash2, Users, Layers } from 'lucide-react';
+import { Plus, Trash2, Users, Layers, Search, CreditCard } from 'lucide-react';
 import { saveCustomer, deleteCustomer, saveCustomerGroup, deleteCustomerGroup, generateCustomerId, generateGroupId } from '@/services/customerService';
 import { useToast } from '@/hooks/use-toast';
 import { Customer, CustomerGroup } from '@/lib/types';
@@ -16,6 +16,17 @@ export default function CustomersPage() {
   const { customers, customerGroups } = useStore();
   const { toast } = useToast();
   const [tab, setTab] = useState<'customers' | 'groups'>('customers');
+  const [customerSearch, setCustomerSearch] = useState('');
+  const [customerGroupFilter, setCustomerGroupFilter] = useState<string>('all');
+  const filteredCustomers = useMemo(() => {
+    let list = customers;
+    if (customerGroupFilter !== 'all') list = list.filter(c => c.groupId === customerGroupFilter);
+    if (customerSearch.trim()) {
+      const q = customerSearch.toLowerCase();
+      list = list.filter(c => c.name.toLowerCase().includes(q) || (c.phone||'').includes(q) || c.id.toLowerCase().includes(q));
+    }
+    return list;
+  }, [customers, customerSearch, customerGroupFilter]);
   const [isCustomerOpen, setIsCustomerOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [customerForm, setCustomerForm] = useState<Partial<Customer>>({ name: '', phone: '', address: '', groupId: '', topDays: 0 });
@@ -61,6 +72,37 @@ export default function CustomersPage() {
     setIsGroupOpen(false);
   };
 
+  const handlePrintCard = async (customer: Customer) => {
+    try {
+      const { PDFDocument, rgb } = await import('pdf-lib');
+      // @ts-ignore
+      const bwipjs = (await import('bwip-js')).default;
+      const group = customerGroups.find(g => g.id === customer.groupId);
+      const pdf = await PDFDocument.create();
+      const page = pdf.addPage([242, 153]); // 85x54mm at 72dpi ~ 242x153 pt
+      const { width, height } = page.getSize();
+      page.drawRectangle({ x: 0, y: 0, width, height, color: rgb(0.99, 0.99, 0.98), borderColor: rgb(0.88, 0.88, 0.88), borderWidth: 1 });
+      page.drawText(customer.name, { x: 12, y: height - 22, size: 12, color: rgb(0.1, 0.1, 0.1) });
+      page.drawText(group ? group.name : 'Umum', { x: 12, y: height - 36, size: 8, color: rgb(0.4, 0.4, 0.4) });
+      if (customer.phone) page.drawText(customer.phone, { x: 12, y: height - 50, size: 8, color: rgb(0.4, 0.4, 0.4) });
+      if (customer.address) page.drawText(customer.address.slice(0, 30), { x: 12, y: height - 62, size: 7, color: rgb(0.5, 0.5, 0.5) });
+      // Barcode
+      const canvas = document.createElement('canvas');
+      bwipjs.toCanvas(canvas, { bcid: 'code128', text: customer.id, scale: 2, height: 8, includetext: false });
+      const png = await pdf.embedPng(canvas.toDataURL('image/png'));
+      const pngDims = png.scale(0.5);
+      page.drawImage(png, { x: 12, y: 12, width: pngDims.width, height: pngDims.height });
+      page.drawText(customer.id, { x: 12, y: 8, size: 6, color: rgb(0.5, 0.5, 0.5) });
+      const bytes = await pdf.save();
+      const blob = new Blob([bytes as unknown as BlobPart], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+      toast({ title: 'Kartu dicetak', description: customer.name });
+    } catch (e: any) {
+      toast({ variant: 'destructive', title: 'Gagal cetak', description: e.message });
+    }
+  };
+
   return (
     <div className="flex h-screen w-full flex-col bg-muted/40">
       <header className="flex h-12 items-center gap-4 border-b bg-background px-4">
@@ -74,15 +116,27 @@ export default function CustomersPage() {
       <div className="flex-1 overflow-auto p-4">
         {tab === 'customers' ? (
           <div className="space-y-3">
-            <div className="flex justify-between items-center">
-              <p className="text-sm text-muted-foreground">{customers.length} pelanggan · TOP diambil dari grup atau override per pelanggan</p>
-              <Button size="sm" onClick={openAddCustomer}><Plus className="h-4 w-4 mr-1" /> Tambah Pelanggan</Button>
+            <div className="flex flex-col gap-2">
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                  <Input value={customerSearch} onChange={e=>setCustomerSearch(e.target.value)} placeholder="Cari nama / hp / scan barcode ID..." className="pl-8 h-8" />
+                </div>
+                <Button size="sm" onClick={openAddCustomer}><Plus className="h-4 w-4 mr-1" /> Tambah Pelanggan</Button>
+              </div>
+              <div className="flex gap-1.5 overflow-x-auto no-scrollbar">
+                <Button size="sm" variant={customerGroupFilter==='all'?'default':'outline'} onClick={()=>setCustomerGroupFilter('all')} className="h-7 text-xs">Semua</Button>
+                {customerGroups.map(g=>(
+                  <Button key={g.id} size="sm" variant={customerGroupFilter===g.id?'default':'outline'} onClick={()=>setCustomerGroupFilter(g.id)} className="h-7 text-xs">{g.name}</Button>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground">{filteredCustomers.length} dari {customers.length} pelanggan</p>
             </div>
             <div className="rounded-md border bg-card overflow-hidden">
               <Table>
-                <TableHeader><TableRow><TableHead>Nama</TableHead><TableHead>Grup</TableHead><TableHead>TOP</TableHead><TableHead>Telepon</TableHead><TableHead className="w-20">Aksi</TableHead></TableRow></TableHeader>
+                <TableHeader><TableRow><TableHead>Nama</TableHead><TableHead>Grup</TableHead><TableHead>TOP</TableHead><TableHead>Telepon</TableHead><TableHead className="w-32 text-right">Aksi</TableHead></TableRow></TableHeader>
                 <TableBody>
-                  {customers.length === 0 ? <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">Belum ada pelanggan</TableCell></TableRow> : customers.map(c => {
+                  {filteredCustomers.length === 0 ? <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">Belum ada pelanggan</TableCell></TableRow> : filteredCustomers.map(c => {
                     const g = customerGroups.find(gr => gr.id === c.groupId);
                     const top = c.topDays ?? g?.topDays ?? 0;
                     return (
@@ -91,7 +145,10 @@ export default function CustomersPage() {
                         <TableCell>{g ? <Badge variant="secondary">{g.name}</Badge> : <span className="text-muted-foreground">Umum</span>}</TableCell>
                         <TableCell>{top === 0 ? 'COD' : `${top} hari`}</TableCell>
                         <TableCell>{c.phone || '—'}</TableCell>
-                        <TableCell onClick={e => e.stopPropagation()}><Button variant="ghost" size="icon" onClick={() => deleteCustomer(c.id)}><Trash2 className="h-4 w-4" /></Button></TableCell>
+                        <TableCell onClick={e => e.stopPropagation()} className="flex gap-1 justify-end">
+                          <Button variant="ghost" size="icon" title="Cetak kartu" onClick={() => handlePrintCard(c)}><CreditCard className="h-4 w-4" /></Button>
+                          <Button variant="ghost" size="icon" onClick={() => deleteCustomer(c.id)}><Trash2 className="h-4 w-4" /></Button>
+                        </TableCell>
                       </TableRow>
                     );
                   })}
@@ -109,7 +166,7 @@ export default function CustomersPage() {
               <Table>
                 <TableHeader><TableRow><TableHead>Nama Grup</TableHead><TableHead>Rank</TableHead><TableHead>TOP (hari)</TableHead><TableHead className="w-20">Aksi</TableHead></TableRow></TableHeader>
                 <TableBody>
-                  {customerGroups.map(g => (
+                  {[...customerGroups].sort((a,b)=>a.rank-b.rank).map(g => (
                     <TableRow key={g.id} className="cursor-pointer" onClick={() => openEditGroup(g)}>
                       <TableCell className="font-medium">{g.name}</TableCell>
                       <TableCell>{g.rank}</TableCell>

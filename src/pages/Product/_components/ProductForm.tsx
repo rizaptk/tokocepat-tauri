@@ -15,6 +15,7 @@ import { ScrollArea, ScrollAreaHandle } from "@/components/ui/scroll-area";
 
 // Icons
 import { PlusCircle, Zap, Upload } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { ScrollShadow } from "@/components/ui/scrollshadow";
 
@@ -491,10 +492,11 @@ export const ProductForm = ({ productId, onSave, onCancel, catalogPrefill }: Pro
                                                         <div className="w-28"><label className="text-xs">Harga/UOM</label><Input type="number" value={u.price??''} placeholder={String((form.getValues('price')||0)*(u.factor||1))} onChange={e=>{
                                                             const cur=[...(form.getValues('uoms')||[])]; cur[idx]={...cur[idx],price: e.target.value?Number(e.target.value):undefined}; form.setValue('uoms',cur);
                                                         }} /></div>
-                                                        {!u.isBase && <Button type="button" variant="ghost" size="sm" onClick={()=>{
-                                                            const cur=(form.getValues('uoms')||[]).filter((_:any,i:number)=>i!==idx); form.setValue('uoms',cur);
-                                                        }}>Hapus</Button>}
-                                                        {u.isBase && <span className="text-xs text-muted-foreground px-2">Base</span>}
+                                                        <div className="w-16 flex justify-center">
+                                                            {u.isBase ? <Badge variant="secondary" className="text-[10px] px-2">Base</Badge> : <Button type="button" variant="ghost" size="sm" onClick={()=>{
+                                                                const cur=(form.getValues('uoms')||[]).filter((_:any,i:number)=>i!==idx); form.setValue('uoms',cur);
+                                                            }}>Hapus</Button>}
+                                                        </div>
                                                     </div>
                                                 ))}
                                                 <Button type="button" variant="outline" size="sm" onClick={()=>{

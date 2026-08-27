@@ -85,6 +85,7 @@ export default function ClassicCashierPage({ defaultWholesale = false }: { defau
 
     const selectedCustomer = useMemo(() => customers.find(c => c.id === selectedCustomerId) || null, [customers, selectedCustomerId]);
     const selectedGroupId = selectedCustomer?.groupId || undefined;
+    const [customerQuery, setCustomerQuery] = useState('');
 
     // Re-price cart when customer group changes in wholesale mode (Group Base -> Qty Tier)
     useEffect(() => {
@@ -352,6 +353,14 @@ export default function ClassicCashierPage({ defaultWholesale = false }: { defau
     }, [activeShift, saveItemToCart, setQuery]);
 
     const handleBarcodeScan = (barcode: string) => {
+        if (isWholesaleMode) {
+            const cust = customers.find(c => c.id === barcode || c.phone === barcode || (c as any).barcode === barcode);
+            if (cust) {
+                setSelectedCustomerId(cust.id);
+                toast({ title: "Pelanggan dipilih", description: `${cust.name} · ${customerGroups.find(g=>g.id===cust.groupId)?.name || ''}` });
+                return;
+            }
+        }
         const product = products.find(p => p.barcode === barcode && p.is_active);
         if (product) {
             handleProductSelect(product);
@@ -431,6 +440,10 @@ export default function ClassicCashierPage({ defaultWholesale = false }: { defau
 
     const handleProcessPayment = async () => {
         const isWholesalePiutang = isWholesaleMode && !!selectedCustomerId;
+        if (isWholesaleMode && !selectedCustomerId && change < 0) {
+            toast({ variant: "destructive", title: "Grosir tanpa pelanggan harus tunai", description: "Pilih pelanggan untuk piutang atau lunasi pembayaran." });
+            return;
+        }
         if ((!isWholesalePiutang && change < 0) || cart.length === 0) return;
         if (hasDiscountError) {
             toast({ variant: "destructive", title: "Promo tidak valid", description: discountResult?.errors?.[0] });
@@ -541,22 +554,14 @@ export default function ClassicCashierPage({ defaultWholesale = false }: { defau
                         {/* Summary */}
                         <div className="space-y-0.5 text-sm">
                             <div className="flex justify-between gap-6"><span className="text-muted-foreground">Subtotal</span><span className="font-medium tabular-nums">{formatIDR(subtotal)}</span></div>
-                            {discountResult && (
-                                <>
-                                    {discountResult.promoDiscount > 0 && (
-                                        <div className="flex justify-between gap-6 text-success dark:text-success-foreground">
-                                            <span>Promo & Voucher</span>
-                                            <span className="font-semibold tabular-nums">-{formatIDR(discountResult.promoDiscount)}</span>
-                                        </div>
-                                    )}
-                                    {discountResult.manualDiscount > 0 && (
-                                        <div className="flex justify-between gap-6 text-success dark:text-success-foreground">
-                                            <span>Diskon Kasir</span>
-                                            <span className="font-semibold tabular-nums">-{formatIDR(discountResult.manualDiscount)}</span>
-                                        </div>
-                                    )}
-                                </>
-                            )}
+                            <div className={cn("flex justify-between gap-6", (discountResult?.promoDiscount||0) > 0 ? "text-success dark:text-success-foreground" : "text-muted-foreground/50")}>
+                                <span>Promo & Voucher</span>
+                                <span className="font-semibold tabular-nums">-{formatIDR(discountResult?.promoDiscount||0)}</span>
+                            </div>
+                            <div className={cn("flex justify-between gap-6", (discountResult?.manualDiscount||0) > 0 ? "text-success dark:text-success-foreground" : "text-muted-foreground/50")}>
+                                <span>Diskon Kasir</span>
+                                <span className="font-semibold tabular-nums">-{formatIDR(discountResult?.manualDiscount||0)}</span>
+                            </div>
                             <div className="flex justify-between gap-6"><span className="text-muted-foreground">Pajak</span><span className="font-medium tabular-nums">{formatIDR(tax)}</span></div>
                             {cart.length > 0 && discountResult && discountResult.freeItems.length > 0 && (
                                 <div className="flex flex-wrap items-center gap-1 pt-0.5">
@@ -694,6 +699,8 @@ export default function ClassicCashierPage({ defaultWholesale = false }: { defau
                                             onClick={() => handleProductSelect(p)}
                                         >
                                             <span className="min-w-0 flex-1 truncate font-normal">{p.name}</span>
+                                            <span className={cn("w-16 shrink-0 truncate text-xs", searchIndex === i ? "text-primary-foreground/70" : "text-muted-foreground")}>{normalizeProductUoms(p as any).baseUom || 'Pcs'}</span>
+                                            <span className={cn("w-28 shrink-0 truncate text-xs", searchIndex === i ? "text-primary-foreground/70" : "text-muted-foreground")}>{(p as any).category_id ? (categories.find(c=>c.id===(p as any).category_id)?.name || '—') : '—'}</span>
                                             <span className={cn("w-28 shrink-0 truncate", searchIndex === i ? "text-primary-foreground/70" : "text-muted-foreground")}>{p.brand || '—'}</span>
                                             <span className={cn("w-32 shrink-0 truncate font-mono text-xs", searchIndex === i ? "text-primary-foreground/70" : "text-muted-foreground")}>{p.barcode || 'Tanpa barcode'}</span>
                                             <span className="w-24 shrink-0 text-right font-bold tabular-nums">{formatIDR(p.price)}</span>
@@ -705,7 +712,7 @@ export default function ClassicCashierPage({ defaultWholesale = false }: { defau
                     </div>
 
                     {/* Wholesale bar */}
-                    <div className="flex shrink-0 items-center gap-3 border-b border-border bg-amber-50/60 px-2.5 py-1.5">
+                    <div className="flex shrink-0 items-center gap-3 border-b border-border bg-amber-50/60 dark:bg-amber-950/30 px-2.5 py-1.5">
                         <label className="flex items-center gap-2 text-xs font-medium">
                             <input type="checkbox" checked={isWholesaleMode} onChange={e=>setIsWholesaleMode(e.target.checked)} className="h-3.5 w-3.5 rounded border" />
                             Mode Grosir
@@ -713,22 +720,53 @@ export default function ClassicCashierPage({ defaultWholesale = false }: { defau
                         {isWholesaleMode && (
                             <>
                                 <div className="h-4 w-px bg-border" />
-                                <Select value={selectedCustomerId || ''} onValueChange={v=>setSelectedCustomerId(v||null)}>
-                                    <SelectTrigger className="h-7 w-64 text-xs"><SelectValue placeholder="Pilih pelanggan (Umum jika kosong)" /></SelectTrigger>
-                                    <SelectContent>
-                                        {customers.map(c=>{
-                                            const g=customerGroups.find(gr=>gr.id===c.groupId);
-                                            return <SelectItem key={c.id} value={c.id}>{c.name} {g?`· ${g.name}`:''}</SelectItem>;
-                                        })}
-                                    </SelectContent>
-                                </Select>
+                                <div className="flex items-center gap-2">
+                                    <div className="relative">
+                                        <Search className="absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-muted-foreground" />
+                                        <Input
+                                            placeholder="Cari pelanggan (nama/hp/scan barcode)"
+                                            className="h-7 w-64 pl-7 text-xs"
+                                            value={customerQuery}
+                                            onChange={e=>setCustomerQuery(e.target.value)}
+                                            onFocus={()=>setCustomerQuery('')}
+                                        />
+                                        {customerQuery && (
+                                            <div className="absolute top-full left-0 z-50 mt-1 w-64 rounded-md border bg-popover shadow-md max-h-48 overflow-auto">
+                                                {customers.filter(c=>{
+                                                    const q=customerQuery.toLowerCase();
+                                                    return c.name.toLowerCase().includes(q) || (c.phone||'').includes(q) || c.id.toLowerCase().includes(q);
+                                                }).slice(0,8).map(c=>{
+                                                    const g=customerGroups.find(gr=>gr.id===c.groupId);
+                                                    return (
+                                                        <div key={c.id} className="px-3 py-1.5 text-xs cursor-pointer hover:bg-accent flex justify-between" onMouseDown={e=>{e.preventDefault(); setSelectedCustomerId(c.id); setCustomerQuery('');}}>
+                                                            <span>{c.name}</span><span className="text-muted-foreground">{g?.name || ''}</span>
+                                                        </div>
+                                                    );
+                                                })}
+                                                {customers.filter(c=>c.name.toLowerCase().includes(customerQuery.toLowerCase()) || (c.phone||'').includes(customerQuery) || c.id.toLowerCase().includes(customerQuery.toLowerCase())).length===0 && (
+                                                    <div className="px-3 py-2 text-xs text-muted-foreground">Tidak ditemukan</div>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                    <Select value={selectedCustomerId || ''} onValueChange={v=>{setSelectedCustomerId(v||null); setCustomerQuery('');}}>
+                                        <SelectTrigger className="h-7 w-48 text-xs"><SelectValue placeholder="Pilih pelanggan (Umum jika kosong)" /></SelectTrigger>
+                                        <SelectContent>
+                                            {customers.map(c=>{
+                                                const g=customerGroups.find(gr=>gr.id===c.groupId);
+                                                return <SelectItem key={c.id} value={c.id}>{c.name} {g?`· ${g.name}`:''} {c.phone?`· ${c.phone}`:''}</SelectItem>;
+                                            })}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
                                 {selectedCustomer && (
                                     <span className="text-xs text-muted-foreground">
                                         TOP {selectedCustomer.topDays ?? customerGroups.find(g=>g.id===selectedCustomer.groupId)?.topDays ?? 0} hari
                                         {selectedCustomer.creditLimit ? ` · Limit ${formatIDR(selectedCustomer.creditLimit)}` : ''}
+                                        <Button variant="ghost" size="sm" className="h-5 ml-1 px-1 text-xs" onClick={()=>{setSelectedCustomerId(null); setCustomerQuery('');}}>× Hapus</Button>
                                     </span>
                                 )}
-                                <span className="ml-auto text-[10px] text-muted-foreground">Harga grosir otomatis per qty Pcs</span>
+                                <span className="ml-auto text-[10px] text-muted-foreground hidden lg:inline">Harga grosir otomatis per qty Pcs · Scan barcode pelanggan</span>
                             </>
                         )}
                     </div>

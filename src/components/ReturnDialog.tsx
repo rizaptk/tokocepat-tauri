@@ -266,7 +266,7 @@ export default function ReturnDialog({ open, onOpenChange }: ReturnDialogProps) 
                             </Button>
                         )}
                         <h2 className="text-lg font-semibold tracking-tight flex items-center gap-2">
-                            <Undo2 className="size-5 text-primary" /> Retur / Pengembalian Dana
+                            <Undo2 className="size-5 text-primary" /> Retur & Void
                         </h2>
                     </div>
                     {selectedTx && <Badge variant="outline" className="font-mono">{selectedTx.invoice_number}</Badge>}
@@ -378,10 +378,10 @@ export default function ReturnDialog({ open, onOpenChange }: ReturnDialogProps) 
 
                             <div className="space-y-4">
                                 <div className="space-y-2">
-                                    <Label htmlFor="retur-reason">Alasan Retur *</Label>
+                                    <Label htmlFor="retur-reason">Alasan Retur/Void *</Label>
                                     <Input
                                         id="retur-reason"
-                                        placeholder="cth. salah ukuran / rusak / tidak cocok"
+                                        placeholder="cth. salah ukuran / rusak / void — salah input"
                                         value={reason}
                                         onChange={(e) => setReason(e.target.value)}
                                     />
@@ -414,6 +414,9 @@ export default function ReturnDialog({ open, onOpenChange }: ReturnDialogProps) 
                             <Button className="w-full h-12 font-semibold" onClick={handleConfirm} disabled={isSubmitting || !hasAnyReturn}>
                                 <CheckCircle2 className="mr-2 size-5" />
                                 {isSubmitting ? 'Memproses...' : `Buat Retur & Refund ${formatIDR(refundSummary.total)}`}
+                            </Button>
+                            <Button variant="outline" className="w-full h-10 border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground" onClick={handleVoidInstead} disabled={!reason.trim() || isSubmitting || !selectedTx}>
+                                <XCircle className="mr-2 size-4" /> Void Transaksi {selectedTx ? `(${selectedTx.invoice_number})` : ''}
                             </Button>
                         </>
                     )}
