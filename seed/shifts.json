@@ -1,0 +1,272 @@
+[
+  {
+    "id": "shift-2026-07-29-seed",
+    "opened_at": "2026-07-29T00:00:00.000Z",
+    "closed_at": "2026-07-29T15:00:00.000Z",
+    "opening_cash": 385381,
+    "status": "closed",
+    "device": "seed-device",
+    "total_cash_out": 0
+  },
+  {
+    "id": "shift-2026-07-30-seed",
+    "opened_at": "2026-07-30T00:00:00.000Z",
+    "closed_at": "2026-07-30T15:00:00.000Z",
+    "opening_cash": 446528,
+    "status": "closed",
+    "device": "seed-device",
+    "total_cash_out": 0
+  },
+  {
+    "id": "shift-2026-07-31-seed",
+    "opened_at": "2026-07-31T00:00:00.000Z",
+    "closed_at": "2026-07-31T15:00:00.000Z",
+    "opening_cash": 393544,
+    "status": "closed",
+    "device": "seed-device",
+    "total_cash_out": 0
+  },
+  {
+    "id": "shift-2026-08-01-seed",
+    "opened_at": "2026-08-01T00:00:00.000Z",
+    "closed_at": "2026-08-01T15:00:00.000Z",
+    "opening_cash": 373760,
+    "status": "closed",
+    "device": "seed-device",
+    "total_cash_out": 0
+  },
+  {
+    "id": "shift-2026-08-02-seed",
+    "opened_at": "2026-08-02T00:00:00.000Z",
+    "closed_at": "2026-08-02T15:00:00.000Z",
+    "opening_cash": 321071,
+    "status": "closed",
+    "device": "seed-device",
+    "total_cash_out": 0
+  },
+  {
+    "id": "shift-2026-08-03-seed",
+    "opened_at": "2026-08-03T00:00:00.000Z",
+    "closed_at": "2026-08-03T15:00:00.000Z",
+    "opening_cash": 453526,
+    "status": "closed",
+    "device": "seed-device",
+    "total_cash_out": 0
+  },
+  {
+    "id": "shift-2026-08-04-seed",
+    "opened_at": "2026-08-04T00:00:00.000Z",
+    "closed_at": "2026-08-04T15:00:00.000Z",
+    "opening_cash": 320008,
+    "status": "closed",
+    "device": "seed-device",
+    "total_cash_out": 0
+  },
+  {
+    "id": "shift-2026-08-05-seed",
+    "opened_at": "2026-08-05T00:00:00.000Z",
+    "closed_at": "2026-08-05T15:00:00.000Z",
+    "opening_cash": 267380,
+    "status": "closed",
+    "device": "seed-device",
+    "total_cash_out": 0
+  },
+  {
+    "id": "shift-2026-08-06-seed",
+    "opened_at": "2026-08-06T00:00:00.000Z",
+    "closed_at": "2026-08-06T15:00:00.000Z",
+    "opening_cash": 256646,
+    "status": "closed",
+    "device": "seed-device",
+    "total_cash_out": 0
+  },
+  {
+    "id": "shift-2026-08-07-seed",
+    "opened_at": "2026-08-07T00:00:00.000Z",
+    "closed_at": "2026-08-07T15:00:00.000Z",
+    "opening_cash": 404111,
+    "status": "closed",
+    "device": "seed-device",
+    "total_cash_out": 0
+  },
+  {
+    "id": "shift-2026-08-08-seed",
+    "opened_at": "2026-08-08T00:00:00.000Z",
+    "closed_at": "2026-08-08T15:00:00.000Z",
+    "opening_cash": 317097,
+    "status": "closed",
+    "device": "seed-device",
+    "total_cash_out": 0
+  },
+  {
+    "id": "shift-2026-08-09-seed",
+    "opened_at": "2026-08-09T00:00:00.000Z",
+    "closed_at": "2026-08-09T15:00:00.000Z",
+    "opening_cash": 301807,
+    "status": "closed",
+    "device": "seed-device",
+    "total_cash_out": 0
+  },
+  {
+    "id": "shift-2026-08-10-seed",
+    "opened_at": "2026-08-10T00:00:00.000Z",
+    "closed_at": "2026-08-10T15:00:00.000Z",
+    "opening_cash": 449833,
+    "status": "closed",
+    "device": "seed-device",
+    "total_cash_out": 0
+  },
+  {
+    "id": "shift-2026-08-11-seed",
+    "opened_at": "2026-08-11T00:00:00.000Z",
+    "closed_at": "2026-08-11T15:00:00.000Z",
+    "opening_cash": 357107,
+    "status": "closed",
+    "device": "seed-device",
+    "total_cash_out": 0
+  },
+  {
+    "id": "shift-2026-08-12-seed",
+    "opened_at": "2026-08-12T00:00:00.000Z",
+    "closed_at": "2026-08-12T15:00:00.000Z",
+    "opening_cash": 228739,
+    "status": "closed",
+    "device": "seed-device",
+    "total_cash_out": 0
+  },
+  {
+    "id": "shift-2026-08-13-seed",
+    "opened_at": "2026-08-13T00:00:00.000Z",
+    "closed_at": "2026-08-13T15:00:00.000Z",
+    "opening_cash": 454316,
+    "status": "closed",
+    "device": "seed-device",
+    "total_cash_out": 0
+  },
+  {
+    "id": "shift-2026-08-14-seed",
+    "opened_at": "2026-08-14T00:00:00.000Z",
+    "closed_at": "2026-08-14T15:00:00.000Z",
+    "opening_cash": 449543,
+    "status": "closed",
+    "device": "seed-device",
+    "total_cash_out": 0
+  },
+  {
+    "id": "shift-2026-08-15-seed",
+    "opened_at": "2026-08-15T00:00:00.000Z",
+    "closed_at": "2026-08-15T15:00:00.000Z",
+    "opening_cash": 397960,
+    "status": "closed",
+    "device": "seed-device",
+    "total_cash_out": 0
+  },
+  {
+    "id": "shift-2026-08-16-seed",
+    "opened_at": "2026-08-16T00:00:00.000Z",
+    "closed_at": "2026-08-16T15:00:00.000Z",
+    "opening_cash": 384796,
+    "status": "closed",
+    "device": "seed-device",
+    "total_cash_out": 0
+  },
+  {
+    "id": "shift-2026-08-17-seed",
+    "opened_at": "2026-08-17T00:00:00.000Z",
+    "closed_at": "2026-08-17T15:00:00.000Z",
+    "opening_cash": 348293,
+    "status": "closed",
+    "device": "seed-device",
+    "total_cash_out": 0
+  },
+  {
+    "id": "shift-2026-08-18-seed",
+    "opened_at": "2026-08-18T00:00:00.000Z",
+    "closed_at": "2026-08-18T15:00:00.000Z",
+    "opening_cash": 378284,
+    "status": "closed",
+    "device": "seed-device",
+    "total_cash_out": 0
+  },
+  {
+    "id": "shift-2026-08-19-seed",
+    "opened_at": "2026-08-19T00:00:00.000Z",
+    "closed_at": "2026-08-19T15:00:00.000Z",
+    "opening_cash": 464594,
+    "status": "closed",
+    "device": "seed-device",
+    "total_cash_out": 0
+  },
+  {
+    "id": "shift-2026-08-20-seed",
+    "opened_at": "2026-08-20T00:00:00.000Z",
+    "closed_at": "2026-08-20T15:00:00.000Z",
+    "opening_cash": 321879,
+    "status": "closed",
+    "device": "seed-device",
+    "total_cash_out": 0
+  },
+  {
+    "id": "shift-2026-08-21-seed",
+    "opened_at": "2026-08-21T00:00:00.000Z",
+    "closed_at": "2026-08-21T15:00:00.000Z",
+    "opening_cash": 231033,
+    "status": "closed",
+    "device": "seed-device",
+    "total_cash_out": 0
+  },
+  {
+    "id": "shift-2026-08-22-seed",
+    "opened_at": "2026-08-22T00:00:00.000Z",
+    "closed_at": "2026-08-22T15:00:00.000Z",
+    "opening_cash": 325715,
+    "status": "closed",
+    "device": "seed-device",
+    "total_cash_out": 0
+  },
+  {
+    "id": "shift-2026-08-23-seed",
+    "opened_at": "2026-08-23T00:00:00.000Z",
+    "closed_at": "2026-08-23T15:00:00.000Z",
+    "opening_cash": 304727,
+    "status": "closed",
+    "device": "seed-device",
+    "total_cash_out": 0
+  },
+  {
+    "id": "shift-2026-08-24-seed",
+    "opened_at": "2026-08-24T00:00:00.000Z",
+    "closed_at": "2026-08-24T15:00:00.000Z",
+    "opening_cash": 376258,
+    "status": "closed",
+    "device": "seed-device",
+    "total_cash_out": 0
+  },
+  {
+    "id": "shift-2026-08-25-seed",
+    "opened_at": "2026-08-25T00:00:00.000Z",
+    "closed_at": "2026-08-25T15:00:00.000Z",
+    "opening_cash": 356457,
+    "status": "closed",
+    "device": "seed-device",
+    "total_cash_out": 0
+  },
+  {
+    "id": "shift-2026-08-26-seed",
+    "opened_at": "2026-08-26T00:00:00.000Z",
+    "closed_at": "2026-08-26T15:00:00.000Z",
+    "opening_cash": 435279,
+    "status": "closed",
+    "device": "seed-device",
+    "total_cash_out": 0
+  },
+  {
+    "id": "shift-2026-08-27-seed",
+    "opened_at": "2026-08-27T00:00:00.000Z",
+    "closed_at": "2026-08-27T15:00:00.000Z",
+    "opening_cash": 211969,
+    "status": "closed",
+    "device": "seed-device",
+    "total_cash_out": 0
+  }
+]

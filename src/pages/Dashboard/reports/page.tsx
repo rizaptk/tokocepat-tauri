@@ -1,7 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, ArrowRight, BarChart2, BookOpen, Warehouse, ArchiveX, History, ShieldCheck, Landmark, ReceiptText, TicketPercent } from 'lucide-react';
+import { ArrowLeft, ArrowRight, BarChart2, BookOpen, Warehouse, ArchiveX, History, ShieldCheck, Landmark, ReceiptText, TicketPercent, Wallet } from 'lucide-react';
 import { NotificationBell } from '@/components/NotificationBell';
 import { ThemeToggle } from '@/components/ThemeButtons';
 
@@ -67,6 +67,13 @@ const reportLinks = [
         description: 'Analisis dampak diskon dan pemakaian voucher.',
         href: '/dashboard/reports/promos',
         icon: TicketPercent,
+        comingSoon: false,
+    },
+    {
+        title: 'Laporan Piutang',
+        description: 'Analisis piutang, jatuh tempo, lunas & macet.',
+        href: '/dashboard/reports/piutang',
+        icon: Wallet,
         comingSoon: false,
     },
 ];

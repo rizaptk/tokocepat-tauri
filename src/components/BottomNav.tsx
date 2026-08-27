@@ -16,7 +16,7 @@ const moreNavItems = [
   { href: '/inventory', label: 'Inventori', icon: Warehouse },
   { href: '/dashboard/promos', label: 'Promo', icon: Gift },
   { href: '/dashboard/customers', label: 'Pelanggan', icon: Users },
-  { href: '/dashboard/reports/piutang', label: 'Piutang', icon: Wallet },
+  { href: '/dashboard/piutang', label: 'Piutang', icon: Wallet },
   { href: '/cashier/grosir', label: 'Grosir', icon: Truck },
   { href: '/dashboard/reports', label: 'Laporan', icon: BarChartIcon },
   { href: '/dashboard/settings', label: 'Pengaturan', icon: Settings },

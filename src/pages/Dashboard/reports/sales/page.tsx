@@ -14,6 +14,7 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Transaction } from '@/lib/types';
 import TransactionDetailDialog from '@/components/TransactionDetailDialog';
 import { DateRangeFilter } from '@/components/DateRangeFilter';
@@ -71,7 +72,9 @@ const TransactionRow = React.memo(({
                 <div className="text-xs text-muted-foreground">{format(new Date(tx.created_at), 'p')}</div>
             </div>
             <div className={`${columnStyles.invoice} font-mono text-xs`}>
-                {tx.invoice_number}
+                <div>{tx.invoice_number}</div>
+                {(tx as any).is_wholesale && <span className="text-[10px] px-1 rounded bg-amber-100 text-amber-700">Grosir{(tx as any).customer_name_snapshot ? ` · ${(tx as any).customer_name_snapshot}` : ''}</span>}
+                {(tx as any).payment_status && (tx as any).payment_status !== 'lunas' && <span className="text-[10px] px-1 rounded bg-destructive/10 text-destructive ml-1">{(tx as any).payment_status}</span>}
             </div>
             <div className={columnStyles.subtotal}>
                 {formatCurrency(tx.subtotal)}
@@ -107,6 +110,7 @@ export default function SalesReportPage() {
       to: endOfDay(new Date()),
     });
     const [searchTerm, setSearchTerm] = useState('');
+    const [typeFilter, setTypeFilter] = useState<'all' | 'retail' | 'grosir' | 'piutang'>('all');
     const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
     const { storeConfig } = useStore();
     const nav = useNavigate();
@@ -118,12 +122,15 @@ export default function SalesReportPage() {
     const {transactions, isLoading} = useLoadTransactions(date, activeDeviceId);
 
     const filteredTransactions = useMemo(() => {
-        const paidTransactions = transactions.filter(tx => tx.status === 'paid');
+        let paidTransactions = transactions.filter(tx => tx.status === 'paid');
+        if (typeFilter === 'retail') paidTransactions = paidTransactions.filter(tx => !(tx as any).is_wholesale);
+        else if (typeFilter === 'grosir') paidTransactions = paidTransactions.filter(tx => (tx as any).is_wholesale);
+        else if (typeFilter === 'piutang') paidTransactions = paidTransactions.filter(tx => (tx as any).is_wholesale && (tx as any).payment_status && (tx as any).payment_status !== 'lunas');
         if (!searchTerm.trim()) return paidTransactions;
         return paidTransactions.filter(tx => 
-            tx.invoice_number.toLowerCase().includes(searchTerm.toLowerCase())
+            tx.invoice_number.toLowerCase().includes(searchTerm.toLowerCase()) || ((tx as any).customer_name_snapshot || '').toLowerCase().includes(searchTerm.toLowerCase())
         );
-    }, [transactions, searchTerm]);
+    }, [transactions, searchTerm, typeFilter]);
 
     const rowVirtualizer = useVirtualizer({
         count: filteredTransactions.length,
@@ -150,6 +157,8 @@ export default function SalesReportPage() {
         const totalRevenue = paidTransactions.reduce((sum, tx) => sum + tx.total, 0);
         const totalSubtotal = paidTransactions.reduce((sum, tx) => sum + tx.subtotal, 0);
         const totalTax = paidTransactions.reduce((sum, tx) => sum + tx.tax_amount, 0); // Restored calculation
+        const totalGrosirTax = paidTransactions.filter(tx => (tx as any).is_wholesale).reduce((sum, tx) => sum + tx.tax_amount, 0);
+        const totalRetailTax = totalTax - totalGrosirTax;
         
         let totalStandardCost = 0;
         let totalConsignmentPayout = 0;
@@ -175,8 +184,10 @@ export default function SalesReportPage() {
             { title: 'HPP Standar Toko', value: formatCurrency(totalStandardCost), icon: Package },
             { title: 'Bagi Hasil Titipan', value: formatCurrency(totalConsignmentPayout), icon: Wallet },
             { title: 'Margin Laba Kotor', value: formatCurrency(totalProfit), icon: TrendingUp },
-            { title: 'Total Pajak', value: formatCurrency(totalTax), icon: Landmark }, // Restored Card
-            { title: 'Transaksi', value: paidTransactions.length.toString(), icon: ReceiptText }, // Restored Card
+            { title: 'Total Pajak', value: formatCurrency(totalTax), icon: Landmark },
+            { title: 'Pajak Grosir', value: formatCurrency(totalGrosirTax), icon: Landmark },
+            { title: 'Pajak Retail', value: formatCurrency(totalRetailTax), icon: Landmark },
+            { title: 'Transaksi', value: paidTransactions.length.toString(), icon: ReceiptText },
         ];
     }, [transactions]);
     
@@ -265,11 +276,20 @@ export default function SalesReportPage() {
                         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
                             <DateRangeFilter date={date} setDate={setDate} preset='last30' />
                             <DeviceScopeFilter />
+                            <Select value={typeFilter} onValueChange={v => setTypeFilter(v as any)}>
+                                <SelectTrigger className="w-36 h-9"><SelectValue placeholder="Tipe" /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">Semua</SelectItem>
+                                    <SelectItem value="retail">Retail</SelectItem>
+                                    <SelectItem value="grosir">Grosir</SelectItem>
+                                    <SelectItem value="piutang">Piutang</SelectItem>
+                                </SelectContent>
+                            </Select>
                             <div className="relative">
                                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                                 <Input
                                     type="search"
-                                    placeholder="Cari invoice..."
+                                    placeholder="Cari invoice / pelanggan..."
                                     className="pl-8 w-full sm:w-64"
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
