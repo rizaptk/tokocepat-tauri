@@ -213,6 +213,9 @@ export default function ProductManagementPage() {
         else if (filter === 'retail') {
             items = items.filter(p => p.is_active);
         }
+        else if (filter === 'wholesale') {
+            items = items.filter(p => p.isWholesaleEnabled && p.is_active);
+        }
         else if (filter === 'consignment') {
             items = items.filter(p => p.is_consignment && p.is_active);
         }
@@ -384,6 +387,7 @@ export default function ProductManagementPage() {
                             <>
                                 <FilterPill active={filter === 'all'} onClick={() => setFilter('all')}>Semua (Aktif)</FilterPill>
                                 <FilterPill active={filter === 'retail'} onClick={() => setFilter('retail')}>Retail</FilterPill>
+                                <FilterPill active={filter === 'wholesale'} onClick={() => setFilter('wholesale')}>Grosir</FilterPill>
                                 <Separator orientation="vertical" className="h-4 my-auto" />
                                 <FilterPill active={filter === 'consignment'} onClick={() => setFilter('consignment')}>Konsinyasi</FilterPill>
                                 <FilterPill active={filter === 'variants'} onClick={() => setFilter('variants')}>Varian</FilterPill>

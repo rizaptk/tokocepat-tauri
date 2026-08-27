@@ -128,6 +128,13 @@ export function VoucherForm({ draft, isNew, onChange, onCancel, onSave, isSaving
                                     </div>
                                     <Switch checked={draft.is_active} onCheckedChange={(v) => set({ is_active: v })} />
                                 </div>
+                                <div className="flex items-center justify-between rounded-lg border p-3">
+                                    <div>
+                                        <p className="text-sm font-medium">Izinkan untuk Grosir</p>
+                                        <p className="text-xs text-muted-foreground">Jika aktif, voucher dapat dipakai di transaksi grosir.</p>
+                                    </div>
+                                    <Switch checked={!!draft.allowWholesale} onCheckedChange={(v) => set({ allowWholesale: v })} />
+                                </div>
                             </CardContent>
                         </Card>
                     </div>

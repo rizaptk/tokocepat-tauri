@@ -147,7 +147,11 @@ export const evaluateDiscounts = (
     // NOTE: must wrap in an arrow — `filter(isPromoLive)` would pass the array
     // INDEX as isPromoLive's `now` parameter, killing every promo whose
     // starts_at is after 1970 (i.e. all of them).
-    const activePromos = promos.map(normalizePromo).filter(p => isPromoLive(p));
+    let activePromos = promos.map(normalizePromo).filter(p => isPromoLive(p));
+    // Wholesale transactions skip promos/vouchers unless explicitly allowed per-promo
+    if (opts.isWholesale) {
+        activePromos = activePromos.filter(p => !!p.allowWholesale);
+    }
 
     const cartById = new Map(cart.map(c => [c.cartItemId, c]));
     const getItem = (l: DiscountLine) => cartById.get(l.cartItemId);
@@ -361,6 +365,8 @@ export const evaluateDiscounts = (
                 errors.push(`Kode voucher "${code}" tidak ditemukan.`);
             } else if (!byCode.is_active) {
                 errors.push(`Voucher "${byCode.name}" sedang nonaktif.`);
+            } else if (opts.isWholesale && !byCode.allowWholesale) {
+                errors.push(`Voucher "${byCode.name}" tidak berlaku untuk grosir.`);
             } else {
                 errors.push(`Voucher "${byCode.name}" belum berlaku atau sudah berakhir.`);
             }

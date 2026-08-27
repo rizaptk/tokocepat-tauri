@@ -1,0 +1,122 @@
+[
+  {
+    "id": "cust-001",
+    "name": "Toko Sumber Rejeki",
+    "phone": "081210000000",
+    "address": "Jl. Contoh No. 1, Kota",
+    "groupId": "grp-umum",
+    "topDays": 0,
+    "creditLimit": 0,
+    "is_active": true,
+    "created_at": "2026-08-27T01:48:47.418Z",
+    "updated_at": "2026-08-27T01:48:47.418Z"
+  },
+  {
+    "id": "cust-002",
+    "name": "Warung Bu Siti",
+    "phone": "081210123456",
+    "address": "Jl. Contoh No. 2, Kota",
+    "groupId": "grp-umum",
+    "topDays": 0,
+    "creditLimit": 0,
+    "is_active": true,
+    "created_at": "2026-08-27T01:48:47.418Z",
+    "updated_at": "2026-08-27T01:48:47.418Z"
+  },
+  {
+    "id": "cust-003",
+    "name": "Toko Makmur Jaya",
+    "phone": "081210246912",
+    "address": "Jl. Contoh No. 3, Kota",
+    "groupId": "grp-umum",
+    "topDays": 0,
+    "creditLimit": 0,
+    "is_active": true,
+    "created_at": "2026-08-27T01:48:47.418Z",
+    "updated_at": "2026-08-27T01:48:47.418Z"
+  },
+  {
+    "id": "cust-004",
+    "name": "Kios Berkah",
+    "phone": "081210370368",
+    "address": "Jl. Contoh No. 4, Kota",
+    "groupId": "grp-reseller",
+    "topDays": 7,
+    "creditLimit": 1000000,
+    "is_active": true,
+    "created_at": "2026-08-27T01:48:47.418Z",
+    "updated_at": "2026-08-27T01:48:47.418Z"
+  },
+  {
+    "id": "cust-005",
+    "name": "UD Maju Bersama",
+    "phone": "081210493824",
+    "address": "Jl. Contoh No. 5, Kota",
+    "groupId": "grp-reseller",
+    "topDays": 7,
+    "creditLimit": 1000000,
+    "is_active": true,
+    "created_at": "2026-08-27T01:48:47.418Z",
+    "updated_at": "2026-08-27T01:48:47.418Z"
+  },
+  {
+    "id": "cust-006",
+    "name": "CV Distribusi Prima",
+    "phone": "081210617280",
+    "address": "Jl. Contoh No. 6, Kota",
+    "groupId": "grp-reseller",
+    "topDays": 7,
+    "creditLimit": 1000000,
+    "is_active": true,
+    "created_at": "2026-08-27T01:48:47.418Z",
+    "updated_at": "2026-08-27T01:48:47.418Z"
+  },
+  {
+    "id": "cust-007",
+    "name": "Toko Amanah",
+    "phone": "081210740736",
+    "address": "Jl. Contoh No. 7, Kota",
+    "groupId": "grp-agen",
+    "topDays": 14,
+    "creditLimit": 3000000,
+    "is_active": true,
+    "created_at": "2026-08-27T01:48:47.418Z",
+    "updated_at": "2026-08-27T01:48:47.418Z"
+  },
+  {
+    "id": "cust-008",
+    "name": "Grosir Sentosa",
+    "phone": "081210864192",
+    "address": "Jl. Contoh No. 8, Kota",
+    "groupId": "grp-agen",
+    "topDays": 14,
+    "creditLimit": 3000000,
+    "is_active": true,
+    "created_at": "2026-08-27T01:48:47.418Z",
+    "updated_at": "2026-08-27T01:48:47.418Z"
+  },
+  {
+    "id": "cust-009",
+    "name": "Warung Pojok",
+    "phone": "081210987648",
+    "address": "Jl. Contoh No. 9, Kota",
+    "groupId": "grp-distributor",
+    "topDays": 30,
+    "creditLimit": 5000000,
+    "is_active": true,
+    "created_at": "2026-08-27T01:48:47.418Z",
+    "updated_at": "2026-08-27T01:48:47.418Z"
+  },
+  {
+    "id": "cust-010",
+    "name": "Toko Harapan Baru",
+    "phone": "081211111104",
+    "address": "Jl. Contoh No. 10, Kota",
+    "groupId": "grp-distributor",
+    "topDays": 30,
+    "creditLimit": 5000000,
+    "is_active": true,
+    "created_at": "2026-08-27T01:48:47.418Z",
+    "updated_at": "2026-08-27T01:48:47.419Z"
+  }
+]

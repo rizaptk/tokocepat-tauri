@@ -346,6 +346,8 @@ export interface Promotion {
   min_purchase?: number;        // gross subtotal required to activate
   max_uses?: number;            // lifetime redemption cap across devices
   uses_count?: number;          // how many times it has been used
+  // Wholesale toggle — default false, promo/voucher skipped for grosir unless enabled
+  allowWholesale?: boolean;
   // --- LEGACY FIELDS (kept for reading old docs; not written by new forms) ---
   trigger_product_ids?: string[];
   trigger_qty?: number;

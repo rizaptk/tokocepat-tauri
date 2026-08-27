@@ -40,6 +40,7 @@ const emptyDraft = (kind: PromoKind): Promotion => {
         applies_to_category_ids: [],
         discount_type: 'percentage',
         discount_value: 10,
+        allowWholesale: false,
     };
     switch (kind) {
         case 'flat': return { ...base, reward_type: 'discount' };
@@ -73,6 +74,7 @@ export default function PromosPage() {
 
     const [leftTab, setLeftTab] = useState<LeftTab>('diskon');
     const [query, setQuery] = useState('');
+    const [promoProductFilter, setPromoProductFilter] = useState<'all' | 'wholesale'>('all');
     const [draft, setDraft] = useState<Promotion>(() => emptyDraft('flat'));
     const [isNew, setIsNew] = useState(true);
     const [isSheetOpen, setIsSheetOpen] = useState(false);
@@ -415,7 +417,8 @@ export default function PromosPage() {
     const q = query.trim().toLowerCase();
     const filteredDiskons = diskons.filter(p => !q || p.name.toLowerCase().includes(q) || describe(p).toLowerCase().includes(q));
     const filteredVouchers = vouchers.filter(p => !q || p.name.toLowerCase().includes(q) || (p.code || '').toLowerCase().includes(q));
-    const filteredProducts = products.filter(p => !q || p.name.toLowerCase().includes(q) || (p.barcode || '').toLowerCase().includes(q) || (p.sku || '').toLowerCase().includes(q));
+    let filteredProducts = products.filter(p => !q || p.name.toLowerCase().includes(q) || (p.barcode || '').toLowerCase().includes(q) || (p.sku || '').toLowerCase().includes(q));
+    if (leftTab === 'produk' && promoProductFilter === 'wholesale') filteredProducts = filteredProducts.filter(p => !!(p as any).isWholesaleEnabled);
     const filteredCategories = categories.filter(c => !q || c.name.toLowerCase().includes(q));
 
     const searchPlaceholder: Record<LeftTab, string> = {
@@ -626,7 +629,12 @@ export default function PromosPage() {
                         )}
 
                         {leftTab === 'produk' && (
-                            filteredProducts.length === 0 ? (
+                            <div className="flex h-full flex-col">
+                                <div className="px-3 py-1 flex gap-1.5">
+                                    <PillButton active={promoProductFilter === 'all'} onClick={() => setPromoProductFilter('all')}>Semua</PillButton>
+                                    <PillButton active={promoProductFilter === 'wholesale'} onClick={() => setPromoProductFilter('wholesale')}>Grosir</PillButton>
+                                </div>
+                                {filteredProducts.length === 0 ? (
                                 <div className="py-16 text-center text-muted-foreground">
                                     <p className="font-medium text-foreground/70">{products.length === 0 ? 'Belum ada produk' : 'Produk tidak ditemukan'}</p>
                                 </div>
@@ -667,7 +675,8 @@ export default function PromosPage() {
                                     </div>
                                     {scopePickerFooter(selectedProductIds.size, 'produk')}
                                 </div>
-                            )
+                            )}
+                            </div>
                         )}
 
                         {leftTab === 'kategori' && (

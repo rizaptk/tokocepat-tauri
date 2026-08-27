@@ -58,6 +58,7 @@ function App() {
             <Route path="dashboard/promos" element={<PromosPage />} />
             <Route path="dashboard/customers" element={<CustomersPage />} />
             <Route path="dashboard/piutang" element={<PiutangPage />} />
+            <Route path="dashboard/reports/piutang" element={<PiutangPage />} />
             <Route path="dashboard/settings" element={<DashboardSettings />} />
             <Route path="dashboard/shifts/:id" element={<DashboardShiftDetail />} />
 

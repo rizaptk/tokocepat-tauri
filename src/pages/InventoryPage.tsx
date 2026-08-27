@@ -906,6 +906,13 @@ export default function InventoryPage() {
             case 'variant':
                  combined = combined.filter(item => item.itemType === 'variant');
                 break;
+            case 'wholesale':
+                combined = combined.filter(item => {
+                    if (item.itemType === 'product') return (item as Product).isWholesaleEnabled;
+                    const parent = products.find(p => p.id === (item as ProductVariant).product_id);
+                    return !!parent?.isWholesaleEnabled;
+                });
+                break;
             case 'consignment':
                 combined = combined.filter(item => {
                     if (item.itemType === 'product') {

@@ -49,13 +49,13 @@ const Kbd = ({ children }: { children: React.ReactNode }) => (
     </kbd>
 );
 
-export default function ClassicCashierPage() {
+export default function ClassicCashierPage({ defaultWholesale = false }: { defaultWholesale?: boolean } = {}) {
     const { 
         products, cart, saveItemToCart, updateQuantity, updateCartItemUom, removeFromCart, 
         checkout, activeShift, openShift, storeConfig, transactions,
         parkCart, promos, setPromos, categories, customers, customerGroups
     } = useStore();
-    const [isWholesaleMode, setIsWholesaleMode] = useState(false);
+    const [isWholesaleMode, setIsWholesaleMode] = useState(defaultWholesale);
     const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
     
     const { toast } = useToast();
