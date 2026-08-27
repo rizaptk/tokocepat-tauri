@@ -1,6 +1,6 @@
-# TokoCepat POS v0.4.0
+# Kastoko v0.6.0 — Solusi Kelola Transaksi Cepat, Lengkap dan Handal
 
-**TokoCepat** is a high-performance, offline-first Point of Sale (POS) application designed for retail stores, cafés, and restaurants. Built on a modern tech stack, it prioritizes speed, financial integrity, and the ability to function seamlessly without a constant internet connection.
+**Kastoko** (Kasir Toko) is a high-performance, offline-first Point of Sale application for retail + wholesale (grosir), warung & toko kelontong. Rebrand of TokoCepat. **Slogan splash:** *Solusi Kelola Transaksi Cepat, Lengkap dan Handal* — **Play Store short:** *Kelola Transaksi, Cepat Lengkap*.
 
 ---
 
@@ -105,6 +105,7 @@ Both on-screen (virtual tape) and physical ESC/POS receipts show:
 git clone https://github.com/rizaptk/tokocepat-tauri.git
 cd tokocepat-tauri
 npm install
+# brand: Kastoko (rebrand v0.6.0, former TokoCepat)
 ```
 
 ### Environment
@@ -178,6 +179,8 @@ Detector baseline: 25 advisories (design-system-color false positives only; no l
 
 | Version | Date | Highlights |
 |---------|------|------------|
+| **0.6.0** | 2026-08-28 | **Rebrand TokoCepat → Kastoko**: *Solusi Kelola Transaksi Cepat, Lengkap dan Handal* (splash) / *Kelola Transaksi, Cepat Lengkap* (Play Store); KastokoLogo withSlogan, productName/identifier `com.kastoko.desktop`. |
+| **0.5.2** | 2026-08-27 | Multi-UOM cart + wholesale/group pricing + customer TOP, wholesale cart clear confirm, Diskon column. |
 | **0.4.0** | 2026-08-26 | **Promo system fully working**: voucher claim-on-confirm, per-row diskon kasir, auto promos (flat/bogo/criteria/conditional), retur net refund, receipt breakdown; fixed `filter(isPromoLive)` callback-index bug, seeded `store_config/main`, `_time`-less delta acceptance, malformed date sanitizer, panel-scope sync. |
 | 0.3.4 | 2026-08-25 | Payment rail cleanup, fixed qty column, retur table, diskon toggle, inventory alasan removal. |
 | 0.3.3 | 2026-08-24 | Cashier top payment bar, multi-search worksheet, per-row catatan, products barcode/composite indexes. |
@@ -188,4 +191,4 @@ Detector baseline: 25 advisories (design-system-color false positives only; no l
 
 ## 📄 License
 
-Proprietary — TokoCepat POS. All rights reserved.
+Proprietary — Kastoko (formerly TokoCepat) POS. All rights reserved.

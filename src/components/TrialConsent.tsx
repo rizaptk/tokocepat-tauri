@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { TokoCepatLogo } from './TokoCepatLogo';
+import { KastokoLogo } from './KastokoLogo';
 import { Button } from './ui/button';
 import { ScrollArea } from './ui/scroll-area';
 import { CheckCircle2, ShieldCheck, Zap, CreditCard, ArrowLeft, Loader2, KeyRound } from 'lucide-react';
@@ -78,8 +78,8 @@ export function TrialConsent() {
           </h1>
           <p className="text-muted-foreground mt-2 mb-6">
             {alreadyUsed
-              ? 'Masa uji coba perangkat ini sudah pernah digunakan sebelumnya. Silakan beli lisensi untuk terus menggunakan TokoCepat.'
-              : 'Aplikasi belum diaktivasi, sehingga beberapa fitur mungkin dibatasi. Pilih salah satu cara untuk mulai menggunakan TokoCepat.'}
+              ? 'Masa uji coba perangkat ini sudah pernah digunakan sebelumnya. Silakan beli lisensi untuk terus menggunakan Kastoko.'
+              : 'Aplikasi belum diaktivasi, sehingga beberapa fitur mungkin dibatasi. Pilih salah satu cara untuk mulai menggunakan Kastoko.'}
           </p>
 
           <div className="space-y-3">
@@ -100,7 +100,7 @@ export function TrialConsent() {
                     <KeyRound className="h-4 w-4 text-primary shrink-0" /> Sudah punya kode lisensi?
                   </p>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Aktifkan TokoCepat dengan kode lisensi Anda agar bisa digunakan kembali di perangkat ini.
+                    Aktifkan Kastoko dengan kode lisensi Anda agar bisa digunakan kembali di perangkat ini.
                   </p>
                 </div>
                 <Button className="w-full h-11" onClick={() => navigate('/license')}>
@@ -122,7 +122,7 @@ export function TrialConsent() {
       <div className="w-full max-w-lg rounded-xl border bg-card shadow-lg flex flex-col max-h-[90vh]">
         <div className="p-6 pb-4 text-center space-y-2 border-b">
           <div className="flex justify-center">
-            <TokoCepatLogo />
+            <KastokoLogo withSlogan />
           </div>
           <h1 className="text-xl font-bold">Persetujuan & Ketentuan Uji Coba</h1>
           <p className="text-sm text-muted-foreground">

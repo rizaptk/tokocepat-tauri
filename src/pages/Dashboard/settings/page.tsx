@@ -67,7 +67,7 @@ export default function SettingsPage() {
         try {
             const targetPath = await save({
                 title: 'Simpan Cadangan Database',
-                defaultPath: `backup_tokocepat_${new Date().toISOString().split('T')[0]}.db.zip`,
+                defaultPath: `backup_kastoko_${new Date().toISOString().split('T')[0]}.db.zip`,
                 filters: [{ name: 'Archived Database', extensions: ['zip'] }]
             });
 

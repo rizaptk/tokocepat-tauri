@@ -1,6 +1,6 @@
 {
-  "name": "tokocepat",
-  "version": "0.5.2",
+  "name": "kastoko",
+  "version": "0.6.0",
   "private": true,
   "scripts": {
     "dev": "vite --port 9002 --host",

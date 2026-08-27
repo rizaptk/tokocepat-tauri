@@ -137,8 +137,8 @@ export default function AuditReportPage() {
                             <Button variant="outline" size="sm" disabled={auditData.length === 0}><FileDown className="mr-2 h-4 w-4" /> Ekspor</Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                            <DropdownMenuItem onSelect={() => date?.from && date?.to && exportAuditReportToExcel(auditData, {from: date.from, to: date.to }, storeConfig?.store_name || 'TokoCepat')}>Excel (.xlsx)</DropdownMenuItem>
-                            <DropdownMenuItem onSelect={() => date?.from && date?.to && exportAuditReportToPdf(auditData, {from: date.from, to: date.to }, storeConfig?.store_name || 'TokoCepat')}>PDF (.pdf)</DropdownMenuItem>
+                            <DropdownMenuItem onSelect={() => date?.from && date?.to && exportAuditReportToExcel(auditData, {from: date.from, to: date.to }, storeConfig?.store_name || 'Kastoko')}>Excel (.xlsx)</DropdownMenuItem>
+                            <DropdownMenuItem onSelect={() => date?.from && date?.to && exportAuditReportToPdf(auditData, {from: date.from, to: date.to }, storeConfig?.store_name || 'Kastoko')}>PDF (.pdf)</DropdownMenuItem>
                         </DropdownMenuContent>
                     </DropdownMenu>
                     <NotificationBell /><ThemeToggle />

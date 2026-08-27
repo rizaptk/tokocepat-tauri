@@ -1,8 +1,8 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-  "productName": "tokocepat",
-  "version": "0.5.2",
-  "identifier": "com.tokocepat.desktop",
+  "productName": "Kastoko",
+  "version": "0.6.0",
+  "identifier": "com.kastoko.desktop",
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://localhost:9002",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "Toko Cepat",
+        "title": "Kastoko",
         "width": 800,
         "height": 600,
         "resizable": true,
@@ -28,7 +28,7 @@
     "active": true,
     "targets": "all",
     "publisher": "Abc Develop",
-    "shortDescription": "Solusi Aplikasi Kasir Praktis",
+    "shortDescription": "Kelola Transaksi, Cepat Lengkap",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

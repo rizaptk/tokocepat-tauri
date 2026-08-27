@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Loader2, ShieldCheck, AlertTriangle } from 'lucide-react';
-import { TokoCepatLogo } from '@/components/TokoCepatLogo';
+import { KastokoLogo } from '@/components/KastokoLogo';
 // import { apiFetch } from '@/lib/api-client';
 import { invoke } from '@tauri-apps/api/core';
 
@@ -101,9 +101,9 @@ function ActivationComponent() {
         <Card className="w-full max-w-lg">
             <CardHeader>
                 <div className="flex justify-center mb-4">
-                     <TokoCepatLogo />
+                     <KastokoLogo withSlogan />
                 </div>
-                <CardTitle className="text-center">Perjanjian Layanan TokoCepat</CardTitle>
+                <CardTitle className="text-center">Perjanjian Layanan Kastoko</CardTitle>
                 <CardDescription className="text-center">
                     Harap baca dan setujui syarat dan ketentuan di bawah ini untuk mengaktifkan lisensi Anda.
                 </CardDescription>
