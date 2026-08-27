@@ -6,7 +6,7 @@ export default function HomePage() {
   return (
     <div className="flex min-h-screen w-full flex-col items-center justify-center bg-muted/40 p-4">
       <div className="flex flex-col items-center gap-6 text-center">
-        <KastokoLogo withSlogan />
+        <KastokoLogo />
         <Card className="w-full max-w-md">
             <CardHeader>
                 <CardTitle>Selamat Datang di Kastoko</CardTitle>

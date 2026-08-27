@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" role="img" aria-labelledby="title">
+<title id="title">Kastoko — Receipt + Check (simple, fills max)</title>
+<defs>
+  <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+    <stop offset="0%" stop-color="#0a84ff"/>
+    <stop offset="55%" stop-color="#5a3bff"/>
+    <stop offset="100%" stop-color="#7b2cf0"/>
+  </linearGradient>
+  <linearGradient id="checkFill" x1="15%" y1="10%" x2="85%" y2="90%">
+    <stop offset="0%" stop-color="#7af8ff"/>
+    <stop offset="100%" stop-color="#0a84ff"/>
+  </linearGradient>
+</defs>
+<!-- Solid aurora background — fills max, ensures visibility on light titlebar/taskbar -->
+<rect x="0" y="0" width="1024" height="1024" rx="220" ry="220" fill="url(#bg)"/>
+<!-- Receipt — fills max (~78% width) — simple shape for 16px legibility -->
+<g>
+  <rect x="160" y="140" rx="36" ry="36" width="704" height="700" fill="white" />
+  <path d="M 764 140 L 864 240 L 864 840 L 160 840 L 160 140 Z" fill="white"/>
+  <path d="M 764 140 L 864 240 L 764 240 Z" fill="#dff6ff" stroke="#bfefff" stroke-width="3"/>
+  <path d="M 160 840 L 194 818 L 228 840 L 262 818 L 296 840 L 330 818 L 364 840 L 398 818 L 432 840 L 466 818 L 500 840 L 534 818 L 568 840 L 602 818 L 636 840 L 670 818 L 704 840 L 738 818 L 772 840 L 806 818 L 840 840 L 864 840 L 864 852 L 160 852 Z" fill="white"/>
+  <!-- inner lines — thick for small-icon legibility -->
+  <rect x="208" y="280" rx="10" width="440" height="26" fill="#0a84ff" opacity="0.14"/>
+  <rect x="208" y="340" rx="10" width="390" height="26" fill="#0a84ff" opacity="0.14"/>
+  <rect x="208" y="400" rx="10" width="460" height="26" fill="#0a84ff" opacity="0.14"/>
+  <rect x="208" y="460" rx="10" width="340" height="26" fill="#0a84ff" opacity="0.14"/>
+  <rect x="208" y="530" width="608" height="4" rx="2" fill="#0a84ff" opacity="0.18"/>
+  <rect x="208" y="565" rx="10" width="320" height="30" fill="#0a84ff" opacity="0.22"/>
+  <rect x="580" y="565" rx="10" width="236" height="30" fill="#7b2cf0" opacity="0.22"/>
+</g>
+<!-- Check badge — fills, high contrast, overlaps receipt -->
+<g>
+  <circle cx="740" cy="730" r="150" fill="#08122e" opacity="0.97"/>
+  <circle cx="740" cy="730" r="143" fill="none" stroke="#7af8ff" stroke-width="12" opacity="0.96"/>
+  <circle cx="740" cy="730" r="132" fill="url(#checkFill)"/>
+  <path d="M 650 730 L 708 788 L 830 640" fill="none" stroke="white" stroke-width="48" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 650 730 L 708 788 L 830 640" fill="none" stroke="#0a84ff" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" opacity="0.2"/>
+</g>
+<!-- app initial subtle: K? Keep minimal — not needed, receipt+check already tells story -->
+</svg>

@@ -6,13 +6,47 @@ import { cn } from '@/lib/utils';
  * - Splash: use <KastokoLogo withSlogan />
  * - Header/compact: <KastokoLogo />
  */
+export function KastokoMark({ className, size = 28 }: { className?: string; size?: number }) {
+  return (
+    <span
+      aria-hidden
+      className={cn("relative flex shrink-0 items-center justify-center overflow-hidden rounded-[8px]", className)}
+      style={{
+        width: size,
+        height: size,
+        background: "linear-gradient(135deg, #0a84ff 0%, #5a3bff 55%, #7b2cf0 100%)",
+        boxShadow: "0 1px 6px rgba(10,132,255,0.35)",
+      }}
+    >
+      <svg viewBox="0 0 100 100" className="h-[78%] w-[78%]" fill="none">
+        {/* receipt */}
+        <rect x="18" y="14" rx="6" width="48" height="56" fill="white" />
+        <path d="M 58 14 L 66 22 L 58 22 Z" fill="#dff6ff" stroke="#bfefff" strokeWidth="0.6" />
+        <path d="M 18 70 L 21 68 L 24 70 L 27 68 L 30 70 L 33 68 L 36 70 L 39 68 L 42 70 L 45 68 L 48 70 L 51 68 L 54 70 L 57 68 L 60 70 L 63 68 L 66 70 L 66 71.5 L 18 71.5 Z" fill="white" />
+        <rect x="24" y="26" rx="1.8" width="30" height="3.2" fill="#0a84ff" opacity="0.14" />
+        <rect x="24" y="32" rx="1.8" width="26" height="3.2" fill="#0a84ff" opacity="0.14" />
+        <rect x="24" y="38" rx="1.8" width="32" height="3.2" fill="#0a84ff" opacity="0.14" />
+        <rect x="24" y="48" width="40" height="0.7" rx="0.35" fill="#0a84ff" opacity="0.18" />
+        {/* check badge */}
+        <circle cx="62" cy="60" r="14.5" fill="#08122e" />
+        <circle cx="62" cy="60" r="13" fill="none" stroke="#7af8ff" strokeWidth="1.2" />
+        <circle cx="62" cy="60" r="11.5" fill="url(#kastokoMarkCheck)" />
+        <path d="M 54 60.5 L 59 65.5 L 70 54" fill="none" stroke="white" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" />
+        <defs>
+          <linearGradient id="kastokoMarkCheck" x1="15%" y1="10%" x2="85%" y2="90%">
+            <stop offset="0%" stopColor="#7af8ff" />
+            <stop offset="100%" stopColor="#0a84ff" />
+          </linearGradient>
+        </defs>
+      </svg>
+    </span>
+  );
+}
+
 export function KastokoLogo({ className, withSlogan = false, sloganClassName }: { className?: string; withSlogan?: boolean; sloganClassName?: string }) {
   return (
     <div className={cn("flex items-center gap-2", className)}>
-      <span className="relative flex size-7 shrink-0 items-center justify-center rounded-full">
-        <span aria-hidden className="absolute inset-0 rounded-full bg-[radial-gradient(circle_at_32%_28%,#5ad2d6,#0a84ff_55%,#9671ee)]" />
-        <span aria-hidden className="pointer-events-none absolute inset-0 rounded-full gloss-chrome" />
-      </span>
+      <KastokoMark size={28} />
       <div className="flex flex-col leading-none">
         <h1 className="text-lg font-bold tracking-tight text-foreground">
           <span className="font-extrabold">Kas</span><span className="font-semibold">toko</span>
@@ -33,12 +67,8 @@ export function KastokoShortSlogan() {
 }
 
 export function StartOrb({ className }: { className?: string }) {
-  return (
-    <span className={cn("relative flex size-6 shrink-0 items-center justify-center rounded-full", className)}>
-      <span aria-hidden className="absolute inset-0 rounded-full bg-[radial-gradient(circle_at_32%_28%,#5ad2d6,#0a84ff_55%,#9671ee)]" />
-      <span aria-hidden className="pointer-events-none absolute inset-0 rounded-full gloss-chrome" />
-    </span>
-  );
+  // kept for compat — now renders the same KastokoMark (square) so every orb is replaced
+  return <KastokoMark className={className} size={24} />;
 }
 
 /**
