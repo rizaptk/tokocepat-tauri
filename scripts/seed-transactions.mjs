@@ -35,7 +35,7 @@ console.log(`Loaded ${products.length} products, ${customers.length} customers, 
 const shifts = [];
 const transactions = [];
 const now = new Date();
-const device = 'seed-device';
+const device = process.argv.includes('--device') ? process.argv[process.argv.indexOf('--device') + 1] : '41564E49-494C-0044-0000-000000000000';
 
 function randomInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
 function randomChoice(arr) { return arr[Math.floor(Math.random() * arr.length)]; }

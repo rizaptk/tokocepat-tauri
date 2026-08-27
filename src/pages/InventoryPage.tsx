@@ -649,7 +649,7 @@ const WorksheetColumnClass = {
     brand: "hidden sm:flex items-center text-sm text-muted-foreground truncate w-28 shrink-0 px-2 border-l border-l-border/50",
     category: "hidden md:flex items-center text-sm text-muted-foreground truncate w-28 shrink-0 px-2 border-l border-l-border/50",
     systemStock: "flex items-center justify-end shrink-0 text-right tabular-nums w-20 border-l border-l-border/50 px-2",
-    physicalStock: "flex items-center justify-center shrink-0 w-28 border-l border-l-border/50 px-2",
+    physicalStock: "flex items-center justify-center shrink-0 w-44 border-l border-l-border/50 px-2",
     reason: "flex items-center justify-center shrink-0 w-44 border-l border-l-border/50 px-2",
     notes: "flex items-center justify-center shrink-0 w-40 border-l border-l-border/50 px-2",
     diff: "flex items-center justify-end shrink-0 text-right tabular-nums font-semibold w-16 border-l border-l-border/50 px-2",

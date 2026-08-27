@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useDbStore } from "@/lib/db-store";
-import { BarChartIcon, LayoutGrid, Package, Settings, ShoppingCart, Warehouse, Gift, Save, Check } from "lucide-react";
+import { BarChartIcon, LayoutGrid, Package, Settings, ShoppingCart, Warehouse, Gift, Save, Check, Users, Wallet } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
@@ -21,6 +21,8 @@ export const CustomizeAccess = () => {
         { menu: 'kasir', label: 'Kasir', icon: ShoppingCart },
         { menu: 'produk', label: 'Produk', icon: Package },
         { menu: 'promo', label: 'Promo', icon: Gift },
+        { menu: 'pelanggan', label: 'Pelanggan', icon: Users },
+        { menu: 'piutang', label: 'Piutang', icon: Wallet },
         { menu: 'inventori', label: 'Inventori', icon: Warehouse },
         { menu: 'laporan', label: 'Laporan', icon: BarChartIcon },
         { menu: 'pengaturan', label: 'Pengaturan', icon: Settings },

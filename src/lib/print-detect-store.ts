@@ -31,7 +31,7 @@ export const usePrinterStore = create<PrinterState>()(
       savedBaudRate: 9600,
       availablePrinters: [], // Akan diisi saat runtime
       isOnline: false,       // Akan diisi saat runtime
-      isEnabled: true,
+      isEnabled: false,
       showTapeWhenDisabled: false,
       paperWidth: '58mm',
       setIsEnabled: (isEnabled) => set({ isEnabled }),

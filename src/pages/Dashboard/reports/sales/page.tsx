@@ -157,8 +157,6 @@ export default function SalesReportPage() {
         const totalRevenue = paidTransactions.reduce((sum, tx) => sum + tx.total, 0);
         const totalSubtotal = paidTransactions.reduce((sum, tx) => sum + tx.subtotal, 0);
         const totalTax = paidTransactions.reduce((sum, tx) => sum + tx.tax_amount, 0); // Restored calculation
-        const totalGrosirTax = paidTransactions.filter(tx => (tx as any).is_wholesale).reduce((sum, tx) => sum + tx.tax_amount, 0);
-        const totalRetailTax = totalTax - totalGrosirTax;
         
         let totalStandardCost = 0;
         let totalConsignmentPayout = 0;
@@ -185,8 +183,6 @@ export default function SalesReportPage() {
             { title: 'Bagi Hasil Titipan', value: formatCurrency(totalConsignmentPayout), icon: Wallet },
             { title: 'Margin Laba Kotor', value: formatCurrency(totalProfit), icon: TrendingUp },
             { title: 'Total Pajak', value: formatCurrency(totalTax), icon: Landmark },
-            { title: 'Pajak Grosir', value: formatCurrency(totalGrosirTax), icon: Landmark },
-            { title: 'Pajak Retail', value: formatCurrency(totalRetailTax), icon: Landmark },
             { title: 'Transaksi', value: paidTransactions.length.toString(), icon: ReceiptText },
         ];
     }, [transactions]);
