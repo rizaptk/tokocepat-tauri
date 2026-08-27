@@ -14,7 +14,7 @@ import {
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Search, Trash2, ReceiptCent, Printer, CheckCircle2, LogIn, ArrowLeft, XCircle, TicketPercent, Gift, BadgePercent, GitBranch, Handshake, Loader2 } from 'lucide-react';
+import { Search, Trash2, ReceiptCent, Printer, CheckCircle2, LogIn, ArrowLeft, XCircle, TicketPercent, Gift, GitBranch, Handshake, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { VariantPanel } from '@/components/VariantPanel';
@@ -51,7 +51,7 @@ const Kbd = ({ children }: { children: React.ReactNode }) => (
 
 export default function ClassicCashierPage({ defaultWholesale = false }: { defaultWholesale?: boolean } = {}) {
     const { 
-        products, cart, saveItemToCart, updateQuantity, updateCartItemUom, removeFromCart, 
+        products, cart, saveItemToCart, updateQuantity, updateCartItemUom, removeFromCart, clearCart,
         checkout, activeShift, openShift, storeConfig, transactions,
         parkCart, promos, setPromos, categories, customers, customerGroups
     } = useStore();
@@ -86,6 +86,15 @@ export default function ClassicCashierPage({ defaultWholesale = false }: { defau
     const selectedCustomer = useMemo(() => customers.find(c => c.id === selectedCustomerId) || null, [customers, selectedCustomerId]);
     const selectedGroupId = selectedCustomer?.groupId || undefined;
     const [customerQuery, setCustomerQuery] = useState('');
+
+    const handleWholesaleToggle = (checked: boolean) => {
+        if (cart.length > 0 && checked !== isWholesaleMode) {
+            if (!confirm('Ganti mode akan mengosongkan keranjang. Lanjutkan?')) return;
+            clearCart();
+        }
+        setIsWholesaleMode(checked);
+        if (!checked) setSelectedCustomerId(null);
+    };
 
     // Re-price cart when customer group changes in wholesale mode (Group Base -> Qty Tier)
     useEffect(() => {
@@ -181,7 +190,7 @@ export default function ClassicCashierPage({ defaultWholesale = false }: { defau
     const [variantEditCartId, setVariantEditCartId] = useState<string | null>(null);
     const { activeIndex: cartActiveIndex, setActiveIndex: setCartActiveIndex, activeColumn: cartActiveColumn } = useTableNavigation({
         rowCount: cart.length,
-        columnCount: 12, // No | Produk | Var | Con | Merek | Kategori | Stok | Harga | Satuan | Qty | Subtotal | Hapus
+        columnCount: 13, // No | Produk | Var | Con | Merek | Kategori | Stok | Harga | Satuan | Qty | Diskon | Subtotal | Hapus
         bindTo: cartTableRef,
         onActivate: (index, column) => {
             const item = cart[index];
@@ -203,7 +212,7 @@ export default function ClassicCashierPage({ defaultWholesale = false }: { defau
                 // Qty column (default for any line): start in-cell qty edit
                 setQtyEditValue(String(item.quantity));
                 setQtyEditId(item.cartItemId);
-            } else if (column === 11) {
+            } else if (column === 12) {
                 removeFromCart(item.cartItemId);
             }
         },
@@ -244,11 +253,13 @@ export default function ClassicCashierPage({ defaultWholesale = false }: { defau
     // --- Search Logic ---
     const searchResults = useMemo(() => {
         if (!query) return [];
-        return products.filter(p => 
+        let filtered = products;
+        if (isWholesaleMode) filtered = filtered.filter(p => (p as any).isWholesaleEnabled);
+        return filtered.filter(p => 
             p.name.toLowerCase().includes(query.toLowerCase()) || 
             p.barcode?.includes(query)
         ).slice(0, 8);
-    }, [products, query]);
+    }, [products, query, isWholesaleMode]);
 
     useEffect(() => { setSearchIndex(-1); }, [query]);
 
@@ -363,6 +374,10 @@ export default function ClassicCashierPage({ defaultWholesale = false }: { defau
         }
         const product = products.find(p => p.barcode === barcode && p.is_active);
         if (product) {
+            if (isWholesaleMode && !(product as any).isWholesaleEnabled) {
+                toast({ variant: "destructive", title: "Produk bukan grosir", description: `${product.name} tidak support grosir` });
+                return;
+            }
             handleProductSelect(product);
         } else {
             toast({ variant: "destructive", title: "Produk tidak ditemukan", description: barcode });
@@ -554,13 +569,9 @@ export default function ClassicCashierPage({ defaultWholesale = false }: { defau
                         {/* Summary */}
                         <div className="space-y-0.5 text-sm">
                             <div className="flex justify-between gap-6"><span className="text-muted-foreground">Subtotal</span><span className="font-medium tabular-nums">{formatIDR(subtotal)}</span></div>
-                            <div className={cn("flex justify-between gap-6", (discountResult?.promoDiscount||0) > 0 ? "text-success dark:text-success-foreground" : "text-muted-foreground/50")}>
-                                <span>Promo & Voucher</span>
-                                <span className="font-semibold tabular-nums">-{formatIDR(discountResult?.promoDiscount||0)}</span>
-                            </div>
-                            <div className={cn("flex justify-between gap-6", (discountResult?.manualDiscount||0) > 0 ? "text-success dark:text-success-foreground" : "text-muted-foreground/50")}>
-                                <span>Diskon Kasir</span>
-                                <span className="font-semibold tabular-nums">-{formatIDR(discountResult?.manualDiscount||0)}</span>
+                            <div className={cn("flex justify-between gap-6", (discountResult?.discountTotal||0) > 0 ? "text-success dark:text-success-foreground" : "text-muted-foreground/50")}>
+                                <span>Diskon</span>
+                                <span className="font-semibold tabular-nums">-{formatIDR(discountResult?.discountTotal||0)}</span>
                             </div>
                             <div className="flex justify-between gap-6"><span className="text-muted-foreground">Pajak</span><span className="font-medium tabular-nums">{formatIDR(tax)}</span></div>
                             {cart.length > 0 && discountResult && discountResult.freeItems.length > 0 && (
@@ -577,21 +588,12 @@ export default function ClassicCashierPage({ defaultWholesale = false }: { defau
 
                         {/* Applied voucher / discount chips + errors */}
                         <div className="flex flex-col gap-1">
-                            {(voucherCode || manualDiscountInput) && (
+                            {voucherCode && (
                                 <div className="flex flex-wrap items-center gap-1.5">
-                                    {voucherCode && (
-                                        <button onClick={() => setVoucherCode('')} className="group inline-flex items-center gap-1 rounded-md border border-primary/40 bg-primary/10 px-2 py-1 text-xs font-semibold text-primary" title="Hapus voucher">
-                                            <TicketPercent className="size-3.5" /> {voucherCode}
-                                            <XCircle className="size-3.5 opacity-60 transition-opacity group-hover:opacity-100" />
-                                        </button>
-                                    )}
-                                    {manualDiscountInput && (
-                                        <button onClick={() => { setManualDiscountInput(''); setManualDiscountTargetItemId(null); }} className="group inline-flex items-center gap-1 rounded-md border border-warning/40 bg-warning/10 px-2 py-1 text-xs font-semibold text-warning dark:text-warning-foreground" title="Hapus diskon kasir">
-                                            <BadgePercent className="size-3.5" /> {manualDiscountType === 'persen' ? `${manualDiscountInput}%` : formatIDR(parsedManualDiscount)}
-                                            {manualDiscountTargetItemId && <span className="hidden sm:inline text-muted-foreground">· {cart.find(c => c.cartItemId === manualDiscountTargetItemId)?.name}</span>}
-                                            <XCircle className="size-3.5 opacity-60 transition-opacity group-hover:opacity-100" />
-                                        </button>
-                                    )}
+                                    <button onClick={() => setVoucherCode('')} className="group inline-flex items-center gap-1 rounded-md border border-primary/40 bg-primary/10 px-2 py-1 text-xs font-semibold text-primary" title="Hapus voucher">
+                                        <TicketPercent className="size-3.5" /> {voucherCode}
+                                        <XCircle className="size-3.5 opacity-60 transition-opacity group-hover:opacity-100" />
+                                    </button>
                                 </div>
                             )}
                             {voucherCode && !discountResult?.voucherCode && (
@@ -714,13 +716,18 @@ export default function ClassicCashierPage({ defaultWholesale = false }: { defau
                     {/* Wholesale bar */}
                     <div className="flex shrink-0 items-center gap-3 border-b border-border bg-amber-50/60 dark:bg-amber-950/30 px-2.5 py-1.5">
                         <label className="flex items-center gap-2 text-xs font-medium">
-                            <input type="checkbox" checked={isWholesaleMode} onChange={e=>setIsWholesaleMode(e.target.checked)} className="h-3.5 w-3.5 rounded border" />
+                            <input type="checkbox" checked={isWholesaleMode} onChange={e=>handleWholesaleToggle(e.target.checked)} className="h-3.5 w-3.5 rounded border" />
                             Mode Grosir
                         </label>
                         {isWholesaleMode && (
                             <>
                                 <div className="h-4 w-px bg-border" />
-                                <div className="flex items-center gap-2">
+                                {selectedCustomer ? (
+                                    <span className="text-xs font-medium flex items-center gap-1">
+                                        {selectedCustomer.name} · {customerGroups.find(g=>g.id===selectedCustomer.groupId)?.name || 'Umum'}
+                                        <Button variant="ghost" size="sm" className="h-5 ml-1 px-1 text-xs" onClick={()=>{setSelectedCustomerId(null); setCustomerQuery('');}}>× Hapus</Button>
+                                    </span>
+                                ) : (
                                     <div className="relative">
                                         <Search className="absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-muted-foreground" />
                                         <Input
@@ -749,21 +756,11 @@ export default function ClassicCashierPage({ defaultWholesale = false }: { defau
                                             </div>
                                         )}
                                     </div>
-                                    <Select value={selectedCustomerId || ''} onValueChange={v=>{setSelectedCustomerId(v||null); setCustomerQuery('');}}>
-                                        <SelectTrigger className="h-7 w-48 text-xs"><SelectValue placeholder="Pilih pelanggan (Umum jika kosong)" /></SelectTrigger>
-                                        <SelectContent>
-                                            {customers.map(c=>{
-                                                const g=customerGroups.find(gr=>gr.id===c.groupId);
-                                                return <SelectItem key={c.id} value={c.id}>{c.name} {g?`· ${g.name}`:''} {c.phone?`· ${c.phone}`:''}</SelectItem>;
-                                            })}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
+                                )}
                                 {selectedCustomer && (
                                     <span className="text-xs text-muted-foreground">
                                         TOP {selectedCustomer.topDays ?? customerGroups.find(g=>g.id===selectedCustomer.groupId)?.topDays ?? 0} hari
                                         {selectedCustomer.creditLimit ? ` · Limit ${formatIDR(selectedCustomer.creditLimit)}` : ''}
-                                        <Button variant="ghost" size="sm" className="h-5 ml-1 px-1 text-xs" onClick={()=>{setSelectedCustomerId(null); setCustomerQuery('');}}>× Hapus</Button>
                                     </span>
                                 )}
                                 <span className="ml-auto text-[10px] text-muted-foreground hidden lg:inline">Harga grosir otomatis per qty Pcs · Scan barcode pelanggan</span>
@@ -786,6 +783,7 @@ export default function ClassicCashierPage({ defaultWholesale = false }: { defau
                                     <TableHead className="w-24 text-right">Harga</TableHead>
                                     <TableHead className="w-20 text-center">Satuan</TableHead>
                                     <TableHead className="w-20 text-center">Qty</TableHead>
+                                    <TableHead className="w-20 text-right">Diskon</TableHead>
                                     <TableHead className="w-28 text-right">Subtotal</TableHead>
                                     <TableHead className="w-10"></TableHead>
                                 </TableRow>
@@ -793,7 +791,7 @@ export default function ClassicCashierPage({ defaultWholesale = false }: { defau
                             <TableBody>
                                 {cart.length === 0 ? (
                                     <TableRow>
-                                        <TableCell colSpan={12} className="h-[40vh] text-center text-muted-foreground">
+                                        <TableCell colSpan={13} className="h-[40vh] text-center text-muted-foreground">
                                             <div className="space-y-1">
                                                 <p className="font-medium text-foreground/70">Keranjang kosong</p>
                                                 <p className="text-sm">Cari produk, scan barcode, atau tekan <Kbd>F1</Kbd> untuk fokus pencarian.</p>
@@ -889,8 +887,9 @@ export default function ClassicCashierPage({ defaultWholesale = false }: { defau
                                                         </button>
                                                     )}
                                                 </TableCell>
-                                                <TableCell className={cn("text-right font-bold tabular-nums whitespace-nowrap", cartActiveIndex === idx && cartActiveColumn === 10 && "bg-primary/10")}>{formatIDR(item.price * item.quantity)}</TableCell>
-                                                <TableCell className={cn(cartActiveIndex === idx && cartActiveColumn === 11 && "bg-primary/10")}>
+                                                <TableCell className={cn("text-right tabular-nums", cartActiveIndex === idx && cartActiveColumn === 10 && "bg-primary/10", (discountResult?.lines.find(l=>l.cartItemId===item.cartItemId)?.lineDiscount||0) >0 ? "text-success dark:text-success-foreground font-medium" : "text-muted-foreground/50")}>{formatIDR(discountResult?.lines.find(l=>l.cartItemId===item.cartItemId)?.lineDiscount||0)}</TableCell>
+                                                <TableCell className={cn("text-right font-bold tabular-nums whitespace-nowrap", cartActiveIndex === idx && cartActiveColumn === 11 && "bg-primary/10")}>{formatIDR(item.price * item.quantity)}</TableCell>
+                                                <TableCell className={cn(cartActiveIndex === idx && cartActiveColumn === 12 && "bg-primary/10")}>
                                                     <Button variant="ghost" size="icon" className={cn("size-7 text-muted-foreground opacity-0 hover:text-destructive group-hover:opacity-100", cartActiveIndex === idx && "opacity-100")} aria-label={`Hapus ${item.name}`} onClick={() => removeFromCart(item.cartItemId)}><Trash2 className="size-4"/></Button>
                                                 </TableCell>
                                             </motion.tr>
