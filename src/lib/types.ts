@@ -298,7 +298,7 @@ export type PromoKind = 'flat' | 'bogo' | 'criteria' | 'conditional' | 'voucher'
 export type LegacyPromoKind = 'product' | 'category' | 'event';
 
 /** What a criteria / conditional promo grants once its trigger is met. */
-export type PromoRewardType = 'discount' | 'bonus_product' | 'discount_product';
+export type PromoRewardType = 'discount' | 'bonus_product'; // 'discount_product' deprecated — mapped to discount
 
 /**
  * A promotion rule.
@@ -331,16 +331,21 @@ export interface Promotion {
   applies_to_category_ids?: string[]; // empty = any category
   // --- Reward (criteria / conditional) ---
   reward_type?: PromoRewardType;      // what is granted once the trigger is met
-  reward_product_ids?: string[];      // products granted free / discounted
+  reward_product_ids?: string[];      // products granted free
   require_scope?: boolean;            // conditional: also require selected scope in cart
+  // Quantity / caps
+  min_scope_qty?: number;         // syarat jumlah minimal sasaran produk (qtyBase, 0 = >=1 line)
+  max_flat_amount?: number;       // maksimal flat diskon per transaksi (0/undef = tanpa batas)
+  max_bonus_qty?: number;         // maksimal bonus produk per transaksi (0/undef = tanpa batas, like bogo max)
   // --- BOGO (Buy X Get Y Free) ---
   buy_quantity?: number;        // X units you must buy
   free_quantity?: number;       // Y units you get free
   free_product_id?: string;     // if set, free units come from this product
-  max_total_free_qty?: number;  // cap on free units per cart (optional)
+  max_total_free_qty?: number;  // cap on free units per cart (bogo only, use max_bonus_qty for criteria/conditional)
   // --- Discount amount (flat / criteria / conditional / voucher) ---
   discount_type?: 'percentage' | 'flat';
   discount_value?: number;      // percent (0-100) or Rp
+  max_discount_amount?: number; // maksimal penawaran flat/nominal normal (0/undef = unlimited)
   // --- VOUCHER ---
   code?: string;                // unique code, uppercased
   min_purchase?: number;        // gross subtotal required to activate

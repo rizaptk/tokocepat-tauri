@@ -170,7 +170,7 @@ export const evaluateDiscounts = (
             return item ? matchesPromo(item, promo) : false;
         });
 
-    /** Every selected product (>=1 unit) and category (>=1 line) present in the cart? */
+    /** Every selected product/category present + minimal qty? */
     const allScopePresent = (promo: Promotion): boolean => {
         const pids = promo.applies_to_product_ids || [];
         const cids = promo.applies_to_category_ids || [];
@@ -182,6 +182,14 @@ export const evaluateDiscounts = (
         for (const cid of cids) {
             const has = lines.some(l => getItem(l)?.category_id === cid);
             if (!has) return false;
+        }
+        const minQty = (promo as any).min_scope_qty || 0;
+        if (minQty > 0) {
+            const totalQtyBase = lines.filter(l => {
+                const it = getItem(l);
+                return !!it && (pids.includes(it.id) || (it.category_id && cids.includes(it.category_id)));
+            }).reduce((s, l) => s + ((l as any).qtyBase || l.qty), 0);
+            if (totalQtyBase < minQty) return false;
         }
         return true;
     };
@@ -263,6 +271,18 @@ export const evaluateDiscounts = (
         if (!l.promoIds.includes(cand.promo.id)) l.promoIds.push(cand.promo.id);
         autoApplied.set(cand.promo.id, (autoApplied.get(cand.promo.id) || 0) + cand.amount);
     }
+    // Cap flat per transaksi if max set (flat normal max_discount_amount, criteria max_flat_amount)
+    for (const [promoId, total] of Array.from(autoApplied.entries())) {
+        const promo: any = activePromos.find(p=>p.id===promoId);
+        const cap = promo?.max_discount_amount || promo?.max_flat_amount;
+        if (cap && cap > 0 && total > cap) {
+            const factor = cap / total;
+            lines.forEach(l=>{
+                if (l.promoIds.includes(promoId)) l.autoAmount = Math.round(l.autoAmount * factor);
+            });
+            autoApplied.set(promoId, cap);
+        }
+    }
 
     // --- Pass B: free-unit grants (BOGO + criteria/conditional `bonus_product`) ---
     // Land only on lines that received no money discount and no other free grant.
@@ -323,11 +343,28 @@ export const evaluateDiscounts = (
     for (const promo of bonusPromos) {
         const rewardIds = promo.reward_product_ids || [];
         if (rewardIds.length === 0 || !rewardMet(promo)) continue;
+        const cap = (promo as any).max_bonus_qty || 0;
+        let granted = 0;
         for (const l of lines) {
+            if (cap > 0 && granted >= cap) break;
             const it = getItem(l);
             if (!it || !rewardIds.includes(it.id)) continue;
             if (!undiscounted(l)) continue;
-            grantFree(promo, l, 1);
+            // 1 baris: qty = shopping + bonus — if qty==1 and bonus 1, expand to 2 (1 paid +1 bonus) to keep 1 paid
+            let grant = 1;
+            if (cap > 0) grant = Math.min(grant, cap - granted);
+            if (l.qty === 1 && l.freeQty === 0 && grant === 1) {
+                // expand line to show 1+1, keep 1 paid
+                l.qty += 1;
+                l.grossAmount = l.price * l.qty;
+                // qtyBase also expands
+                (l as any).qtyBase = ((l as any).qtyBase || l.qty) + 1;
+            } else {
+                grant = Math.min(grant, Math.max(0, l.qty - 1 - l.freeQty));
+                if (grant <= 0) continue;
+            }
+            grantFree(promo, l, grant);
+            granted += grant;
         }
     }
 
@@ -347,7 +384,9 @@ export const evaluateDiscounts = (
                 return s + Math.max(0, chargeableBase(l) - l.autoAmount - l.sharedAmount);
             }, 0);
             if (base <= 0) return null;
-            const amount = Math.min(discAmount(promo, base), base);
+            let amount = Math.min(discAmount(promo, base), base);
+            const cap: any = (promo as any).max_flat_amount || (promo as any).max_discount_amount;
+            if (cap && cap > 0) amount = Math.min(amount, cap);
             return amount > 0 ? { promo, amount } : null;
         })
         .filter((x): x is { promo: Promotion; amount: number } => x !== null);

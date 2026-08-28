@@ -32,7 +32,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { format } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ReceiptTape, type ReceiptSnapshot } from '@/components/ReceiptTape';
-import { formatIDR } from '@/lib/format';
+import { formatIDR, formatCompactIDR, isCompactable } from '@/lib/format';
 import { usePrefersReducedMotion } from '@/hooks/usePrefersReducedMotion';
 
 type ItemWithVariant = Product & { _selectedVariant: ProductVariant };
@@ -266,6 +266,8 @@ export default function ClassicCashierPage({ defaultWholesale = false }: { defau
         updateQuantity(item.cartItemId, qty, selectedGroupId);
         setQtyEditId(null);
         setQtyEditValue('');
+        const idx = cart.findIndex(c=>c.cartItemId===item.cartItemId);
+        if (idx>=0) { setCartActiveIndex(idx); setCartActiveColumn(8); requestAnimationFrame(()=> cartTableRef.current?.focus()); }
     };
 
     // --- History State ---
@@ -806,18 +808,18 @@ export default function ClassicCashierPage({ defaultWholesale = false }: { defau
                         <Table className="table-fixed">
                             <TableHeader className="sticky top-0 z-10 border-b border-border bg-card">
                                 <TableRow className="hover:bg-transparent">
-                                    <TableHead className="w-10">No</TableHead>
-                                    <TableHead className="min-w-40">Produk</TableHead>
-                                    <TableHead className="w-8 text-center">Var</TableHead>
-                                    <TableHead className="w-8 text-center">Con</TableHead>
-                                    <TableHead className="w-28">Merek</TableHead>
-                                    <TableHead className="w-24">Kategori</TableHead>
-                                    <TableHead className="w-24 text-right">Harga</TableHead>
-                                    <TableHead className="w-20 text-center">Satuan</TableHead>
-                                    <TableHead className="w-20 text-center">Qty</TableHead>
-                                    <TableHead className="w-20 text-right">Diskon</TableHead>
-                                    <TableHead className="w-36 text-right">Subtotal</TableHead>
-                                    <TableHead className="w-10"></TableHead>
+                                <TableHead className="w-10 h-5 px-2">No</TableHead>
+                                <TableHead className="min-w-32 h-5 px-2">Produk</TableHead>
+                                <TableHead className="w-8 text-center h-5 px-2">Var</TableHead>
+                                <TableHead className="w-8 text-center h-5 px-2">Con</TableHead>
+                                <TableHead className="w-20 h-5 px-2">Merek</TableHead>
+                                <TableHead className="w-20 h-5 px-2">Kategori</TableHead>
+                                <TableHead className="w-28 text-right h-5 px-2">Harga</TableHead>
+                                <TableHead className="w-20 text-center h-5 px-2">Satuan</TableHead>
+                                <TableHead className="w-20 text-center h-5 px-2">Qty</TableHead>
+                                <TableHead className="w-28 text-right h-5 px-2">Diskon</TableHead>
+                                <TableHead className="w-44 text-right h-5 px-2">Subtotal</TableHead>
+                                <TableHead className="w-10 h-5 px-2"></TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -846,8 +848,8 @@ export default function ClassicCashierPage({ defaultWholesale = false }: { defau
                                                 )}
                                                 onMouseEnter={() => setCartActiveIndex(idx)}
                                             >
-                                                <TableCell className={cn(cartActiveIndex === idx && cartActiveColumn === 0 && "bg-primary/10")}>{idx + 1}</TableCell>
-                                                <TableCell className={cn("font-normal", cartActiveIndex === idx && cartActiveColumn === 1 && "bg-primary/10")}>
+                                                <TableCell className={cn("!py-0.5 !px-2", cartActiveIndex === idx && cartActiveColumn === 0 && "bg-primary/10")}>{idx + 1}</TableCell>
+                                                <TableCell className={cn("font-normal !py-0.5 !px-2", cartActiveIndex === idx && cartActiveColumn === 1 && "bg-primary/10")}>
                                                     <div className="truncate">{item.name}</div>
                                                     {item.selectedVariant && (
                                                         <button
@@ -860,20 +862,20 @@ export default function ClassicCashierPage({ defaultWholesale = false }: { defau
                                                         </button>
                                                     )}
                                                 </TableCell>
-                                                <TableCell className={cn("text-center", cartActiveIndex === idx && cartActiveColumn === 2 && "bg-primary/10")}>
+                                                <TableCell className={cn("text-center !py-0.5 !px-2", cartActiveIndex === idx && cartActiveColumn === 2 && "bg-primary/10")}>
                                                     {item.has_variant ? <span title="Memiliki varian" aria-label="Memiliki varian"><GitBranch className="mx-auto size-3.5 text-muted-foreground" /></span> : null}
                                                 </TableCell>
-                                                <TableCell className={cn("text-center", cartActiveIndex === idx && cartActiveColumn === 3 && "bg-primary/10")}>
+                                                <TableCell className={cn("text-center !py-0.5 !px-2", cartActiveIndex === idx && cartActiveColumn === 3 && "bg-primary/10")}>
                                                     {item.is_consignment ? <span title="Konsinyasi" aria-label="Konsinyasi"><Handshake className="mx-auto size-3.5 text-warning dark:text-warning-foreground" /></span> : null}
                                                 </TableCell>
-                                                <TableCell className={cn("whitespace-nowrap text-muted-foreground", cartActiveIndex === idx && cartActiveColumn === 4 && "bg-primary/10")}>
+                                                <TableCell className={cn("whitespace-nowrap text-muted-foreground !py-0.5 !px-2", cartActiveIndex === idx && cartActiveColumn === 4 && "bg-primary/10")}>
                                                     <span className="truncate">{item.brand || '—'}</span>
                                                 </TableCell>
-                                                <TableCell className={cn("whitespace-nowrap text-muted-foreground", cartActiveIndex === idx && cartActiveColumn === 5 && "bg-primary/10")}>
+                                                <TableCell className={cn("whitespace-nowrap text-muted-foreground !py-0.5 !px-2", cartActiveIndex === idx && cartActiveColumn === 5 && "bg-primary/10")}>
                                                     <span className="truncate">{categoryName(item) || '—'}</span>
                                                 </TableCell>
-                                                <TableCell className={cn("text-right tabular-nums whitespace-nowrap", cartActiveIndex === idx && cartActiveColumn === 6 && "bg-primary/10")}>{formatIDR(item.price)}</TableCell>
-                                                <TableCell className={cn("text-center", cartActiveIndex === idx && cartActiveColumn === 7 && "bg-primary/10")}>
+                                                <TableCell className={cn("text-right tabular-nums whitespace-nowrap !py-0.5 !px-2", cartActiveIndex === idx && cartActiveColumn === 6 && "bg-primary/10")}>{formatIDR(item.price)}</TableCell>
+                                                <TableCell className={cn("text-center !py-0.5 !px-2", cartActiveIndex === idx && cartActiveColumn === 7 && "bg-primary/10")}>
                                                     {(() => {
                                                         const norm = normalizeProductUoms(item as any);
                                                         const uoms = norm.uoms || [];
@@ -882,17 +884,17 @@ export default function ClassicCashierPage({ defaultWholesale = false }: { defau
                                                         const isEditing = uomEditId === item.cartItemId;
                                                         const currentUomName = uoms.find(u=>u.id===((item as any).selectedUomId || uoms.find(x=>x.isBase)?.id))?.name || norm.baseUom || 'Pcs';
                                                         if (!isEditing) {
-                                                            return <button className={cn("mx-auto block h-7 text-xs rounded px-2", cartActiveIndex === idx && cartActiveColumn === 7 && "bg-primary/15 ring-1 ring-primary/40")} onClick={() => setUomEditId(item.cartItemId)} onKeyDown={e=>e.stopPropagation()} aria-label={`Ubah satuan ${item.name}`}>{currentUomName}</button>;
+                                                            return <button className={cn("mx-auto block h-7 text-xs rounded px-2", cartActiveIndex === idx && cartActiveColumn === 7 && "bg-primary/15 ring-1 ring-primary/40")} onClick={() => { setCartActiveIndex(idx); setCartActiveColumn(7); setUomEditId(item.cartItemId); }} onKeyDown={e=>e.stopPropagation()} aria-label={`Ubah satuan ${item.name}`}>{currentUomName}</button>;
                                                         }
                                                         return (
-                                                            <Select value={(item as any).selectedUomId || uoms.find(u=>u.isBase)?.id} onValueChange={v => { updateCartItemUom(item.cartItemId, v, selectedGroupId); setUomEditId(null); }} onOpenChange={open => { if (!open) setUomEditId(null); }}>
+                                                            <Select value={(item as any).selectedUomId || uoms.find(u=>u.isBase)?.id} onValueChange={v => { updateCartItemUom(item.cartItemId, v, selectedGroupId); setUomEditId(null); setCartActiveIndex(idx); setCartActiveColumn(7); requestAnimationFrame(()=> cartTableRef.current?.focus()); }} onOpenChange={open => { if (!open) { setUomEditId(null); setCartActiveIndex(idx); setCartActiveColumn(7); cartTableRef.current?.focus(); } }}>
                                                                 <SelectTrigger autoFocus className="h-7 w-full text-xs"><SelectValue /></SelectTrigger>
                                                                 <SelectContent>{uoms.map(u => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}</SelectContent>
                                                             </Select>
                                                         );
                                                     })()}
                                                 </TableCell>
-                                                <TableCell className={cn("text-center", cartActiveIndex === idx && cartActiveColumn === 8 && qtyEditId !== item.cartItemId && "bg-primary/10")}>
+                                                <TableCell className={cn("text-center !py-0.5 !px-2", cartActiveIndex === idx && cartActiveColumn === 8 && qtyEditId !== item.cartItemId && "bg-primary/10")}>
                                                     {qtyEditId === item.cartItemId ? (
                                                         <input
                                                             autoFocus
@@ -914,27 +916,37 @@ export default function ClassicCashierPage({ defaultWholesale = false }: { defau
                                                                 "mx-auto block w-16 text-center font-bold tabular-nums rounded",
                                                                 cartActiveIndex === idx && cartActiveColumn === 8 && "bg-primary/15 ring-1 ring-primary/40"
                                                             )}
-                                                            onClick={() => { setQtyEditValue(String(item.quantity)); setQtyEditId(item.cartItemId); }}
+                                                            onClick={() => { setCartActiveIndex(idx); setCartActiveColumn(8); setQtyEditValue(String(item.quantity)); setQtyEditId(item.cartItemId); }}
                                                             title="Klik untuk ubah jumlah"
                                                             aria-label={`Ubah jumlah ${item.name}`}
                                                         >
-                                                            {item.quantity}
+                                                            {(() => {
+                                                                const line = discountResult?.lines.find(l=>l.cartItemId===item.cartItemId);
+                                                                const free = line?.freeQty || 0;
+                                                                if (free > 0) {
+                                                                    const totalQty = (line as any)?.qty ?? item.quantity;
+                                                                    const paid = totalQty - free;
+                                                                    return <span>{paid}<span className="text-success">+{free}</span><span className="text-[10px] ml-0.5">bonus</span></span>;
+                                                                }
+                                                                return item.quantity;
+                                                            })()}
                                                         </button>
                                                     )}
                                                 </TableCell>
-                                                <TableCell className={cn("text-right tabular-nums", cartActiveIndex === idx && cartActiveColumn === 9 && "bg-primary/10", (discountResult?.lines.find(l=>l.cartItemId===item.cartItemId)?.lineDiscount||0) >0 ? "text-success dark:text-success-foreground font-medium" : "text-muted-foreground/50")}>{formatIDR(discountResult?.lines.find(l=>l.cartItemId===item.cartItemId)?.lineDiscount||0)}</TableCell>
-                                                <TableCell className={cn("text-right font-bold tabular-nums whitespace-nowrap", cartActiveIndex === idx && cartActiveColumn === 10 && "bg-primary/10")}>
+                                                <TableCell className={cn("text-right tabular-nums !py-0.5 !px-2", cartActiveIndex === idx && cartActiveColumn === 9 && "bg-primary/10", (discountResult?.lines.find(l=>l.cartItemId===item.cartItemId)?.lineDiscount||0) >0 ? "text-success dark:text-success-foreground font-medium" : "text-muted-foreground/50")}>{formatIDR(discountResult?.lines.find(l=>l.cartItemId===item.cartItemId)?.lineDiscount||0)}</TableCell>
+                                                <TableCell className={cn("text-right font-bold tabular-nums whitespace-nowrap !py-0.5 !px-2", cartActiveIndex === idx && cartActiveColumn === 10 && "bg-primary/10")}>
                                                     {(() => {
-                                                        const line = discountResult?.lines.find(l=>l.cartItemId===item.cartItemId);
-                                                        const gross = item.price * item.quantity;
-                                                        const net = line ? (line as any).chargedBase ?? gross - (line.lineDiscount||0) : gross;
+                                                        const line: any = discountResult?.lines.find(l=>l.cartItemId===item.cartItemId);
+                                                        const gross = line ? line.grossAmount : item.price * item.quantity;
+                                                        const net = line ? line.chargedBase ?? gross - (line.lineDiscount||0) : gross;
                                                         const disc = line?.lineDiscount || 0;
+                                                        const grosCompact = isCompactable(gross) ? formatCompactIDR(gross) : formatIDR(gross);
                                                         return disc > 0 ? (
-                                                            <span><span className="line-through text-muted-foreground/60 mr-1 font-normal text-xs">{formatIDR(gross)}</span>{formatIDR(net)}</span>
+                                                            <span><span className="line-through text-muted-foreground/60 mr-1 font-normal text-xs" title={formatIDR(gross)}>{grosCompact}</span>{formatIDR(net)}</span>
                                                         ) : formatIDR(gross);
                                                     })()}
                                                 </TableCell>
-                                                <TableCell className={cn(cartActiveIndex === idx && cartActiveColumn === 11 && "bg-primary/10")}>
+                                                <TableCell className={cn("!py-0.5 !px-2", cartActiveIndex === idx && cartActiveColumn === 11 && "bg-primary/10")}>
                                                     <Button variant="ghost" size="icon" className={cn("size-7 text-muted-foreground opacity-0 hover:text-destructive group-hover:opacity-100", cartActiveIndex === idx && "opacity-100")} aria-label={`Hapus ${item.name}`} onClick={() => removeFromCart(item.cartItemId)}><Trash2 className="size-4"/></Button>
                                                 </TableCell>
                                             </motion.tr>

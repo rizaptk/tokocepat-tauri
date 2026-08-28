@@ -19,6 +19,5 @@ export const KIND_ICON: Record<PromoKind, LucideIcon> = Object.fromEntries(
 
 export const REWARD_META: { value: PromoRewardType; label: string; icon: LucideIcon; hint: string }[] = [
     { value: 'discount', label: 'Flat diskon', icon: Percent, hint: 'Potongan dari total' },
-    { value: 'discount_product', label: 'Diskon produk lain', icon: Tag, hint: 'Diskon untuk produk tertentu' },
     { value: 'bonus_product', label: 'Bonus produk', icon: Gift, hint: 'Produk gratis' },
 ];

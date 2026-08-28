@@ -40,7 +40,7 @@ export function DiskonForm({ draft, isNew, onChange, onCancel, onSave, isSaving,
         const patch: Partial<Promotion> = { kind };
         if (kind === 'flat') patch.reward_type = 'discount';
         else if (kind === 'bogo') patch.reward_type = undefined;
-        else if (kind === 'criteria') patch.reward_type = draft.reward_type && draft.reward_type !== 'discount_product' ? draft.reward_type : 'discount';
+        else if (kind === 'criteria') patch.reward_type = draft.reward_type === 'bonus_product' ? 'bonus_product' : 'discount';
         else patch.reward_type = draft.reward_type === 'bonus_product' ? 'bonus_product' : 'discount';
         onChange({ ...draft, ...patch });
     };
@@ -127,6 +127,10 @@ export function DiskonForm({ draft, isNew, onChange, onCancel, onSave, isSaving,
                                     <>
                                         <DiscountFields type={draft.discount_type} value={draft.discount_value} onChange={(p) => set(p)} />
                                         <p className="text-xs text-muted-foreground">Nominal Rp per Pcs satuan dasar (× qtyBase). Jika diizinkan grosir, berlaku retail & grosir.</p>
+                                        <div className="space-y-2">
+                                            <Label>Maksimal Diskon (Rp, 0 = tanpa batas)</Label>
+                                            <Input type="number" min={0} value={draft.max_discount_amount ?? 0} onChange={(e) => set({ max_discount_amount: parseFloat(e.target.value) || 0 })} placeholder="0 = mengikuti jumlah transaksi" />
+                                        </div>
                                     </>
                                 )}
 
@@ -160,28 +164,32 @@ export function DiskonForm({ draft, isNew, onChange, onCancel, onSave, isSaving,
                                             {rewardChips(REWARD_META)}
                                             <p className="text-xs text-muted-foreground">Aktif saat SEMUA produk/kategori terpilih ada di keranjang.</p>
                                         </div>
+                                        <div className="space-y-2">
+                                            <Label>Syarat Jumlah Minimal Sasaran (Pcs, 0 = 1 produk)</Label>
+                                            <Input type="number" min={0} value={draft.min_scope_qty ?? 0} onChange={(e) => set({ min_scope_qty: parseInt(e.target.value) || 0 })} placeholder="0 = minimal 1 produk sasaran ada" />
+                                        </div>
                                         {reward === 'discount' && (
                                             <>
                                                 <DiscountFields type={draft.discount_type} value={draft.discount_value} onChange={(p) => set(p)} />
                                                 <p className="text-xs text-muted-foreground">Diskon diterapkan ke total transaksi.</p>
-                                            </>
-                                        )}
-                                        {reward === 'discount_product' && (
-                                            <>
                                                 <div className="space-y-2">
-                                                    <Label>Produk yang Didiskon</Label>
-                                                    <SingleSelect items={products} value={draft.reward_product_ids?.[0] || ''} onChange={(id) => set({ reward_product_ids: [id] })} placeholder="Pilih produk..." />
+                                                    <Label>Maksimal Flat Diskon (Rp, 0 = tanpa batas)</Label>
+                                                    <Input type="number" min={0} value={draft.max_flat_amount ?? 0} onChange={(e) => set({ max_flat_amount: parseFloat(e.target.value) || 0 })} />
                                                 </div>
-                                                <DiscountFields type={draft.discount_type} value={draft.discount_value} onChange={(p) => set(p)} />
-                                                <p className="text-xs text-muted-foreground">Diskon diterapkan ke produk tersebut saat sisanya dibeli.</p>
                                             </>
                                         )}
                                         {reward === 'bonus_product' && (
-                                            <div className="space-y-2">
-                                                <Label>Produk Bonus</Label>
-                                                <SingleSelect items={products} value={draft.reward_product_ids?.[0] || ''} onChange={(id) => set({ reward_product_ids: [id] })} placeholder="Pilih produk..." />
-                                                <p className="text-xs text-muted-foreground">1 unit gratis saat syarat terpenuhi (jika produknya ada di keranjang).</p>
-                                            </div>
+                                            <>
+                                                <div className="space-y-2">
+                                                    <Label>Produk Bonus</Label>
+                                                    <SingleSelect items={products} value={draft.reward_product_ids?.[0] || ''} onChange={(id) => set({ reward_product_ids: [id] })} placeholder="Pilih produk..." />
+                                                    <p className="text-xs text-muted-foreground">Bonus akan auto-ditambah ke cart 1 baris jika syarat terpenuhi.</p>
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <Label>Maksimal Bonus Per Transaksi (0 = tanpa batas, beli x gratis x)</Label>
+                                                    <Input type="number" min={0} value={draft.max_bonus_qty ?? 0} onChange={(e) => set({ max_bonus_qty: parseInt(e.target.value) || 0 })} placeholder="0 = tanpa batas" />
+                                                </div>
+                                            </>
                                         )}
                                     </>
                                 )}
@@ -199,6 +207,12 @@ export function DiskonForm({ draft, isNew, onChange, onCancel, onSave, isSaving,
                                             </div>
                                             <Switch checked={draft.require_scope ?? true} onCheckedChange={(v) => set({ require_scope: v })} />
                                         </div>
+                                        {(draft.require_scope ?? true) && (
+                                            <div className="space-y-2">
+                                                <Label>Syarat Jumlah Minimal Sasaran (Pcs, 0 = 1 produk)</Label>
+                                                <Input type="number" min={0} value={draft.min_scope_qty ?? 0} onChange={(e) => set({ min_scope_qty: parseInt(e.target.value) || 0 })} />
+                                            </div>
+                                        )}
                                         <div className="space-y-2">
                                             <Label>Hadiah Saat Syarat Terpenuhi</Label>
                                             {rewardChips(REWARD_META.filter(r => r.value !== 'discount_product'))}
@@ -207,14 +221,24 @@ export function DiskonForm({ draft, isNew, onChange, onCancel, onSave, isSaving,
                                             <>
                                                 <DiscountFields type={draft.discount_type} value={draft.discount_value} onChange={(p) => set(p)} />
                                                 <p className="text-xs text-muted-foreground">Diskon diterapkan ke total transaksi.</p>
+                                                <div className="space-y-2">
+                                                    <Label>Maksimal Flat Diskon (Rp, 0 = tanpa batas)</Label>
+                                                    <Input type="number" min={0} value={draft.max_flat_amount ?? 0} onChange={(e) => set({ max_flat_amount: parseFloat(e.target.value) || 0 })} />
+                                                </div>
                                             </>
                                         )}
                                         {reward === 'bonus_product' && (
-                                            <div className="space-y-2">
-                                                <Label>Produk Bonus (bisa lebih dari satu)</Label>
-                                                <MultiSelect items={products} selected={draft.reward_product_ids || []} onChange={(ids) => set({ reward_product_ids: ids })} placeholder="Pilih produk bonus..." />
-                                                <p className="text-xs text-muted-foreground">1 unit gratis per produk saat syarat terpenuhi.</p>
-                                            </div>
+                                            <>
+                                                <div className="space-y-2">
+                                                    <Label>Produk Bonus (bisa lebih dari satu)</Label>
+                                                    <MultiSelect items={products} selected={draft.reward_product_ids || []} onChange={(ids) => set({ reward_product_ids: ids })} placeholder="Pilih produk bonus..." />
+                                                    <p className="text-xs text-muted-foreground">Bonus akan auto-ditambah 1 baris saat syarat terpenuhi.</p>
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <Label>Maksimal Bonus Per Transaksi (0 = tanpa batas, beli x gratis x)</Label>
+                                                    <Input type="number" min={0} value={draft.max_bonus_qty ?? 0} onChange={(e) => set({ max_bonus_qty: parseInt(e.target.value) || 0 })} />
+                                                </div>
+                                            </>
                                         )}
                                     </>
                                 )}

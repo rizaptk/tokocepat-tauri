@@ -196,9 +196,11 @@ export default function PromosPage() {
                     ...base,
                     discount_type: d.discount_type,
                     discount_value: d.discount_value,
+                    max_discount_amount: (d as any).max_discount_amount && (d as any).max_discount_amount > 0 ? (d as any).max_discount_amount : undefined,
                     reward_type: undefined, reward_product_ids: undefined, require_scope: undefined,
                     code: undefined, min_purchase: undefined, max_uses: undefined,
                     buy_quantity: undefined, free_quantity: undefined, free_product_id: undefined, max_total_free_qty: undefined,
+                    min_scope_qty: undefined, max_flat_amount: undefined, max_bonus_qty: undefined,
                 };
             case 'bogo':
                 return {
@@ -211,20 +213,24 @@ export default function PromosPage() {
                     require_scope: undefined, code: undefined, min_purchase: undefined, max_uses: undefined,
                 };
             case 'criteria': {
-                const r = d.reward_type || 'discount';
-                const needsDiscount = r === 'discount' || r === 'discount_product';
+                const r = (d.reward_type === 'bonus_product' ? 'bonus_product' : 'discount') as any;
+                const needsDiscount = r === 'discount';
                 return {
                     ...base,
                     reward_type: r,
                     reward_product_ids: (d.reward_product_ids || []).length ? d.reward_product_ids : undefined,
                     discount_type: needsDiscount ? d.discount_type : undefined,
                     discount_value: needsDiscount ? d.discount_value : undefined,
+                    min_scope_qty: (d as any).min_scope_qty && (d as any).min_scope_qty > 0 ? (d as any).min_scope_qty : undefined,
+                    max_flat_amount: needsDiscount && (d as any).max_flat_amount && (d as any).max_flat_amount > 0 ? (d as any).max_flat_amount : undefined,
+                    max_bonus_qty: !needsDiscount && (d as any).max_bonus_qty && (d as any).max_bonus_qty > 0 ? (d as any).max_bonus_qty : undefined,
                     require_scope: undefined, code: undefined, min_purchase: undefined, max_uses: undefined,
                     buy_quantity: undefined, free_quantity: undefined, free_product_id: undefined, max_total_free_qty: undefined,
+                    max_discount_amount: undefined,
                 };
             }
             case 'conditional': {
-                const r = d.reward_type || 'discount';
+                const r = (d.reward_type === 'bonus_product' ? 'bonus_product' : 'discount') as any;
                 return {
                     ...base,
                     min_purchase: d.min_purchase,
@@ -233,8 +239,12 @@ export default function PromosPage() {
                     reward_product_ids: (d.reward_product_ids || []).length ? d.reward_product_ids : undefined,
                     discount_type: r === 'discount' ? d.discount_type : undefined,
                     discount_value: r === 'discount' ? d.discount_value : undefined,
+                    min_scope_qty: (d as any).min_scope_qty && (d as any).min_scope_qty > 0 ? (d as any).min_scope_qty : undefined,
+                    max_flat_amount: r === 'discount' && (d as any).max_flat_amount && (d as any).max_flat_amount > 0 ? (d as any).max_flat_amount : undefined,
+                    max_bonus_qty: r === 'bonus_product' && (d as any).max_bonus_qty && (d as any).max_bonus_qty > 0 ? (d as any).max_bonus_qty : undefined,
                     code: undefined, max_uses: undefined,
                     buy_quantity: undefined, free_quantity: undefined, free_product_id: undefined, max_total_free_qty: undefined,
+                    max_discount_amount: undefined,
                 };
             }
         }
