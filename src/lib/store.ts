@@ -265,8 +265,6 @@ export const useStore = create<StoreState>()(
                 const baseWithVariant = original.price + (itemToUpdate.selectedVariant?.additional_price || 0);
                 const productForPricing = { ...original, price: baseWithVariant } as any;
                 const norm = normalizeProductUoms(productForPricing);
-                const uom = getUom(productForPricing, itemToUpdate.selectedUomId);
-                const pricePerUom = resolvePricePerUom(productForPricing, uom, qtyBase, groupId);
 
                 if (isStockTracked && qtyBase > stockLimit) {
                     const maxUomQty = Math.floor(stockLimit / factor);
