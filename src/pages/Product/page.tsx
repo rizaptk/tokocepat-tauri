@@ -2,6 +2,8 @@ import { useState, useMemo, useRef, useEffect } from "react";
 import { useStore } from "@/lib/store";
 import { Product, CatalogProduct } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
+import { invoke } from '@tauri-apps/api/core';
+import { useDbStore } from '@/lib/db-store';
 
 // UI Components
 import { Button } from "@/components/ui/button";
@@ -148,6 +150,35 @@ export default function ProductManagementPage() {
 
     const [filter, setFilter] = useState('all');
     const [searchMode, setSearchMode] = useState<'product' | 'catalog'>('product');
+    const [catalogReady, setCatalogReady] = useState<boolean | null>(null);
+    const [catalogImporting, setCatalogImporting] = useState(false);
+
+    // Lazy: import catalog only on first visit to Katalog tab, show loading until cached
+    useEffect(() => {
+        if (searchMode !== 'catalog' || catalogReady !== null) return;
+        let cancelled = false;
+        (async () => {
+            const { db, firesqlite } = useDbStore.getState();
+            if (!db || !firesqlite) { if (!cancelled) setCatalogReady(true); return; }
+            try {
+                const { doc, getDoc } = firesqlite;
+                const snap = await getDoc(doc(db, 'app_state', 'catalog_import'));
+                if (!cancelled && snap.exists()) { setCatalogReady(true); return; }
+            } catch {}
+            if (cancelled) return;
+            setCatalogImporting(true);
+            try {
+                await invoke<number>('import_catalog');
+                if (!cancelled) setCatalogReady(true);
+            } catch (e) {
+                console.warn('Catalog import failed', e);
+                if (!cancelled) setCatalogReady(true); // allow search to try anyway (cache may still load)
+            } finally {
+                if (!cancelled) setCatalogImporting(false);
+            }
+        })();
+        return () => { cancelled = true; };
+    }, [searchMode, catalogReady]);
 
     const catalogListRef = useRef<HTMLDivElement>(null);
 
@@ -161,10 +192,9 @@ export default function ProductManagementPage() {
         items[dir === 'down' ? 0 : items.length - 1].focus();
     };
 
-    // Catalog fallback: always appended below product results when searching.
-    // Loaded lazily (cached per session) instead of snapshoting ~11k rows into
-    // the store at boot; this keeps first page load fast.
-    const { hits: catalogHits, loading: catalogLoading } = useCatalogSearch(query);
+    // Catalog: lazy only when Katalog tab active + query — keeps app start fast.
+    const { hits: catalogHits, loading: catalogLoading } = useCatalogSearch(query, searchMode === 'catalog');
+    const catalogLoadingCombined = catalogImporting || catalogLoading;
 
     // Never suggest a catalog item that is already a product (same barcode).
     const filteredCatalogHits = useMemo(() => {
@@ -440,11 +470,12 @@ export default function ProductManagementPage() {
                         /* ----------------------------- CATALOG MODE ----------------------------- */
                         query.trim().length > 0 ? (
                             <div className="h-full flex flex-col min-h-0">
-                                {catalogLoading ? (
+                                {catalogLoadingCombined ? (
                                     <div className="flex-1 flex items-center justify-center text-center">
                                         <div>
                                             <Loader2 className="mx-auto size-6 animate-spin text-muted-foreground" />
-                                            <p className="text-muted-foreground mt-2 text-sm">Memuat katalog referensi...</p>
+                                            <p className="text-muted-foreground mt-2 text-sm">{catalogImporting ? 'Mengimpor katalog 11k... (sekali saja)' : 'Memuat katalog referensi...'}</p>
+                                            {catalogImporting && <p className="text-xs text-muted-foreground/70 mt-1">Cache ke kastoko.db — tetap bisa pakai tab Produk</p>}
                                         </div>
                                     </div>
                                 ) : filteredCatalogHits.length > 0 ? (

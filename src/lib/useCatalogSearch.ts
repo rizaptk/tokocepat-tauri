@@ -56,12 +56,17 @@ export const getCatalogItemByBarcode = async (barcode: string): Promise<CatalogP
  * catalog is being fetched for the first time (the ~11k-row IPC read can be
  * slow); cached searches resolve instantly.
  */
-export const useCatalogSearch = (query: string): { hits: CatalogProduct[]; loading: boolean } => {
+export const useCatalogSearch = (query: string, enabled = true): { hits: CatalogProduct[]; loading: boolean } => {
     const [hits, setHits] = useState<CatalogProduct[]>([]);
     const [loading, setLoading] = useState(false);
 
     useEffect(() => {
         let isMounted = true;
+        if (!enabled) {
+            setHits([]);
+            setLoading(false);
+            return;
+        }
         const q = query.trim();
         if (!q) {
             setHits([]);
@@ -85,7 +90,7 @@ export const useCatalogSearch = (query: string): { hits: CatalogProduct[]; loadi
             isMounted = false;
             clearTimeout(timer);
         };
-    }, [query]);
+    }, [query, enabled]);
 
     return { hits, loading };
 };

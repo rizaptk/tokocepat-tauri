@@ -2,7 +2,6 @@ import { useDbStore } from "@/lib/db-store";
 import { useStore } from "@/lib/store";
 import { ensureIndexes, backfillTransactionDevice } from "@/lib/database";
 import { useEffect, useState } from "react";
-import { invoke } from '@tauri-apps/api/core';
 import { 
     Product, ProductVariant, 
     Shift, StoreConfig, Category, PendingCart, 
@@ -36,8 +35,18 @@ export function DbProvider({ children }: { children: React.ReactNode }) {
         const setupData = async () => {
             try {
                 // A. Ensure database indexes are present before starting listeners
+                // Firelite's create_index is idempotent, but we gate with a marker to avoid 13 IPC calls on every boot.
                 const hwid = await generateDeviceFingerprint();
-                await ensureIndexes(firesqlite, db);
+                try {
+                    const { doc, getDoc, setDoc } = firesqlite;
+                    const marker = await getDoc(doc(db, 'app_state', 'indexes_seeded'));
+                    if (!marker.exists()) {
+                        await ensureIndexes(firesqlite, db);
+                        await setDoc(doc(db, 'app_state', 'indexes_seeded'), { v: 1, at: new Date().toISOString() } as any);
+                    }
+                } catch {
+                    await ensureIndexes(firesqlite, db);
+                }
                 await backfillTransactionDevice(firesqlite, db);
                 
                 // B. Guard: If user navigated away during seeding, don't start listeners
@@ -93,12 +102,8 @@ export function DbProvider({ children }: { children: React.ReactNode }) {
                     }
                 }));
 
-                // CATALOG: bundled reference data is loaded lazily on the Produk
-                // page (see useCatalogSearch) instead of snapshoting ~11k rows
-                // into the store on every boot. The Rust import stays idempotent.
-                invoke<number>('import_catalog').catch((err) => {
-                    console.warn('Catalog import skipped:', err);
-                });
+                // CATALOG: lazy on first Produk → Katalog tab (see Product/page.tsx + useCatalogSearch)
+                // No eager import here — keeps app start fast.
 
                 // --- TIER 2: SESSION & HISTORY (Background Sync) ---
 
