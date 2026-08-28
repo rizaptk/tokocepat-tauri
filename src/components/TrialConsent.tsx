@@ -4,7 +4,6 @@ import { Button } from './ui/button';
 import { ScrollArea } from './ui/scroll-area';
 import { CheckCircle2, ShieldCheck, Zap, CreditCard, ArrowLeft, Loader2, KeyRound } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
-import { useNavigate } from 'react-router-dom';
 
 const TERMS_CONDITIONS = [
   {
@@ -30,7 +29,6 @@ const TERMS_CONDITIONS = [
 ];
 
 export function TrialConsent({ onDecline }: { onDecline?: () => void }) {
-  const navigate = useNavigate();
   const [step, setStep] = useState<'terms' | 'declined'>('terms');
   const [isApplying, setIsApplying] = useState(false);
   const [applyError, setApplyError] = useState<string | null>(null);
