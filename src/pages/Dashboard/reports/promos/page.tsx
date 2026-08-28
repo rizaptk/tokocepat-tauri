@@ -106,7 +106,7 @@ export default function PromoReportPage() {
             autoDiscount += b.auto;
             voucherDiscount += b.voucher;
             manualDiscount += b.manual;
-            if ((tx.applied_promos?.length || 0) > 0 || tx.voucher_code) promoTransactions++;
+            if ((tx.applied_promos?.length || 0) > 0 || tx.voucher_code || (tx.manual_discount || 0) > 0 || (tx.discount_total || 0) > 0) promoTransactions++;
             if (tx.voucher_code) voucherRedemptions++;
         }
         const promoSharePct = grossSubtotal > 0 ? (totalDiscount / grossSubtotal) * 100 : 0;
@@ -118,6 +118,7 @@ export default function PromoReportPage() {
         const map = new Map<string, { name: string; key: string; transactions: number; total: number }>();
         for (const tx of paidTx) {
             const applied = tx.applied_promos || [];
+            const b = discountBreakdown(tx);
             if (applied.length > 0) {
                 for (const p of applied) {
                     if (p.kind === 'voucher') continue;
@@ -129,14 +130,38 @@ export default function PromoReportPage() {
                         map.set(p.promo_id, { name: p.name, key: p.promo_id, transactions: 1, total: p.amount || 0 });
                     }
                 }
-            } else if ((tx.discount_total || 0) > 0) {
-                const key = '__unknown__';
-                const existing = map.get(key);
-                if (existing) {
-                    existing.transactions++;
-                    existing.total += tx.discount_total || 0;
-                } else {
-                    map.set(key, { name: 'Diskon tanpa promo', key, transactions: 1, total: tx.discount_total || 0 });
+                // Fallback: manual_discount field without applied entry (legacy/edge)
+                if ((tx.manual_discount || 0) > 0 && !applied.some(p => p.kind === 'manual')) {
+                    const key = 'manual';
+                    const existing = map.get(key);
+                    if (existing) { existing.transactions++; existing.total += tx.manual_discount || 0; }
+                    else map.set(key, { name: 'Diskon Kasir', key, transactions: 1, total: tx.manual_discount || 0 });
+                }
+                // Fallback: auto remainder without applied entry
+                if (b.auto > 0 && ![...map.keys()].some(k => k !== 'manual' && k !== '__unknown__')) {
+                    // if no auto promo was counted but auto value exists, put to unknown to surface KPI
+                    const key = '__unknown__';
+                    const existing = map.get(key);
+                    if (existing) { existing.transactions++; existing.total += b.auto; }
+                    else map.set(key, { name: 'Diskon Otomatis', key, transactions: 1, total: b.auto });
+                }
+            } else if ((tx.discount_total || 0) > 0 || (tx.manual_discount || 0) > 0) {
+                const b2 = b;
+                if (b2.manual > 0) {
+                    const key = 'manual';
+                    const existing = map.get(key);
+                    if (existing) { existing.transactions++; existing.total += b2.manual; }
+                    else map.set(key, { name: 'Diskon Kasir', key, transactions: 1, total: b2.manual });
+                }
+                if (b2.auto > 0) {
+                    const key = '__unknown__';
+                    const existing = map.get(key);
+                    if (existing) { existing.transactions++; existing.total += b2.auto; }
+                    else map.set(key, { name: 'Diskon Otomatis', key, transactions: 1, total: b2.auto });
+                }
+                if (b2.total > 0 && map.size === 0) {
+                    const key = '__unknown__';
+                    map.set(key, { name: 'Diskon tanpa promo', key, transactions: 1, total: b2.total });
                 }
             }
         }

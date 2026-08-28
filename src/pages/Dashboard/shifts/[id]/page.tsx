@@ -10,12 +10,13 @@ import { parseISO, isValid } from 'date-fns';
 import { Separator } from '@/components/ui/separator';
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { voidTransaction } from '@/services/transactionService';
+import { voidTransaction, isVoidBlockedByPiutang } from '@/services/transactionService';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { cn, formatDistanceShort } from '@/lib/utils';
 import { exportShiftDetailsToPdf } from '@/lib/export';
+import { Badge } from '@/components/ui/badge';
 
 // Helper to safely parse dates that might be in different formats
 const getSafeDate = (dateInput: any): Date | null => {
@@ -204,37 +205,47 @@ export default function ShiftDetailsPage() {
                             <TableBody>
                                 {shiftTransactions.map(tx => {
                                     const createdAtDate = getSafeDate(tx.created_at);
+                                    const anyTx = tx as any;
+                                    const voidBlock = isVoidBlockedByPiutang(tx);
+                                    const isGrosir = !!anyTx.is_wholesale;
                                     return (
                                         <TableRow key={tx.id} className={cn(tx.status === 'voided' && 'bg-destructive/5 text-muted-foreground line-through hover:bg-destructive/10')}>
                                             <TableCell>{createdAtDate ? createdAtDate.toLocaleTimeString() : 'N/A'}</TableCell>
-                                            <TableCell className="font-mono text-xs">{tx.invoice_number}</TableCell>
+                                            <TableCell className="font-mono text-xs">
+                                                <div className="flex flex-col">
+                                                    <span>{tx.invoice_number}</span>
+                                                    {isGrosir && <span className="text-[10px] flex gap-1"><Badge variant="outline" className="h-4 text-[10px]">Grosir</Badge> {anyTx.payment_status !== 'lunas' && <Badge variant={anyTx.payment_status === 'piutang' ? 'destructive' : 'secondary'} className="h-4 text-[10px]">{anyTx.payment_status}</Badge>}</span>}
+                                                </div>
+                                            </TableCell>
                                             <TableCell>{tx.items.reduce((acc, item) => acc + item.qty, 0)}</TableCell>
                                             <TableCell className="text-right font-bold">{formatCurrency(tx.total)}</TableCell>
                                             <TableCell className="text-right">
                                                 {tx.status !== 'voided' && (
                                                     <AlertDialog>
                                                         <AlertDialogTrigger asChild>
-                                                            <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive no-underline hover:bg-destructive/10">Void</Button>
+                                                            <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive no-underline hover:bg-destructive/10" disabled={voidBlock.blocked} title={voidBlock.reason || ''}>Void</Button>
                                                         </AlertDialogTrigger>
                                                         <AlertDialogContent>
                                                             <AlertDialogHeader>
                                                                 <AlertDialogTitle>Batalkan Transaksi {tx.invoice_number}?</AlertDialogTitle>
                                                                 <AlertDialogDescription>
-                                                                    Tindakan ini tidak dapat dibatalkan. Stok akan dikembalikan secara otomatis.
+                                                                    {voidBlock.blocked ? `Void diblokir: ${voidBlock.reason}` : 'Tindakan ini tidak dapat dibatalkan. Stok akan dikembalikan secara otomatis.'}
                                                                 </AlertDialogDescription>
                                                             </AlertDialogHeader>
                                                             <div className="py-4">
                                                                 <Label htmlFor="void-reason" className="mb-2 block">Alasan Void</Label>
-                                                                <Input id="void-reason" value={voidReason} onChange={(e) => setVoidReason(e.target.value)} placeholder="Cth: Salah input, Pelanggan batal" />
+                                                                <Input id="void-reason" value={voidReason} onChange={(e) => setVoidReason(e.target.value)} placeholder="Cth: Salah input, Pelanggan batal" disabled={voidBlock.blocked} />
+                                                                {voidBlock.blocked && <p className="text-xs text-destructive mt-2">{voidBlock.reason}</p>}
                                                             </div>
                                                             <AlertDialogFooter>
                                                                 <AlertDialogCancel onClick={() => setVoidReason('')}>Batal</AlertDialogCancel>
                                                                 <AlertDialogAction onClick={async (e) => {
+                                                                    if (voidBlock.blocked) { e.preventDefault(); return; }
                                                                     const success = await handleVoid(tx.id, tx.invoice_number);
                                                                     if (!success) {
                                                                         e.preventDefault(); // Prevent dialog from closing on failure
                                                                     }
-                                                                }}>Konfirmasi Pembatalan</AlertDialogAction>
+                                                                }} disabled={voidBlock.blocked}>Konfirmasi Pembatalan</AlertDialogAction>
                                                             </AlertDialogFooter>
                                                         </AlertDialogContent>
                                                     </AlertDialog>

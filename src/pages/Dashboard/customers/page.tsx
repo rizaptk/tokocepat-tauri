@@ -4,18 +4,23 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Trash2, Users, Layers, Search, CreditCard } from 'lucide-react';
+import { Plus, Trash2, Users, Layers, Search, CreditCard, Printer } from 'lucide-react';
 import { saveCustomer, deleteCustomer, saveCustomerGroup, deleteCustomerGroup, generateCustomerId, generateGroupId } from '@/services/customerService';
 import { useToast } from '@/hooks/use-toast';
 import { Customer, CustomerGroup } from '@/lib/types';
+import { CustomerCardPreview } from '@/components/CustomerCardPreview';
+import { exportCustomerCardPdf } from '@/lib/customerCardPdf';
 
 export default function CustomersPage() {
-  const { customers, customerGroups } = useStore();
+  const { customers, customerGroups, storeConfig } = useStore();
   const { toast } = useToast();
   const [tab, setTab] = useState<'customers' | 'groups'>('customers');
+  const [selectedCard, setSelectedCard] = useState<Customer | null>(null);
+  const [isCardOpen, setIsCardOpen] = useState(false);
+  const [isPrintingCard, setIsPrintingCard] = useState(false);
   const [customerSearch, setCustomerSearch] = useState('');
   const [customerGroupFilter, setCustomerGroupFilter] = useState<string>('all');
   const filteredCustomers = useMemo(() => {
@@ -72,34 +77,22 @@ export default function CustomersPage() {
     setIsGroupOpen(false);
   };
 
-  const handlePrintCard = async (customer: Customer) => {
+  const handlePrintCard = (customer: Customer) => {
+    setSelectedCard(customer);
+    setIsCardOpen(true);
+  };
+  const handleConfirmPrint = async () => {
+    if (!selectedCard) return;
     try {
-      const { PDFDocument, rgb } = await import('pdf-lib');
-      // @ts-ignore
-      const bwipjs = (await import('bwip-js')).default;
-      const group = customerGroups.find(g => g.id === customer.groupId);
-      const pdf = await PDFDocument.create();
-      const page = pdf.addPage([242, 153]); // 85x54mm at 72dpi ~ 242x153 pt
-      const { width, height } = page.getSize();
-      page.drawRectangle({ x: 0, y: 0, width, height, color: rgb(0.99, 0.99, 0.98), borderColor: rgb(0.88, 0.88, 0.88), borderWidth: 1 });
-      page.drawText(customer.name, { x: 12, y: height - 22, size: 12, color: rgb(0.1, 0.1, 0.1) });
-      page.drawText(group ? group.name : 'Umum', { x: 12, y: height - 36, size: 8, color: rgb(0.4, 0.4, 0.4) });
-      if (customer.phone) page.drawText(customer.phone, { x: 12, y: height - 50, size: 8, color: rgb(0.4, 0.4, 0.4) });
-      if (customer.address) page.drawText(customer.address.slice(0, 30), { x: 12, y: height - 62, size: 7, color: rgb(0.5, 0.5, 0.5) });
-      // Barcode
-      const canvas = document.createElement('canvas');
-      bwipjs.toCanvas(canvas, { bcid: 'code128', text: customer.id, scale: 2, height: 8, includetext: false });
-      const png = await pdf.embedPng(canvas.toDataURL('image/png'));
-      const pngDims = png.scale(0.5);
-      page.drawImage(png, { x: 12, y: 12, width: pngDims.width, height: pngDims.height });
-      page.drawText(customer.id, { x: 12, y: 8, size: 6, color: rgb(0.5, 0.5, 0.5) });
-      const bytes = await pdf.save();
-      const blob = new Blob([bytes as unknown as BlobPart], { type: 'application/pdf' });
-      const url = URL.createObjectURL(blob);
-      window.open(url, '_blank');
-      toast({ title: 'Kartu dicetak', description: customer.name });
+      setIsPrintingCard(true);
+      const group = customerGroups.find(g => g.id === selectedCard.groupId);
+      await exportCustomerCardPdf(selectedCard, group, storeConfig as any);
+      toast({ title: 'Kartu disimpan', description: selectedCard.name });
+      setIsCardOpen(false);
     } catch (e: any) {
-      toast({ variant: 'destructive', title: 'Gagal cetak', description: e.message });
+      toast({ variant: 'destructive', title: 'Gagal cetak', description: e?.message || String(e) });
+    } finally {
+      setIsPrintingCard(false);
     }
   };
 
@@ -209,6 +202,19 @@ export default function CustomersPage() {
             <div><Label>Rank</Label><Input type="number" value={groupForm.rank ?? 0} onChange={e => setGroupForm({ ...groupForm, rank: Number(e.target.value) || 0 })} /></div>
           </div>
           <DialogFooter><Button onClick={handleSaveGroup}>Simpan</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isCardOpen} onOpenChange={setIsCardOpen}>
+        <DialogContent className="sm:max-w-[420px]">
+          <DialogHeader><DialogTitle>Kartu Pelanggan — Kastoko</DialogTitle><DialogDescription>1 sisi • Desain premium ATM • ID & barcode • Simpan PDF (printer biasa)</DialogDescription></DialogHeader>
+          {selectedCard && <CustomerCardPreview customer={selectedCard} group={customerGroups.find(g => g.id === selectedCard.groupId)} />}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsCardOpen(false)}>Tutup</Button>
+            <Button onClick={handleConfirmPrint} disabled={isPrintingCard}>
+              {isPrintingCard ? 'Menyimpan...' : <><Printer className="h-4 w-4 mr-1" /> Simpan PDF</>}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

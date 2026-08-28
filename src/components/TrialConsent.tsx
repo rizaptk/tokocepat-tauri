@@ -29,7 +29,7 @@ const TERMS_CONDITIONS = [
   },
 ];
 
-export function TrialConsent() {
+export function TrialConsent({ onDecline }: { onDecline?: () => void }) {
   const navigate = useNavigate();
   const [step, setStep] = useState<'terms' | 'declined'>('terms');
   const [isApplying, setIsApplying] = useState(false);
@@ -103,7 +103,7 @@ export function TrialConsent() {
                     Aktifkan Kastoko dengan kode lisensi Anda agar bisa digunakan kembali di perangkat ini.
                   </p>
                 </div>
-                <Button className="w-full h-11" onClick={() => navigate('/license')}>
+                <Button className="w-full h-11" onClick={() => window.location.href = '/license'}>
                   <KeyRound className="mr-2 h-4 w-4" /> Aktivasi dengan Kode Lisensi
                 </Button>
               </>
@@ -164,7 +164,7 @@ export function TrialConsent() {
             {isApplying ? 'Menerapkan Uji Coba...' : 'Setuju & Mulai Uji Coba (30 Hari)'}
           </Button>
           <div className="grid grid-cols-2 gap-2">
-            <Button variant="outline" className="h-10" onClick={() => { if (!isApplying) setStep('declined'); }} disabled={isApplying}>
+            <Button variant="outline" className="h-10" onClick={() => { if (!isApplying) { if (onDecline) onDecline(); else setStep('declined'); } }} disabled={isApplying}>
               <ArrowLeft className="mr-2 h-4 w-4" /> Tidak Sekarang
             </Button>
             <Button variant="outline" className="h-10" onClick={openPricing} disabled={isApplying}>

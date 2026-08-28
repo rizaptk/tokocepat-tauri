@@ -1,6 +1,6 @@
 import { useLicense } from '@/hooks/useLicense';
 import { TokoCepatLogo } from "./TokoCepatLogo";
-import { ShieldOff } from "lucide-react";
+import { ShieldOff, Zap, CreditCard, KeyRound, Loader2 } from "lucide-react";
 import { Button } from "./ui/button";
 import { useEffect, useMemo, useState } from 'react';
 import { initializeSyncService } from '@/services/syncService';
@@ -21,6 +21,10 @@ export function LicenseProvider({ children }: { children: React.ReactNode }) {
     const { status, licenseDetails } = useLicense();
     const [isLoad, setIsload] = useState(false);
     const [statusChecked, setStatusChecked] = useState(false);
+    const [hasDeclinedTrial, setHasDeclinedTrial] = useState(() => {
+        try { return localStorage.getItem('kastoko_declined_trial') === '1'; } catch { return false; }
+    });
+    const [isApplyingTrial, setIsApplyingTrial] = useState(false);
     const syncStore = useSyncStore();
     const { db, firesqlite } = useDbStore();
 
@@ -90,12 +94,6 @@ export function LicenseProvider({ children }: { children: React.ReactNode }) {
         )
     }
 
-    // Eligible device that hasn't accepted the terms of use yet: show the
-    // agreement. Accepting applies the trial; declining shows the welcome view.
-    if (status === 'TRIAL_PENDING') {
-        return <TrialConsent />;
-    }
-    
     const isAllowedUnlicensedPage = typeof window !== 'undefined' && 
         (window.location.pathname.startsWith('/dashboard/settings') || 
         window.location.pathname.startsWith('/aktivasi') || 
@@ -103,8 +101,38 @@ export function LicenseProvider({ children }: { children: React.ReactNode }) {
         window.location.pathname.startsWith('/license') 
     );
 
+    // Eligible device that hasn't accepted terms: show TrialConsent unless user declined
+    if (status === 'TRIAL_PENDING' && !hasDeclinedTrial && !isAllowedUnlicensedPage) {
+        return <TrialConsent onDecline={() => {
+            try { localStorage.setItem('kastoko_declined_trial', '1'); } catch {}
+            setHasDeclinedTrial(true);
+        }} />;
+    }
+    
     if (!isLicensed && !isAllowedUnlicensedPage) {
         const message = statusMessages[status] || "Terjadi kesalahan lisensi tidak dikenal.";
+        const isNotFound = status === 'NOT_FOUND';
+        const handleWelcomeTrial = async () => {
+            if (isApplyingTrial) return;
+            setIsApplyingTrial(true);
+            try {
+                await invoke('start_trial');
+                try { localStorage.removeItem('kastoko_declined_trial'); } catch {}
+                window.location.reload();
+            } catch (e: any) {
+                const msg = String(e ?? '');
+                if (msg.toLowerCase().includes('already used')) {
+                    window.location.href = '/license';
+                } else {
+                    // fallback: reload to show TrialConsent again
+                    try { localStorage.removeItem('kastoko_declined_trial'); } catch {}
+                    window.location.reload();
+                }
+            } finally {
+                setIsApplyingTrial(false);
+            }
+        };
+        const openPricing = () => invoke('open_pricing');
         return (
              <div className="flex h-screen w-full items-center justify-center bg-muted/40 p-4">
                  <div className="w-full max-w-md text-center bg-card p-8 rounded-lg shadow-lg">
@@ -113,7 +141,23 @@ export function LicenseProvider({ children }: { children: React.ReactNode }) {
                     <p className="text-muted-foreground mt-2 mb-6">
                        {message}
                     </p>
-                    <Button onClick={() => window.location.href = '/dashboard/settings'}>Buka Pengaturan</Button>
+                    <div className="space-y-3">
+                        <Button onClick={() => window.location.href = '/dashboard/settings'} className="w-full">Buka Pengaturan</Button>
+                        {isNotFound && (
+                            <>
+                                <Button className="w-full h-11" onClick={handleWelcomeTrial} disabled={isApplyingTrial}>
+                                    {isApplyingTrial ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Zap className="mr-2 h-4 w-4" />}
+                                    {isApplyingTrial ? 'Menerapkan...' : 'Gunakan Masa Uji Coba (30 Hari)'}
+                                </Button>
+                                <Button variant="outline" className="w-full h-11" onClick={() => window.location.href = '/license'}>
+                                    <KeyRound className="mr-2 h-4 w-4" /> Aktivasi dengan Kode Lisensi
+                                </Button>
+                                <Button variant="outline" className="w-full h-11" onClick={openPricing}>
+                                    <CreditCard className="mr-2 h-4 w-4" /> Beli Lisensi
+                                </Button>
+                            </>
+                        )}
+                    </div>
                 </div>
              </div>
         );

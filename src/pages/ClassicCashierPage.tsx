@@ -24,7 +24,7 @@ import { usePrintStore } from '@/lib/print-store';
 import { usePrinterStore } from '@/lib/print-detect-store';
 import { Badge } from '@/components/ui/badge';
 import { useCurrencyFormat } from '@/hooks/useCurrencyFormat';
-import { voidTransaction } from '@/services/transactionService';
+import { voidTransaction, isVoidBlockedByPiutang } from '@/services/transactionService';
 import { evaluateDiscounts } from '@/services/promoService';
 import { DEFAULT_STORE_CONFIG } from '@/lib/defaults';
 import { normalizeProductUoms } from '@/lib/uom';
@@ -406,6 +406,8 @@ export default function ClassicCashierPage({ defaultWholesale = false }: { defau
     
     const handleVoid = async () => {
         if (!reviewingTx || !voidReason.trim()) return;
+        const block = isVoidBlockedByPiutang(reviewingTx as any);
+        if (block.blocked) { toast({ variant: 'destructive', title: 'Void diblokir', description: block.reason }); return; }
         setIsVoiding(true);
         try {
             await voidTransaction(reviewingTx.id, voidReason);
@@ -1050,15 +1052,18 @@ export default function ClassicCashierPage({ defaultWholesale = false }: { defau
                                         {reviewingTx.status !== 'voided' && reviewingTx.transaction_type !== 'return' && (
                                             <div className="pt-4 border-t space-y-3">
                                                 <Label className="text-destructive font-bold">Void Transaksi</Label>
+                                                {(() => { const vb = isVoidBlockedByPiutang(reviewingTx as any); return vb.blocked ? <p className="text-xs text-destructive">Void diblokir: {vb.reason}</p> : null; })()}
                                                 <Input 
                                                     placeholder="Alasan pembatalan..." 
                                                     value={voidReason} 
                                                     onChange={(e) => setVoidReason(e.target.value)} 
+                                                    disabled={isVoidBlockedByPiutang(reviewingTx as any).blocked}
                                                 />
                                                 <Button 
                                                     variant="destructive" 
                                                     className="w-full" 
-                                                    disabled={!voidReason || isVoiding}
+                                                    disabled={!voidReason || isVoiding || isVoidBlockedByPiutang(reviewingTx as any).blocked}
+                                                    title={isVoidBlockedByPiutang(reviewingTx as any).reason || ''}
                                                     onClick={handleVoid}
                                                 >
                                                     <XCircle className="mr-2 size-4" /> Konfirmasi Pembatalan

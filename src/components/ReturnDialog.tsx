@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useStore } from '@/lib/store';
 import { Transaction, TransactionItem } from '@/lib/types';
-import { findTransactionByInvoice, getReturnsByOriginalTx, voidTransaction } from '@/services/transactionService';
+import { findTransactionByInvoice, getReturnsByOriginalTx, voidTransaction, isVoidBlockedByPiutang } from '@/services/transactionService';
 import { useLoadTransactions } from '@/hooks/useLoadTransaction';
 import { useGlobalBarcodeScanner } from '@/hooks/use-global-barcode-scanner';
 import { useToast } from '@/hooks/use-toast';
@@ -104,9 +104,11 @@ export default function ReturnDialog({ open, onOpenChange }: ReturnDialogProps) 
 
     // Suggest void ONLY when every line is returned on the SAME shift and nothing
     // was returned before (voiding would otherwise double-restock prior returns).
+    // Also blocked if transaction is piutang or customer has other piutang.
+    const voidBlock = useMemo(() => selectedTx ? isVoidBlockedByPiutang(selectedTx as any) : { blocked: false } as any, [selectedTx]);
     const canSuggestVoid = useMemo(() =>
-        isFullReturn && !!activeShift && selectedTx?.shift_id === activeShift.id && priorReturns.length === 0,
-    [isFullReturn, activeShift, selectedTx, priorReturns]);
+        isFullReturn && !!activeShift && selectedTx?.shift_id === activeShift.id && priorReturns.length === 0 && !voidBlock.blocked,
+    [isFullReturn, activeShift, selectedTx, priorReturns, voidBlock]);
 
     const refundSummary = useMemo(() => {
         let subtotal = 0;
@@ -198,6 +200,8 @@ export default function ReturnDialog({ open, onOpenChange }: ReturnDialogProps) 
 
     const handleVoidInstead = async () => {
         if (!selectedTx || !reason.trim() || isSubmitting) return;
+        const block = isVoidBlockedByPiutang(selectedTx as any);
+        if (block.blocked) { toast({ variant: 'destructive', title: 'Void diblokir', description: block.reason }); return; }
         setIsSubmitting(true);
         try {
             await voidTransaction(selectedTx.id, reason);
@@ -375,6 +379,11 @@ export default function ReturnDialog({ open, onOpenChange }: ReturnDialogProps) 
                                     </Button>
                                 </div>
                             )}
+                            {selectedTx && voidBlock.blocked && (
+                                <div className="rounded-lg border border-destructive bg-destructive/10 p-3 text-sm text-destructive">
+                                    Void diblokir: {voidBlock.reason} — lunasi piutang di menu Piutang terlebih dahulu.
+                                </div>
+                            )}
 
                             <div className="space-y-4">
                                 <div className="space-y-2">
@@ -415,7 +424,7 @@ export default function ReturnDialog({ open, onOpenChange }: ReturnDialogProps) 
                                 <CheckCircle2 className="mr-2 size-5" />
                                 {isSubmitting ? 'Memproses...' : `Buat Retur & Refund ${formatIDR(refundSummary.total)}`}
                             </Button>
-                            <Button variant="outline" className="w-full h-10 border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground" onClick={handleVoidInstead} disabled={!reason.trim() || isSubmitting || !selectedTx}>
+                            <Button variant="outline" className="w-full h-10 border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground" onClick={handleVoidInstead} disabled={!reason.trim() || isSubmitting || !selectedTx || voidBlock.blocked} title={voidBlock.blocked ? voidBlock.reason : ''}>
                                 <XCircle className="mr-2 size-4" /> Void Transaksi {selectedTx ? `(${selectedTx.invoice_number})` : ''}
                             </Button>
                         </>

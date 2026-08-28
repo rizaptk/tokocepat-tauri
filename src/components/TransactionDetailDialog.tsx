@@ -1,8 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { Transaction } from "@/lib/types";
 import { useStore } from "@/lib/store";
 import { useToast } from "@/hooks/use-toast";
-import { voidTransaction } from "@/services/transactionService";
+import { voidTransaction, isVoidBlockedByPiutang } from "@/services/transactionService";
 import { format } from "date-fns";
 import { id } from "date-fns/locale"; // Added Indonesian locale
 
@@ -24,7 +24,7 @@ interface TransactionDetailDialogProps {
 }
 
 function TransactionDetailDialog({ transaction, onOpenChange }: TransactionDetailDialogProps) {
-    const { shifts } = useStore();
+    const { shifts, transactions } = useStore();
     const { addToQueue } = usePrintStore();
     const { toast } = useToast();
     const [voidReason, setVoidReason] = useState("");
@@ -33,8 +33,19 @@ function TransactionDetailDialog({ transaction, onOpenChange }: TransactionDetai
     if (!transaction) return null;
 
     const shiftForTransaction = transaction.shift_id ? shifts.find(s => s.id === transaction.shift_id) : null;
+    const voidBlock = useMemo(() => isVoidBlockedByPiutang(transaction as any), [transaction, transactions]);
+    const anyTx = transaction as any;
+    const isGrosir = !!anyTx.is_wholesale;
+    const sisa = (transaction.total || 0) - (transaction.cash_paid || 0);
+    const dueDateStr = anyTx.due_date ? format(new Date(anyTx.due_date), 'PPP', { locale: id }) : null;
+    const overdueDays = anyTx.due_date ? Math.max(0, Math.floor((Date.now() - new Date(anyTx.due_date).getTime()) / (1000*60*60*24))) : 0;
     
     const handleVoidConfirm = async (e: React.MouseEvent<HTMLButtonElement, MouseEvent>) => {
+        if (voidBlock.blocked) {
+            toast({ variant: 'destructive', title: 'Void diblokir', description: voidBlock.reason });
+            e.preventDefault();
+            return;
+        }
         if (!voidReason.trim()) {
             toast({ variant: 'destructive', title: 'Alasan wajib diisi', description: 'Silakan masukkan alasan pembatalan.' });
             e.preventDefault();
@@ -67,8 +78,8 @@ function TransactionDetailDialog({ transaction, onOpenChange }: TransactionDetai
                 <DialogHeader>
                     <DialogTitle className="flex items-center justify-between">
                         <span>No. Invoice: {transaction.invoice_number}</span>
-                         <Badge variant={transaction.status === 'voided' ? 'destructive' : 'secondary'}>
-                            {transaction.status === 'voided' ? 'VOID' : 'LUNAS'}
+                         <Badge variant={transaction.status === 'voided' ? 'destructive' : isGrosir && (anyTx.payment_status !== 'lunas') ? (anyTx.payment_status === 'piutang' ? 'destructive' : 'secondary') : 'secondary'}>
+                            {transaction.status === 'voided' ? 'VOID' : isGrosir ? (anyTx.payment_status === 'piutang' ? 'PIUTANG' : anyTx.payment_status === 'lunas_sebagian' ? 'CICILAN' : 'LUNAS') : 'LUNAS'}
                          </Badge>
                     </DialogTitle>
                     <div className="text-sm text-muted-foreground">
@@ -120,6 +131,19 @@ function TransactionDetailDialog({ transaction, onOpenChange }: TransactionDetai
                                 </div>
                             </div>
 
+                            {isGrosir && (
+                                <div className="space-y-2">
+                                    <h4 className="font-semibold text-sm flex items-center gap-2">Grosir <Badge variant="outline">{anyTx.customer_group_snapshot || '—'}</Badge> <Badge variant={anyTx.payment_status === 'piutang' ? 'destructive' : anyTx.payment_status === 'lunas_sebagian' ? 'secondary' : 'secondary'}>{anyTx.payment_status === 'piutang' ? 'PIUTANG' : anyTx.payment_status === 'lunas_sebagian' ? 'CICILAN' : 'LUNAS'}</Badge></h4>
+                                    <div className="border rounded-lg p-4 space-y-2 text-sm bg-amber-50/50 dark:bg-amber-950/20">
+                                        <div className="flex justify-between"><span className="text-muted-foreground">Pelanggan</span><span className="font-medium">{anyTx.customer_name_snapshot || '—'} <span className="text-xs text-muted-foreground">({anyTx.customer_id || '-'})</span></span></div>
+                                        <div className="flex justify-between"><span className="text-muted-foreground">TOP</span><span className="font-medium">{anyTx.term_days != null ? `${anyTx.term_days} hari` : '-'}</span></div>
+                                        <div className="flex justify-between"><span className="text-muted-foreground">Jatuh Tempo</span><span className="font-medium">{dueDateStr || '-'} {overdueDays > 0 && <Badge variant="destructive" className="ml-1">+{overdueDays}h lewat</Badge>}</span></div>
+                                        <div className="flex justify-between"><span className="text-muted-foreground">Sisa Piutang</span><span className={`font-bold ${sisa > 0.5 ? 'text-destructive' : 'text-muted-foreground'}`}>{formatCurrency(sisa)}</span></div>
+                                        {voidBlock.blocked && <p className="text-xs text-destructive">Void diblokir: {voidBlock.reason}</p>}
+                                    </div>
+                                </div>
+                            )}
+
                             {transaction.status === 'voided' && (
                                 <div className="space-y-2">
                                     <h4 className="font-semibold text-sm">Detail Void</h4>
@@ -136,22 +160,23 @@ function TransactionDetailDialog({ transaction, onOpenChange }: TransactionDetai
                      {transaction.status !== 'voided' && (
                         <AlertDialog open={isVoidAlertOpen} onOpenChange={setIsVoidAlertOpen}>
                             <AlertDialogTrigger asChild>
-                                <Button variant="destructive" className="gap-2"><Trash2 className="h-4 w-4"/> Void Transaksi</Button>
+                                <Button variant="destructive" className="gap-2" disabled={voidBlock.blocked} title={voidBlock.reason || ''}><Trash2 className="h-4 w-4"/> Void Transaksi</Button>
                             </AlertDialogTrigger>
                             <AlertDialogContent>
                                 <AlertDialogHeader>
                                     <AlertDialogTitle>Void Invoice {transaction.invoice_number}?</AlertDialogTitle>
                                     <AlertDialogDescription>
-                                        Tindakan ini akan membatalkan penjualan, mengembalikan stok, dan tidak dapat dibatalkan.
+                                        {voidBlock.blocked ? `Void diblokir: ${voidBlock.reason}` : 'Tindakan ini akan membatalkan penjualan, mengembalikan stok, dan tidak dapat dibatalkan.'}
                                     </AlertDialogDescription>
                                 </AlertDialogHeader>
                                 <div className="py-4">
                                     <Label htmlFor="void-reason" className="mb-2 block text-sm">Alasan Pembatalan</Label>
-                                    <Input id="void-reason" value={voidReason} onChange={(e) => setVoidReason(e.target.value)} placeholder="Contoh: Kesalahan input/Batal" />
+                                    <Input id="void-reason" value={voidReason} onChange={(e) => setVoidReason(e.target.value)} placeholder="Contoh: Kesalahan input/Batal" disabled={voidBlock.blocked} />
+                                    {voidBlock.blocked && <p className="text-xs text-destructive mt-2">{voidBlock.reason} — lunasi piutang pelanggan di menu Piutang.</p>}
                                 </div>
                                 <AlertDialogFooter>
                                     <AlertDialogCancel onClick={() => setVoidReason('')}>Batal</AlertDialogCancel>
-                                    <AlertDialogAction onClick={handleVoidConfirm}>Konfirmasi Void</AlertDialogAction>
+                                    <AlertDialogAction onClick={handleVoidConfirm} disabled={voidBlock.blocked}>Konfirmasi Void</AlertDialogAction>
                                 </AlertDialogFooter>
                             </AlertDialogContent>
                         </AlertDialog>

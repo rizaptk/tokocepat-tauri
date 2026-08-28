@@ -119,18 +119,37 @@ for (let d = days - 1; d >= 0; d--) {
       });
     }
 
-    // Random promo 30% retail
+    // Promo: respect allowWholesale — voucher / flat / manual
     let discountTotal = 0;
     let promoDiscount = 0;
+    let manualDiscount = 0;
     let appliedPromos = [];
-    if (!isWholesale && Math.random() < 0.3 && promos.length > 0) {
-      const promo = promos[0];
+    const rPromo = Math.random();
+    const allowForTx = (p) => isWholesale ? (p.allowWholesale !== false) : true;
+    const voucherPromos = promos.filter((p) => p.kind === 'voucher' && allowForTx(p));
+    const flatPromos = promos.filter((p) => p.kind === 'flat' && allowForTx(p));
+    if (rPromo < 0.18 && voucherPromos.length > 0) {
+      const promo = voucherPromos[Math.floor(Math.random() * voucherPromos.length)];
       const disc = Math.round(subtotal * 0.05);
       discountTotal = disc;
       promoDiscount = disc;
       appliedPromos = [{ promo_id: promo.id, name: promo.name, amount: disc, kind: 'voucher', voucher_code: promo.code }];
-      // Apply to first line
       if (items[0]) { items[0].unit_discount = Math.round(disc / items[0].qty); items[0].discount_amount = disc; items[0].promo_ids = [promo.id]; }
+    } else if (rPromo < 0.30 && flatPromos.length > 0) {
+      const promo = flatPromos[Math.floor(Math.random() * flatPromos.length)];
+      const disc = promo.discount_value || 2000;
+      const capped = Math.min(disc, Math.round(subtotal * 0.4));
+      discountTotal = capped;
+      promoDiscount = capped;
+      appliedPromos = [{ promo_id: promo.id, name: promo.name, amount: capped, kind: 'auto' }];
+      if (items[0]) { items[0].unit_discount = Math.round(capped / items[0].qty); items[0].discount_amount = capped; items[0].promo_ids = [promo.id]; }
+    } else if (rPromo < 0.40) {
+      const disc = [5000, 8000, Math.round(subtotal * 0.07)][Math.floor(Math.random() * 3)];
+      const capped = Math.min(disc, Math.round(subtotal * 0.3));
+      discountTotal = capped;
+      manualDiscount = capped;
+      appliedPromos = [{ promo_id: 'manual', name: 'Diskon Kasir', amount: capped, kind: 'manual' }];
+      if (items[0]) { items[0].unit_discount = Math.round(capped / items[0].qty); items[0].discount_amount = capped; items[0].promo_ids = ['manual']; }
     }
 
     const taxRate = 0.11;
@@ -180,7 +199,7 @@ for (let d = days - 1; d >= 0; d--) {
       gross_subtotal: subtotal,
       discount_total: discountTotal,
       promo_discount: promoDiscount,
-      manual_discount: 0,
+      manual_discount: manualDiscount,
       voucher_code: appliedPromos[0]?.voucher_code,
       applied_promos: appliedPromos,
       is_wholesale: isWholesale,

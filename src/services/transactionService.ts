@@ -4,6 +4,35 @@ import { useStore } from '@/lib/store';
 import { toast } from '@/hooks/use-toast';
 import { evaluateDiscounts, DiscountOptions } from './promoService';
 
+export const hasOutstandingPiutang = (customerId: string, excludeTxId?: string): boolean => {
+    if (!customerId) return false;
+    const { transactions } = useStore.getState();
+    return transactions.some(t => {
+        const anyTx = t as any;
+        if (anyTx.customer_id !== customerId) return false;
+        if (excludeTxId && t.id === excludeTxId) return false;
+        if (!anyTx.is_wholesale) return false;
+        if (t.status === 'voided') return false;
+        if ((anyTx.payment_status || 'lunas') === 'lunas') return false;
+        const sisa = (t.total || 0) - (t.cash_paid || 0);
+        return sisa > 0.5;
+    });
+};
+
+export const isVoidBlockedByPiutang = (tx: Transaction): { blocked: boolean; reason?: string } => {
+    const anyTx = tx as any;
+    if (!anyTx.customer_id || !anyTx.is_wholesale) return { blocked: false };
+    // Block if this tx itself is piutang/cicilan
+    if ((anyTx.payment_status || 'lunas') !== 'lunas') {
+        return { blocked: true, reason: 'Transaksi ini masih piutang — lunasi dulu sebelum void.' };
+    }
+    // Block if customer has other outstanding piutang
+    if (hasOutstandingPiutang(anyTx.customer_id, tx.id)) {
+        return { blocked: true, reason: 'Pelanggan masih memiliki piutang aktif lain.' };
+    }
+    return { blocked: false };
+};
+
 export const getTransactionsByDateRange = async (from: Date, to: Date, device?: string | 'all'): Promise<Transaction[]> => {
     const { db, firesqlite } = useDbStore.getState();
     if (!db || !firesqlite) throw new Error("Database belum diinisialisasi");
@@ -340,6 +369,19 @@ export const voidTransaction = async (transactionId: string, reason: string): Pr
     const priorReturns = (await getReturnsByOriginalTx(transactionId)).filter(t => t.status !== 'voided');
     if (priorReturns.length > 0) {
         throw new Error("Transaksi sudah memiliki retur. Batalkan retur terlebih dahulu.");
+    }
+    // Piutang guard: cannot void if transaction is piutang or customer has other piutang
+    {
+        const anyTx = transaction as any;
+        if (anyTx.customer_id && anyTx.is_wholesale) {
+            const selfBlocked = (anyTx.payment_status || 'lunas') !== 'lunas';
+            if (selfBlocked) {
+                throw new Error("Transaksi piutang tidak dapat di-void. Lunasi piutang terlebih dahulu.");
+            }
+            if (hasOutstandingPiutang(anyTx.customer_id, transaction.id)) {
+                throw new Error("Pelanggan masih memiliki piutang aktif. Lunasi piutang sebelum void transaksi ini.");
+            }
+        }
     }
     
     const now = new Date().toISOString();
