@@ -188,12 +188,14 @@ export default function ClassicCashierPage({ defaultWholesale = false }: { defau
     const cartTableRef = useRef<HTMLDivElement>(null);
     const [qtyEditId, setQtyEditId] = useState<string | null>(null);
     const [qtyEditValue, setQtyEditValue] = useState('');
+    const [uomEditId, setUomEditId] = useState<string | null>(null);
     const [variantEditItem, setVariantEditItem] = useState<Product | null>(null);
     const [variantEditCartId, setVariantEditCartId] = useState<string | null>(null);
-    const { activeIndex: cartActiveIndex, setActiveIndex: setCartActiveIndex, activeColumn: cartActiveColumn } = useTableNavigation({
+    const { activeIndex: cartActiveIndex, setActiveIndex: setCartActiveIndex, activeColumn: cartActiveColumn, setActiveColumn: setCartActiveColumn } = useTableNavigation({
         rowCount: cart.length,
         columnCount: 12, // No | Produk | Var | Con | Merek | Kategori | Harga | Satuan | Qty | Diskon | Subtotal | Hapus
         bindTo: cartTableRef,
+        enabled: qtyEditId === null && uomEditId === null,
         onActivate: (index, column) => {
             const item = cart[index];
             if (!item) return;
@@ -210,6 +212,9 @@ export default function ClassicCashierPage({ defaultWholesale = false }: { defau
                     setQtyEditValue(String(item.quantity));
                     setQtyEditId(item.cartItemId);
                 }
+            } else if (column === 7) {
+                const norm = normalizeProductUoms(item as any);
+                if (!isWholesaleMode && (norm.uoms?.length || 0) > 1) setUomEditId(item.cartItemId);
             } else if (column === 8) {
                 // Qty column (default for any line): start in-cell qty edit
                 setQtyEditValue(String(item.quantity));
@@ -219,6 +224,34 @@ export default function ClassicCashierPage({ defaultWholesale = false }: { defau
             }
         },
     });
+
+    // Auto-highlight newly added / qty-increased product to Qty column
+    const prevCartIdsRef = useRef<string[]>([]);
+    const prevCartQtysRef = useRef<Record<string, number>>({});
+    useEffect(() => {
+        const currIds = cart.map(c=>c.cartItemId);
+        const currQtys: Record<string, number> = {};
+        cart.forEach(c=> currQtys[c.cartItemId]=c.quantity);
+        if (currIds.length===0) { prevCartIdsRef.current=[]; prevCartQtysRef.current={}; return; }
+        let targetId: string | null = null;
+        const newId = currIds.find(id=>!prevCartIdsRef.current.includes(id));
+        if (newId) targetId=newId;
+        else {
+            for (const id of currIds) {
+                if ((currQtys[id]||0) > (prevCartQtysRef.current[id]||0)) { targetId=id; break; }
+            }
+        }
+        if (targetId) {
+            const idx = currIds.indexOf(targetId);
+            if (idx>=0) {
+                setCartActiveIndex(idx);
+                setCartActiveColumn(8);
+                cartTableRef.current?.focus();
+            }
+        }
+        prevCartIdsRef.current=currIds;
+        prevCartQtysRef.current=currQtys;
+    }, [cart]);
 
     const openVariantEdit = (item: CartItem) => {
         const base = products.find(p => p.id === item.id);
@@ -846,15 +879,20 @@ export default function ClassicCashierPage({ defaultWholesale = false }: { defau
                                                         const uoms = norm.uoms || [];
                                                         if (isWholesaleMode) return <span className="text-xs">{norm.baseUom || 'Pcs'}</span>;
                                                         if (uoms.length <= 1) return <span className="text-xs">{uoms[0]?.name || norm.baseUom || 'Pcs'}</span>;
+                                                        const isEditing = uomEditId === item.cartItemId;
+                                                        const currentUomName = uoms.find(u=>u.id===((item as any).selectedUomId || uoms.find(x=>x.isBase)?.id))?.name || norm.baseUom || 'Pcs';
+                                                        if (!isEditing) {
+                                                            return <button className={cn("mx-auto block h-7 text-xs rounded px-2", cartActiveIndex === idx && cartActiveColumn === 7 && "bg-primary/15 ring-1 ring-primary/40")} onClick={() => setUomEditId(item.cartItemId)} onKeyDown={e=>e.stopPropagation()} aria-label={`Ubah satuan ${item.name}`}>{currentUomName}</button>;
+                                                        }
                                                         return (
-                                                            <Select value={(item as any).selectedUomId || uoms.find(u=>u.isBase)?.id} onValueChange={v => updateCartItemUom(item.cartItemId, v, selectedGroupId)}>
-                                                                <SelectTrigger className="h-7 w-full text-xs"><SelectValue /></SelectTrigger>
+                                                            <Select value={(item as any).selectedUomId || uoms.find(u=>u.isBase)?.id} onValueChange={v => { updateCartItemUom(item.cartItemId, v, selectedGroupId); setUomEditId(null); }} onOpenChange={open => { if (!open) setUomEditId(null); }}>
+                                                                <SelectTrigger autoFocus className="h-7 w-full text-xs"><SelectValue /></SelectTrigger>
                                                                 <SelectContent>{uoms.map(u => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}</SelectContent>
                                                             </Select>
                                                         );
                                                     })()}
                                                 </TableCell>
-                                                <TableCell className={cn("text-center", cartActiveIndex === idx && cartActiveColumn === 8 && "bg-primary/10")}>
+                                                <TableCell className={cn("text-center", cartActiveIndex === idx && cartActiveColumn === 8 && qtyEditId !== item.cartItemId && "bg-primary/10")}>
                                                     {qtyEditId === item.cartItemId ? (
                                                         <input
                                                             autoFocus
@@ -865,8 +903,8 @@ export default function ClassicCashierPage({ defaultWholesale = false }: { defau
                                                             onBlur={() => handleQtyCommit(item)}
                                                             onKeyDown={(e) => {
                                                                 e.stopPropagation();
-                                                                if (e.key === 'Enter') { e.preventDefault(); handleQtyCommit(item); setCartActiveIndex(-1); }
-                                                                if (e.key === 'Escape') { setQtyEditId(null); setQtyEditValue(''); }
+                                                                if (e.key === 'Enter') { e.preventDefault(); (e.target as HTMLInputElement).blur(); }
+                                                                if (e.key === 'Escape') { setQtyEditId(null); setQtyEditValue(''); (e.target as HTMLInputElement).blur(); }
                                                             }}
                                                             className="mx-auto block h-7 w-16 rounded-md border-border/70 bg-background text-center text-sm font-bold tabular-nums outline-none ring-1 ring-primary"
                                                         />
@@ -874,7 +912,7 @@ export default function ClassicCashierPage({ defaultWholesale = false }: { defau
                                                         <button
                                                             className={cn(
                                                                 "mx-auto block w-16 text-center font-bold tabular-nums rounded",
-                                                                cartActiveIndex === idx && "bg-primary/15 ring-1 ring-primary/40"
+                                                                cartActiveIndex === idx && cartActiveColumn === 8 && "bg-primary/15 ring-1 ring-primary/40"
                                                             )}
                                                             onClick={() => { setQtyEditValue(String(item.quantity)); setQtyEditId(item.cartItemId); }}
                                                             title="Klik untuk ubah jumlah"

@@ -54,7 +54,7 @@ export function useTableNavigation({ rowCount, columnCount = 1, enabled = true, 
         e.preventDefault();
         if (indexRef.current < 0) setActiveIndex(0);
         setActiveColumn(prev => (prev <= 0 ? columnCount - 1 : prev - 1));
-      } else if (ke.key === 'Enter' && indexRef.current >= 0) {
+      } else if (ke.key === 'Enter' && indexRef.current >= 0 && !isTyping) {
         e.preventDefault();
         cbRef.current?.(indexRef.current, columnRef.current);
       }
