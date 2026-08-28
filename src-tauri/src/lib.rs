@@ -47,7 +47,7 @@ pub fn run() {
                 .app_data_dir()
                 .expect("Failed to resolve app data dir");
             std::fs::create_dir_all(&app_dir).ok();
-            let db_path = app_dir.join("tokocepat.db");
+            let db_path = app_dir.join("kastoko.db");
 
             // restore pending flag
             let flag_path = app_dir.join("restore_pending.flag");
