@@ -303,11 +303,11 @@ export default function PromosPage() {
             }
             if (effectiveDraft.kind === 'criteria') {
                 const r = effectiveDraft.reward_type || 'discount';
-                if ((r === 'discount' || r === 'discount_product') && (effectiveDraft.discount_value || 0) <= 0) {
+                if (r === 'discount' && (effectiveDraft.discount_value || 0) <= 0) {
                     toast({ variant: 'destructive', title: 'Besar diskon wajib diisi' });
                     return;
                 }
-                if ((r === 'bonus_product' || r === 'discount_product') && !(effectiveDraft.reward_product_ids?.length)) {
+                if (r === 'bonus_product' && !(effectiveDraft.reward_product_ids?.length)) {
                     toast({ variant: 'destructive', title: 'Pilih produk hadiah' });
                     return;
                 }
@@ -388,7 +388,7 @@ export default function PromosPage() {
             case 'criteria': {
                 const scope = scopeSummary(p);
                 if (p.reward_type === 'discount') desc = `Beli semua ${scope} → diskon ${discText(p)}`;
-                else if (p.reward_type === 'discount_product') desc = `Beli semua ${scope} → diskon ${discText(p)} untuk ${rewardName(p)}`;
+                else if ((p.reward_type as any) === 'discount_product') desc = `Beli semua ${scope} → diskon ${discText(p)} untuk ${rewardName(p)}`;
                 else desc = `Beli semua ${scope} → gratis ${rewardName(p)}`;
                 break;
             }

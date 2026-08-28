@@ -1,4 +1,4 @@
-import { Percent, Gift, ListChecks, GitBranch, TicketPercent, Tag, type LucideIcon } from 'lucide-react';
+import { Percent, Gift, ListChecks, GitBranch, TicketPercent, type LucideIcon } from 'lucide-react';
 import { PromoKind, PromoRewardType } from '@/lib/types';
 
 export const KIND_META: { kind: PromoKind; label: string; icon: LucideIcon; hint: string }[] = [

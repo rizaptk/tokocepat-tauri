@@ -215,7 +215,7 @@ export function DiskonForm({ draft, isNew, onChange, onCancel, onSave, isSaving,
                                         )}
                                         <div className="space-y-2">
                                             <Label>Hadiah Saat Syarat Terpenuhi</Label>
-                                            {rewardChips(REWARD_META.filter(r => r.value !== 'discount_product'))}
+                                            {rewardChips(REWARD_META)}
                                         </div>
                                         {reward === 'discount' && (
                                             <>

@@ -242,9 +242,9 @@ export const evaluateDiscounts = (
         addFreeNote(it?.id || '', it?.name || '', grant);
     };
 
-    // --- Pass A: money-off candidates (flat + criteria `discount_product`) ---
+    // --- Pass A: money-off candidates (flat + legacy criteria `discount_product`) ---
     const moneyPromos = activePromos.filter(p =>
-        p.kind === 'flat' || (p.kind === 'criteria' && p.reward_type === 'discount_product')
+        p.kind === 'flat' || (p.kind === 'criteria' && (p.reward_type as any) === 'discount_product')
     );
     for (const promo of moneyPromos) {
         if ((promo.discount_value || 0) <= 0) continue;
