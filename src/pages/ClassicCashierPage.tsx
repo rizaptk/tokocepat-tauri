@@ -88,9 +88,12 @@ export default function ClassicCashierPage({ defaultWholesale = false }: { defau
     const [customerQuery, setCustomerQuery] = useState('');
 
     const handleWholesaleToggle = (checked: boolean) => {
-        if (cart.length > 0 && checked !== isWholesaleMode) {
+        const needsConfirm = cart.length > 0 && checked !== isWholesaleMode;
+        if (needsConfirm) {
             if (!confirm('Ganti mode akan mengosongkan keranjang. Lanjutkan?')) return;
             clearCart();
+        } else if (checked !== isWholesaleMode) {
+            toast({ title: checked ? 'Mode Grosir Aktif' : 'Mode Grosir Nonaktif', description: checked ? 'Harga grosir & pelanggan aktif' : 'Kembali ke mode retail' });
         }
         setIsWholesaleMode(checked);
         if (!checked) setSelectedCustomerId(null);
@@ -190,7 +193,7 @@ export default function ClassicCashierPage({ defaultWholesale = false }: { defau
     const [variantEditCartId, setVariantEditCartId] = useState<string | null>(null);
     const { activeIndex: cartActiveIndex, setActiveIndex: setCartActiveIndex, activeColumn: cartActiveColumn } = useTableNavigation({
         rowCount: cart.length,
-        columnCount: 13, // No | Produk | Var | Con | Merek | Kategori | Stok | Harga | Satuan | Qty | Diskon | Subtotal | Hapus
+        columnCount: 12, // No | Produk | Var | Con | Merek | Kategori | Harga | Satuan | Qty | Diskon | Subtotal | Hapus
         bindTo: cartTableRef,
         onActivate: (index, column) => {
             const item = cart[index];
@@ -208,11 +211,11 @@ export default function ClassicCashierPage({ defaultWholesale = false }: { defau
                     setQtyEditValue(String(item.quantity));
                     setQtyEditId(item.cartItemId);
                 }
-            } else if (column === 9) {
+            } else if (column === 8) {
                 // Qty column (default for any line): start in-cell qty edit
                 setQtyEditValue(String(item.quantity));
                 setQtyEditId(item.cartItemId);
-            } else if (column === 12) {
+            } else if (column === 11) {
                 removeFromCart(item.cartItemId);
             }
         },
@@ -228,12 +231,7 @@ export default function ClassicCashierPage({ defaultWholesale = false }: { defau
     const handleQtyCommit = (item: CartItem) => {
         if (qtyEditId !== item.cartItemId) return;
         const qty = Math.max(1, Math.floor(Number(qtyEditValue) || 1));
-        updateQuantity(item.cartItemId, qty);
-        const norm = normalizeProductUoms(item as any);
-        if (norm.isWholesaleEnabled && norm.wholesaleTiers && norm.wholesaleTiers.length > 0) {
-            const uomId = (item as any).selectedUomId || norm.uoms?.find(u=>u.isBase)?.id;
-            if (uomId) updateCartItemUom(item.cartItemId, uomId, selectedGroupId);
-        }
+        updateQuantity(item.cartItemId, qty, selectedGroupId);
         setQtyEditId(null);
         setQtyEditValue('');
     };
@@ -395,6 +393,7 @@ export default function ClassicCashierPage({ defaultWholesale = false }: { defau
     useGlobalKeydown({ key: 'f4', handler: () => setIsReturnOpen(true), enabled: !isHistoryOpen });
     useGlobalKeydown({ key: 'f5', handler: () => { setVoucherInput(voucherCode); setVoucherClaimMsg(null); setIsVoucherOpen(true); }, enabled: cart.length > 0 && !isReturnOpen && !isDiscountOpen });
     useGlobalKeydown({ key: 'f6', handler: () => { if (cartActiveIndex < 0) setCartActiveIndex(cart.length - 1); setIsDiscountOpen(true); }, enabled: cart.length > 0 && !isReturnOpen && !isVoucherOpen });
+    useGlobalKeydown({ key: 'f9', handler: () => handleWholesaleToggle(!isWholesaleMode), enabled: !isReturnOpen && !isHistoryOpen });
     useGlobalKeydown({ key: 'f8', handler: () => {
         const el = cashInputRef.current as HTMLInputElement | null;
         if (document.activeElement === el) {
@@ -570,10 +569,16 @@ export default function ClassicCashierPage({ defaultWholesale = false }: { defau
 
                         {/* Summary */}
                         <div className="space-y-0.5 text-sm">
-                            <div className="flex justify-between gap-6"><span className="text-muted-foreground">Subtotal</span><span className="font-medium tabular-nums">{formatIDR(subtotal)}</span></div>
                             <div className={cn("flex justify-between gap-6", (discountResult?.discountTotal||0) > 0 ? "text-success dark:text-success-foreground" : "text-muted-foreground/50")}>
                                 <span>Diskon</span>
                                 <span className="font-semibold tabular-nums">-{formatIDR(discountResult?.discountTotal||0)}</span>
+                            </div>
+                            <div className="flex justify-between gap-6"><span className="text-muted-foreground">Subtotal</span>
+                                <span className="font-medium tabular-nums">
+                                    {(discountResult?.discountTotal||0) > 0 ? (
+                                        <span><span className="line-through text-muted-foreground/50 mr-1.5 text-xs font-normal">{formatIDR(subtotal)}</span>{formatIDR(subtotal - (discountResult?.discountTotal||0))}</span>
+                                    ) : formatIDR(subtotal)}
+                                </span>
                             </div>
                             <div className="flex justify-between gap-6"><span className="text-muted-foreground">Pajak</span><span className="font-medium tabular-nums">{formatIDR(tax)}</span></div>
                             {cart.length > 0 && discountResult && discountResult.freeItems.length > 0 && (
@@ -715,15 +720,10 @@ export default function ClassicCashierPage({ defaultWholesale = false }: { defau
                         </div>
                     </div>
 
-                    {/* Wholesale bar */}
+                    {isWholesaleMode && (
                     <div className="flex shrink-0 items-center gap-3 border-b border-border bg-amber-50/60 dark:bg-amber-950/30 px-2.5 py-1.5">
-                        <label className="flex items-center gap-2 text-xs font-medium">
-                            <input type="checkbox" checked={isWholesaleMode} onChange={e=>handleWholesaleToggle(e.target.checked)} className="h-3.5 w-3.5 rounded border" />
-                            Mode Grosir
-                        </label>
-                        {isWholesaleMode && (
-                            <>
-                                <div className="h-4 w-px bg-border" />
+                        <span className="flex items-center gap-1.5 text-xs font-medium"><span className="inline-flex h-5 min-w-5 items-center justify-center rounded border border-border bg-muted px-1.5 font-mono text-[10px]">F9</span> Mode Grosir</span>
+                        <div className="h-4 w-px bg-border" />
                                 {selectedCustomer ? (
                                     <span className="text-xs font-medium flex items-center gap-1">
                                         {selectedCustomer.name} · {customerGroups.find(g=>g.id===selectedCustomer.groupId)?.name || 'Umum'}
@@ -766,9 +766,8 @@ export default function ClassicCashierPage({ defaultWholesale = false }: { defau
                                     </span>
                                 )}
                                 <span className="ml-auto text-[10px] text-muted-foreground hidden lg:inline">Harga grosir otomatis per qty Pcs · Scan barcode pelanggan</span>
-                            </>
-                        )}
                     </div>
+                    )}
 
                     {/* Cart table */}
                     <div className="min-h-0 flex-1 overflow-auto outline-none" ref={cartTableRef} tabIndex={0}>
@@ -781,19 +780,18 @@ export default function ClassicCashierPage({ defaultWholesale = false }: { defau
                                     <TableHead className="w-8 text-center">Con</TableHead>
                                     <TableHead className="w-28">Merek</TableHead>
                                     <TableHead className="w-24">Kategori</TableHead>
-                                    <TableHead className="w-16 text-right">Stok</TableHead>
                                     <TableHead className="w-24 text-right">Harga</TableHead>
                                     <TableHead className="w-20 text-center">Satuan</TableHead>
                                     <TableHead className="w-20 text-center">Qty</TableHead>
                                     <TableHead className="w-20 text-right">Diskon</TableHead>
-                                    <TableHead className="w-28 text-right">Subtotal</TableHead>
+                                    <TableHead className="w-36 text-right">Subtotal</TableHead>
                                     <TableHead className="w-10"></TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {cart.length === 0 ? (
                                     <TableRow>
-                                        <TableCell colSpan={13} className="h-[40vh] text-center text-muted-foreground">
+                                        <TableCell colSpan={12} className="h-[40vh] text-center text-muted-foreground">
                                             <div className="space-y-1">
                                                 <p className="font-medium text-foreground/70">Keranjang kosong</p>
                                                 <p className="text-sm">Cari produk, scan barcode, atau tekan <Kbd>F1</Kbd> untuk fokus pencarian.</p>
@@ -842,11 +840,8 @@ export default function ClassicCashierPage({ defaultWholesale = false }: { defau
                                                 <TableCell className={cn("whitespace-nowrap text-muted-foreground", cartActiveIndex === idx && cartActiveColumn === 5 && "bg-primary/10")}>
                                                     <span className="truncate">{categoryName(item) || '—'}</span>
                                                 </TableCell>
-                                                <TableCell className={cn("text-right tabular-nums whitespace-nowrap", cartActiveIndex === idx && cartActiveColumn === 6 && "bg-primary/10")}>
-                                                    {item.selectedVariant?.stock ?? item.stock}
-                                                </TableCell>
-                                                <TableCell className={cn("text-right tabular-nums whitespace-nowrap", cartActiveIndex === idx && cartActiveColumn === 7 && "bg-primary/10")}>{formatIDR(item.price)}</TableCell>
-                                                <TableCell className={cn("text-center", cartActiveIndex === idx && cartActiveColumn === 8 && "bg-primary/10")}>
+                                                <TableCell className={cn("text-right tabular-nums whitespace-nowrap", cartActiveIndex === idx && cartActiveColumn === 6 && "bg-primary/10")}>{formatIDR(item.price)}</TableCell>
+                                                <TableCell className={cn("text-center", cartActiveIndex === idx && cartActiveColumn === 7 && "bg-primary/10")}>
                                                     {(() => {
                                                         const norm = normalizeProductUoms(item as any);
                                                         const uoms = norm.uoms || [];
@@ -859,7 +854,7 @@ export default function ClassicCashierPage({ defaultWholesale = false }: { defau
                                                         );
                                                     })()}
                                                 </TableCell>
-                                                <TableCell className={cn("text-center", cartActiveIndex === idx && cartActiveColumn === 9 && "bg-primary/10")}>
+                                                <TableCell className={cn("text-center", cartActiveIndex === idx && cartActiveColumn === 8 && "bg-primary/10")}>
                                                     {qtyEditId === item.cartItemId ? (
                                                         <input
                                                             autoFocus
@@ -889,9 +884,19 @@ export default function ClassicCashierPage({ defaultWholesale = false }: { defau
                                                         </button>
                                                     )}
                                                 </TableCell>
-                                                <TableCell className={cn("text-right tabular-nums", cartActiveIndex === idx && cartActiveColumn === 10 && "bg-primary/10", (discountResult?.lines.find(l=>l.cartItemId===item.cartItemId)?.lineDiscount||0) >0 ? "text-success dark:text-success-foreground font-medium" : "text-muted-foreground/50")}>{formatIDR(discountResult?.lines.find(l=>l.cartItemId===item.cartItemId)?.lineDiscount||0)}</TableCell>
-                                                <TableCell className={cn("text-right font-bold tabular-nums whitespace-nowrap", cartActiveIndex === idx && cartActiveColumn === 11 && "bg-primary/10")}>{formatIDR(item.price * item.quantity)}</TableCell>
-                                                <TableCell className={cn(cartActiveIndex === idx && cartActiveColumn === 12 && "bg-primary/10")}>
+                                                <TableCell className={cn("text-right tabular-nums", cartActiveIndex === idx && cartActiveColumn === 9 && "bg-primary/10", (discountResult?.lines.find(l=>l.cartItemId===item.cartItemId)?.lineDiscount||0) >0 ? "text-success dark:text-success-foreground font-medium" : "text-muted-foreground/50")}>{formatIDR(discountResult?.lines.find(l=>l.cartItemId===item.cartItemId)?.lineDiscount||0)}</TableCell>
+                                                <TableCell className={cn("text-right font-bold tabular-nums whitespace-nowrap", cartActiveIndex === idx && cartActiveColumn === 10 && "bg-primary/10")}>
+                                                    {(() => {
+                                                        const line = discountResult?.lines.find(l=>l.cartItemId===item.cartItemId);
+                                                        const gross = item.price * item.quantity;
+                                                        const net = line ? (line as any).chargedBase ?? gross - (line.lineDiscount||0) : gross;
+                                                        const disc = line?.lineDiscount || 0;
+                                                        return disc > 0 ? (
+                                                            <span><span className="line-through text-muted-foreground/60 mr-1 font-normal text-xs">{formatIDR(gross)}</span>{formatIDR(net)}</span>
+                                                        ) : formatIDR(gross);
+                                                    })()}
+                                                </TableCell>
+                                                <TableCell className={cn(cartActiveIndex === idx && cartActiveColumn === 11 && "bg-primary/10")}>
                                                     <Button variant="ghost" size="icon" className={cn("size-7 text-muted-foreground opacity-0 hover:text-destructive group-hover:opacity-100", cartActiveIndex === idx && "opacity-100")} aria-label={`Hapus ${item.name}`} onClick={() => removeFromCart(item.cartItemId)}><Trash2 className="size-4"/></Button>
                                                 </TableCell>
                                             </motion.tr>
@@ -911,6 +916,7 @@ export default function ClassicCashierPage({ defaultWholesale = false }: { defau
                             <span className="flex items-center gap-1.5"><Kbd>F4</Kbd> Retur</span>
                             <span className="flex items-center gap-1.5"><Kbd>F5</Kbd> Voucher</span>
                             <span className="flex items-center gap-1.5"><Kbd>F6</Kbd> Diskon</span>
+                            <span className="flex items-center gap-1.5"><Kbd>F9</Kbd> Grosir</span>
                             <span className="flex items-center gap-1.5"><Kbd>F8</Kbd> Bayar</span>
                         </div>
                         <span className="tabular-nums">{totalQty} items</span>

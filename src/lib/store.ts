@@ -54,7 +54,7 @@ interface StoreState {
     setCustomerGroups: (groups: CustomerGroup[]) => void;
     saveItemToCart: (itemData: Product | CartItem | ItemWithVariant, selectedVariant?: ProductVariant) => void;
     removeFromCart: (cartItemId: string) => void;
-    updateQuantity: (cartItemId: string, quantity: number) => void;
+    updateQuantity: (cartItemId: string, quantity: number, groupId?: string) => void;
     updateCartItemUom: (cartItemId: string, uomId: string, groupId?: string) => void;
     clearCart: () => void;
     checkout: (cashReceived: number, options?: DiscountOptions) => Promise<Transaction | null>;
@@ -228,21 +228,24 @@ export const useStore = create<StoreState>()(
             },
 
             updateCartItemUom: (cartItemId: string, uomId: string, groupId?: string) => {
-                const { cart } = get();
+                const { cart, products } = get();
                 const idx = cart.findIndex(i => i.cartItemId === cartItemId);
                 if (idx < 0) return;
                 const item = cart[idx] as any;
-                const uom = getUom(item, uomId);
+                const original = (products.find(p => p.id === item.id) || item) as any;
+                const baseWithVariant = original.price + (item.selectedVariant?.additional_price || 0);
+                const productForPricing = { ...original, price: baseWithVariant } as any;
+                const uom = getUom(productForPricing, uomId);
                 const qtyBase = toBaseQty(item.quantity, uom.factor);
-                const pricePerUom = resolvePricePerUom(item, uom, qtyBase, groupId);
+                const pricePerUom = resolvePricePerUom(productForPricing, uom, qtyBase, groupId);
                 set(state => ({
                     cart: state.cart.map(c => c.cartItemId === cartItemId ? { ...c, selectedUomId: uom.id, selectedUomName: uom.name, selectedUomFactor: uom.factor, price: pricePerUom, pricePerBase: pricePerUom / uom.factor, qtyBase } as any : c)
                 }));
             },
 
-            updateQuantity: (cartItemId: string, quantity: number) => {
-                const { cart } = get();
-                const itemToUpdate = cart.find(item => item.cartItemId === cartItemId);
+            updateQuantity: (cartItemId: string, quantity: number, groupId?: string) => {
+                const { cart, products } = get();
+                const itemToUpdate: any = cart.find(item => item.cartItemId === cartItemId);
                 if (!itemToUpdate) return;
 
                 if (isNaN(quantity) || quantity < 1) {
@@ -256,19 +259,18 @@ export const useStore = create<StoreState>()(
                     : itemToUpdate.stock;
 
                 const isStockTracked = itemToUpdate.has_variant || itemToUpdate.track_stock;
-                const factor = (itemToUpdate as any).selectedUomFactor || 1;
+                const factor = itemToUpdate.selectedUomFactor || 1;
                 const qtyBase = toBaseQty(newQuantity, factor);
-                // Wholesale tier re-pricing on qty change (Group Base -> Qty Tier)
-                let pricePerUom = itemToUpdate.price;
-                const norm = normalizeProductUoms(itemToUpdate as any);
-                if (norm.isWholesaleEnabled) {
-                    const uom = getUom(itemToUpdate as any, (itemToUpdate as any).selectedUomId);
-                    pricePerUom = resolvePricePerUom(itemToUpdate as any, uom, qtyBase);
-                }
+                const original = (products.find(p => p.id === itemToUpdate.id) || itemToUpdate) as any;
+                const baseWithVariant = original.price + (itemToUpdate.selectedVariant?.additional_price || 0);
+                const productForPricing = { ...original, price: baseWithVariant } as any;
+                const norm = normalizeProductUoms(productForPricing);
+                const uom = getUom(productForPricing, itemToUpdate.selectedUomId);
+                const pricePerUom = resolvePricePerUom(productForPricing, uom, qtyBase, groupId);
 
                 if (isStockTracked && qtyBase > stockLimit) {
                     const maxUomQty = Math.floor(stockLimit / factor);
-                    toast({ variant: 'destructive', description: `Stok ${itemToUpdate.name} sisa ${stockLimit} ${norm.baseUom || 'Pcs'} (${maxUomQty} ${ (itemToUpdate as any).selectedUomName || norm.baseUom}).` });
+                    toast({ variant: 'destructive', description: `Stok ${itemToUpdate.name} sisa ${stockLimit} ${norm.baseUom || 'Pcs'} (${maxUomQty} ${ itemToUpdate.selectedUomName || norm.baseUom}).` });
                     newQuantity = maxUomQty > 0 ? maxUomQty : 1;
                 }
 
@@ -276,8 +278,8 @@ export const useStore = create<StoreState>()(
                     cart: cart.map(item => {
                         if (item.cartItemId !== cartItemId) return item;
                         const newQtyBase = toBaseQty(newQuantity, factor);
-                        const uom = getUom(item as any, (item as any).selectedUomId);
-                        const newPrice = norm.isWholesaleEnabled ? resolvePricePerUom(item as any, uom, newQtyBase) : pricePerUom;
+                        const curUom = getUom(productForPricing, (item as any).selectedUomId);
+                        const newPrice = resolvePricePerUom(productForPricing, curUom, newQtyBase, groupId);
                         return { ...item, quantity: newQuantity, qtyBase: newQtyBase, price: newPrice, pricePerBase: newPrice / factor } as any;
                     })
                 });
