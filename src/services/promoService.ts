@@ -6,8 +6,10 @@ import { normalizePromo, isPromoLive } from '@/lib/promo-model';
 export interface DiscountLine {
     cartItemId: string;
     qty: number;
-    price: number;
-    grossAmount: number;   // qty * price (retail value)
+    qtyBase: number;       // qty in base Pcs (per satuan dasar)
+    price: number;         // per selected UOM
+    pricePerBase: number;  // per base Pcs
+    grossAmount: number;   // qty * price (retail value) = qtyBase * pricePerBase
     freeQty: number;       // units granted free by a BOGO / bonus promo
     freeAmount: number;    // freeQty * price
     autoAmount: number;    // money-off from an automatic promo on this line
@@ -125,10 +127,15 @@ export const evaluateDiscounts = (
 ): DiscountResult => {
     const errors: string[] = [];
 
-    const lines: DiscountLine[] = cart.map(item => ({
+    const lines: DiscountLine[] = cart.map(item => {
+        const qtyBase = (item as any).qtyBase ?? item.quantity * ((item as any).selectedUomFactor || 1);
+        const pricePerBase = (item as any).pricePerBase ?? item.price / ((item as any).selectedUomFactor || 1);
+        return {
         cartItemId: item.cartItemId,
         qty: item.quantity,
+        qtyBase,
         price: item.price,
+        pricePerBase,
         grossAmount: item.price * item.quantity,
         freeQty: 0,
         freeAmount: 0,
@@ -140,7 +147,8 @@ export const evaluateDiscounts = (
         unitDiscount: 0,
         promoIds: [],
         isFreeItem: false,
-    }));
+        };
+    });
 
     const grossSubtotal = lines.reduce((sum, l) => sum + l.grossAmount, 0);
 
@@ -182,10 +190,10 @@ export const evaluateDiscounts = (
     const orderBase = () =>
         lines.reduce((s, l) => s + Math.max(0, chargeableBase(l) - l.autoAmount - l.sharedAmount), 0);
 
-    const discAmount = (promo: Promotion, base: number): number => {
+    const discAmount = (promo: Promotion, base: number, qtyBase = 1): number => {
         const value = promo.discount_value || 0;
         return promo.discount_type === 'flat'
-            ? Math.min(round(value), base)
+            ? Math.min(round(value * qtyBase), base)
             : Math.min(round(base * (value / 100)), base);
     };
 
@@ -243,7 +251,7 @@ export const evaluateDiscounts = (
         for (const l of eligible) {
             const base = chargeableBase(l);
             if (base <= 0) continue;
-            const amount = Math.min(discAmount(promo, base), base);
+            const amount = Math.min(discAmount(promo, base, (l as any).qtyBase || l.qty), base);
             if (amount > 0) setMoneyBest(lines.indexOf(l), promo, amount);
         }
     }

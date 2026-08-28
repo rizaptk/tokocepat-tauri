@@ -40,7 +40,7 @@ const emptyDraft = (kind: PromoKind): Promotion => {
         applies_to_category_ids: [],
         discount_type: 'percentage',
         discount_value: 10,
-        allowWholesale: false,
+        allowWholesale: true,
     };
     switch (kind) {
         case 'flat': return { ...base, reward_type: 'discount' };

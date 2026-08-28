@@ -99,14 +99,13 @@ export default function ClassicCashierPage({ defaultWholesale = false }: { defau
         if (!checked) setSelectedCustomerId(null);
     };
 
-    // Re-price cart when customer group changes in wholesale mode (Group Base -> Qty Tier)
+    // Re-price cart when customer group changes in wholesale mode (Group Base -> Qty Tier) — lock to base Pcs
     useEffect(() => {
         if (!isWholesaleMode || cart.length === 0) return;
-        // Delay to ensure selectedCustomer state propagated
         for (const it of cart) {
             const norm = normalizeProductUoms(it as any);
-            const uomId = (it as any).selectedUomId || norm.uoms?.find(u=>u.isBase)?.id;
-            if (uomId) updateCartItemUom(it.cartItemId, uomId, selectedGroupId);
+            const baseId = norm.uoms?.find(u=>u.isBase)?.id;
+            if (baseId) updateCartItemUom(it.cartItemId, baseId, selectedGroupId);
         }
     }, [selectedGroupId, isWholesaleMode]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -845,6 +844,7 @@ export default function ClassicCashierPage({ defaultWholesale = false }: { defau
                                                     {(() => {
                                                         const norm = normalizeProductUoms(item as any);
                                                         const uoms = norm.uoms || [];
+                                                        if (isWholesaleMode) return <span className="text-xs">{norm.baseUom || 'Pcs'}</span>;
                                                         if (uoms.length <= 1) return <span className="text-xs">{uoms[0]?.name || norm.baseUom || 'Pcs'}</span>;
                                                         return (
                                                             <Select value={(item as any).selectedUomId || uoms.find(u=>u.isBase)?.id} onValueChange={v => updateCartItemUom(item.cartItemId, v, selectedGroupId)}>

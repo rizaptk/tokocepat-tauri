@@ -126,7 +126,7 @@ export function DiskonForm({ draft, isNew, onChange, onCancel, onSave, isSaving,
                                 {draft.kind === 'flat' && (
                                     <>
                                         <DiscountFields type={draft.discount_type} value={draft.discount_value} onChange={(p) => set(p)} />
-                                        <p className="text-xs text-muted-foreground">Diskon diterapkan pada produk/kategori terpilih (paling menguntungkan per produk).</p>
+                                        <p className="text-xs text-muted-foreground">Nominal Rp per Pcs satuan dasar (× qtyBase). Jika diizinkan grosir, berlaku retail & grosir.</p>
                                     </>
                                 )}
 
