@@ -8,8 +8,8 @@
     "topDays": 0,
     "creditLimit": 0,
     "is_active": true,
-    "created_at": "2026-08-27T01:48:47.418Z",
-    "updated_at": "2026-08-27T01:48:47.418Z"
+    "created_at": "2026-08-28T00:29:46.355Z",
+    "updated_at": "2026-08-28T00:29:46.355Z"
   },
   {
     "id": "cust-002",
@@ -20,8 +20,8 @@
     "topDays": 0,
     "creditLimit": 0,
     "is_active": true,
-    "created_at": "2026-08-27T01:48:47.418Z",
-    "updated_at": "2026-08-27T01:48:47.418Z"
+    "created_at": "2026-08-28T00:29:46.355Z",
+    "updated_at": "2026-08-28T00:29:46.355Z"
   },
   {
     "id": "cust-003",
@@ -32,8 +32,8 @@
     "topDays": 0,
     "creditLimit": 0,
     "is_active": true,
-    "created_at": "2026-08-27T01:48:47.418Z",
-    "updated_at": "2026-08-27T01:48:47.418Z"
+    "created_at": "2026-08-28T00:29:46.355Z",
+    "updated_at": "2026-08-28T00:29:46.355Z"
   },
   {
     "id": "cust-004",
@@ -44,8 +44,8 @@
     "topDays": 7,
     "creditLimit": 1000000,
     "is_active": true,
-    "created_at": "2026-08-27T01:48:47.418Z",
-    "updated_at": "2026-08-27T01:48:47.418Z"
+    "created_at": "2026-08-28T00:29:46.355Z",
+    "updated_at": "2026-08-28T00:29:46.355Z"
   },
   {
     "id": "cust-005",
@@ -56,8 +56,8 @@
     "topDays": 7,
     "creditLimit": 1000000,
     "is_active": true,
-    "created_at": "2026-08-27T01:48:47.418Z",
-    "updated_at": "2026-08-27T01:48:47.418Z"
+    "created_at": "2026-08-28T00:29:46.355Z",
+    "updated_at": "2026-08-28T00:29:46.355Z"
   },
   {
     "id": "cust-006",
@@ -68,8 +68,8 @@
     "topDays": 7,
     "creditLimit": 1000000,
     "is_active": true,
-    "created_at": "2026-08-27T01:48:47.418Z",
-    "updated_at": "2026-08-27T01:48:47.418Z"
+    "created_at": "2026-08-28T00:29:46.355Z",
+    "updated_at": "2026-08-28T00:29:46.355Z"
   },
   {
     "id": "cust-007",
@@ -80,8 +80,8 @@
     "topDays": 14,
     "creditLimit": 3000000,
     "is_active": true,
-    "created_at": "2026-08-27T01:48:47.418Z",
-    "updated_at": "2026-08-27T01:48:47.418Z"
+    "created_at": "2026-08-28T00:29:46.355Z",
+    "updated_at": "2026-08-28T00:29:46.355Z"
   },
   {
     "id": "cust-008",
@@ -92,8 +92,8 @@
     "topDays": 14,
     "creditLimit": 3000000,
     "is_active": true,
-    "created_at": "2026-08-27T01:48:47.418Z",
-    "updated_at": "2026-08-27T01:48:47.418Z"
+    "created_at": "2026-08-28T00:29:46.355Z",
+    "updated_at": "2026-08-28T00:29:46.355Z"
   },
   {
     "id": "cust-009",
@@ -104,8 +104,8 @@
     "topDays": 30,
     "creditLimit": 5000000,
     "is_active": true,
-    "created_at": "2026-08-27T01:48:47.418Z",
-    "updated_at": "2026-08-27T01:48:47.418Z"
+    "created_at": "2026-08-28T00:29:46.355Z",
+    "updated_at": "2026-08-28T00:29:46.355Z"
   },
   {
     "id": "cust-010",
@@ -116,7 +116,7 @@
     "topDays": 30,
     "creditLimit": 5000000,
     "is_active": true,
-    "created_at": "2026-08-27T01:48:47.418Z",
-    "updated_at": "2026-08-27T01:48:47.419Z"
+    "created_at": "2026-08-28T00:29:46.355Z",
+    "updated_at": "2026-08-28T00:29:46.355Z"
   }
 ]

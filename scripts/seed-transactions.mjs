@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 /**
  * Seed Transactions — 30 days, 20-30 per day, append, coherent with grosir products/customers/promos
- * Usage: node scripts/seed-transactions.mjs [--db "C:\\...\\tokocepat.db"] [--days 30] [--min 20] [--max 30]
+ * Usage: node scripts/seed-transactions.mjs [--db "C:\\...\\kastoko.db"] [--days 30] [--min 20] [--max 30]
  * Output: seed/transactions.json, seed/shifts.json
- * Inject: firelite-cli --db tokocepat.db set --fromfile seed/transactions.json --batch true
+ * Inject: firelite-cli --db kastoko.db set --fromfile seed/transactions.json --batch true
  */
 
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs';
@@ -13,7 +13,7 @@ import { fileURLToPath } from 'url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const projectRoot = join(__dirname, '..');
 const seedDir = join(projectRoot, 'seed');
-const dbPath = process.argv.includes('--db') ? process.argv[process.argv.indexOf('--db') + 1] : 'C:\\Users\\Atin Nayiroh\\AppData\\Roaming\\com.tokocepat.desktop\\tokocepat.db';
+const dbPath = process.argv.includes('--db') ? process.argv[process.argv.indexOf('--db') + 1] : 'C:\\Users\\Atin Nayiroh\\AppData\\Roaming\\com.kastoko.desktop\\kastoko.db';
 const days = parseInt(process.argv.includes('--days') ? process.argv[process.argv.indexOf('--days') + 1] : '30', 10);
 const minPerDay = parseInt(process.argv.includes('--min') ? process.argv[process.argv.indexOf('--min') + 1] : '20', 10);
 const maxPerDay = parseInt(process.argv.includes('--max') ? process.argv[process.argv.indexOf('--max') + 1] : '30', 10);

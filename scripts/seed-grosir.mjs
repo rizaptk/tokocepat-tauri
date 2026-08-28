@@ -3,11 +3,11 @@
  * Seed Grosir — Multi-UOM + Wholesale + Customer demo data for firelite-cli
  * 
  * Usage:
- *   node scripts/seed-grosir.mjs [--db "C:\\Users\\...\\tokocepat.db"] [--catalog-offset 0]
+ *   node scripts/seed-grosir.mjs [--db "C:\\Users\\...\\kastoko.db"] [--catalog-offset 0]
  *   # then inject:
- *   for file in seed/*.json; do firelite-cli --db tokocepat.db set --fromfile $file; done
+ *   for file in seed/*.json; do firelite-cli --db kastoko.db set --fromfile $file; done
  *   # or on Windows PowerShell:
- *   Get-ChildItem seed/*.json | ForEach-Object { firelite-cli --db tokocepat.db set --fromfile $_.FullName }
+ *   Get-ChildItem seed/*.json | ForEach-Object { firelite-cli --db kastoko.db set --fromfile $_.FullName }
  * 
  * Output: seed/products.json, seed/customers.json, seed/customer_groups.json, seed/promos.json
  */
@@ -19,7 +19,7 @@ import { fileURLToPath } from 'url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const projectRoot = join(__dirname, '..');
 const seedDir = join(projectRoot, 'seed');
-const defaultDb = 'C:\\Users\\Atin Nayiroh\\AppData\\Roaming\\com.tokocepat.desktop\\tokocepat.db';
+const defaultDb = 'C:\\Users\\Atin Nayiroh\\AppData\\Roaming\\com.kastoko.desktop\\kastoko.db';
 
 const dbPath = process.argv.find(a => a === '--db' ? true : false) ? process.argv[process.argv.indexOf('--db') + 1] : defaultDb;
 

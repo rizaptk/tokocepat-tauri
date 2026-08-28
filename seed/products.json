@@ -8,7 +8,7 @@
     "category_id": "cat-lainnya",
     "price": 9000,
     "cost_price": 6300,
-    "stock": 417,
+    "stock": 283,
     "track_stock": true,
     "has_variant": false,
     "imageUrl": "https://images.openfoodfacts.org/images/products/000/011/001/0369/front_en.3.200.jpg",
@@ -54,8 +54,8 @@
     ],
     "isWholesaleEnabled": true,
     "groupPrices": [],
-    "created_at": "2026-08-27T01:48:47.409Z",
-    "updated_at": "2026-08-27T01:48:47.412Z"
+    "created_at": "2026-08-28T00:29:46.351Z",
+    "updated_at": "2026-08-28T00:29:46.353Z"
   },
   {
     "id": "prod-0002-000011",
@@ -66,7 +66,7 @@
     "category_id": "cat-lainnya",
     "price": 9000,
     "cost_price": 6300,
-    "stock": 265,
+    "stock": 189,
     "track_stock": true,
     "has_variant": false,
     "imageUrl": "https://images.openfoodfacts.org/images/products/000/011/001/0370/front_id.3.200.jpg",
@@ -112,8 +112,8 @@
     ],
     "isWholesaleEnabled": true,
     "groupPrices": [],
-    "created_at": "2026-08-27T01:48:47.412Z",
-    "updated_at": "2026-08-27T01:48:47.412Z"
+    "created_at": "2026-08-28T00:29:46.353Z",
+    "updated_at": "2026-08-28T00:29:46.353Z"
   },
   {
     "id": "prod-0003-000011",
@@ -124,7 +124,7 @@
     "category_id": "cat-lainnya",
     "price": 9000,
     "cost_price": 6300,
-    "stock": 355,
+    "stock": 331,
     "track_stock": true,
     "has_variant": false,
     "imageUrl": "https://images.openfoodfacts.org/images/products/000/011/004/7234/front_id.3.200.jpg",
@@ -156,8 +156,8 @@
     "wholesaleTiers": [],
     "isWholesaleEnabled": false,
     "groupPrices": [],
-    "created_at": "2026-08-27T01:48:47.412Z",
-    "updated_at": "2026-08-27T01:48:47.412Z"
+    "created_at": "2026-08-28T00:29:46.354Z",
+    "updated_at": "2026-08-28T00:29:46.354Z"
   },
   {
     "id": "prod-0004-000011",
@@ -168,7 +168,7 @@
     "category_id": "cat-lainnya",
     "price": 9000,
     "cost_price": 6300,
-    "stock": 179,
+    "stock": 468,
     "track_stock": true,
     "has_variant": false,
     "imageUrl": "https://images.openfoodfacts.org/images/products/000/011/004/7252/front_en.3.200.jpg",
@@ -214,8 +214,8 @@
     ],
     "isWholesaleEnabled": true,
     "groupPrices": [],
-    "created_at": "2026-08-27T01:48:47.412Z",
-    "updated_at": "2026-08-27T01:48:47.412Z"
+    "created_at": "2026-08-28T00:29:46.354Z",
+    "updated_at": "2026-08-28T00:29:46.354Z"
   },
   {
     "id": "prod-0005-000011",
@@ -226,7 +226,7 @@
     "category_id": "cat-lainnya",
     "price": 9000,
     "cost_price": 6300,
-    "stock": 219,
+    "stock": 183,
     "track_stock": true,
     "has_variant": false,
     "imageUrl": "https://images.openfoodfacts.org/images/products/000/011/008/0896/front_en.3.200.jpg",
@@ -258,8 +258,8 @@
     "wholesaleTiers": [],
     "isWholesaleEnabled": false,
     "groupPrices": [],
-    "created_at": "2026-08-27T01:48:47.412Z",
-    "updated_at": "2026-08-27T01:48:47.412Z"
+    "created_at": "2026-08-28T00:29:46.354Z",
+    "updated_at": "2026-08-28T00:29:46.354Z"
   },
   {
     "id": "prod-0006-000011",
@@ -270,7 +270,7 @@
     "category_id": "cat-lainnya",
     "price": 9000,
     "cost_price": 6300,
-    "stock": 166,
+    "stock": 283,
     "track_stock": true,
     "has_variant": false,
     "imageUrl": "https://images.openfoodfacts.org/images/products/000/011/008/0897/front_en.3.200.jpg",
@@ -299,11 +299,25 @@
         "isBase": false
       }
     ],
-    "wholesaleTiers": [],
-    "isWholesaleEnabled": false,
+    "wholesaleTiers": [
+      {
+        "id": "tier-prod-0006-000011-1",
+        "minQty": 12,
+        "maxQty": 49,
+        "price": 8100,
+        "label": "Grosir 12-49"
+      },
+      {
+        "id": "tier-prod-0006-000011-2",
+        "minQty": 50,
+        "price": 7200,
+        "label": "Grosir ≥50"
+      }
+    ],
+    "isWholesaleEnabled": true,
     "groupPrices": [],
-    "created_at": "2026-08-27T01:48:47.412Z",
-    "updated_at": "2026-08-27T01:48:47.412Z"
+    "created_at": "2026-08-28T00:29:46.354Z",
+    "updated_at": "2026-08-28T00:29:46.354Z"
   },
   {
     "id": "prod-0007-000011",
@@ -314,7 +328,7 @@
     "category_id": "cat-lainnya",
     "price": 9000,
     "cost_price": 6300,
-    "stock": 239,
+    "stock": 381,
     "track_stock": true,
     "has_variant": false,
     "imageUrl": "https://images.openfoodfacts.org/images/products/000/011/010/2813/front_en.3.200.jpg",
@@ -360,8 +374,8 @@
     ],
     "isWholesaleEnabled": true,
     "groupPrices": [],
-    "created_at": "2026-08-27T01:48:47.412Z",
-    "updated_at": "2026-08-27T01:48:47.412Z"
+    "created_at": "2026-08-28T00:29:46.354Z",
+    "updated_at": "2026-08-28T00:29:46.354Z"
   },
   {
     "id": "prod-0008-000031",
@@ -372,7 +386,7 @@
     "category_id": "cat-lainnya",
     "price": 9000,
     "cost_price": 6300,
-    "stock": 103,
+    "stock": 334,
     "track_stock": true,
     "has_variant": false,
     "imageUrl": "https://images.openfoodfacts.org/images/products/000/000/000/3122/front_es.4.200.jpg",
@@ -401,25 +415,11 @@
         "isBase": false
       }
     ],
-    "wholesaleTiers": [
-      {
-        "id": "tier-prod-0008-000031-1",
-        "minQty": 12,
-        "maxQty": 49,
-        "price": 8100,
-        "label": "Grosir 12-49"
-      },
-      {
-        "id": "tier-prod-0008-000031-2",
-        "minQty": 50,
-        "price": 7200,
-        "label": "Grosir ≥50"
-      }
-    ],
-    "isWholesaleEnabled": true,
+    "wholesaleTiers": [],
+    "isWholesaleEnabled": false,
     "groupPrices": [],
-    "created_at": "2026-08-27T01:48:47.412Z",
-    "updated_at": "2026-08-27T01:48:47.412Z"
+    "created_at": "2026-08-28T00:29:46.354Z",
+    "updated_at": "2026-08-28T00:29:46.354Z"
   },
   {
     "id": "prod-0009-000031",
@@ -430,7 +430,7 @@
     "category_id": "cat-lainnya",
     "price": 9000,
     "cost_price": 6300,
-    "stock": 230,
+    "stock": 300,
     "track_stock": true,
     "has_variant": false,
     "imageUrl": "https://images.openfoodfacts.org/images/products/000/000/000/3150/front_cs.4.200.jpg",
@@ -462,8 +462,8 @@
     "wholesaleTiers": [],
     "isWholesaleEnabled": false,
     "groupPrices": [],
-    "created_at": "2026-08-27T01:48:47.412Z",
-    "updated_at": "2026-08-27T01:48:47.412Z"
+    "created_at": "2026-08-28T00:29:46.354Z",
+    "updated_at": "2026-08-28T00:29:46.354Z"
   },
   {
     "id": "prod-0010-000031",
@@ -474,7 +474,7 @@
     "category_id": "cat-minuman",
     "price": 9000,
     "cost_price": 6300,
-    "stock": 277,
+    "stock": 199,
     "track_stock": true,
     "has_variant": false,
     "imageUrl": "https://images.openfoodfacts.org/images/products/000/000/000/3152/front_es.4.200.jpg",
@@ -520,8 +520,8 @@
     ],
     "isWholesaleEnabled": true,
     "groupPrices": [],
-    "created_at": "2026-08-27T01:48:47.412Z",
-    "updated_at": "2026-08-27T01:48:47.412Z"
+    "created_at": "2026-08-28T00:29:46.354Z",
+    "updated_at": "2026-08-28T00:29:46.354Z"
   },
   {
     "id": "prod-0011-000031",
@@ -532,7 +532,7 @@
     "category_id": "cat-makanan-instan",
     "price": 9000,
     "cost_price": 6300,
-    "stock": 444,
+    "stock": 232,
     "track_stock": true,
     "has_variant": false,
     "imageUrl": "https://images.openfoodfacts.org/images/products/000/000/000/3189/front_es.4.200.jpg",
@@ -561,11 +561,25 @@
         "isBase": false
       }
     ],
-    "wholesaleTiers": [],
-    "isWholesaleEnabled": false,
+    "wholesaleTiers": [
+      {
+        "id": "tier-prod-0011-000031-1",
+        "minQty": 12,
+        "maxQty": 49,
+        "price": 8100,
+        "label": "Grosir 12-49"
+      },
+      {
+        "id": "tier-prod-0011-000031-2",
+        "minQty": 50,
+        "price": 7200,
+        "label": "Grosir ≥50"
+      }
+    ],
+    "isWholesaleEnabled": true,
     "groupPrices": [],
-    "created_at": "2026-08-27T01:48:47.412Z",
-    "updated_at": "2026-08-27T01:48:47.412Z"
+    "created_at": "2026-08-28T00:29:46.354Z",
+    "updated_at": "2026-08-28T00:29:46.354Z"
   },
   {
     "id": "prod-0012-000035",
@@ -576,7 +590,7 @@
     "category_id": "cat-makanan-ringan",
     "price": 9000,
     "cost_price": 6300,
-    "stock": 457,
+    "stock": 251,
     "track_stock": true,
     "has_variant": false,
     "imageUrl": "https://images.openfoodfacts.org/images/products/000/000/000/3525/front_es.4.200.jpg",
@@ -605,11 +619,25 @@
         "isBase": false
       }
     ],
-    "wholesaleTiers": [],
-    "isWholesaleEnabled": false,
+    "wholesaleTiers": [
+      {
+        "id": "tier-prod-0012-000035-1",
+        "minQty": 12,
+        "maxQty": 49,
+        "price": 8100,
+        "label": "Grosir 12-49"
+      },
+      {
+        "id": "tier-prod-0012-000035-2",
+        "minQty": 50,
+        "price": 7200,
+        "label": "Grosir ≥50"
+      }
+    ],
+    "isWholesaleEnabled": true,
     "groupPrices": [],
-    "created_at": "2026-08-27T01:48:47.412Z",
-    "updated_at": "2026-08-27T01:48:47.412Z"
+    "created_at": "2026-08-28T00:29:46.354Z",
+    "updated_at": "2026-08-28T00:29:46.354Z"
   },
   {
     "id": "prod-0013-000040",
@@ -620,7 +648,7 @@
     "category_id": "cat-lainnya",
     "price": 9000,
     "cost_price": 6300,
-    "stock": 363,
+    "stock": 159,
     "track_stock": true,
     "has_variant": false,
     "imageUrl": "https://images.openfoodfacts.org/images/products/000/000/000/4000/front_en.7.200.jpg",
@@ -649,11 +677,25 @@
         "isBase": false
       }
     ],
-    "wholesaleTiers": [],
-    "isWholesaleEnabled": false,
+    "wholesaleTiers": [
+      {
+        "id": "tier-prod-0013-000040-1",
+        "minQty": 12,
+        "maxQty": 49,
+        "price": 8100,
+        "label": "Grosir 12-49"
+      },
+      {
+        "id": "tier-prod-0013-000040-2",
+        "minQty": 50,
+        "price": 7200,
+        "label": "Grosir ≥50"
+      }
+    ],
+    "isWholesaleEnabled": true,
     "groupPrices": [],
-    "created_at": "2026-08-27T01:48:47.412Z",
-    "updated_at": "2026-08-27T01:48:47.412Z"
+    "created_at": "2026-08-28T00:29:46.354Z",
+    "updated_at": "2026-08-28T00:29:46.354Z"
   },
   {
     "id": "prod-0014-000044",
@@ -664,7 +706,7 @@
     "category_id": "cat-lainnya",
     "price": 9000,
     "cost_price": 6300,
-    "stock": 223,
+    "stock": 219,
     "track_stock": true,
     "has_variant": false,
     "imageUrl": "https://images.openfoodfacts.org/images/products/000/000/000/4464/front_es.3.200.jpg",
@@ -693,11 +735,25 @@
         "isBase": false
       }
     ],
-    "wholesaleTiers": [],
-    "isWholesaleEnabled": false,
+    "wholesaleTiers": [
+      {
+        "id": "tier-prod-0014-000044-1",
+        "minQty": 12,
+        "maxQty": 49,
+        "price": 8100,
+        "label": "Grosir 12-49"
+      },
+      {
+        "id": "tier-prod-0014-000044-2",
+        "minQty": 50,
+        "price": 7200,
+        "label": "Grosir ≥50"
+      }
+    ],
+    "isWholesaleEnabled": true,
     "groupPrices": [],
-    "created_at": "2026-08-27T01:48:47.412Z",
-    "updated_at": "2026-08-27T01:48:47.412Z"
+    "created_at": "2026-08-28T00:29:46.354Z",
+    "updated_at": "2026-08-28T00:29:46.354Z"
   },
   {
     "id": "prod-0015-000250",
@@ -708,7 +764,7 @@
     "category_id": "cat-lainnya",
     "price": 9000,
     "cost_price": 6300,
-    "stock": 133,
+    "stock": 203,
     "track_stock": true,
     "has_variant": false,
     "imageUrl": "https://images.openfoodfacts.org/images/products/000/250/617/0083/front_en.3.200.jpg",
@@ -737,11 +793,25 @@
         "isBase": false
       }
     ],
-    "wholesaleTiers": [],
-    "isWholesaleEnabled": false,
+    "wholesaleTiers": [
+      {
+        "id": "tier-prod-0015-000250-1",
+        "minQty": 12,
+        "maxQty": 49,
+        "price": 8100,
+        "label": "Grosir 12-49"
+      },
+      {
+        "id": "tier-prod-0015-000250-2",
+        "minQty": 50,
+        "price": 7200,
+        "label": "Grosir ≥50"
+      }
+    ],
+    "isWholesaleEnabled": true,
     "groupPrices": [],
-    "created_at": "2026-08-27T01:48:47.413Z",
-    "updated_at": "2026-08-27T01:48:47.413Z"
+    "created_at": "2026-08-28T00:29:46.354Z",
+    "updated_at": "2026-08-28T00:29:46.354Z"
   },
   {
     "id": "prod-0016-000250",
@@ -752,7 +822,7 @@
     "category_id": "cat-lainnya",
     "price": 9000,
     "cost_price": 6300,
-    "stock": 207,
+    "stock": 231,
     "track_stock": true,
     "has_variant": false,
     "imageUrl": "https://images.openfoodfacts.org/images/products/000/250/617/0084/front_id.3.200.jpg",
@@ -798,8 +868,8 @@
     ],
     "isWholesaleEnabled": true,
     "groupPrices": [],
-    "created_at": "2026-08-27T01:48:47.413Z",
-    "updated_at": "2026-08-27T01:48:47.413Z"
+    "created_at": "2026-08-28T00:29:46.354Z",
+    "updated_at": "2026-08-28T00:29:46.354Z"
   },
   {
     "id": "prod-0017-000250",
@@ -810,7 +880,7 @@
     "category_id": "cat-lainnya",
     "price": 9000,
     "cost_price": 6300,
-    "stock": 258,
+    "stock": 455,
     "track_stock": true,
     "has_variant": false,
     "imageUrl": "https://images.openfoodfacts.org/images/products/000/250/625/0024/front_en.3.200.jpg",
@@ -839,25 +909,11 @@
         "isBase": false
       }
     ],
-    "wholesaleTiers": [
-      {
-        "id": "tier-prod-0017-000250-1",
-        "minQty": 12,
-        "maxQty": 49,
-        "price": 8100,
-        "label": "Grosir 12-49"
-      },
-      {
-        "id": "tier-prod-0017-000250-2",
-        "minQty": 50,
-        "price": 7200,
-        "label": "Grosir ≥50"
-      }
-    ],
-    "isWholesaleEnabled": true,
+    "wholesaleTiers": [],
+    "isWholesaleEnabled": false,
     "groupPrices": [],
-    "created_at": "2026-08-27T01:48:47.413Z",
-    "updated_at": "2026-08-27T01:48:47.413Z"
+    "created_at": "2026-08-28T00:29:46.354Z",
+    "updated_at": "2026-08-28T00:29:46.354Z"
   },
   {
     "id": "prod-0018-000250",
@@ -868,7 +924,7 @@
     "category_id": "cat-lainnya",
     "price": 9000,
     "cost_price": 6300,
-    "stock": 320,
+    "stock": 121,
     "track_stock": true,
     "has_variant": false,
     "imageUrl": "https://images.openfoodfacts.org/images/products/000/250/821/0008/front_id.6.200.jpg",
@@ -914,8 +970,8 @@
     ],
     "isWholesaleEnabled": true,
     "groupPrices": [],
-    "created_at": "2026-08-27T01:48:47.413Z",
-    "updated_at": "2026-08-27T01:48:47.413Z"
+    "created_at": "2026-08-28T00:29:46.354Z",
+    "updated_at": "2026-08-28T00:29:46.354Z"
   },
   {
     "id": "prod-manual-001",
@@ -926,7 +982,7 @@
     "category_id": "cat-sembako",
     "price": 65000,
     "cost_price": 48750,
-    "stock": 357,
+    "stock": 361,
     "track_stock": true,
     "has_variant": false,
     "imageUrl": "",
@@ -972,8 +1028,8 @@
     ],
     "isWholesaleEnabled": true,
     "groupPrices": [],
-    "created_at": "2026-08-27T01:48:47.413Z",
-    "updated_at": "2026-08-27T01:48:47.413Z"
+    "created_at": "2026-08-28T00:29:46.354Z",
+    "updated_at": "2026-08-28T00:29:46.354Z"
   },
   {
     "id": "prod-manual-002",
@@ -984,7 +1040,7 @@
     "category_id": "cat-sembako",
     "price": 18000,
     "cost_price": 13500,
-    "stock": 323,
+    "stock": 281,
     "track_stock": true,
     "has_variant": false,
     "imageUrl": "",
@@ -1030,8 +1086,8 @@
     ],
     "isWholesaleEnabled": true,
     "groupPrices": [],
-    "created_at": "2026-08-27T01:48:47.413Z",
-    "updated_at": "2026-08-27T01:48:47.413Z"
+    "created_at": "2026-08-28T00:29:46.354Z",
+    "updated_at": "2026-08-28T00:29:46.354Z"
   },
   {
     "id": "prod-manual-003",
@@ -1042,7 +1098,7 @@
     "category_id": "cat-sembako",
     "price": 15000,
     "cost_price": 11250,
-    "stock": 408,
+    "stock": 255,
     "track_stock": true,
     "has_variant": false,
     "imageUrl": "",
@@ -1088,8 +1144,8 @@
     ],
     "isWholesaleEnabled": true,
     "groupPrices": [],
-    "created_at": "2026-08-27T01:48:47.414Z",
-    "updated_at": "2026-08-27T01:48:47.414Z"
+    "created_at": "2026-08-28T00:29:46.354Z",
+    "updated_at": "2026-08-28T00:29:46.354Z"
   },
   {
     "id": "prod-manual-004",
@@ -1100,7 +1156,7 @@
     "category_id": "cat-sembako",
     "price": 12000,
     "cost_price": 9000,
-    "stock": 355,
+    "stock": 208,
     "track_stock": true,
     "has_variant": false,
     "imageUrl": "",
@@ -1146,8 +1202,8 @@
     ],
     "isWholesaleEnabled": true,
     "groupPrices": [],
-    "created_at": "2026-08-27T01:48:47.417Z",
-    "updated_at": "2026-08-27T01:48:47.417Z"
+    "created_at": "2026-08-28T00:29:46.354Z",
+    "updated_at": "2026-08-28T00:29:46.354Z"
   },
   {
     "id": "prod-manual-005",
@@ -1158,7 +1214,7 @@
     "category_id": "cat-minuman",
     "price": 12000,
     "cost_price": 9000,
-    "stock": 285,
+    "stock": 425,
     "track_stock": true,
     "has_variant": false,
     "imageUrl": "",
@@ -1204,8 +1260,8 @@
     ],
     "isWholesaleEnabled": true,
     "groupPrices": [],
-    "created_at": "2026-08-27T01:48:47.417Z",
-    "updated_at": "2026-08-27T01:48:47.417Z"
+    "created_at": "2026-08-28T00:29:46.355Z",
+    "updated_at": "2026-08-28T00:29:46.355Z"
   },
   {
     "id": "prod-manual-006",
@@ -1216,7 +1272,7 @@
     "category_id": "cat-minuman",
     "price": 15000,
     "cost_price": 11250,
-    "stock": 281,
+    "stock": 348,
     "track_stock": true,
     "has_variant": false,
     "imageUrl": "",
@@ -1262,7 +1318,7 @@
     ],
     "isWholesaleEnabled": true,
     "groupPrices": [],
-    "created_at": "2026-08-27T01:48:47.417Z",
-    "updated_at": "2026-08-27T01:48:47.418Z"
+    "created_at": "2026-08-28T00:29:46.355Z",
+    "updated_at": "2026-08-28T00:29:46.355Z"
   }
 ]
