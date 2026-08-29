@@ -15,8 +15,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { ProductSearchBar, type ProductSearchBarHandle } from "@/components/ProductSearchBar";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { PlusCircle, Plus, Minus, Calculator, Package, WarehouseIcon, History, ArrowUp, ArrowDown, ArrowRight, Zap, ClipboardList, RotateCcw, Loader2 } from "lucide-react";
+import { PlusCircle, Plus, Minus, Calculator, Package, WarehouseIcon, History, ArrowUp, ArrowDown, ArrowRight, ClipboardList, Loader2 } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { WorksheetHistoryList } from "@/components/inventory/WorksheetHistoryList";
+import { WorksheetSessionManager } from "@/components/inventory/WorksheetSessionManager";
 import { useGlobalBarcodeScanner } from "@/hooks/use-global-barcode-scanner";
 import { cn, reasonMapping, typeConfig } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
@@ -862,8 +865,10 @@ export default function InventoryPage() {
     const reducedMotion = usePrefersReducedMotion();
     const { products, categories, productVariants } = useStore();
     const { toast } = useToast();
-    const { rapidInventoryMode, setRapidInventoryMode, worksheetInventoryMode, setWorksheetInventoryMode } = useSettingsStore();
+    const { worksheetInventoryMode, setWorksheetInventoryMode } = useSettingsStore();
     const [selectedItem, setSelectedItem] = useState<{ id: string; type: 'product' | 'variant' } | null>(null);
+    const [worksheetTab, setWorksheetTab] = useState<'history' | 'manage'>('history');
+    const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
     const [detailProductId, setDetailProductId] = useState<string | null>(null);
     const [isDetailOpen, setIsDetailOpen] = useState(false);
     const [isSheetOpen, setIsSheetOpen] = useState(false);
@@ -1078,23 +1083,6 @@ export default function InventoryPage() {
 
     const handleSave = (adjustment?: AdjustmentResult) => {
         if (adjustment) setLastAdjustment(adjustment);
-
-        // Rapid mode: keep the panel open and advance to the next row so the
-        // operator can keep counting. Barcode-driven flows just scan the next item.
-        if (rapidInventoryMode) {
-            if (selectedItem) {
-                const idx = inventoryItems.findIndex(i => i.id === selectedItem.id);
-                if (idx >= 0 && idx + 1 < inventoryItems.length) {
-                    const next = inventoryItems[idx + 1];
-                    setSelectedItem({ id: next.id, type: next.itemType });
-                    listRef.current?.scrollToItem(idx + 1);
-                }
-            }
-            return;
-        }
-
-        // Normal mode: keep the item selected on desktop so the updated stock +
-        // history stay visible; close the sheet on small screens.
         if (window.innerWidth < 768) {
             setIsSheetOpen(false);
         }
@@ -1216,27 +1204,16 @@ export default function InventoryPage() {
         }
     };
 
-    const handleToggleRapid = () => {
-        const next = !rapidInventoryMode;
-        setRapidInventoryMode(next);
-        // Only one of "Mode Cepat" / "Worksheet" can be active at a time.
-        if (next) setWorksheetInventoryMode(false);
-        setSelectedItem(null);
-    };
-
     const handleToggleWorksheet = () => {
         const next = !worksheetInventoryMode;
         setWorksheetInventoryMode(next);
-        // Only one of "Mode Cepat" / "Worksheet" can be active at a time.
-        if (next) setRapidInventoryMode(false);
+        if (next) { setWorksheetTab('history'); setActiveSessionId(null); }
         setSelectedItem(null);
-        // Leaving worksheet mode resets multi-search and clears the search bar.
         if (!next) {
             setMultiSearch(false);
             setQuery('');
             searchBarRef.current?.clear();
         }
-        // Keep physicalCounts so stok fisik values persist across mode switches.
     };
 
     const Row = memo(({ index, style }: { index: number, style: React.CSSProperties }) => {
@@ -1307,19 +1284,6 @@ export default function InventoryPage() {
                                 size="sm"
                                 className={cn(
                                     "rounded-md px-2.5 h-7 shrink-0 text-xs",
-                                    rapidInventoryMode ? "bg-primary text-primary-foreground hover:bg-primary/90" : "text-muted-foreground hover:text-foreground"
-                                )}
-                                aria-pressed={rapidInventoryMode}
-                                onClick={handleToggleRapid}
-                                title="Mode Cepat: scan/pilih item lalu ketik stok fisik dan Enter untuk lanjut"
-                            >
-                                <Zap className="size-3.5 mr-1" /> Mode Cepat
-                            </Button>
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                className={cn(
-                                    "rounded-md px-2.5 h-7 shrink-0 text-xs",
                                     worksheetInventoryMode ? "bg-primary text-primary-foreground hover:bg-primary/90" : "text-muted-foreground hover:text-foreground"
                                 )}
                                 aria-pressed={worksheetInventoryMode}
@@ -1346,18 +1310,21 @@ export default function InventoryPage() {
                     </div>
                     <div className="flex-1 bg-background h-full min-h-0 flex flex-col">
                         {worksheetInventoryMode ? (
-                            <WorksheetGrid
-                                items={inventoryItems}
-                                categories={categories}
-                                physicalCounts={physicalCounts}
-                                rowReasons={worksheetRowReasons}
-                                rowNotes={worksheetRowNotes}
-                                rowUoms={worksheetRowUoms}
-                                onChange={handleWorksheetChange}
-                                onReasonChange={handleWorksheetReasonChange}
-                                onNotesChange={handleWorksheetNoteChange}
-                                onUomChange={(id, v) => setWorksheetRowUoms(prev => ({ ...prev, [id]: v }))}
-                            />
+                            <div className="flex-1 flex flex-col min-h-0">
+                                <Tabs value={worksheetTab} onValueChange={(v) => setWorksheetTab(v as any)} className="flex flex-col h-full">
+                                    <TabsList className="grid w-full grid-cols-2 rounded-none border-b bg-card p-1">
+                                        <TabsTrigger value="history">Histori</TabsTrigger>
+                                        <TabsTrigger value="manage">Kelola</TabsTrigger>
+                                    </TabsList>
+                                    <TabsContent value="history" className="flex-1 min-h-0 mt-0">
+                                        <WorksheetHistoryList onSessionSelect={(id) => { setActiveSessionId(id); setWorksheetTab('manage'); }} onNewSessionCreated={(id) => { setActiveSessionId(id); setWorksheetTab('manage'); }} />
+                                    </TabsContent>
+                                    <TabsContent value="manage" className="flex-1 min-h-0 mt-0">
+                                        {activeSessionId ? <WorksheetSessionManager sessionId={activeSessionId} onBackToHistory={() => { setWorksheetTab('history'); setActiveSessionId(null); }} onSessionChange={(sid) => { if (sid) { setActiveSessionId(sid); setWorksheetTab('manage'); } else { setActiveSessionId(null); setWorksheetTab('history'); } }} />
+                                            : <div className="h-full flex flex-col items-center justify-center text-center text-muted-foreground p-8"><ClipboardList className="w-12 h-12 mb-4 text-muted-foreground/50" /><p className="font-medium">Belum ada sesi aktif</p><p className="text-sm mt-1">Pilih sesi di Histori atau buat baru</p><Button onClick={() => setWorksheetTab('history')} className="mt-4">Lihat Histori</Button></div>}
+                                    </TabsContent>
+                                </Tabs>
+                            </div>
                         ) : inventoryItems.length > 0 ? (
                             <>
                                 <div className="px-4 w-full">
@@ -1424,7 +1391,6 @@ export default function InventoryPage() {
                                 onSave={handleSave}
                                 onCancel={handleCancel}
                                 selectedItem={selectedItem}
-                                rapidMode={rapidInventoryMode}
                                 lastAdjustment={lastAdjustment}
                                 onUndo={handleUndo}
                                 physicalCounts={physicalCounts}
@@ -1453,7 +1419,6 @@ export default function InventoryPage() {
                                     onSave={handleSave}
                                     onCancel={handleCancel}
                                     selectedItem={selectedItem}
-                                    rapidMode={rapidInventoryMode}
                                     lastAdjustment={lastAdjustment}
                                     onUndo={handleUndo}
                                     physicalCounts={physicalCounts}

@@ -1,6 +1,6 @@
 {
   "name": "kastoko",
-  "version": "0.6.1",
+  "version": "0.7.0",
   "private": true,
   "scripts": {
     "dev": "vite --port 9002 --host",

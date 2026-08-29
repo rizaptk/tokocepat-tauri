@@ -1721,3 +1721,55 @@ export const exportPromoPerformanceToPdf = async (
     const rangeStr = format(dateRange.from, 'yyyyMMdd') + '-' + format(dateRange.to, 'yyyyMMdd');
     await saveFileNative(pdfBytes, `laporan_promo_${rangeStr}.pdf`, [{ name: 'PDF', extensions: ['pdf'] }]);
 };
+
+export const exportWorksheetSessionToPdf = async (session: any, items: any[]) => {
+    const pdfDoc = await PDFDocument.create();
+    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+    const margin = 40; let y = PageSizes.A4[1] - margin;
+    let page = pdfDoc.addPage(PageSizes.A4); const { width, height } = page.getSize();
+    y = height - margin;
+    const storeName = 'Kastoko';
+    page.drawText(storeName.toUpperCase(), { x: margin, y, font: boldFont, size: 14 }); y -= 18;
+    page.drawText('BERITA ACARA SERAH TERIMA INVENTORI', { x: margin, y, font: boldFont, size: 11 }); y -= 20;
+    const info: [string,string][] = [
+        ['No. Sesi', session.name],
+        ['Tanggal', format(new Date(session.created_at), 'dd MMM yyyy HH:mm')],
+        ['Operator', session.created_by],
+        ['Perihal', session.subject==='other' ? (session.subject_other||'Lain-lain') : ({dealer_in:'Produk Masuk dari Dealer',restock:'Stok Masuk',routine_check:'Cek Rutin',warehouse_cleanup:'Bersih Gudang'} as any)[session.subject] || session.subject],
+        ['Pihak Terkait', session.related_party||'-'],
+        ['Keterangan', session.description||'-'],
+    ];
+    for (const [k,v] of info) { if (y < 80) { page = pdfDoc.addPage(PageSizes.A4); y = height - margin; } page.drawText(k, { x: margin, y, font: boldFont, size: 9 }); page.drawText(String(v), { x: margin+120, y, font, size: 9 }); y -= 14; }
+    y -= 8;
+    page.drawText('DAFTAR PRODUK', { x: margin, y, font: boldFont, size: 10 }); y -= 14;
+    const headers = ['No','Produk','Aksi','Jumlah','Stok Fisik','Keterangan'];
+    const w = [30,170,60,50,70,120];
+    let x = margin; headers.forEach((h,i)=>{ page.drawText(h,{x, y, font: boldFont, size: 8}); x+=w[i]; }); y-=4; page.drawLine({ start:{x:margin,y}, end:{x:width-margin,y}, thickness:1 }); y-=10;
+    let n=1; const totals={tambah:0, kurang:0, koreksi:0};
+    for (const it of items) {
+        if (y < 80) { page = pdfDoc.addPage(PageSizes.A4); y = height - margin; x=margin; headers.forEach((h,i)=>{ page.drawText(h,{x, y, font: boldFont, size: 8}); x+=w[i]; }); y-=4; page.drawLine({ start:{x:margin,y}, end:{x:width-margin,y}, thickness:1 }); y-=10; }
+        const phys = it.action==='tambah' ? it.system_qty+it.qty : it.action==='kurang' ? Math.max(0,it.system_qty-it.qty) : it.qty;
+        if (it.action==='tambah') totals.tambah+=it.qty; else if (it.action==='kurang') totals.kurang+=it.qty; else totals.koreksi+=1;
+        const prod = (it.variant_name_snapshot ? `${it.product_name_snapshot} (${it.variant_name_snapshot})` : it.product_name_snapshot);
+        const row=[String(n++), prod.length>30?prod.slice(0,28)+'..':prod, it.action, String(it.qty), String(phys), (it.notes||'-').slice(0,20)];
+        x=margin; row.forEach((c,i)=>{ page.drawText(c,{x, y, font, size:7}); x+=w[i]; }); y-=12;
+    }
+    y-=6; page.drawLine({ start:{x:margin,y}, end:{x:width-margin,y}, thickness:1 }); y-=10;
+    page.drawText(`Total Tambah: ${totals.tambah}  Kurang: ${totals.kurang}  Koreksi: ${totals.koreksi}`, { x: margin, y, font: boldFont, size: 8 }); y-=22;
+    const sigY=y; page.drawLine({ start:{x:margin,y:sigY}, end:{x:margin+180,y:sigY}, thickness:1 }); page.drawLine({ start:{x:margin+260,y:sigY}, end:{x:margin+440,y:sigY}, thickness:1 });
+    y-=10; page.drawText('Operator', { x: margin, y, font: boldFont, size: 8 }); page.drawText('Yang menyerahkan', { x: margin+260, y, font: boldFont, size: 8 }); y-=12; page.drawText(session.created_by, { x: margin, y, font, size: 8 });
+    y-=20; const printed = format(new Date(), 'dd MMM yyyy HH:mm'); page.drawText(`Dicetak: ${printed}`, { x: margin, y, font, size:7, color: rgb(0.5,0.5,0.5) });
+    const pdfBytes = await pdfDoc.save();
+    await saveFileNative(pdfBytes, `berita_acara_${session.name}.pdf`, [{ name:'PDF', extensions:['pdf'] }]);
+};
+
+export const exportWorksheetSessionToExcel = async (session: any, items: any[]) => {
+    const header=[['No. Sesi',session.name],['Tanggal',format(new Date(session.created_at),'dd MMM yyyy HH:mm')],['Operator',session.created_by],['Perihal',session.subject],['Pihak Terkait',session.related_party||'-'],['Keterangan',session.description||'-']];
+    const rows=items.map((it:any,idx:number)=>{ const phys=it.action==='tambah'?it.system_qty+it.qty:it.action==='kurang'?Math.max(0,it.system_qty-it.qty):it.qty; return { No:idx+1, Produk: it.variant_name_snapshot?`${it.product_name_snapshot} (${it.variant_name_snapshot})`:it.product_name_snapshot, Aksi:it.action, Jumlah:it.qty, 'Stok Fisik':phys, Keterangan:it.notes||'-' }; });
+    const wb=XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(header.map(([k,v])=>({'Info':k,'Detail':v}))), 'Info Sesi');
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), 'Items');
+    const buf=XLSX.write(wb,{bookType:'xlsx',type:'array'});
+    await saveFileNative(new Uint8Array(buf), `worksheet_${session.name}.xlsx`, [{ name:'Excel', extensions:['xlsx'] }]);
+};

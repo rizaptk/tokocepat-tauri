@@ -231,7 +231,7 @@ export interface Transaction {
   amount_paid_snapshot?: number;
 }
 
-export type StockMovementType = 'sale' | 'restock' | 'correction' | 'lost' | 'damaged' | 'initial_balance' | 'return';
+export type StockMovementType = 'sale' | 'restock' | 'correction' | 'lost' | 'damaged' | 'initial_balance' | 'return' | 'worksheet_commit';
 
 export interface StockMovement {
     id: string;
@@ -246,6 +246,48 @@ export interface StockMovement {
     reason?: string;
     reference_id: string; // transaction_id for sales, or a unique ID for manual adjustments
     created_at: string;
+    worksheet_session_id?: string;
+    worksheet_item_id?: string;
+}
+
+export type WorksheetSubject = 'dealer_in' | 'restock' | 'routine_check' | 'warehouse_cleanup' | 'other';
+
+export interface WorksheetSession {
+  id: string;
+  name: string;
+  status: 'draft' | 'committed' | 'cancelled';
+  session_date: string;
+  created_at: string;
+  created_by: string;
+  subject: WorksheetSubject;
+  subject_other?: string;
+  description: string;
+  related_party?: string;
+  committed_at?: string;
+  committed_by?: string;
+}
+
+export interface WorksheetItem {
+  id: string;
+  session_id: string;
+  product_id: string;
+  variant_id?: string;
+  product_name_snapshot: string;
+  variant_name_snapshot?: string;
+  action: 'tambah' | 'kurang' | 'koreksi';
+  system_qty: number;
+  qty: number;
+  uom_id: string;
+  uom_name: string;
+  uom_factor: number;
+  physical_qty: number;
+  notes?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface WorksheetSessionWithItems extends WorksheetSession {
+  items: WorksheetItem[];
 }
 
 export interface CustomerGroup {
