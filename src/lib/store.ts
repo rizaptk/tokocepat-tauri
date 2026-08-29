@@ -53,7 +53,7 @@ interface StoreState {
     setCustomers: (customers: Customer[]) => void;
     setCustomerGroups: (groups: CustomerGroup[]) => void;
     saveItemToCart: (itemData: Product | CartItem | ItemWithVariant, selectedVariant?: ProductVariant) => void;
-    removeFromCart: (cartItemId: string) => void;
+    removeFromCart: (cartItemId: string, opts?: { force?: boolean }) => void;
     updateQuantity: (cartItemId: string, quantity: number, groupId?: string) => void;
     updateCartItemUom: (cartItemId: string, uomId: string, groupId?: string) => void;
     clearCart: () => void;
@@ -221,7 +221,12 @@ export const useStore = create<StoreState>()(
                 }
             },
 
-            removeFromCart: (cartItemId: string) => {
+            removeFromCart: (cartItemId: string, opts?: { force?: boolean }) => {
+                const item = get().cart.find(c => c.cartItemId === cartItemId) as any;
+                if (item?.isReserved && !opts?.force) {
+                    toast({ variant: 'destructive', title: 'Produk bonus terkunci', description: 'Bonus akan hilang otomatis jika syarat tidak terpenuhi.' });
+                    return;
+                }
                 set(state => ({
                     cart: state.cart.filter(item => item.cartItemId !== cartItemId)
                 }));
@@ -232,6 +237,7 @@ export const useStore = create<StoreState>()(
                 const idx = cart.findIndex(i => i.cartItemId === cartItemId);
                 if (idx < 0) return;
                 const item = cart[idx] as any;
+                if (item.isReserved) { toast({ variant: 'destructive', title: 'Produk bonus terkunci' }); return; }
                 const original = (products.find(p => p.id === item.id) || item) as any;
                 const baseWithVariant = original.price + (item.selectedVariant?.additional_price || 0);
                 const productForPricing = { ...original, price: baseWithVariant } as any;
@@ -247,6 +253,7 @@ export const useStore = create<StoreState>()(
                 const { cart, products } = get();
                 const itemToUpdate: any = cart.find(item => item.cartItemId === cartItemId);
                 if (!itemToUpdate) return;
+                if (itemToUpdate.isReserved) { toast({ variant: 'destructive', title: 'Produk bonus terkunci', description: 'Ubah produk syarat untuk ubah bonus.' }); return; }
 
                 if (isNaN(quantity) || quantity < 1) {
                     get().removeFromCart(cartItemId);

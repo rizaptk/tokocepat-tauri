@@ -105,6 +105,9 @@ export interface CartItem extends Product {
   // Transient flags used by the discount engine / checkout (never persisted to the cart store)
   isFreeItem?: boolean;
   freeFromPromoId?: string;
+  // Bonus reservation: auto-added product when promo triggered, cannot be deleted manually
+  isReserved?: boolean;
+  reservedPromoId?: string;
 }
 
 /**

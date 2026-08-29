@@ -1,7 +1,7 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { useStore } from '@/lib/store';
 import { useDbStore } from '@/lib/db-store';
-import { normalizePromo } from '@/lib/promo-model';
+import { normalizePromo, isPromoLive } from '@/lib/promo-model';
 import { Header } from '@/components/Header';
 import { Product, CartItem, ProductVariant, Transaction, Promotion } from '@/lib/types';
 import { useProductSearch } from '@/lib/useProductSearch';
@@ -312,6 +312,108 @@ export default function ClassicCashierPage({ defaultWholesale = false }: { defau
         });
     }, [cart, activeStoreConfig, promos, voucherCode, parsedManualDiscount, manualDiscountType, manualDiscountTargetItemId, manualDiscountInput, voucherUsage]);
 
+    // Auto-add bonus product when kriteria/bogo/bersyarat rewards are met — reserved, cannot be deleted
+    useEffect(() => {
+        if (cart.length === 0) return;
+        const bonusPromos = promos.filter(p => {
+            if (!p.is_active) return false;
+            if (p.kind !== 'criteria' && p.kind !== 'conditional' && p.kind !== 'bogo') return false;
+            if ((p as any).reward_type !== 'bonus_product') return false;
+            if (isWholesaleMode && !(p as any).allowWholesale) return false;
+            if (!isPromoLive(p)) return false;
+            return true;
+        });
+        if (bonusPromos.length === 0) return;
+
+        const cartIds = new Set(cart.filter(c => !(c as any).isReserved).map(c => c.id));
+        const cartQtyBaseById: Record<string, number> = {};
+        cart.filter(c => !(c as any).isReserved).forEach(c => {
+            const anyC = c as any;
+            const base = anyC.qtyBase ?? c.quantity * (anyC.selectedUomFactor || 1);
+            cartQtyBaseById[c.id] = (cartQtyBaseById[c.id] || 0) + base;
+        });
+
+        let needsSync = false;
+        const expectedReserved: { promoId: string; rewardId: string }[] = [];
+
+        for (const promo of bonusPromos) {
+            const anyP = promo as any;
+            const rewardIds: string[] = anyP.reward_product_ids || [];
+            if (rewardIds.length === 0) continue;
+            let triggerMet = false;
+            if (promo.kind === 'bogo') {
+                const buyQty = anyP.buy_quantity || 1;
+                const scopeIds = anyP.applies_to_product_ids || [];
+                const purchased = scopeIds.length === 0
+                    ? cart.filter(c => !(c as any).isReserved).reduce((s,l)=> s + ((l as any).qtyBase ?? l.quantity), 0)
+                    : scopeIds.reduce((s:number, pid:string)=> s + (cartQtyBaseById[pid]||0), 0);
+                triggerMet = purchased >= buyQty;
+            } else if (promo.kind === 'criteria') {
+                const pids: string[] = anyP.applies_to_product_ids || [];
+                const cids: string[] = anyP.applies_to_category_ids || [];
+                if (pids.length===0 && cids.length===0) triggerMet = true;
+                else {
+                    triggerMet = pids.every((pid: string) => cartIds.has(pid)) && cids.every((cid: string) => cart.some(c=> (c as any).category_id===cid && !(c as any).isReserved));
+                    if (triggerMet && anyP.min_scope_qty > 0) {
+                        const total = (pids.length ? pids.reduce((s,pid)=> s + (cartQtyBaseById[pid]||0),0) : 0) + (cids.length ? cart.filter(c=> cids.includes((c as any).category_id)).reduce((s,c)=> s+((c as any).qtyBase||c.quantity),0) : 0);
+                        if (total < anyP.min_scope_qty) triggerMet = false;
+                    }
+                }
+            } else if (promo.kind === 'conditional') {
+                const base = cart.filter(c=> !(c as any).isReserved).reduce((s,c)=> s + (c.price * c.quantity), 0);
+                const minMet = !anyP.min_purchase || base >= anyP.min_purchase;
+                const scopeMet = !anyP.require_scope || ((anyP.applies_to_product_ids||[]).length===0 && (anyP.applies_to_category_ids||[]).length===0) || (anyP.applies_to_product_ids||[]).some((pid:string)=> cartIds.has(pid));
+                triggerMet = minMet && scopeMet;
+            }
+            if (!triggerMet) continue;
+            for (const rid of rewardIds) {
+                expectedReserved.push({ promoId: promo.id, rewardId: rid });
+                const already = cart.some(c => (c as any).isReserved && (c as any).reservedPromoId === promo.id && c.id === rid);
+                if (!already) needsSync = true;
+            }
+        }
+
+        // Remove stale reserved bonuses that no longer meet trigger
+        const stale = cart.filter(c => (c as any).isReserved && !expectedReserved.some(e => e.promoId === (c as any).reservedPromoId && e.rewardId === c.id));
+        if (stale.length > 0) needsSync = true;
+
+        if (!needsSync) return;
+
+        // Sync: add missing reserved
+        const { saveItemToCart } = useStore.getState() as any;
+        // Use microtask to avoid setState during render
+        queueMicrotask(() => {
+            // Remove stale first
+            for (const s of stale) {
+                useStore.getState().removeFromCart(s.cartItemId, { force: true });
+            }
+            // Add missing
+            for (const exp of expectedReserved) {
+                const exists = useStore.getState().cart.some(c => (c as any).isReserved && (c as any).reservedPromoId === exp.promoId && c.id === exp.rewardId);
+                if (exists) continue;
+                const prod = products.find(p => p.id === exp.rewardId);
+                if (!prod) continue;
+                // Create reserved cart item directly
+                const { products: _p, cart: _c } = useStore.getState();
+                // Use saveItemToCart then mark reserved
+                saveItemToCart(prod as any);
+                // Find newly added and mark reserved
+                const newCart = useStore.getState().cart;
+                const added = [...newCart].reverse().find(c => c.id === exp.rewardId && !(c as any).isReserved);
+                if (added) {
+                    (added as any).isReserved = true;
+                    (added as any).reservedPromoId = exp.promoId;
+                    // Force single unit for bonus
+                    if (added.quantity !== 1) {
+                        useStore.getState().updateQuantity(added.cartItemId, 1);
+                        const after = useStore.getState().cart.find(cc => cc.cartItemId === added.cartItemId) as any;
+                        if (after) { after.isReserved = true; after.reservedPromoId = exp.promoId; }
+                    }
+                }
+            }
+        });
+    }, [cart, promos, isWholesaleMode, products]);
+
     // The typed draft is committed only through claimVoucher (Selesai / Enter) so
     // every claim is validated; Esc / outside click cancels without changes.
 
@@ -615,26 +717,26 @@ export default function ClassicCashierPage({ defaultWholesale = false }: { defau
                                 </span>
                             </div>
                             <div className="flex justify-between gap-6"><span className="text-muted-foreground">Pajak</span><span className="font-medium tabular-nums">{formatIDR(tax)}</span></div>
-                            {cart.length > 0 && discountResult && discountResult.freeItems.length > 0 && (
-                                <div className="flex flex-wrap items-center gap-1 pt-0.5">
-                                    <Gift className="size-3.5 text-success dark:text-success-foreground" />
-                                    {discountResult.freeItems.map((f, i) => (
-                                        <span key={i} className="rounded bg-success/10 px-1.5 py-0.5 text-[10px] font-semibold text-success-foreground dark:bg-success/20 dark:text-success-foreground">
-                                            {f.freeQty}x {f.name} gratis
-                                        </span>
-                                    ))}
-                                </div>
-                            )}
                         </div>
 
-                        {/* Applied voucher / discount chips + errors */}
-                        <div className="flex flex-col gap-1">
+                        {/* Applied voucher / bonus chips + errors — co-located to keep Summary fixed height */}
+                        <div className="flex flex-col gap-1 max-w-[28rem]">
                             {voucherCode && (
                                 <div className="flex flex-wrap items-center gap-1.5">
                                     <button onClick={() => setVoucherCode('')} className="group inline-flex items-center gap-1 rounded-md border border-primary/40 bg-primary/10 px-2 py-1 text-xs font-semibold text-primary" title="Hapus voucher">
                                         <TicketPercent className="size-3.5" /> {voucherCode}
                                         <XCircle className="size-3.5 opacity-60 transition-opacity group-hover:opacity-100" />
                                     </button>
+                                </div>
+                            )}
+                            {cart.length > 0 && discountResult && discountResult.freeItems.length > 0 && (
+                                <div className="flex flex-wrap items-center gap-1">
+                                    <Gift className="size-3.5 text-success" />
+                                    {discountResult.freeItems.map((f, i) => (
+                                        <span key={i} className="rounded bg-success/10 px-1.5 py-0.5 text-[10px] font-semibold text-success dark:bg-success/20">
+                                            {f.freeQty}x {f.name} gratis
+                                        </span>
+                                    ))}
                                 </div>
                             )}
                             {voucherCode && !discountResult?.voucherCode && (
@@ -926,7 +1028,7 @@ export default function ClassicCashierPage({ defaultWholesale = false }: { defau
                                                                 if (free > 0) {
                                                                     const totalQty = (line as any)?.qty ?? item.quantity;
                                                                     const paid = totalQty - free;
-                                                                    return <span>{paid}<span className="text-success">+{free}</span><span className="text-[10px] ml-0.5">bonus</span></span>;
+                                                                    return <span title={`${free} bonus`}>{paid}<span className="text-success">+{free}</span></span>;
                                                                 }
                                                                 return item.quantity;
                                                             })()}
