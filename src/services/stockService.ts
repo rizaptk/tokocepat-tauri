@@ -273,14 +273,14 @@ export const subscribeWorksheetItems = (sessionId: string, onUpdate: (items: Wor
     });
 };
 
-export const commitWorksheetSession = async (sessionId: string, committedBy: string): Promise<{ movements: StockMovement[] }> => {
+export const saveWorksheetSession = async (sessionId: string, committedBy: string): Promise<{ movements: StockMovement[] }> => {
     const { db, firesqlite } = useDbStore.getState();
     const { products, productVariants } = useStore.getState();
     if (!db || !firesqlite) throw new Error("Database not initialized");
     const { doc, writeBatch } = firesqlite;
     const session = await getWorksheetSessionWithItems(sessionId);
     if (!session) throw new Error("Sesi worksheet tidak ditemukan");
-    if (session.status !== 'draft') throw new Error("Hanya sesi draft yang dapat dikomit");
+    if (session.status !== 'draft') throw new Error("Hanya sesi draft yang dapat disimpan");
     if (!session.items.length) throw new Error("Sesi tidak memiliki item");
     for (const item of session.items) {
         if (!item.action || item.qty <= 0) throw new Error(`Item ${item.product_name_snapshot}: aksi dan jumlah wajib diisi`);
@@ -342,6 +342,7 @@ export const commitWorksheetSession = async (sessionId: string, committedBy: str
     await batch.commit();
     return { movements };
 };
+export const commitWorksheetSession = saveWorksheetSession;
 
 export const computePhysicalQty = (item: WorksheetItem): number => {
     switch (item.action) {

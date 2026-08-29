@@ -4,9 +4,10 @@ import { id as localeId } from 'date-fns/locale';
 import { getWorksheetSessionWithItems, commitWorksheetSession, cancelWorksheetSession, subscribeWorksheetItems } from '@/services/stockService';
 import type { WorksheetSessionWithItems, WorksheetItem } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
-import { Printer, Loader2, Save, XCircle, RotateCcw, FileText } from 'lucide-react';
+import { Printer, Loader2, Save, XCircle, RotateCcw, FileText, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogCancel, AlertDialogAction, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { ProductSearchBar } from '@/components/ProductSearchBar';
 import { WorksheetGrid } from './WorksheetGrid';
@@ -91,30 +92,29 @@ export function WorksheetSessionManager({ sessionId, onBackToHistory, onSessionC
 
     return (
         <div className="h-full flex flex-col">
-            <div className="p-4 border-b bg-card space-y-3">
-                <div className="flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-2">
-                        <Button variant="ghost" size="icon" className="size-8" onClick={onBackToHistory}><RotateCcw className="size-4" /></Button>
-                        <div><h2 className="font-semibold">{session.name}</h2><p className="text-xs text-muted-foreground">{fmt(session.created_at)} • {session.created_by}</p></div>
-                        <Badge className={cn('text-xs', STATUS_COLORS[session.status])}>{session.status}</Badge>
+            <div className="p-3 border-b bg-card">
+                <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                        <Button variant="ghost" size="icon" className="size-7 shrink-0" onClick={onBackToHistory}><RotateCcw className="size-4" /></Button>
+                        <div className="min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                                <h2 className="font-semibold text-sm truncate">{session.name}</h2>
+                                <Badge className={cn('text-[10px] px-1.5 py-0', STATUS_COLORS[session.status])}>{session.status}</Badge>
+                                <span className="text-xs text-muted-foreground truncate hidden sm:inline">• Perihal: {subj(session.subject, session.subject_other)} • Pihak: {session.related_party || '-'} • {session.description}</span>
+                            </div>
+                            <p className="text-xs text-muted-foreground truncate sm:hidden">{subj(session.subject, session.subject_other)} • {session.related_party || '-'}</p>
+                        </div>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex items-center gap-1.5 shrink-0">
                         {!isReadOnly ? <>
-                            <Button variant="outline" size="sm" onClick={handlePrint} disabled={exporting}><Printer className="size-4 mr-1" />Cetak</Button>
-                            <Button variant="outline" size="sm" onClick={handleExcel} disabled={exporting}><FileText className="size-4 mr-1" />Excel</Button>
-                            <Button variant="destructive" size="sm" onClick={handleCancel}><XCircle className="size-4 mr-1" />Batalkan</Button>
-                            <AlertDialog><AlertDialogTrigger asChild><Button size="sm" disabled={committing || items.length===0}><Save className="size-4 mr-1" />Komit</Button></AlertDialogTrigger><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Komit Sesi?</AlertDialogTitle><AlertDialogDescription>Akan membuat pergerakan stok permanen. Tidak dapat dibatalkan.</AlertDialogDescription></AlertDialogHeader><div className="flex justify-end gap-2"><AlertDialogCancel>Batal</AlertDialogCancel><AlertDialogAction onClick={handleCommit}>{committing ? <Loader2 className="size-4 animate-spin mr-2" /> : null}Ya, Komit</AlertDialogAction></div></AlertDialogContent></AlertDialog>
-                        </> : <Button variant="outline" size="sm" onClick={handlePrint}><Printer className="size-4 mr-1" />Cetak</Button>}
+                            <DropdownMenu><DropdownMenuTrigger asChild><Button variant="outline" size="sm" className="h-7" disabled={exporting}>Export <ChevronDown className="size-3.5 ml-1" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onClick={handlePrint}><Printer className="size-4 mr-2" />Cetak PDF</DropdownMenuItem><DropdownMenuItem onClick={handleExcel}><FileText className="size-4 mr-2" />Export Excel</DropdownMenuItem></DropdownMenuContent></DropdownMenu>
+                            <Button variant="outline" size="sm" className="h-7" onClick={handleCancel}><XCircle className="size-3.5 mr-1" />Batalkan</Button>
+                            <AlertDialog><AlertDialogTrigger asChild><Button size="sm" className="h-7" disabled={committing || items.length===0}><Save className="size-3.5 mr-1" />Simpan</Button></AlertDialogTrigger><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Simpan Sesi?</AlertDialogTitle><AlertDialogDescription>Akan membuat pergerakan stok permanen. Tidak dapat dibatalkan.</AlertDialogDescription></AlertDialogHeader><div className="flex justify-end gap-2"><AlertDialogCancel>Batal</AlertDialogCancel><AlertDialogAction onClick={handleCommit}>{committing ? <Loader2 className="size-4 animate-spin mr-2" /> : null}Ya, Simpan</AlertDialogAction></div></AlertDialogContent></AlertDialog>
+                        </> : <DropdownMenu><DropdownMenuTrigger asChild><Button variant="outline" size="sm" className="h-7">Export <ChevronDown className="size-3.5 ml-1" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onClick={handlePrint}><Printer className="size-4 mr-2" />Cetak PDF</DropdownMenuItem><DropdownMenuItem onClick={handleExcel}><FileText className="size-4 mr-2" />Export Excel</DropdownMenuItem></DropdownMenuContent></DropdownMenu>}
                     </div>
                 </div>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
-                    <div className="p-2 bg-muted/50 rounded"><p className="text-xs text-muted-foreground">Perihal</p><p className="font-medium truncate">{subj(session.subject, session.subject_other)}</p></div>
-                    <div className="p-2 bg-muted/50 rounded"><p className="text-xs text-muted-foreground">Pihak Terkait</p><p className="font-medium truncate">{session.related_party || '-'}</p></div>
-                    <div className="p-2 bg-muted/50 rounded md:col-span-2"><p className="text-xs text-muted-foreground">Keterangan</p><p className="font-medium truncate">{session.description}</p></div>
-                </div>
-                <div className="flex gap-2 text-xs"><Badge variant="secondary">Tambah: {totals.tambah}</Badge><Badge variant="secondary">Kurang: {totals.kurang}</Badge><Badge variant="secondary">Koreksi: {totals.koreksi}</Badge><span className="ml-auto text-muted-foreground">{items.length} produk</span></div>
+                <p className="text-xs text-muted-foreground sm:hidden truncate mt-1">{session.description}</p>
             </div>
-            {!isReadOnly && <div className="p-3 border-b"><ProductSearchBar onBarcodeScan={(bc) => { const p = [...products, ...productVariants].find((x: any) => x.barcode===bc); if (p) handleAddProduct(p); }} onArrowNav={() => {}} placeholder="Cari produk untuk ditambah ke worksheet..." /></div>}
             <div className="flex-1 min-h-0">
                 <WorksheetGrid items={items} readOnly={!!isReadOnly} onItemUpdate={handleUpdate} onItemRemove={handleRemove} />
             </div>

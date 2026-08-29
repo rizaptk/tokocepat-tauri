@@ -20,6 +20,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { WorksheetHistoryList } from "@/components/inventory/WorksheetHistoryList";
 import { WorksheetSessionManager } from "@/components/inventory/WorksheetSessionManager";
+import { WorksheetSessionForm } from "@/components/inventory/WorksheetSessionForm";
 import { useGlobalBarcodeScanner } from "@/hooks/use-global-barcode-scanner";
 import { cn, reasonMapping, typeConfig } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
@@ -973,6 +974,28 @@ export default function InventoryPage() {
         });
     }, [products, productVariants, query, filter, multiSearch]);
 
+    const worksheetSearchResults = useMemo(() => {
+        if (!worksheetInventoryMode || !activeSessionId || !query.trim()) return [];
+        const q = query.toLowerCase();
+        const all = [...products, ...productVariants.map(v => {
+            const parent = products.find(p => p.id === v.product_id);
+            return { ...v, name: parent ? `${parent.name} (${v.name})` : v.name, barcode: (v as any).barcode || '', isVariant: true, product_id: v.product_id } as any;
+        })];
+        return all.filter(p => p.name.toLowerCase().includes(q) || (p.barcode && p.barcode.toLowerCase().includes(q))).slice(0, 8);
+    }, [products, productVariants, query, worksheetInventoryMode, activeSessionId]);
+
+    const handleWorksheetAddFromTop = async (product: any) => {
+        if (!activeSessionId) return;
+        const isVar = !!product.product_id && !!product.isVariant;
+        const prodId = isVar ? product.product_id : product.id;
+        const varId = isVar ? product.id : undefined;
+        const base = isVar ? products.find(p => p.id === prodId) : product;
+        const stock = isVar ? (productVariants.find(v => v.id === product.id)?.stock ?? 0) : (product.stock ?? 0);
+        const uom = (isVar ? (base as any)?.uoms?.find((u: any) => u.isBase) : (product as any).uoms?.find((u: any) => u.isBase)) || { id: 'pcs', name: 'Pcs', factor: 1 };
+        const { addWorksheetItem } = await import('@/services/stockService');
+        try { await addWorksheetItem(activeSessionId, { product_id: prodId, variant_id: varId, product_name_snapshot: isVar ? (base as any)?.name || product.name : product.name, variant_name_snapshot: isVar ? product.name.replace(`${(base as any)?.name} (`, '').replace(')', '') : undefined, action: 'tambah', system_qty: stock, qty: 1, uom_id: uom.id, uom_name: uom.name, uom_factor: uom.factor, physical_qty: stock + 1, notes: '' }); setQuery(''); searchBarRef.current?.clear(); } catch (e: any) { toast({ variant: 'destructive', title: 'Gagal menambah', description: String(e) }); }
+    };
+
     const handleBarcodeScan = (barcode: string) => {
         // In worksheet multi-search, a scan just appends the barcode to the search
         // bar (comma-separated) so the grid filters to all scanned items at once.
@@ -1245,14 +1268,24 @@ export default function InventoryPage() {
                 <div className={`h-full flex flex-col min-h-0 ${worksheetInventoryMode ? 'col-span-10' : 'col-span-10 md:col-span-6 lg:col-span-6'}`}>
                     <div className="flex flex-col gap-4 p-4">
                         <div className="flex items-center gap-2 ">
-                            <div className="grow">
+                            <div className="grow relative">
                                 <ProductSearchBar
                                     ref={searchBarRef}
                                     onBarcodeScan={handleBarcodeScan}
                                     onArrowNav={handleInventoryArrowNav}
                                     multiSearch={multiSearch && worksheetInventoryMode}
-                                    placeholder={multiSearch ? "Multi: pisahkan kata kunci/barcode dengan koma..." : undefined}
+                                    placeholder={worksheetInventoryMode && activeSessionId ? "Cari produk untuk ditambah ke worksheet..." : multiSearch ? "Multi: pisahkan kata kunci/barcode dengan koma..." : undefined}
                                 />
+                                {worksheetInventoryMode && activeSessionId && worksheetSearchResults.length > 0 && (
+                                    <div className="absolute top-full left-0 right-0 z-50 mt-1 max-h-72 overflow-auto rounded-lg border bg-popover shadow-xl">
+                                        {worksheetSearchResults.map((p: any) => (
+                                            <button key={p.id} onClick={() => handleWorksheetAddFromTop(p)} className="w-full text-left px-3 py-2 hover:bg-accent flex justify-between items-center gap-2">
+                                                <span className="truncate text-sm">{p.name}</span>
+                                                <span className="text-xs text-muted-foreground tabular-nums shrink-0">{p.stock ?? 0} Pcs</span>
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
                             {worksheetInventoryMode && (
                                 <label className="flex shrink-0 items-center gap-1.5 text-xs text-muted-foreground cursor-pointer select-none" title="Aktifkan pencarian banyak item sekaligus (pisahkan dengan koma, scan barcode menambah otomatis)">
@@ -1267,6 +1300,7 @@ export default function InventoryPage() {
                             </div>
                         </div>
                         <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+                            {!worksheetInventoryMode && <>
                             <FilterPill active={filter === 'all'} onClick={() => setFilter('all')}>All</FilterPill>
                             <FilterPill active={filter === 'product'} onClick={() => setFilter('product')}>Produk</FilterPill>
                             <FilterPill active={filter === 'consignment'} onClick={() => setFilter('consignment')}>Konsinyasi</FilterPill>
@@ -1278,6 +1312,7 @@ export default function InventoryPage() {
                             <FilterPill active={filter === 'out_of_stock'} onClick={() => setFilter('out_of_stock')}>Habis</FilterPill>
 
                             <Separator orientation="vertical" className="h-4 my-auto" />
+                            </>}
 
                             <Button
                                 variant="ghost"
@@ -1310,20 +1345,14 @@ export default function InventoryPage() {
                     </div>
                     <div className="flex-1 bg-background h-full min-h-0 flex flex-col">
                         {worksheetInventoryMode ? (
-                            <div className="flex-1 flex flex-col min-h-0">
-                                <Tabs value={worksheetTab} onValueChange={(v) => setWorksheetTab(v as any)} className="flex flex-col h-full">
-                                    <TabsList className="grid w-full grid-cols-2 rounded-none border-b bg-card p-1">
-                                        <TabsTrigger value="history">Histori</TabsTrigger>
-                                        <TabsTrigger value="manage">Kelola</TabsTrigger>
-                                    </TabsList>
-                                    <TabsContent value="history" className="flex-1 min-h-0 mt-0">
-                                        <WorksheetHistoryList onSessionSelect={(id) => { setActiveSessionId(id); setWorksheetTab('manage'); }} onNewSessionCreated={(id) => { setActiveSessionId(id); setWorksheetTab('manage'); }} />
-                                    </TabsContent>
-                                    <TabsContent value="manage" className="flex-1 min-h-0 mt-0">
-                                        {activeSessionId ? <WorksheetSessionManager sessionId={activeSessionId} onBackToHistory={() => { setWorksheetTab('history'); setActiveSessionId(null); }} onSessionChange={(sid) => { if (sid) { setActiveSessionId(sid); setWorksheetTab('manage'); } else { setActiveSessionId(null); setWorksheetTab('history'); } }} />
-                                            : <div className="h-full flex flex-col items-center justify-center text-center text-muted-foreground p-8"><ClipboardList className="w-12 h-12 mb-4 text-muted-foreground/50" /><p className="font-medium">Belum ada sesi aktif</p><p className="text-sm mt-1">Pilih sesi di Histori atau buat baru</p><Button onClick={() => setWorksheetTab('history')} className="mt-4">Lihat Histori</Button></div>}
-                                    </TabsContent>
-                                </Tabs>
+                            <div className="w-full h-full grid grid-cols-10 min-h-0">
+                                <div className="col-span-6 lg:col-span-6 h-full flex flex-col min-h-0 border-r">
+                                    {!activeSessionId ? <WorksheetHistoryList onSessionSelect={(id) => setActiveSessionId(id)} onNewSessionCreated={(id) => setActiveSessionId(id)} />
+                                        : <WorksheetSessionManager sessionId={activeSessionId} onBackToHistory={() => setActiveSessionId(null)} onSessionChange={(sid) => setActiveSessionId(sid)} />}
+                                </div>
+                                <aside className="col-span-4 lg:col-span-4 h-full min-h-0">
+                                    <WorksheetSessionForm onCreated={(id) => setActiveSessionId(id)} />
+                                </aside>
                             </div>
                         ) : inventoryItems.length > 0 ? (
                             <>
