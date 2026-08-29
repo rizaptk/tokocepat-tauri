@@ -14,7 +14,7 @@ import {
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Search, Trash2, ReceiptCent, Printer, CheckCircle2, LogIn, ArrowLeft, XCircle, TicketPercent, Gift, GitBranch, Handshake, Loader2 } from 'lucide-react';
+import { Search, Trash2, ReceiptCent, Printer, CheckCircle2, LogIn, ArrowLeft, XCircle, TicketPercent, GitBranch, Handshake, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { VariantPanel } from '@/components/VariantPanel';
@@ -393,21 +393,36 @@ export default function ClassicCashierPage({ defaultWholesale = false }: { defau
                 if (exists) continue;
                 const prod = products.find(p => p.id === exp.rewardId);
                 if (!prod) continue;
-                // Create reserved cart item directly
-                const { products: _p, cart: _c } = useStore.getState();
-                // Use saveItemToCart then mark reserved
-                saveItemToCart(prod as any);
-                // Find newly added and mark reserved
-                const newCart = useStore.getState().cart;
-                const added = [...newCart].reverse().find(c => c.id === exp.rewardId && !(c as any).isReserved);
-                if (added) {
-                    (added as any).isReserved = true;
-                    (added as any).reservedPromoId = exp.promoId;
-                    // Force single unit for bonus
-                    if (added.quantity !== 1) {
-                        useStore.getState().updateQuantity(added.cartItemId, 1);
-                        const after = useStore.getState().cart.find(cc => cc.cartItemId === added.cartItemId) as any;
-                        if (after) { after.isReserved = true; after.reservedPromoId = exp.promoId; }
+                // Check if bonus product already exists as shopping (not reserved) - if so, create new reserved item
+                const alreadyShopping = useStore.getState().cart.some(c => c.id === exp.rewardId && !(c as any).isReserved);
+                if (alreadyShopping) {
+                    // Create new reserved item directly - do not merge with shopping line
+                    const newItem = {
+                        ...normalizeProductUoms(prod),
+                        cartItemId: `cart-item-${crypto.randomUUID().slice(0, 8)}`,
+                        quantity: 1,
+                        qtyBase: 1,
+                        price: prod.price,
+                        isReserved: true,
+                        reservedPromoId: exp.promoId,
+                        selectedUomId: (prod.uoms?.find(u => u.isBase) || { id: '', name: 'Pcs' }).id,
+                        selectedUomName: (prod.uoms?.find(u => u.isBase) || { id: '', name: 'Pcs' }).name,
+                        selectedUomFactor: 1,
+                    };
+                    useStore.setState(state => ({ cart: [...state.cart, newItem] }));
+                } else {
+                    // Use saveItemToCart then mark reserved (original flow for new products)
+                    saveItemToCart(prod as any);
+                    const newCart = useStore.getState().cart;
+                    const added = [...newCart].reverse().find(c => c.id === exp.rewardId && !(c as any).isReserved);
+                    if (added) {
+                        (added as any).isReserved = true;
+                        (added as any).reservedPromoId = exp.promoId;
+                        if (added.quantity !== 1) {
+                            useStore.getState().updateQuantity(added.cartItemId, 1);
+                            const after = useStore.getState().cart.find(cc => cc.cartItemId === added.cartItemId) as any;
+                            if (after) { after.isReserved = true; after.reservedPromoId = exp.promoId; }
+                        }
                     }
                 }
             }
@@ -729,16 +744,7 @@ export default function ClassicCashierPage({ defaultWholesale = false }: { defau
                                     </button>
                                 </div>
                             )}
-                            {cart.length > 0 && discountResult && discountResult.freeItems.length > 0 && (
-                                <div className="flex flex-wrap items-center gap-1">
-                                    <Gift className="size-3.5 text-success" />
-                                    {discountResult.freeItems.map((f, i) => (
-                                        <span key={i} className="rounded bg-success/10 px-1.5 py-0.5 text-[10px] font-semibold text-success dark:bg-success/20">
-                                            {f.freeQty}x {f.name} gratis
-                                        </span>
-                                    ))}
-                                </div>
-                            )}
+                            
                             {voucherCode && !discountResult?.voucherCode && (
                                 <p className="text-[10px] font-medium text-destructive">{discountResult?.errors?.[0] || `Voucher ${voucherCode} tidak dapat diterapkan`}</p>
                             )}
@@ -952,7 +958,7 @@ export default function ClassicCashierPage({ defaultWholesale = false }: { defau
                                             >
                                                 <TableCell className={cn("!py-0.5 !px-2", cartActiveIndex === idx && cartActiveColumn === 0 && "bg-primary/10")}>{idx + 1}</TableCell>
                                                 <TableCell className={cn("font-normal !py-0.5 !px-2", cartActiveIndex === idx && cartActiveColumn === 1 && "bg-primary/10")}>
-                                                    <div className="truncate">{item.name}</div>
+                                                    <div className="truncate">{item.name}{(item as any).isReserved ? ' (1 bonus)' : ''}</div>
                                                     {item.selectedVariant && (
                                                         <button
                                                             className="mt-0.5 h-4 rounded-sm px-1 text-[10px] font-medium text-primary underline decoration-dotted underline-offset-2 hover:text-primary/80"

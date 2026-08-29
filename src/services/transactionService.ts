@@ -294,7 +294,7 @@ export const createTransaction = async (
                     const currentStock = variantSnap.data()?.stock;
                     await updateDoc(variantRef, { stock: currentStock - qtyBase, updated_at: createdAt });
 
-                    const movementId = `sm-var-${transactionId}-${cartItem.selectedVariant.id}`;
+                    const movementId = `sm-var-${transactionId}-${cartItem.cartItemId}`;
                     const stockMovement: StockMovement = {
                         id: movementId,
                         product_id: cartItem.selectedVariant.id, // Reference variant ID
@@ -318,7 +318,7 @@ export const createTransaction = async (
                 const currentStock = productSnap.data()?.stock;
                 await updateDoc(productRef, { stock: currentStock - qtyBase, updated_at: createdAt });
 
-                const movementId = `sm-${transactionId}-${cartItem.id}`;
+                const movementId = `sm-${transactionId}-${cartItem.cartItemId}`;
                 const stockMovement: StockMovement = {
                     id: movementId,
                     product_id: cartItem.id,

@@ -143,7 +143,7 @@ export const useStore = create<StoreState>()(
                 // For simple products (no variants), check if it already exists and stack it.
                 const isModified = !!finalVariant;
                 if (!isModified && !isEditing) {
-                    const existingItem = cart.find(item => item.id === itemData.id && !item.selectedVariant);
+                    const existingItem = cart.find(item => item.id === itemData.id && !item.selectedVariant && !(item as any).isReserved);
                     if (existingItem) {
                         get().updateQuantity(existingItem.cartItemId, existingItem.quantity + 1);
                         if (showToast.saveCart)
@@ -232,12 +232,12 @@ export const useStore = create<StoreState>()(
                 }));
             },
 
-            updateCartItemUom: (cartItemId: string, uomId: string, groupId?: string) => {
+            updateCartItemUom: (cartItemId: string, uomId: string, groupId?: string, opts?: { force?: boolean }) => {
                 const { cart, products } = get();
                 const idx = cart.findIndex(i => i.cartItemId === cartItemId);
                 if (idx < 0) return;
                 const item = cart[idx] as any;
-                if (item.isReserved) { toast({ variant: 'destructive', title: 'Produk bonus terkunci' }); return; }
+                if (!opts?.force && item.isReserved) { toast({ variant: 'destructive', title: 'Produk bonus terkunci' }); return; }
                 const original = (products.find(p => p.id === item.id) || item) as any;
                 const baseWithVariant = original.price + (item.selectedVariant?.additional_price || 0);
                 const productForPricing = { ...original, price: baseWithVariant } as any;
@@ -249,11 +249,11 @@ export const useStore = create<StoreState>()(
                 }));
             },
 
-            updateQuantity: (cartItemId: string, quantity: number, groupId?: string) => {
+            updateQuantity: (cartItemId: string, quantity: number, groupId?: string, opts?: { force?: boolean }) => {
                 const { cart, products } = get();
                 const itemToUpdate: any = cart.find(item => item.cartItemId === cartItemId);
                 if (!itemToUpdate) return;
-                if (itemToUpdate.isReserved) { toast({ variant: 'destructive', title: 'Produk bonus terkunci', description: 'Ubah produk syarat untuk ubah bonus.' }); return; }
+                if (!opts?.force && itemToUpdate.isReserved) { toast({ variant: 'destructive', title: 'Produk bonus terkunci', description: 'Ubah produk syarat untuk ubah bonus.' }); return; }
 
                 if (isNaN(quantity) || quantity < 1) {
                     get().removeFromCart(cartItemId);

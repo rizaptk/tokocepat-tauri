@@ -239,9 +239,14 @@ export function generateReturnReceiptBinary(
     // --- Returned items (positive qty / amounts for readability) ---
     transaction.items.forEach(item => {
         const qty = Math.abs(item.qty);
-        const lineTotal = Math.abs(item.subtotal);
+        const lineDiscount = item.discount_amount || 0;
+        const isFreeItem = item.is_free_item;
+        const lineTotal = isFreeItem ? 0 : Math.abs(item.subtotal);
         encoder.line(fit(receiptWidth, item.product_snapshot.name));
         encoder.line(twoCols(receiptWidth, `${qty} x ${formatCurrency(item.price_snapshot)}`, formatCurrency(lineTotal)));
+        if (lineDiscount > 0 && !isFreeItem) {
+            encoder.line(twoCols(receiptWidth, `   Diskon -${formatCurrency(lineDiscount)}`, ''));
+        }
     });
 
     encoder.rule({ char: '-' });

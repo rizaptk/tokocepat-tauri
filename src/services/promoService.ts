@@ -350,17 +350,19 @@ export const evaluateDiscounts = (
             const it = getItem(l);
             if (!it || !rewardIds.includes(it.id)) continue;
             if (!undiscounted(l)) continue;
-            // 1 baris: qty = shopping + bonus — if qty==1 and bonus 1, expand to 2 (1 paid +1 bonus) to keep 1 paid
             let grant = 1;
             if (cap > 0) grant = Math.min(grant, cap - granted);
             if (l.qty === 1 && l.freeQty === 0 && grant === 1) {
-                // expand line to show 1+1, keep 1 paid
-                l.qty += 1;
-                l.grossAmount = l.price * l.qty;
-                // qtyBase also expands
-                (l as any).qtyBase = ((l as any).qtyBase || l.qty) + 1;
+                // bonus granted, freeQty will be set by grantFree; qty stays 1 (shopping qty)
+                // freeQty/freeAmount handled below by grantFree
             } else {
-                grant = Math.min(grant, Math.max(0, l.qty - 1 - l.freeQty));
+                // Calculate grant based on buy_quantity and free_quantity from promo config
+                const buyQty = Math.max(1, (promo.buy_quantity ?? 1));
+                const freeQty = Math.max(1, (promo.free_quantity ?? 1));
+                const cycles = Math.floor(l.qty / buyQty);
+                const potentialFree = cycles * freeQty;
+                const additionalGrant = Math.max(0, potentialFree - l.freeQty);
+                grant = Math.max(0, Math.min(grant, additionalGrant));
                 if (grant <= 0) continue;
             }
             grantFree(promo, l, grant);
