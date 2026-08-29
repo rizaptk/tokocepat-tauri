@@ -13,7 +13,6 @@ import { WorksheetGrid } from './WorksheetGrid';
 import { cn } from '@/lib/utils';
 import { useStore } from '@/lib/store';
 import { addWorksheetItem, updateWorksheetItem, removeWorksheetItem } from '@/services/stockService';
-import { normalizeProductUoms } from '@/lib/uom';
 
 const SUBJECT_LABELS: Record<string, string> = { dealer_in: 'Produk Masuk dari Dealer', restock: 'Stok Masuk', routine_check: 'Cek Rutin', warehouse_cleanup: 'Bersih Gudang', other: 'Lain-lain' };
 const STATUS_COLORS: Record<string, string> = { draft: 'bg-yellow-100 text-yellow-800', committed: 'bg-green-100 text-green-800', cancelled: 'bg-red-100 text-red-800' };
@@ -77,11 +76,11 @@ export function WorksheetSessionManager({ sessionId, onBackToHistory, onSessionC
     const handleCancel = async () => { try { await cancelWorksheetSession(sessionId); toast({ title: 'Sesi dibatalkan' }); onSessionChange(null); onBackToHistory(); } catch (e) { toast({ variant: 'destructive', title: 'Gagal', description: String(e) }); } };
     const handlePrint = async () => {
         if (!session) return; setExporting(true);
-        try { const { exportWorksheetSessionToPdf } = await import('@/lib/export'); await exportWorksheetSessionToPdf(session, items, 'Kastoko'); toast({ title: 'PDF dibuat' }); } catch (e) { toast({ variant: 'destructive', title: 'Gagal cetak', description: String(e) }); } finally { setExporting(false); }
+        try { const { exportWorksheetSessionToPdf } = await import('@/lib/export'); await (exportWorksheetSessionToPdf as any)(session, items, 'Kastoko'); toast({ title: 'PDF dibuat' }); } catch (e) { toast({ variant: 'destructive', title: 'Gagal cetak', description: String(e) }); } finally { setExporting(false); }
     };
     const handleExcel = async () => {
         if (!session) return; setExporting(true);
-        try { const { exportWorksheetSessionToExcel } = await import('@/lib/export'); await exportWorksheetSessionToExcel(session, items, 'Kastoko'); } catch (e) { toast({ variant: 'destructive', title: 'Gagal ekspor', description: String(e) }); } finally { setExporting(false); }
+        try { const { exportWorksheetSessionToExcel } = await import('@/lib/export'); await (exportWorksheetSessionToExcel as any)(session, items, 'Kastoko'); } catch (e) { toast({ variant: 'destructive', title: 'Gagal ekspor', description: String(e) }); } finally { setExporting(false); }
     };
 
     const totals = items.reduce((a, it) => { if (it.action === 'tambah') a.tambah += it.qty; else if (it.action === 'kurang') a.kurang += it.qty; else a.koreksi += 1; return a; }, { tambah: 0, kurang: 0, koreksi: 0 });

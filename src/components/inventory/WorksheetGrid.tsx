@@ -1,6 +1,5 @@
 import { memo } from 'react';
 import { cn } from '@/lib/utils';
-import { useStore } from '@/lib/store';
 import type { WorksheetItem } from '@/lib/types';
 import { computePhysicalQty } from '@/services/stockService';
 import { Trash2 } from 'lucide-react';
@@ -26,7 +25,6 @@ const Row = memo(({ index, style, data }: any) => {
     const item = items[index];
     if (!item) return null;
     const physical = computePhysicalQty(item);
-    const products = (window as any).__products_cache as any[] | undefined;
     return (
         <div style={style} className="flex items-center border-b border-border/40 text-sm">
             <div className="w-10 shrink-0 text-center text-xs text-muted-foreground tabular-nums">{index + 1}</div>

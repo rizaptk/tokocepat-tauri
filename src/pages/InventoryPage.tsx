@@ -15,7 +15,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ProductSearchBar, type ProductSearchBarHandle } from "@/components/ProductSearchBar";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { PlusCircle, Plus, Minus, Calculator, Package, WarehouseIcon, History, ArrowUp, ArrowDown, ArrowRight, ClipboardList, Loader2 } from "lucide-react";
+import { PlusCircle, Plus, Minus, Calculator, Package, WarehouseIcon, History, ArrowUp, ArrowDown, ArrowRight, ClipboardList, Loader2, RotateCcw } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { WorksheetHistoryList } from "@/components/inventory/WorksheetHistoryList";
