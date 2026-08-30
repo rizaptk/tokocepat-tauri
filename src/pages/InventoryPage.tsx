@@ -882,8 +882,6 @@ export default function InventoryPage() {
     const [worksheetRowUoms, setWorksheetRowUoms] = useState<Record<string, string>>({});
     const [worksheetBusy, setWorksheetBusy] = useState(false);
 
-    // Multi-search (worksheet only): scan/enter comma-separated terms to filter many items at once.
-    const [multiSearch, setMultiSearch] = useState(false);
     const searchBarRef = useRef<ProductSearchBarHandle>(null);
 
     const outerRef = useRef<HTMLDivElement>(null);
@@ -955,23 +953,11 @@ export default function InventoryPage() {
 
         if (!query.trim()) return combined;
 
-        if (multiSearch) {
-            // Multi-search: match ANY comma-separated term (keyword or barcode).
-            const terms = query.split(',').map(t => t.trim().toLowerCase()).filter(Boolean);
-            if (terms.length === 0) return combined;
-            return combined.filter(p => {
-                const nameToSearch = p.itemType === 'variant' ? `${(p as any).parentName} ${p.name}` : p.name;
-                const barcode = p.itemType === 'product' ? ((p as Product).barcode || '') : '';
-                const haystack = `${nameToSearch.toLowerCase()} ${barcode.toLowerCase()}`;
-                return terms.some(term => haystack.includes(term));
-            });
-        }
-
         return combined.filter(p => {
             const nameToSearch = p.itemType === 'variant' ? `${(p as any).parentName} ${p.name}` : p.name;
             return nameToSearch.toLowerCase().includes(query.toLowerCase());
         });
-    }, [products, productVariants, query, filter, multiSearch]);
+    }, [products, productVariants, query, filter]);
 
     const worksheetSearchResults = useMemo(() => {
         if (!worksheetInventoryMode || !activeSessionId || !query.trim()) return [];
@@ -996,12 +982,6 @@ export default function InventoryPage() {
     };
 
     const handleBarcodeScan = (barcode: string) => {
-        // In worksheet multi-search, a scan just appends the barcode to the search
-        // bar (comma-separated) so the grid filters to all scanned items at once.
-        if (multiSearch) {
-            searchBarRef.current?.appendTerm(barcode);
-            return;
-        }
         const product = products.find(p => p.barcode === barcode);
         if (product) {
             if (!product.track_stock) {
@@ -1232,11 +1212,18 @@ export default function InventoryPage() {
         if (next) { setWorksheetTab('history'); setActiveSessionId(null); setEditingSessionId(null); }
         setSelectedItem(null);
         if (!next) {
-            setMultiSearch(false);
             setQuery('');
             searchBarRef.current?.clear();
         }
     };
+    useEffect(() => {
+        if (activeSessionId) {
+            requestAnimationFrame(() => {
+                const el = document.querySelector('[data-kelola-grid]') as HTMLElement;
+                el?.focus();
+            });
+        }
+    }, [activeSessionId]);
     useGlobalKeydown({ key: 'f1', handler: handleToggleWorksheet });
 
     const Row = memo(({ index, style }: { index: number, style: React.CSSProperties }) => {
@@ -1268,13 +1255,12 @@ export default function InventoryPage() {
                 <div className={`h-full flex flex-col min-h-0 ${worksheetInventoryMode ? 'col-span-10' : 'col-span-10 md:col-span-6 lg:col-span-6'}`}>
                     <div className="flex flex-col gap-4 p-4">
                         <div className="flex items-center gap-2 ">
-                            <div className="grow relative">
+                            <div className="grow relative" role={worksheetInventoryMode && !activeSessionId ? "search" : undefined} aria-label={worksheetInventoryMode && !activeSessionId ? "Cari histori sesi" : undefined}>
                                 <ProductSearchBar
                                     ref={searchBarRef}
                                     onBarcodeScan={handleBarcodeScan}
                                     onArrowNav={handleInventoryArrowNav}
-                                    multiSearch={multiSearch && !!activeSessionId}
-                                    placeholder={worksheetInventoryMode && !activeSessionId ? "Cari histori sesi (nama/operator/perihal)..." : worksheetInventoryMode && activeSessionId ? "Cari produk untuk ditambah ke worksheet..." : multiSearch ? "Multi: pisahkan kata kunci/barcode dengan koma..." : undefined}
+                                    placeholder={worksheetInventoryMode && !activeSessionId ? "Cari histori sesi (nama/operator/perihal)..." : worksheetInventoryMode && activeSessionId ? "Cari produk untuk ditambah ke worksheet..." : undefined}
                                 />
                                 {worksheetInventoryMode && activeSessionId && worksheetSearchResults.length > 0 && (
                                     <div className="absolute top-full left-0 right-0 z-50 mt-1 max-h-72 overflow-auto rounded-lg border bg-popover shadow-xl">
@@ -1287,12 +1273,7 @@ export default function InventoryPage() {
                                     </div>
                                 )}
                             </div>
-                            {worksheetInventoryMode && activeSessionId && (
-                                <label className="flex shrink-0 items-center gap-1.5 text-xs text-muted-foreground cursor-pointer select-none" title="Aktifkan pencarian banyak item sekaligus (pisahkan dengan koma, scan barcode menambah otomatis)">
-                                    <Checkbox id="multi-search" checked={multiSearch} onCheckedChange={(v) => setMultiSearch(!!v)} />
-                                    Multi
-                                </label>
-                            )}
+
                             <div className="md:hidden">
                                 <Button onClick={handleOpenAdjustmentSheet}>
                                     <PlusCircle className="mr-2 h-4 w-4" /> Penyesuaian
@@ -1321,14 +1302,14 @@ export default function InventoryPage() {
                                 {!activeSessionId ? (
                                     <>
                                         <div className="col-span-6 lg:col-span-6 h-full flex flex-col min-h-0 px-3">
-                                            <WorksheetHistoryList onSessionSelect={(id) => setEditingSessionId(id)} onNewSessionCreated={(id) => { setEditingSessionId(id); }} onEdit={(id) => setEditingSessionId(id)} filterQuery={query} />
+                                            <WorksheetHistoryList onSessionSelect={(id) => setEditingSessionId(id)} onNewSessionCreated={(id) => setActiveSessionId(id)} onEdit={(id) => setEditingSessionId(id)} filterQuery={query} />
                                         </div>
                                         <aside className="col-span-4 lg:col-span-4 h-full min-h-0 px-3">
                                             <WorksheetSessionForm editingId={editingSessionId} onCreated={(id) => { setEditingSessionId(null); }} onCancelEdit={() => setEditingSessionId(null)} onKelola={(id) => setActiveSessionId(id)} />
                                         </aside>
                                     </>
                                 ) : (
-                                    <div className="col-span-10 h-full flex flex-col min-h-0">
+                                    <div className="col-span-10 h-full flex flex-col min-h-0 outline-none" tabIndex={0} data-kelola-grid>
                                         <WorksheetSessionManager sessionId={activeSessionId} onBackToHistory={() => setActiveSessionId(null)} onSessionChange={(sid) => setActiveSessionId(sid)} />
                                     </div>
                                 )}
