@@ -345,10 +345,11 @@ export const saveWorksheetSession = async (sessionId: string, committedBy: strin
 export const commitWorksheetSession = saveWorksheetSession;
 
 export const computePhysicalQty = (item: WorksheetItem): number => {
+    const baseQty = item.qty * (item.uom_factor || 1);
     switch (item.action) {
-        case 'tambah': return item.system_qty + item.qty;
-        case 'kurang': return Math.max(0, item.system_qty - item.qty);
-        case 'koreksi': return item.qty;
+        case 'tambah': return item.system_qty + baseQty;
+        case 'kurang': return Math.max(0, item.system_qty - baseQty);
+        case 'koreksi': return baseQty;
         default: return item.system_qty;
     }
 };

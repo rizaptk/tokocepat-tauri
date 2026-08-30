@@ -51,15 +51,15 @@ export function WorksheetSessionManager({ sessionId, onBackToHistory, onSessionC
     }, [session, items, products, productVariants]);
 
     const handleUpdate = useCallback((id: string, data: Partial<WorksheetItem>) => {
-        // compute physical_qty if action/qty changed
         const it = items.find(i => i.id === id);
         if (it) {
             const next = { ...it, ...data } as WorksheetItem;
             let physical = next.physical_qty;
-            if (data.action !== undefined || data.qty !== undefined) {
-                if (next.action === 'tambah') physical = next.system_qty + next.qty;
-                else if (next.action === 'kurang') physical = Math.max(0, next.system_qty - next.qty);
-                else if (next.action === 'koreksi') physical = next.qty;
+            if (data.action !== undefined || data.qty !== undefined || (data as any).uom_factor !== undefined) {
+                const baseQty = next.qty * (next.uom_factor || 1);
+                if (next.action === 'tambah') physical = next.system_qty + baseQty;
+                else if (next.action === 'kurang') physical = Math.max(0, next.system_qty - baseQty);
+                else if (next.action === 'koreksi') physical = baseQty;
                 data = { ...data, physical_qty: physical } as any;
             }
         }

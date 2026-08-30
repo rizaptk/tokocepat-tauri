@@ -1,7 +1,9 @@
 import { memo } from 'react';
 import { cn } from '@/lib/utils';
+import { useStore } from '@/lib/store';
 import type { WorksheetItem } from '@/lib/types';
 import { computePhysicalQty } from '@/services/stockService';
+import { normalizeProductUoms } from '@/lib/uom';
 import { Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,32 +22,57 @@ interface Props {
     onItemRemove: (id: string) => void;
 }
 
+const ColumnClass = {
+    no: "flex items-center justify-center shrink-0 w-10 text-xs text-muted-foreground border-r border-border/50",
+    name: "flex items-center gap-2 flex-1 min-w-0 px-2 border-r border-border/50",
+    brand: "hidden sm:flex items-center text-sm text-muted-foreground truncate w-28 shrink-0 px-2 border-l border-border/50",
+    category: "hidden md:flex items-center text-sm text-muted-foreground truncate w-28 shrink-0 px-2 border-l border-border/50",
+    stok: "flex items-center justify-end shrink-0 text-right tabular-nums w-20 border-l border-border/50 px-2",
+    aksi: "flex items-center justify-center shrink-0 w-28 border-l border-border/50 px-1",
+    jumlah: "flex items-center justify-center shrink-0 w-44 border-l border-border/50 px-1 gap-1",
+    stokFisik: "flex items-center justify-end shrink-0 text-right tabular-nums font-semibold w-16 border-l border-border/50 px-2",
+    keterangan: "flex items-center shrink-0 w-40 border-l border-border/50 px-1 hidden md:flex",
+};
+
 const Row = memo(({ index, style, data }: any) => {
-    const { items, readOnly, onItemUpdate, onItemRemove } = data as Props & { onItemUpdate: any; onItemRemove: any };
+    const { items, readOnly, onItemUpdate, onItemRemove, products, categories } = data as Props & { products: any[]; categories: any[]; onItemUpdate: any; onItemRemove: any };
     const item = items[index];
     if (!item) return null;
     const physical = computePhysicalQty(item);
+    const prod = products.find((p: any) => p.id === item.product_id);
+    const brand = prod?.brand || '—';
+    const cat = categories.find((c: any) => c.id === prod?.category_id)?.name || '—';
+    const uoms = prod ? normalizeProductUoms(prod as any).uoms || [] : [];
+    const hasMultiUom = uoms.length > 1;
     return (
-        <div style={style} className="flex items-center border-b border-border/40 bg-card text-sm hover:bg-accent">
-            <div className="w-10 shrink-0 text-center text-xs text-muted-foreground tabular-nums">{index + 1}</div>
-            <div className="flex-1 min-w-0 px-2 truncate">
-                <div className="truncate font-medium text-sm">{item.product_name_snapshot}</div>
-                {item.variant_name_snapshot && <div className="text-xs text-muted-foreground truncate">({item.variant_name_snapshot})</div>}
-            </div>
-            <div className="w-[120px] shrink-0 px-1">
+        <div style={style} className="flex items-center border-b border-border/50 bg-card text-sm hover:bg-accent h-9">
+            <div className={ColumnClass.no}>{index + 1}</div>
+            <div className={ColumnClass.name}><span className="text-sm font-normal truncate">{item.product_name_snapshot}</span>{item.variant_name_snapshot && <span className="text-xs text-muted-foreground">({item.variant_name_snapshot})</span>}</div>
+            <div className={ColumnClass.brand}>{brand}</div>
+            <div className={ColumnClass.category}>{cat}</div>
+            <div className={ColumnClass.stok}><span className="font-bold text-sm tabular-nums">{item.system_qty}</span></div>
+            <div className={ColumnClass.aksi}>
                 {readOnly ? <Badge variant="secondary" className={cn('text-xs', item.action==='tambah' ? 'bg-green-100 text-green-800' : item.action==='kurang' ? 'bg-red-100 text-red-800' : 'bg-blue-100 text-blue-800')}>{item.action}</Badge>
-                    : <Select value={item.action} onValueChange={(v) => onItemUpdate(item.id, { action: v as any })}><SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger><SelectContent>{ACTION_OPTS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent></Select>}
+                    : <Select value={item.action} onValueChange={(v) => onItemUpdate(item.id, { action: v as any })}><SelectTrigger className="h-7 text-xs w-full"><SelectValue /></SelectTrigger><SelectContent>{ACTION_OPTS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent></Select>}
             </div>
-            <div className="w-[90px] shrink-0 px-1">
-                {readOnly ? <span className="text-sm tabular-nums">{item.qty}</span>
-                    : <Input type="number" min={0} value={String(item.qty)} onChange={e => onItemUpdate(item.id, { qty: Math.max(0, parseInt(e.target.value) || 0) })} className="h-7 text-center text-sm" />}
+            <div className={ColumnClass.jumlah}>
+                {readOnly ? <span className="text-sm tabular-nums">{item.qty} {item.uom_name}</span>
+                    : <>
+                        <Input type="number" min={0} value={String(item.qty)} onChange={e => onItemUpdate(item.id, { qty: Math.max(0, parseInt(e.target.value) || 0) })} className="h-7 flex-1 text-center text-sm" />
+                        {hasMultiUom ? (
+                            <Select value={item.uom_id} onValueChange={v => {
+                                const u = uoms.find((x: any) => x.id === v);
+                                if (u) onItemUpdate(item.id, { uom_id: u.id, uom_name: u.name, uom_factor: u.factor } as any);
+                            }}><SelectTrigger className="h-7 w-16 text-xs"><SelectValue /></SelectTrigger><SelectContent>{uoms.map((u: any) => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}</SelectContent></Select>
+                        ) : <span className="text-xs text-muted-foreground w-8 text-center">{item.uom_name}</span>}
+                    </>}
             </div>
-            <div className="w-[100px] shrink-0 text-center tabular-nums font-medium text-sm">{physical}</div>
-            <div className="flex-1 min-w-0 px-1 hidden md:block">
-                {readOnly ? <span className="text-xs text-muted-foreground truncate block">{item.notes || '-'}</span>
-                    : <Textarea value={item.notes || ''} onChange={e => onItemUpdate(item.id, { notes: e.target.value })} placeholder="Catatan" className="h-7 text-xs p-1.5 min-h-0" rows={1} />}
+            <div className={ColumnClass.stokFisik}><span className={cn("tabular-nums", physical > item.system_qty ? "text-success" : physical < item.system_qty ? "text-destructive" : "")}>{physical}</span></div>
+            <div className={ColumnClass.keterangan}>
+                {readOnly ? <span className="text-xs text-muted-foreground truncate block w-full">{item.notes || '-'}</span>
+                    : <Input value={item.notes || ''} onChange={e => onItemUpdate(item.id, { notes: e.target.value })} placeholder="Catatan" className="h-7 text-xs" />}
             </div>
-            <div className="w-12 shrink-0 flex justify-center">
+            <div className="w-10 shrink-0 flex justify-center border-l border-border/50">
                 {!readOnly && <Button variant="ghost" size="icon" className="size-7 text-destructive" onClick={() => onItemRemove(item.id)}><Trash2 className="size-4" /></Button>}
             </div>
         </div>
@@ -54,23 +81,27 @@ const Row = memo(({ index, style, data }: any) => {
 Row.displayName='WorksheetRow';
 
 export function WorksheetGrid({ items, readOnly, onItemUpdate, onItemRemove }: Props) {
+    const { products, categories } = useStore();
     if (items.length === 0) {
         return <div className="h-full flex items-center justify-center text-sm text-muted-foreground p-8">{readOnly ? 'Tidak ada item' : 'Cari produk di atas untuk menambah ke worksheet'}</div>;
     }
     return (
         <div className="flex flex-col h-full">
-            <div className="flex items-center bg-card border-y border-border text-[11px] font-medium uppercase tracking-wider text-muted-foreground rounded-t-lg">
-                <div className="w-10 shrink-0 text-center py-2">No</div>
-                <div className="flex-1 px-2 py-2">Produk</div>
-                <div className="w-[120px] shrink-0 px-1 py-2 text-center">Aksi</div>
-                <div className="w-[90px] shrink-0 px-1 py-2 text-center">Jumlah</div>
-                <div className="w-[100px] shrink-0 py-2 text-center">Stok Fisik</div>
-                <div className="flex-1 px-1 py-2 hidden md:block">Keterangan</div>
-                <div className="w-12 shrink-0" />
+            <div className="flex items-center bg-card border rounded-t-lg h-8 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                <div className={ColumnClass.no}>No</div>
+                <div className={ColumnClass.name}>Produk</div>
+                <div className={ColumnClass.brand}>Merek</div>
+                <div className={ColumnClass.category}>Kategori</div>
+                <div className={ColumnClass.stok}>Stok</div>
+                <div className={ColumnClass.aksi}>Aksi</div>
+                <div className={ColumnClass.jumlah}>Jumlah</div>
+                <div className={ColumnClass.stokFisik}>Stok Fisik</div>
+                <div className={ColumnClass.keterangan}>Keterangan</div>
+                <div className="w-10 shrink-0 border-l border-border/50" />
             </div>
-            <div className="flex-1 min-h-0">
+            <div className="flex-1 min-h-0 border-x border-b rounded-b-lg overflow-hidden bg-card">
                 <AutoSizer>{({ height, width }) => (
-                    <List height={height} width={width} itemCount={items.length} itemSize={44} itemData={{ items, readOnly, onItemUpdate, onItemRemove }}>{Row as any}</List>
+                    <List height={height} width={width} itemCount={items.length} itemSize={36} itemData={{ items, readOnly, onItemUpdate, onItemRemove, products, categories }}>{Row as any}</List>
                 )}</AutoSizer>
             </div>
         </div>
