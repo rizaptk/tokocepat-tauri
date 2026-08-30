@@ -73,7 +73,7 @@ export function WorksheetHistoryList({ onSessionSelect, onNewSessionCreated, onE
     }) : sessions;
 
     return (
-        <div className="h-full flex flex-col">
+        <div className="h-full flex flex-col border bg-card">
             {/* <div className="flex items-center justify-between p-4 border-b bg-card">
                 <div className="flex items-center gap-3"><h2 className="text-base font-semibold">Histori Sesi</h2><Badge variant="secondary" className="text-xs">{sessions.length} sesi</Badge></div>
                 <Button size="sm" onClick={() => setShowCreate(true)} className="gap-1.5"><Plus className="size-4" /> Buat Sesi</Button>
@@ -95,7 +95,7 @@ export function WorksheetHistoryList({ onSessionSelect, onNewSessionCreated, onE
 
             <div className="flex-1 overflow-hidden">
                 {loading ? <div className="h-full flex items-center justify-center"><Loader2 className="size-8 animate-spin text-muted-foreground" /></div>
-                    : filteredSessions.length === 0 ? <div className="h-full flex items-center justify-center text-muted-foreground text-sm p-8 text-center">Belum ada sesi.<br />Klik "Buat Sesi" untuk memulai.</div>
+                    : filteredSessions.length === 0 ? <div className="h-full flex items-center justify-center text-muted-foreground text-sm p-8 text-center">Belum ada sesi.<br />Isi form disamping.</div>
                         : <ScrollArea className="h-full"><table className="w-full text-sm"><thead className="sticky top-0 bg-card border-b"><tr className="border-b text-left text-muted-foreground text-[11px] uppercase tracking-wider bg-card"><th className="p-3 border-r border-border/50">No. Sesi</th><th className="p-3 border-r border-border/50">Tanggal</th><th className="p-3 border-r border-border/50">Operator</th><th className="p-3 border-r border-border/50">Perihal</th><th className="p-3 border-r border-border/50">Status</th><th className="p-3 w-20">Aksi</th></tr></thead><tbody className="divide-y divide-border/50 bg-card">{filteredSessions.map(s => <tr key={s.id} className="hover:bg-accent cursor-pointer bg-card border-b border-border/50" onClick={() => onSessionSelect(s.id)}><td className="p-3 font-mono text-xs border-r border-border/50">{s.name}</td><td className="p-3 whitespace-nowrap text-xs border-r border-border/50">{fmt(s.created_at)}</td><td className="p-3 border-r border-border/50">{s.created_by}</td><td className="p-3 max-w-[180px] truncate border-r border-border/50">{subjLabel(s.subject, s.subject_other)}</td><td className="p-3 border-r border-border/50"><Badge variant="secondary" className={cn('text-xs', STATUS_COLORS[s.status])}>{STATUS_LABELS[s.status]}</Badge></td><td className="p-3 text-center" onClick={e => e.stopPropagation()}>{onEdit && s.status==='draft' && <Button size="sm" variant="outline" className="h-6 text-xs" onClick={() => onEdit(s.id)}>Edit</Button>}</td></tr>)}</tbody></table></ScrollArea>}
             </div>
         </div>

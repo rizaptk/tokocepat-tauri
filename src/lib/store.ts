@@ -54,8 +54,8 @@ interface StoreState {
     setCustomerGroups: (groups: CustomerGroup[]) => void;
     saveItemToCart: (itemData: Product | CartItem | ItemWithVariant, selectedVariant?: ProductVariant) => void;
     removeFromCart: (cartItemId: string, opts?: { force?: boolean }) => void;
-    updateQuantity: (cartItemId: string, quantity: number, groupId?: string) => void;
-    updateCartItemUom: (cartItemId: string, uomId: string, groupId?: string) => void;
+    updateQuantity: (cartItemId: string, quantity: number, groupId?: string, opts?: { force?: boolean }) => void;
+    updateCartItemUom: (cartItemId: string, uomId: string, groupId?: string, opts?: { force?: boolean }) => void;
     clearCart: () => void;
     checkout: (cashReceived: number, options?: DiscountOptions) => Promise<Transaction | null>;
     createReturn: (params: { originalTx: Transaction; returnLines: ReturnLine[]; reason: string; conditionOk: boolean }) => Promise<Transaction | null>;

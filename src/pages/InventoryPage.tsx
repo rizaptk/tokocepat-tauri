@@ -1320,10 +1320,10 @@ export default function InventoryPage() {
                             <div className="w-full h-full grid grid-cols-10 min-h-0">
                                 {!activeSessionId ? (
                                     <>
-                                        <div className="col-span-6 lg:col-span-6 h-full flex flex-col min-h-0 bg-card">
+                                        <div className="col-span-6 lg:col-span-6 h-full flex flex-col min-h-0 px-3">
                                             <WorksheetHistoryList onSessionSelect={(id) => setEditingSessionId(id)} onNewSessionCreated={(id) => { setEditingSessionId(id); }} onEdit={(id) => setEditingSessionId(id)} filterQuery={query} />
                                         </div>
-                                        <aside className="col-span-4 lg:col-span-4 h-full min-h-0 bg-card">
+                                        <aside className="col-span-4 lg:col-span-4 h-full min-h-0 px-3">
                                             <WorksheetSessionForm editingId={editingSessionId} onCreated={(id) => { setEditingSessionId(null); }} onCancelEdit={() => setEditingSessionId(null)} onKelola={(id) => setActiveSessionId(id)} />
                                         </aside>
                                     </>

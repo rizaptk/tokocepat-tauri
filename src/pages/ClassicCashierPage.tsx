@@ -37,11 +37,7 @@ import { usePrefersReducedMotion } from '@/hooks/usePrefersReducedMotion';
 
 type ItemWithVariant = Product & { _selectedVariant: ProductVariant };
 
-const rowSpring = {
-    type: 'spring' as const,
-    bounce: 0,
-    duration: 0.3,
-};
+
 
 const Kbd = ({ children }: { children: React.ReactNode }) => (
     <kbd className="inline-flex h-5 min-w-5 items-center justify-center rounded border border-border bg-muted px-1.5 font-mono text-[10px] font-semibold text-muted-foreground">
@@ -103,6 +99,7 @@ export default function ClassicCashierPage({ defaultWholesale = false }: { defau
     useEffect(() => {
         if (!isWholesaleMode || cart.length === 0) return;
         for (const it of cart) {
+            if ((it as any).isReserved) continue;
             const norm = normalizeProductUoms(it as any);
             const baseId = norm.uoms?.find(u=>u.isBase)?.id;
             if (baseId) updateCartItemUom(it.cartItemId, baseId, selectedGroupId);
@@ -416,12 +413,10 @@ export default function ClassicCashierPage({ defaultWholesale = false }: { defau
                     const newCart = useStore.getState().cart;
                     const added = [...newCart].reverse().find(c => c.id === exp.rewardId && !(c as any).isReserved);
                     if (added) {
-                        (added as any).isReserved = true;
-                        (added as any).reservedPromoId = exp.promoId;
+                        useStore.setState(state => ({ cart: state.cart.map(c => c.cartItemId === added.cartItemId ? { ...c, isReserved: true, reservedPromoId: exp.promoId } as any : c) }));
                         if (added.quantity !== 1) {
-                            useStore.getState().updateQuantity(added.cartItemId, 1);
-                            const after = useStore.getState().cart.find(cc => cc.cartItemId === added.cartItemId) as any;
-                            if (after) { after.isReserved = true; after.reservedPromoId = exp.promoId; }
+                            useStore.getState().updateQuantity(added.cartItemId, 1, undefined, { force: true } as any);
+                            useStore.setState(state => ({ cart: state.cart.map(c => c.cartItemId === added.cartItemId ? { ...c, isReserved: true, reservedPromoId: exp.promoId } as any : c) }));
                         }
                     }
                 }
@@ -704,18 +699,9 @@ export default function ClassicCashierPage({ defaultWholesale = false }: { defau
                         {/* Grand total */}
                         <div className="min-w-44">
                             <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Grand Total · {totalQty} item</div>
-                            <AnimatePresence mode="wait">
-                                <motion.div
-                                    key={total}
-                                    initial={{ opacity: 0, y: reducedMotion ? 0 : 6 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    exit={{ opacity: 0, y: reducedMotion ? 0 : -6 }}
-                                    transition={reducedMotion ? { duration: 0 } : { type: 'spring', bounce: 0, duration: 0.3 }}
-                                    className="text-[2.5rem] font-light leading-none tracking-tight tabular-nums"
-                                >
+                            <div className="text-[2.5rem] font-light leading-none tracking-tight tabular-nums tabular-nums">
                                     {formatIDR(total)}
-                                </motion.div>
-                            </AnimatePresence>
+                                </div>
                         </div>
 
                         {/* Summary */}
@@ -734,8 +720,8 @@ export default function ClassicCashierPage({ defaultWholesale = false }: { defau
                             <div className="flex justify-between gap-6"><span className="text-muted-foreground">Pajak</span><span className="font-medium tabular-nums">{formatIDR(tax)}</span></div>
                         </div>
 
-                        {/* Applied voucher / bonus chips + errors — co-located to keep Summary fixed height */}
-                        <div className="flex flex-col gap-1 max-w-[28rem]">
+                        {/* Applied voucher — dynamic wrap max 3 lines, static totals stay fixed */}
+                        <div className="flex flex-col gap-1 max-w-[28rem] max-h-[3.75rem] overflow-hidden">
                             {voucherCode && (
                                 <div className="flex flex-wrap items-center gap-1.5">
                                     <button onClick={() => setVoucherCode('')} className="group inline-flex items-center gap-1 rounded-md border border-primary/40 bg-primary/10 px-2 py-1 text-xs font-semibold text-primary" title="Hapus voucher">
@@ -756,7 +742,7 @@ export default function ClassicCashierPage({ defaultWholesale = false }: { defau
                         <div className="flex items-end gap-3">
                             <div className="space-y-1">
                                 <div className="flex items-baseline gap-1.5">
-                                    <Label className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Bayar</Label>
+                                    <Label htmlFor="cash-pay-input" className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Bayar</Label>
                                     {cashSuggestions.length > 0 && (
                                         <span className="flex items-baseline gap-0.5 text-xs text-muted-foreground">
                                             <span className="mr-0.5">-</span>
@@ -777,12 +763,15 @@ export default function ClassicCashierPage({ defaultWholesale = false }: { defau
                                     )}
                                 </div>
                                 <div className="relative">
-                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-lg font-semibold text-muted-foreground">Rp</span>
+                                    <span aria-hidden="true" className="absolute left-3 top-1/2 -translate-y-1/2 text-lg font-semibold text-muted-foreground">Rp</span>
                                     <Input
                                         ref={cashInputRef}
+                                        id="cash-pay-input"
                                         type="text"
                                         inputMode='numeric'
                                         aria-label="Uang tunai dibayarkan"
+                                        aria-describedby={change < 0 ? "cash-shortage-hint" : undefined}
+                                        aria-invalid={change < 0}
                                         className="h-9 w-40 pl-10 text-base font-bold tracking-tight tabular-nums"
                                         value={curr.value}
                                         onChange={curr.onChange}
@@ -799,7 +788,7 @@ export default function ClassicCashierPage({ defaultWholesale = false }: { defau
                                         {change >= 0 ? 'Kembalian' : 'Kurang'}
                                     </span>
                                 </div>
-                                <div className={cn(
+                                <div id="cash-shortage-hint" aria-live="polite" className={cn(
                                     "flex h-9 w-40 items-center justify-end overflow-hidden rounded-lg border px-3",
                                     change >= 0 ? "border-success/60 bg-success/40" : "border-warning bg-warning/50"
                                 )}>
@@ -819,13 +808,21 @@ export default function ClassicCashierPage({ defaultWholesale = false }: { defau
                     </div>
                 </div>
 
-                <main className="flex min-w-0 flex-1 flex-col bg-card">
+                <main aria-label="Kasir" className="flex min-w-0 flex-1 flex-col bg-card">
+                    <h1 className="sr-only">Kasir — TokoCepat POS</h1>
                     {/* Search bar */}
-                    <div className="relative shrink-0 border-b border-border bg-muted/30 px-2.5 py-2">
+                    <div role="search" aria-label="Cari produk" className="relative shrink-0 border-b border-border bg-muted/30 px-2.5 py-2">
                         <div className="relative">
                             <Search className="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
                             <Input 
                                 ref={searchInputRef}
+                                id="cashier-search-input"
+                                role="combobox"
+                                aria-label="Cari produk"
+                                aria-controls="cashier-search-listbox"
+                                aria-expanded={searchResults.length > 0}
+                                aria-autocomplete="list"
+                                aria-activedescendant={searchIndex >= 0 ? `search-option-${searchIndex}` : undefined}
                                 placeholder="Cari produk atau scan barcode..."
                                 className={cn(
                                     "h-8 pl-8 text-sm",
@@ -837,10 +834,11 @@ export default function ClassicCashierPage({ defaultWholesale = false }: { defau
                                 autoFocus
                             />
                             {searchResults.length > 0 && (
-                                <div role="listbox" className="absolute top-full -left-0.5 -right-0.5 z-50 mt-1 max-h-96 overflow-auto rounded-b-lg border border-t-0 border-border bg-popover shadow-xl">
+                                <div id="cashier-search-listbox" role="listbox" className="absolute top-full -left-0.5 -right-0.5 z-50 mt-1 max-h-96 overflow-auto rounded-b-lg border border-t-0 border-border bg-popover shadow-xl">
                                     {searchResults.map((p, i) => (
                                         <div 
                                             key={p.id}
+                                            id={`search-option-${i}`}
                                             role="option"
                                             aria-selected={searchIndex === i}
                                             className={cn(
@@ -911,23 +909,23 @@ export default function ClassicCashierPage({ defaultWholesale = false }: { defau
                     </div>
                     )}
 
-                    {/* Cart table */}
-                    <div className="min-h-0 flex-1 overflow-auto outline-none" ref={cartTableRef} tabIndex={0}>
+                    {/* Cart table — classic W7 ledger, dense Explorer detail view */}
+                    <div className="min-h-0 flex-1 overflow-auto outline-none px-1" ref={cartTableRef} tabIndex={0}>
                         <Table className="table-fixed">
                             <TableHeader className="sticky top-0 z-10 border-b border-border bg-card">
                                 <TableRow className="hover:bg-transparent">
-                                <TableHead className="w-10 h-5 px-2">No</TableHead>
-                                <TableHead className="min-w-32 h-5 px-2">Produk</TableHead>
-                                <TableHead className="w-8 text-center h-5 px-2">Var</TableHead>
-                                <TableHead className="w-8 text-center h-5 px-2">Con</TableHead>
-                                <TableHead className="w-20 h-5 px-2">Merek</TableHead>
-                                <TableHead className="w-20 h-5 px-2">Kategori</TableHead>
-                                <TableHead className="w-28 text-right h-5 px-2">Harga</TableHead>
-                                <TableHead className="w-20 text-center h-5 px-2">Satuan</TableHead>
-                                <TableHead className="w-20 text-center h-5 px-2">Qty</TableHead>
-                                <TableHead className="w-28 text-right h-5 px-2">Diskon</TableHead>
-                                <TableHead className="w-44 text-right h-5 px-2">Subtotal</TableHead>
-                                <TableHead className="w-10 h-5 px-2"></TableHead>
+                                <TableHead className="w-10 h-6 px-2">No</TableHead>
+                                <TableHead className="min-w-32 h-6 px-2">Produk</TableHead>
+                                <TableHead className="w-8 text-center h-6 px-2">Var</TableHead>
+                                <TableHead className="w-8 text-center h-6 px-2">Con</TableHead>
+                                <TableHead className="w-20 h-6 px-2">Merek</TableHead>
+                                <TableHead className="w-20 h-6 px-2">Kategori</TableHead>
+                                <TableHead className="w-28 text-right h-6 px-2">Harga</TableHead>
+                                <TableHead className="w-20 text-center h-6 px-2">Satuan</TableHead>
+                                <TableHead className="w-20 text-center h-6 px-2">Qty</TableHead>
+                                <TableHead className="w-28 text-right h-6 px-2">Diskon</TableHead>
+                                <TableHead className="w-44 text-right h-6 px-2">Subtotal</TableHead>
+                                <TableHead className="w-10 h-6 px-2"></TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -941,21 +939,8 @@ export default function ClassicCashierPage({ defaultWholesale = false }: { defau
                                         </TableCell>
                                     </TableRow>
                                 ) : (
-                                    <AnimatePresence initial={false}>
-                                        {cart.map((item, idx) => (
-                                            <motion.tr
-                                                key={item.cartItemId}
-                                                layout={!reducedMotion}
-                                                initial={{ opacity: 0, x: reducedMotion ? 0 : -16 }}
-                                                animate={{ opacity: 1, x: 0 }}
-                                                exit={{ opacity: 0, height: 0 }}
-                                                transition={reducedMotion ? { duration: 0 } : rowSpring}
-                                                className={cn(
-                                                    "group bg-card hover:bg-muted/40",
-                                                    cartActiveIndex === idx && "bg-muted/40"
-                                                )}
-                                                onMouseEnter={() => setCartActiveIndex(idx)}
-                                            >
+                                        cart.map((item, idx) => (
+                                            <TableRow key={item.cartItemId} className={cn("group bg-card hover:bg-muted/40", cartActiveIndex === idx && "bg-muted/40")} onMouseEnter={() => setCartActiveIndex(idx)}>
                                                 <TableCell className={cn("!py-0.5 !px-2", cartActiveIndex === idx && cartActiveColumn === 0 && "bg-primary/10")}>{idx + 1}</TableCell>
                                                 <TableCell className={cn("font-normal !py-0.5 !px-2", cartActiveIndex === idx && cartActiveColumn === 1 && "bg-primary/10")}>
                                                     <div className="truncate">{item.name}{(item as any).isReserved ? ' (1 bonus)' : ''}</div>
@@ -1016,6 +1001,7 @@ export default function ClassicCashierPage({ defaultWholesale = false }: { defau
                                                                 if (e.key === 'Enter') { e.preventDefault(); (e.target as HTMLInputElement).blur(); }
                                                                 if (e.key === 'Escape') { setQtyEditId(null); setQtyEditValue(''); (e.target as HTMLInputElement).blur(); }
                                                             }}
+                                                            aria-label={`Edit jumlah ${item.name}, Enter simpan Escape batal`}
                                                             className="mx-auto block h-7 w-16 rounded-md border-border/70 bg-background text-center text-sm font-bold tabular-nums outline-none ring-1 ring-primary"
                                                         />
                                                     ) : (
@@ -1057,9 +1043,8 @@ export default function ClassicCashierPage({ defaultWholesale = false }: { defau
                                                 <TableCell className={cn("!py-0.5 !px-2", cartActiveIndex === idx && cartActiveColumn === 11 && "bg-primary/10")}>
                                                     <Button variant="ghost" size="icon" className={cn("size-7 text-muted-foreground opacity-0 hover:text-destructive group-hover:opacity-100", cartActiveIndex === idx && "opacity-100")} aria-label={`Hapus ${item.name}`} onClick={() => removeFromCart(item.cartItemId)}><Trash2 className="size-4"/></Button>
                                                 </TableCell>
-                                            </motion.tr>
-                                        ))}
-                                    </AnimatePresence>
+                                            </TableRow>
+                                        ))
                                 )}
                             </TableBody>
                         </Table>
