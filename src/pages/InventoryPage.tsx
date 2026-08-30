@@ -36,10 +36,9 @@ import { NotificationBell } from "@/components/NotificationBell";
 import { ThemeToggle } from "@/components/ThemeButtons";
 import { itemMapping } from "@/lib/utils"; 
 import { useSettingsStore } from "@/lib/settings";
-import { motion, AnimatePresence } from "framer-motion";
-import { usePrefersReducedMotion } from "@/hooks/usePrefersReducedMotion";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ProductForm } from "@/pages/Product/_components/ProductForm"; 
+import { ProductForm } from "@/pages/Product/_components/ProductForm";
+import { useGlobalKeydown } from "@/hooks/use-global-keydown"; 
 
 
 const reasonOptions: Record<'add' | 'remove' | 'count', { id: string, value: StockMovementType, label: string }[]> = {
@@ -863,13 +862,13 @@ const WorksheetGrid = memo(({ items, categories, physicalCounts, rowReasons, row
 WorksheetGrid.displayName = "WorksheetGrid";
 
 export default function InventoryPage() {
-    const reducedMotion = usePrefersReducedMotion();
     const { products, categories, productVariants } = useStore();
     const { toast } = useToast();
     const { worksheetInventoryMode, setWorksheetInventoryMode } = useSettingsStore();
     const [selectedItem, setSelectedItem] = useState<{ id: string; type: 'product' | 'variant' } | null>(null);
     const [worksheetTab, setWorksheetTab] = useState<'history' | 'manage'>('history');
     const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+    const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
     const [detailProductId, setDetailProductId] = useState<string | null>(null);
     const [isDetailOpen, setIsDetailOpen] = useState(false);
     const [isSheetOpen, setIsSheetOpen] = useState(false);
@@ -1230,7 +1229,7 @@ export default function InventoryPage() {
     const handleToggleWorksheet = () => {
         const next = !worksheetInventoryMode;
         setWorksheetInventoryMode(next);
-        if (next) { setWorksheetTab('history'); setActiveSessionId(null); }
+        if (next) { setWorksheetTab('history'); setActiveSessionId(null); setEditingSessionId(null); }
         setSelectedItem(null);
         if (!next) {
             setMultiSearch(false);
@@ -1238,6 +1237,7 @@ export default function InventoryPage() {
             searchBarRef.current?.clear();
         }
     };
+    useGlobalKeydown({ key: 'f1', handler: handleToggleWorksheet });
 
     const Row = memo(({ index, style }: { index: number, style: React.CSSProperties }) => {
         return (
@@ -1273,8 +1273,8 @@ export default function InventoryPage() {
                                     ref={searchBarRef}
                                     onBarcodeScan={handleBarcodeScan}
                                     onArrowNav={handleInventoryArrowNav}
-                                    multiSearch={multiSearch && worksheetInventoryMode}
-                                    placeholder={worksheetInventoryMode && activeSessionId ? "Cari produk untuk ditambah ke worksheet..." : multiSearch ? "Multi: pisahkan kata kunci/barcode dengan koma..." : undefined}
+                                    multiSearch={multiSearch && !!activeSessionId}
+                                    placeholder={worksheetInventoryMode && !activeSessionId ? "Cari histori sesi (nama/operator/perihal)..." : worksheetInventoryMode && activeSessionId ? "Cari produk untuk ditambah ke worksheet..." : multiSearch ? "Multi: pisahkan kata kunci/barcode dengan koma..." : undefined}
                                 />
                                 {worksheetInventoryMode && activeSessionId && worksheetSearchResults.length > 0 && (
                                     <div className="absolute top-full left-0 right-0 z-50 mt-1 max-h-72 overflow-auto rounded-lg border bg-popover shadow-xl">
@@ -1287,7 +1287,7 @@ export default function InventoryPage() {
                                     </div>
                                 )}
                             </div>
-                            {worksheetInventoryMode && (
+                            {worksheetInventoryMode && activeSessionId && (
                                 <label className="flex shrink-0 items-center gap-1.5 text-xs text-muted-foreground cursor-pointer select-none" title="Aktifkan pencarian banyak item sekaligus (pisahkan dengan koma, scan barcode menambah otomatis)">
                                     <Checkbox id="multi-search" checked={multiSearch} onCheckedChange={(v) => setMultiSearch(!!v)} />
                                     Multi
@@ -1313,46 +1313,25 @@ export default function InventoryPage() {
 
                             <Separator orientation="vertical" className="h-4 my-auto" />
                             </>}
-
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                className={cn(
-                                    "rounded-md px-2.5 h-7 shrink-0 text-xs",
-                                    worksheetInventoryMode ? "bg-primary text-primary-foreground hover:bg-primary/90" : "text-muted-foreground hover:text-foreground"
-                                )}
-                                aria-pressed={worksheetInventoryMode}
-                                onClick={handleToggleWorksheet}
-                                title="Worksheet Opname: isi stok fisik banyak item sekaligus lalu terapkan"
-                            >
-                                <ClipboardList className="size-3.5 mr-1" /> Worksheet
-                            </Button>
-
-                            <div className="ml-auto flex shrink-0 items-center gap-2">
-                                {worksheetInventoryMode && (
-                                    <Button
-                                        size="sm"
-                                        onClick={handleApplyWorksheet}
-                                        disabled={worksheetBusy || worksheetDirtyRows.length === 0 || worksheetInvalidRows.length > 0}
-                                        className="h-7 shrink-0"
-                                    >
-                                        {worksheetBusy ? <Loader2 className="size-3.5 animate-spin mr-1.5" /> : <ClipboardList className="size-3.5 mr-1.5" />}
-                                        Terapkan {worksheetDirtyRows.length > 0 ? `(${worksheetDirtyRows.length})` : ''}
-                                    </Button>
-                                )}
-                            </div>
                         </div>
                     </div>
                     <div className="flex-1 bg-background h-full min-h-0 flex flex-col">
                         {worksheetInventoryMode ? (
                             <div className="w-full h-full grid grid-cols-10 min-h-0">
-                                <div className="col-span-6 lg:col-span-6 h-full flex flex-col min-h-0 border-r">
-                                    {!activeSessionId ? <WorksheetHistoryList onSessionSelect={(id) => setActiveSessionId(id)} onNewSessionCreated={(id) => setActiveSessionId(id)} />
-                                        : <WorksheetSessionManager sessionId={activeSessionId} onBackToHistory={() => setActiveSessionId(null)} onSessionChange={(sid) => setActiveSessionId(sid)} />}
-                                </div>
-                                <aside className="col-span-4 lg:col-span-4 h-full min-h-0">
-                                    <WorksheetSessionForm onCreated={(id) => setActiveSessionId(id)} />
-                                </aside>
+                                {!activeSessionId ? (
+                                    <>
+                                        <div className="col-span-6 lg:col-span-6 h-full flex flex-col min-h-0 border-r bg-card">
+                                            <WorksheetHistoryList onSessionSelect={(id) => setEditingSessionId(id)} onNewSessionCreated={(id) => { setEditingSessionId(id); }} onEdit={(id) => setEditingSessionId(id)} filterQuery={query} />
+                                        </div>
+                                        <aside className="col-span-4 lg:col-span-4 h-full min-h-0 bg-card">
+                                            <WorksheetSessionForm editingId={editingSessionId} onCreated={(id) => { setEditingSessionId(null); }} onCancelEdit={() => setEditingSessionId(null)} onKelola={(id) => setActiveSessionId(id)} />
+                                        </aside>
+                                    </>
+                                ) : (
+                                    <div className="col-span-10 h-full flex flex-col min-h-0">
+                                        <WorksheetSessionManager sessionId={activeSessionId} onBackToHistory={() => setActiveSessionId(null)} onSessionChange={(sid) => setActiveSessionId(sid)} />
+                                    </div>
+                                )}
                             </div>
                         ) : inventoryItems.length > 0 ? (
                             <>
@@ -1406,16 +1385,8 @@ export default function InventoryPage() {
                 </div>
 
                 {!worksheetInventoryMode && (
-                <aside className="hidden md:block col-span-4 lg:col-span-4 h-full min-h-0">
-                    <AnimatePresence mode="wait" initial={false}>
-                        <motion.div
-                            key={selectedItem ? `${selectedItem.type}-${selectedItem.id}` : 'none'}
-                            initial={{ opacity: 0, x: reducedMotion ? 0 : 24 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            exit={{ opacity: 0, x: reducedMotion ? 0 : 24 }}
-                            transition={reducedMotion ? { duration: 0 } : { duration: 0.18, ease: 'easeOut' }}
-                            className="h-full min-h-0"
-                        >
+                <aside className="hidden md:block col-span-4 lg:col-span-4 h-full min-h-0 border-l border-border/60 bg-card">
+                    <div className="h-full min-h-0">
                             <StockAdjustmentPanel
                                 onSave={handleSave}
                                 onCancel={handleCancel}
@@ -1425,8 +1396,7 @@ export default function InventoryPage() {
                                 physicalCounts={physicalCounts}
                                 onPhysicalCountChange={handleWorksheetChange}
                             />
-                        </motion.div>
-                    </AnimatePresence>
+                    </div>
                 </aside>
             )}
 
@@ -1435,15 +1405,7 @@ export default function InventoryPage() {
                         <SheetHeader className="sr-only">
                             <SheetTitle>Penyesuaian Stok</SheetTitle>
                         </SheetHeader>
-                        <AnimatePresence mode="wait" initial={false}>
-                            <motion.div
-                                key={selectedItem ? `${selectedItem.type}-${selectedItem.id}` : 'none'}
-                                initial={{ opacity: 0, x: reducedMotion ? 0 : 40 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                exit={{ opacity: 0, x: reducedMotion ? 0 : 40 }}
-                                transition={reducedMotion ? { duration: 0 } : { duration: 0.2, ease: 'easeOut' }}
-                                className="h-full min-h-0"
-                            >
+                        <div className="h-full min-h-0">
                                 <StockAdjustmentPanel
                                     onSave={handleSave}
                                     onCancel={handleCancel}
@@ -1453,8 +1415,7 @@ export default function InventoryPage() {
                                     physicalCounts={physicalCounts}
                                     onPhysicalCountChange={handleWorksheetChange}
                                 />
-                            </motion.div>
-                        </AnimatePresence>
+                        </div>
                     </SheetContent>
                 </Sheet>
 

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -6,10 +6,10 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Save } from 'lucide-react';
+import { Loader2, Save, X, ClipboardList } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Printer, FileSpreadsheet, ChevronDown } from 'lucide-react';
-import { createWorksheetSession } from '@/services/stockService';
+import { createWorksheetSession, getWorksheetSession, updateWorksheetSession } from '@/services/stockService';
 import type { WorksheetSubject } from '@/lib/types';
 
 const SUBJECT_LABELS: Record<string, string> = {
@@ -20,7 +20,7 @@ const SUBJECT_LABELS: Record<string, string> = {
     other: 'Lain-lain',
 };
 
-export function WorksheetSessionForm({ onCreated }: { onCreated: (id: string) => void }) {
+export function WorksheetSessionForm({ onCreated, editingId, onCancelEdit, onKelola }: { onCreated: (id: string) => void; editingId?: string | null; onCancelEdit?: () => void; onKelola?: (id: string) => void }) {
     const { toast } = useToast();
     const [submitting, setSubmitting] = useState(false);
     const [form, setForm] = useState({
@@ -32,31 +32,46 @@ export function WorksheetSessionForm({ onCreated }: { onCreated: (id: string) =>
         related_party: '',
     });
 
+    useEffect(() => {
+        if (!editingId) { setForm({ session_date: new Date().toISOString().split('T')[0], created_by: '', subject: 'restock', subject_other: '', description: '', related_party: '' }); return; }
+        (async () => {
+            const s = await getWorksheetSession(editingId);
+            if (s) setForm({ session_date: s.session_date, created_by: s.created_by, subject: s.subject, subject_other: s.subject_other || '', description: s.description, related_party: s.related_party || '' });
+        })();
+    }, [editingId]);
+
     const canSave = form.created_by.trim() && form.description.trim() && (form.subject !== 'other' || form.subject_other.trim());
 
     const handleSave = async () => {
         if (!canSave) { toast({ variant: 'destructive', title: 'Lengkapi form' }); return; }
         setSubmitting(true);
         try {
-            const id = await createWorksheetSession({
-                session_date: form.session_date,
-                created_by: form.created_by.trim(),
-                subject: form.subject,
-                subject_other: form.subject === 'other' ? form.subject_other.trim() : undefined,
-                description: form.description.trim(),
-                related_party: form.related_party.trim() || undefined,
-            });
-            toast({ title: 'Sesi dibuat' });
-            setForm({ session_date: new Date().toISOString().split('T')[0], created_by: '', subject: 'restock', subject_other: '', description: '', related_party: '' });
-            onCreated(id);
+            if (editingId) {
+                await updateWorksheetSession(editingId, { session_date: form.session_date, created_by: form.created_by.trim(), subject: form.subject, subject_other: form.subject === 'other' ? form.subject_other.trim() : undefined, description: form.description.trim(), related_party: form.related_party.trim() || undefined } as any);
+                toast({ title: 'Sesi diperbarui' });
+                onCancelEdit?.();
+            } else {
+                const id = await createWorksheetSession({
+                    session_date: form.session_date,
+                    created_by: form.created_by.trim(),
+                    subject: form.subject,
+                    subject_other: form.subject === 'other' ? form.subject_other.trim() : undefined,
+                    description: form.description.trim(),
+                    related_party: form.related_party.trim() || undefined,
+                });
+                toast({ title: 'Sesi dibuat' });
+                setForm({ session_date: new Date().toISOString().split('T')[0], created_by: '', subject: 'restock', subject_other: '', description: '', related_party: '' });
+                onCreated(id);
+            }
         } catch (e) { toast({ variant: 'destructive', title: 'Gagal', description: String(e) }); } finally { setSubmitting(false); }
     };
 
+    const isEditing = !!editingId;
     return (
         <Card className="h-full flex flex-col">
             <CardHeader className="pb-3">
-                <CardTitle className="text-base">Buat Sesi Baru</CardTitle>
-                <p className="text-xs text-muted-foreground">Form selalu kosong — konsisten dengan Produk</p>
+                <CardTitle className="text-base">{isEditing ? 'Edit Sesi' : 'Buat Sesi Baru'}</CardTitle>
+                <p className="text-xs text-muted-foreground">{isEditing ? 'Edit form — Batal untuk kosongkan' : 'Form selalu kosong — konsisten dengan Produk'}</p>
             </CardHeader>
             <CardContent className="flex-1 space-y-4 overflow-auto">
                 <div className="grid grid-cols-2 gap-3">
@@ -70,8 +85,10 @@ export function WorksheetSessionForm({ onCreated }: { onCreated: (id: string) =>
 
                 <div className="flex gap-2 pt-2">
                     <Button onClick={handleSave} disabled={!canSave || submitting} className="flex-1 h-8" size="sm">
-                        {submitting ? <Loader2 className="size-4 animate-spin mr-1.5" /> : <Save className="size-4 mr-1.5" />}Simpan
+                        {submitting ? <Loader2 className="size-4 animate-spin mr-1.5" /> : <Save className="size-4 mr-1.5" />}{isEditing ? 'Simpan Perubahan' : 'Simpan'}
                     </Button>
+                    {isEditing && <Button variant="outline" size="sm" className="h-8" onClick={() => onCancelEdit?.()}><X className="size-4 mr-1.5" />Batal</Button>}
+                    {isEditing && onKelola && <Button variant="secondary" size="sm" className="h-8" onClick={() => onKelola(editingId!)}><ClipboardList className="size-4 mr-1.5" />Kelola Stok</Button>}
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild><Button variant="outline" size="sm" className="h-8">Export <ChevronDown className="size-3.5 ml-1" /></Button></DropdownMenuTrigger>
                         <DropdownMenuContent align="end">

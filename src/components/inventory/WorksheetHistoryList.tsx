@@ -30,9 +30,9 @@ const STATUS_COLORS: Record<string, string> = {
     cancelled: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
 };
 
-interface Props { onSessionSelect: (id: string) => void; onNewSessionCreated?: (id: string) => void; }
+interface Props { onSessionSelect: (id: string) => void; onNewSessionCreated?: (id: string) => void; onEdit?: (id: string) => void; filterQuery?: string; }
 
-export function WorksheetHistoryList({ onSessionSelect, onNewSessionCreated }: Props) {
+export function WorksheetHistoryList({ onSessionSelect, onNewSessionCreated, onEdit, filterQuery }: Props) {
     const { toast } = useToast();
     const [sessions, setSessions] = useState<WorksheetSession[]>([]);
     const [loading, setLoading] = useState(true);
@@ -67,6 +67,10 @@ export function WorksheetHistoryList({ onSessionSelect, onNewSessionCreated }: P
 
     const fmt = (iso: string) => { try { return format(new Date(iso), 'dd MMM yyyy HH:mm', { locale: localeId }); } catch { return iso; } };
     const subjLabel = (s: WorksheetSubject, o?: string) => s === 'other' ? (o || 'Lain-lain') : (SUBJECT_LABELS[s] || s);
+    const filteredSessions = filterQuery?.trim() ? sessions.filter(s => {
+        const q = filterQuery.toLowerCase();
+        return s.name.toLowerCase().includes(q) || s.created_by.toLowerCase().includes(q) || subjLabel(s.subject, s.subject_other).toLowerCase().includes(q) || (s.related_party || '').toLowerCase().includes(q);
+    }) : sessions;
 
     return (
         <div className="h-full flex flex-col">
@@ -91,8 +95,8 @@ export function WorksheetHistoryList({ onSessionSelect, onNewSessionCreated }: P
 
             <div className="flex-1 overflow-hidden">
                 {loading ? <div className="h-full flex items-center justify-center"><Loader2 className="size-8 animate-spin text-muted-foreground" /></div>
-                    : sessions.length === 0 ? <div className="h-full flex items-center justify-center text-muted-foreground text-sm p-8 text-center">Belum ada sesi.<br />Klik "Buat Sesi" untuk memulai.</div>
-                        : <ScrollArea className="h-full"><table className="w-full text-sm"><thead className="sticky top-0 bg-background/95 backdrop-blur z-10"><tr className="border-b text-left text-muted-foreground text-[11px] uppercase tracking-wider"><th className="p-3">No. Sesi</th><th className="p-3">Tanggal</th><th className="p-3">Operator</th><th className="p-3">Perihal</th><th className="p-3">Status</th></tr></thead><tbody className="divide-y divide-border/50">{sessions.map(s => <tr key={s.id} className="hover:bg-muted/50 cursor-pointer" onClick={() => onSessionSelect(s.id)}><td className="p-3 font-mono text-xs">{s.name}</td><td className="p-3 whitespace-nowrap text-xs">{fmt(s.created_at)}</td><td className="p-3">{s.created_by}</td><td className="p-3 max-w-[180px] truncate">{subjLabel(s.subject, s.subject_other)}</td><td className="p-3"><Badge variant="secondary" className={cn('text-xs', STATUS_COLORS[s.status])}>{STATUS_LABELS[s.status]}</Badge></td></tr>)}</tbody></table></ScrollArea>}
+                    : filteredSessions.length === 0 ? <div className="h-full flex items-center justify-center text-muted-foreground text-sm p-8 text-center">Belum ada sesi.<br />Klik "Buat Sesi" untuk memulai.</div>
+                        : <ScrollArea className="h-full"><table className="w-full text-sm"><thead className="sticky top-0 bg-card border-b"><tr className="border-b text-left text-muted-foreground text-[11px] uppercase tracking-wider bg-card"><th className="p-3 border-r border-border/50">No. Sesi</th><th className="p-3 border-r border-border/50">Tanggal</th><th className="p-3 border-r border-border/50">Operator</th><th className="p-3 border-r border-border/50">Perihal</th><th className="p-3 border-r border-border/50">Status</th><th className="p-3 w-20">Aksi</th></tr></thead><tbody className="divide-y divide-border/50 bg-card">{filteredSessions.map(s => <tr key={s.id} className="hover:bg-accent cursor-pointer bg-card border-b border-border/50" onClick={() => onSessionSelect(s.id)}><td className="p-3 font-mono text-xs border-r border-border/50">{s.name}</td><td className="p-3 whitespace-nowrap text-xs border-r border-border/50">{fmt(s.created_at)}</td><td className="p-3 border-r border-border/50">{s.created_by}</td><td className="p-3 max-w-[180px] truncate border-r border-border/50">{subjLabel(s.subject, s.subject_other)}</td><td className="p-3 border-r border-border/50"><Badge variant="secondary" className={cn('text-xs', STATUS_COLORS[s.status])}>{STATUS_LABELS[s.status]}</Badge></td><td className="p-3 text-center" onClick={e => e.stopPropagation()}>{onEdit && s.status==='draft' && <Button size="sm" variant="outline" className="h-6 text-xs" onClick={() => onEdit(s.id)}>Edit</Button>}</td></tr>)}</tbody></table></ScrollArea>}
             </div>
         </div>
     );

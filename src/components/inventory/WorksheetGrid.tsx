@@ -26,7 +26,7 @@ const Row = memo(({ index, style, data }: any) => {
     if (!item) return null;
     const physical = computePhysicalQty(item);
     return (
-        <div style={style} className="flex items-center border-b border-border/40 text-sm">
+        <div style={style} className="flex items-center border-b border-border/40 bg-card text-sm hover:bg-accent">
             <div className="w-10 shrink-0 text-center text-xs text-muted-foreground tabular-nums">{index + 1}</div>
             <div className="flex-1 min-w-0 px-2 truncate">
                 <div className="truncate font-medium text-sm">{item.product_name_snapshot}</div>
@@ -59,7 +59,7 @@ export function WorksheetGrid({ items, readOnly, onItemUpdate, onItemRemove }: P
     }
     return (
         <div className="flex flex-col h-full">
-            <div className="flex items-center bg-muted/50 border-y text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+            <div className="flex items-center bg-card border-y border-border text-[11px] font-medium uppercase tracking-wider text-muted-foreground rounded-t-lg">
                 <div className="w-10 shrink-0 text-center py-2">No</div>
                 <div className="flex-1 px-2 py-2">Produk</div>
                 <div className="w-[120px] shrink-0 px-1 py-2 text-center">Aksi</div>
