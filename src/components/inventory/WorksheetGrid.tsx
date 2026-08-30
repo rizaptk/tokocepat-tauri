@@ -43,13 +43,14 @@ const Row = memo(({ index, style, data }: any) => {
     const cat = categories.find((c: any) => c.id === prod?.category_id)?.name || '—';
     const uoms = prod ? normalizeProductUoms(prod as any).uoms || [] : [];
     const hasMultiUom = uoms.length > 1;
+    const baseUomName = uoms.find((u: any) => u.isBase)?.name || (prod as any)?.baseUom || 'Pcs';
     return (
         <div style={style} className="flex items-center border-b border-border/50 bg-card text-sm hover:bg-accent h-9">
             <div className={ColumnClass.no}>{index + 1}</div>
             <div className={ColumnClass.name}><span className="text-sm font-normal truncate">{item.product_name_snapshot}</span>{item.variant_name_snapshot && <span className="text-xs text-muted-foreground">({item.variant_name_snapshot})</span>}</div>
             <div className={ColumnClass.brand}>{brand}</div>
             <div className={ColumnClass.category}>{cat}</div>
-            <div className={ColumnClass.stok}><span className="font-bold text-sm tabular-nums">{item.system_qty}</span><span className="text-xs text-muted-foreground ml-1">{item.uom_name}</span></div>
+            <div className={ColumnClass.stok}><span className="font-bold text-sm tabular-nums">{item.system_qty}</span><span className="text-xs text-muted-foreground ml-1">{baseUomName}</span></div>
             <div className={ColumnClass.aksi}>
                 {readOnly ? <Badge variant="secondary" className={cn('text-xs', item.action==='tambah' ? 'bg-green-100 text-green-800' : item.action==='kurang' ? 'bg-red-100 text-red-800' : 'bg-blue-100 text-blue-800')}>{item.action}</Badge>
                     : <Select value={item.action} onValueChange={(v) => onItemUpdate(item.id, { action: v as any })}><SelectTrigger className="h-7 text-xs w-full"><SelectValue /></SelectTrigger><SelectContent>{ACTION_OPTS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent></Select>}
@@ -66,7 +67,7 @@ const Row = memo(({ index, style, data }: any) => {
                         ) : <span className="text-xs text-muted-foreground w-8 text-center">{item.uom_name}</span>}
                     </>}
             </div>
-            <div className={ColumnClass.stokFisik}><span className={cn("tabular-nums", physical > item.system_qty ? "text-success" : physical < item.system_qty ? "text-destructive" : "")}>{physical}</span><span className="text-xs text-muted-foreground ml-1">{item.uom_name}</span></div>
+            <div className={ColumnClass.stokFisik}><span className={cn("tabular-nums", physical > item.system_qty ? "text-success" : physical < item.system_qty ? "text-destructive" : "")}>{physical}</span><span className="text-xs text-muted-foreground ml-1">{baseUomName}</span></div>
             <div className={ColumnClass.keterangan}>
                 {readOnly ? <span className="text-xs text-muted-foreground truncate block w-full">{item.notes || '-'}</span>
                     : <Input value={item.notes || ''} onChange={e => onItemUpdate(item.id, { notes: e.target.value })} placeholder="Catatan" className="h-7 text-xs" />}
