@@ -50,6 +50,9 @@
   --color-warning: hsl(var(--warning));
   --color-warning-foreground: hsl(var(--warning-foreground));
 
+  --color-wholesale: hsl(var(--wholesale));
+  --color-wholesale-foreground: hsl(var(--wholesale-foreground));
+
   --color-info: hsl(var(--info));
   --color-info-foreground: hsl(var(--info-foreground));
 
@@ -143,6 +146,10 @@
     --warning: 34 92% 48%;
     --warning-foreground: 34 85% 22%;
 
+    /* WHOLESALE — amber, between warning and info */
+    --wholesale: 38 92% 50%;
+    --wholesale-foreground: 38 92% 15%;
+
     /* INFO — Windows information blue */
     --info: 199 89% 48%;
     --info-foreground: 0 0% 100%;
@@ -204,6 +211,10 @@
     /* WARNING — Dark Variance Amber */
     --warning: 34 88% 55%;
     --warning-foreground: 34 85% 84%;
+
+    /* WHOLESALE — Dark */
+    --wholesale: 38 90% 55%;
+    --wholesale-foreground: 38 85% 15%;
 
     /* INFO — Dark Blue */
     --info: 199 60% 50%;

@@ -861,7 +861,7 @@ export default function ClassicCashierPage({ defaultWholesale = false }: { defau
                     </div>
 
                     {isWholesaleMode && (
-                    <div className="flex shrink-0 items-center gap-3 border-b border-border bg-amber-50/60 dark:bg-amber-950/30 px-2.5 py-1.5">
+                    <div className="flex shrink-0 items-center gap-3 border-b border-wholesale/20 bg-wholesale/10 dark:bg-wholesale/10 px-2.5 py-1.5">
                         <span className="flex items-center gap-1.5 text-xs font-medium"><span className="inline-flex h-5 min-w-5 items-center justify-center rounded border border-border bg-muted px-1.5 font-mono text-[10px]">F9</span> Mode Grosir</span>
                         <div className="h-4 w-px bg-border" />
                                 {selectedCustomer ? (

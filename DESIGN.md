@@ -14,6 +14,8 @@ colors:
   accent-grey: "hsl(214 16% 85%)"
   total-green: "hsl(142 52% 42%)"
   variance-amber: "hsl(34 92% 48%)"
+  wholesale: "hsl(38 92% 50%)"
+  wholesale-foreground: "hsl(38 92% 15%)"
   ticket-red: "hsl(8 74% 47%)"
   info-blue: "hsl(199 89% 48%)"
   rail-slate: "hsl(220 16% 14%)"
@@ -172,6 +174,7 @@ A Windows-flat, blue-grey, premium palette: cool neutral chrome for surfaces, on
 ### State — Windows' own hues, money's law
 - **Total Green** (`hsl(142 52% 42%)`): paid, balanced, stock healthy, and the change/paid readouts.
 - **Variance Amber** (`hsl(34 92% 48%)`): short change, low stock, unsynced state, shift variance flags.
+- **Wholesale** (`hsl(38 92% 50%)`): grosir mode bar — amber distinct from variance, tokenized `bg-wholesale/12` light/dark, `wholesale-foreground` for ink.
 - **Ticket Red** (`hsl(8 74% 47%)`): void, delete, destructive confirm — and only those.
 - **Info Blue** (`hsl(199 89% 48%)`): informational status, badges, banner accents.
 
