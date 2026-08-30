@@ -74,10 +74,10 @@ export function WorksheetHistoryList({ onSessionSelect, onNewSessionCreated, onE
 
     return (
         <div className="h-full flex flex-col">
-            <div className="flex items-center justify-between p-4 border-b bg-card">
+            {/* <div className="flex items-center justify-between p-4 border-b bg-card">
                 <div className="flex items-center gap-3"><h2 className="text-base font-semibold">Histori Sesi</h2><Badge variant="secondary" className="text-xs">{sessions.length} sesi</Badge></div>
                 <Button size="sm" onClick={() => setShowCreate(true)} className="gap-1.5"><Plus className="size-4" /> Buat Sesi</Button>
-            </div>
+            </div> */}
 
             <Sheet open={showCreate} onOpenChange={setShowCreate}>
                 <SheetContent side="right" className="w-full max-w-md overflow-y-auto">

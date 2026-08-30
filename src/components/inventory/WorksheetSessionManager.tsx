@@ -92,7 +92,7 @@ export function WorksheetSessionManager({ sessionId, onBackToHistory, onSessionC
 
     return (
         <div className="h-full flex flex-col">
-            <div className="p-3 border-b bg-card">
+            <div className="p-3 border-t bg-card">
                 <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2 min-w-0 flex-1">
                         <Button variant="ghost" size="icon" className="size-7 shrink-0" onClick={onBackToHistory}><RotateCcw className="size-4" /></Button>
@@ -116,7 +116,13 @@ export function WorksheetSessionManager({ sessionId, onBackToHistory, onSessionC
                 <p className="text-xs text-muted-foreground sm:hidden truncate mt-1">{session.description}</p>
             </div>
             <div className="flex-1 min-h-0">
-                <WorksheetGrid items={items} readOnly={!!isReadOnly} onItemUpdate={handleUpdate} onItemRemove={handleRemove} />
+                <WorksheetGrid 
+                    items={items} 
+                    // readOnly={!!isReadOnly} 
+                    readOnly={false} //always editable 
+                    onItemUpdate={handleUpdate} 
+                    onItemRemove={handleRemove} 
+                />
             </div>
         </div>
     );

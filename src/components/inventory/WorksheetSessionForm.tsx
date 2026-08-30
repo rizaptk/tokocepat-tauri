@@ -84,20 +84,20 @@ export function WorksheetSessionForm({ onCreated, editingId, onCancelEdit, onKel
                 <div><Label>Keterangan *</Label><Textarea placeholder="Detail kegiatan..." value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} rows={3} className="mt-1" /></div>
 
                 <div className="flex gap-2 pt-2">
+                    {isEditing && onKelola && <Button variant="outline" size="sm" className="h-8" onClick={() => onKelola(editingId!)}><ClipboardList className="size-4 mr-1.5" />Kelola Stok</Button>}
+                    {isEditing && <Button variant="outline" size="sm" className="h-8" onClick={() => onCancelEdit?.()}><X className="size-4 mr-1.5" />Batal</Button>}
                     <Button onClick={handleSave} disabled={!canSave || submitting} className="flex-1 h-8" size="sm">
                         {submitting ? <Loader2 className="size-4 animate-spin mr-1.5" /> : <Save className="size-4 mr-1.5" />}{isEditing ? 'Simpan Perubahan' : 'Simpan'}
                     </Button>
-                    {isEditing && <Button variant="outline" size="sm" className="h-8" onClick={() => onCancelEdit?.()}><X className="size-4 mr-1.5" />Batal</Button>}
-                    {isEditing && onKelola && <Button variant="secondary" size="sm" className="h-8" onClick={() => onKelola(editingId!)}><ClipboardList className="size-4 mr-1.5" />Kelola Stok</Button>}
-                    <DropdownMenu>
+                    {/* <DropdownMenu>
                         <DropdownMenuTrigger asChild><Button variant="outline" size="sm" className="h-8">Export <ChevronDown className="size-3.5 ml-1" /></Button></DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                             <DropdownMenuItem onClick={() => toast({ title: 'Pilih sesi di Histori untuk export' })}><Printer className="size-4 mr-2" />Cetak PDF</DropdownMenuItem>
                             <DropdownMenuItem onClick={() => toast({ title: 'Pilih sesi di Histori untuk export' })}><FileSpreadsheet className="size-4 mr-2" />Export Excel</DropdownMenuItem>
                         </DropdownMenuContent>
-                    </DropdownMenu>
+                    </DropdownMenu> */}
                 </div>
-                <p className="text-[11px] text-muted-foreground">Simpan sejajar Export — aktif hanya saat form terisi. Cetak/Excel butuh sesi terpilih di Histori.</p>
+                {/* <p className="text-[11px] text-muted-foreground">Simpan sejajar Export — aktif hanya saat form terisi. Cetak/Excel butuh sesi terpilih di Histori.</p> */}
             </CardContent>
         </Card>
     );

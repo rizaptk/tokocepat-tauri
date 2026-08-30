@@ -8,7 +8,6 @@ import { Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { FixedSizeList as List } from 'react-window';
 import AutoSizer from 'react-virtualized-auto-sizer';
@@ -95,7 +94,7 @@ export function WorksheetGrid({ items, readOnly, onItemUpdate, onItemRemove }: P
                 <div className={ColumnClass.stok}>Stok</div>
                 <div className={ColumnClass.aksi}>Aksi</div>
                 <div className={ColumnClass.jumlah}>Jumlah</div>
-                <div className={ColumnClass.stokFisik}>Stok Fisik</div>
+                <div className={ColumnClass.stokFisik}>Total</div>
                 <div className={ColumnClass.keterangan}>Keterangan</div>
                 <div className="w-10 shrink-0 border-l border-border/50" />
             </div>

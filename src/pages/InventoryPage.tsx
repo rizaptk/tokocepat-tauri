@@ -1299,21 +1299,21 @@ export default function InventoryPage() {
                                 </Button>
                             </div>
                         </div>
-                        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
-                            {!worksheetInventoryMode && <>
-                            <FilterPill active={filter === 'all'} onClick={() => setFilter('all')}>All</FilterPill>
-                            <FilterPill active={filter === 'product'} onClick={() => setFilter('product')}>Produk</FilterPill>
-                            <FilterPill active={filter === 'consignment'} onClick={() => setFilter('consignment')}>Konsinyasi</FilterPill>
-                            <FilterPill active={filter === 'variant'} onClick={() => setFilter('variant')}>Varian</FilterPill>
+                        {!worksheetInventoryMode &&
+                            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+                                <FilterPill active={filter === 'all'} onClick={() => setFilter('all')}>All</FilterPill>
+                                <FilterPill active={filter === 'product'} onClick={() => setFilter('product')}>Produk</FilterPill>
+                                <FilterPill active={filter === 'consignment'} onClick={() => setFilter('consignment')}>Konsinyasi</FilterPill>
+                                <FilterPill active={filter === 'variant'} onClick={() => setFilter('variant')}>Varian</FilterPill>
 
-                            <Separator orientation="vertical" className="h-4 my-auto" />
+                                <Separator orientation="vertical" className="h-4 my-auto" />
 
-                            <FilterPill active={filter === 'low_stock'} onClick={() => setFilter('low_stock')}>Stok Tipis</FilterPill>
-                            <FilterPill active={filter === 'out_of_stock'} onClick={() => setFilter('out_of_stock')}>Habis</FilterPill>
+                                <FilterPill active={filter === 'low_stock'} onClick={() => setFilter('low_stock')}>Stok Tipis</FilterPill>
+                                <FilterPill active={filter === 'out_of_stock'} onClick={() => setFilter('out_of_stock')}>Habis</FilterPill>
 
-                            <Separator orientation="vertical" className="h-4 my-auto" />
-                            </>}
-                        </div>
+                                <Separator orientation="vertical" className="h-4 my-auto" />
+                            </div>
+                        }
                     </div>
                     <div className="flex-1 bg-background h-full min-h-0 flex flex-col">
                         {worksheetInventoryMode ? (
