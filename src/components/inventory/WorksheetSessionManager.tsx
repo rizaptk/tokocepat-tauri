@@ -1,13 +1,13 @@
 import { useEffect, useState, useCallback } from 'react';
 import { format } from 'date-fns';
 import { id as localeId } from 'date-fns/locale';
-import { getWorksheetSessionWithItems, commitWorksheetSession, cancelWorksheetSession, subscribeWorksheetItems } from '@/services/stockService';
+import { getWorksheetSessionWithItems, commitWorksheetSession, cancelWorksheetSession, subscribeWorksheetItems, updateWorksheetSession } from '@/services/stockService';
 import type { WorksheetSessionWithItems, WorksheetItem } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { Printer, Loader2, Save, XCircle, RotateCcw, FileText, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogCancel, AlertDialogAction, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { ProductSearchBar } from '@/components/ProductSearchBar';
 import { WorksheetGrid } from './WorksheetGrid';
@@ -106,11 +106,12 @@ export function WorksheetSessionManager({ sessionId, onBackToHistory, onSessionC
                         </div>
                     </div>
                     <div className="flex items-center gap-1.5 shrink-0">
-                        {!isReadOnly ? <>
-                            <DropdownMenu><DropdownMenuTrigger asChild><Button variant="outline" size="sm" className="h-7" disabled={exporting}>Export <ChevronDown className="size-3.5 ml-1" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onClick={handlePrint}><Printer className="size-4 mr-2" />Cetak PDF</DropdownMenuItem><DropdownMenuItem onClick={handleExcel}><FileText className="size-4 mr-2" />Export Excel</DropdownMenuItem></DropdownMenuContent></DropdownMenu>
-                            <Button variant="outline" size="sm" className="h-7" onClick={handleCancel}><XCircle className="size-3.5 mr-1" />Batalkan</Button>
-                            <AlertDialog><AlertDialogTrigger asChild><Button size="sm" className="h-7" disabled={committing || items.length===0}><Save className="size-3.5 mr-1" />Simpan</Button></AlertDialogTrigger><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Simpan Sesi?</AlertDialogTitle><AlertDialogDescription>Akan membuat pergerakan stok permanen. Tidak dapat dibatalkan.</AlertDialogDescription></AlertDialogHeader><div className="flex justify-end gap-2"><AlertDialogCancel>Batal</AlertDialogCancel><AlertDialogAction onClick={handleCommit}>{committing ? <Loader2 className="size-4 animate-spin mr-2" /> : null}Ya, Simpan</AlertDialogAction></div></AlertDialogContent></AlertDialog>
-                        </> : <DropdownMenu><DropdownMenuTrigger asChild><Button variant="outline" size="sm" className="h-7">Export <ChevronDown className="size-3.5 ml-1" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onClick={handlePrint}><Printer className="size-4 mr-2" />Cetak PDF</DropdownMenuItem><DropdownMenuItem onClick={handleExcel}><FileText className="size-4 mr-2" />Export Excel</DropdownMenuItem></DropdownMenuContent></DropdownMenu>}
+                        <Select value={session.status} onValueChange={async (v) => { try { await updateWorksheetSession(sessionId, { status: v as any }); setSession(prev => prev ? { ...prev, status: v as any } : prev); toast({ title: 'Status diperbarui' }); } catch (e: any) { toast({ variant: 'destructive', title: 'Gagal', description: String(e) }); } }}><SelectTrigger className="h-7 w-28 text-xs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="draft">Draft</SelectItem><SelectItem value="committed">Selesai</SelectItem><SelectItem value="cancelled">Cancelled</SelectItem></SelectContent></Select>
+                        <Button variant="outline" size="sm" className="h-7" onClick={handlePrint} disabled={exporting}><Printer className="size-3.5 mr-1" />PDF</Button>
+                        <Button variant="outline" size="sm" className="h-7" onClick={handleExcel} disabled={exporting}><FileText className="size-3.5 mr-1" />Excel</Button>
+                        <Button variant="outline" size="sm" className="h-7" onClick={handlePrint} disabled={exporting}>Cetak</Button>
+                        <Button variant="outline" size="sm" className="h-7" onClick={handleCancel}><XCircle className="size-3.5 mr-1" />Batalkan</Button>
+                        <AlertDialog><AlertDialogTrigger asChild><Button size="sm" className="h-7" disabled={committing || items.length===0}><Save className="size-3.5 mr-1" />Simpan</Button></AlertDialogTrigger><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Simpan Sesi?</AlertDialogTitle><AlertDialogDescription>Akan membuat pergerakan stok permanen. Tidak dapat dibatalkan.</AlertDialogDescription></AlertDialogHeader><div className="flex justify-end gap-2"><AlertDialogCancel>Batal</AlertDialogCancel><AlertDialogAction onClick={handleCommit}>{committing ? <Loader2 className="size-4 animate-spin mr-2" /> : null}Ya, Simpan</AlertDialogAction></div></AlertDialogContent></AlertDialog>
                     </div>
                 </div>
                 <p className="text-xs text-muted-foreground sm:hidden truncate mt-1">{session.description}</p>

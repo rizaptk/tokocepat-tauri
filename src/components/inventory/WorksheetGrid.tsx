@@ -26,10 +26,10 @@ const ColumnClass = {
     name: "flex items-center gap-2 flex-1 min-w-0 px-2 border-r border-border/50",
     brand: "hidden sm:flex items-center text-sm text-muted-foreground truncate w-28 shrink-0 px-2 border-l border-border/50",
     category: "hidden md:flex items-center text-sm text-muted-foreground truncate w-28 shrink-0 px-2 border-l border-border/50",
-    stok: "flex items-center justify-end shrink-0 text-right tabular-nums w-20 border-l border-border/50 px-2",
+    stok: "flex items-center justify-end shrink-0 text-right tabular-nums w-24 border-l border-border/50 px-2",
     aksi: "flex items-center justify-center shrink-0 w-28 border-l border-border/50 px-1",
-    jumlah: "flex items-center justify-center shrink-0 w-44 border-l border-border/50 px-1 gap-1",
-    stokFisik: "flex items-center justify-end shrink-0 text-right tabular-nums font-semibold w-16 border-l border-border/50 px-2",
+    jumlah: "flex items-center justify-center shrink-0 w-40 border-l border-border/50 px-1 gap-1",
+    stokFisik: "flex items-center justify-end shrink-0 text-right tabular-nums font-semibold w-24 border-l border-border/50 px-2",
     keterangan: "flex items-center shrink-0 w-40 border-l border-border/50 px-1 hidden md:flex",
 };
 
@@ -49,13 +49,13 @@ const Row = memo(({ index, style, data }: any) => {
             <div className={ColumnClass.name}><span className="text-sm font-normal truncate">{item.product_name_snapshot}</span>{item.variant_name_snapshot && <span className="text-xs text-muted-foreground">({item.variant_name_snapshot})</span>}</div>
             <div className={ColumnClass.brand}>{brand}</div>
             <div className={ColumnClass.category}>{cat}</div>
-            <div className={ColumnClass.stok}><span className="font-bold text-sm tabular-nums">{item.system_qty}</span></div>
+            <div className={ColumnClass.stok}><span className="font-bold text-sm tabular-nums">{item.system_qty}</span><span className="text-xs text-muted-foreground ml-1">{item.uom_name}</span></div>
             <div className={ColumnClass.aksi}>
                 {readOnly ? <Badge variant="secondary" className={cn('text-xs', item.action==='tambah' ? 'bg-green-100 text-green-800' : item.action==='kurang' ? 'bg-red-100 text-red-800' : 'bg-blue-100 text-blue-800')}>{item.action}</Badge>
                     : <Select value={item.action} onValueChange={(v) => onItemUpdate(item.id, { action: v as any })}><SelectTrigger className="h-7 text-xs w-full"><SelectValue /></SelectTrigger><SelectContent>{ACTION_OPTS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent></Select>}
             </div>
             <div className={ColumnClass.jumlah}>
-                {readOnly ? <span className="text-sm tabular-nums">{item.qty} {item.uom_name}</span>
+                {readOnly ? <span className="text-sm tabular-nums">{item.qty} <span className="text-xs text-muted-foreground">{item.uom_name}</span></span>
                     : <>
                         <Input type="number" min={0} value={String(item.qty)} onChange={e => onItemUpdate(item.id, { qty: Math.max(0, parseInt(e.target.value) || 0) })} className="h-7 flex-1 text-center text-sm" />
                         {hasMultiUom ? (
@@ -66,7 +66,7 @@ const Row = memo(({ index, style, data }: any) => {
                         ) : <span className="text-xs text-muted-foreground w-8 text-center">{item.uom_name}</span>}
                     </>}
             </div>
-            <div className={ColumnClass.stokFisik}><span className={cn("tabular-nums", physical > item.system_qty ? "text-success" : physical < item.system_qty ? "text-destructive" : "")}>{physical}</span></div>
+            <div className={ColumnClass.stokFisik}><span className={cn("tabular-nums", physical > item.system_qty ? "text-success" : physical < item.system_qty ? "text-destructive" : "")}>{physical}</span><span className="text-xs text-muted-foreground ml-1">{item.uom_name}</span></div>
             <div className={ColumnClass.keterangan}>
                 {readOnly ? <span className="text-xs text-muted-foreground truncate block w-full">{item.notes || '-'}</span>
                     : <Input value={item.notes || ''} onChange={e => onItemUpdate(item.id, { notes: e.target.value })} placeholder="Catatan" className="h-7 text-xs" />}
@@ -94,7 +94,7 @@ export function WorksheetGrid({ items, readOnly, onItemUpdate, onItemRemove }: P
                 <div className={ColumnClass.stok}>Stok</div>
                 <div className={ColumnClass.aksi}>Aksi</div>
                 <div className={ColumnClass.jumlah}>Jumlah</div>
-                <div className={ColumnClass.stokFisik}>Total</div>
+                <div className={ColumnClass.stokFisik}>Stok Fisik</div>
                 <div className={ColumnClass.keterangan}>Keterangan</div>
                 <div className="w-10 shrink-0 border-l border-border/50" />
             </div>
