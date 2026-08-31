@@ -309,137 +309,117 @@ export default function ClassicCashierPage({ defaultWholesale = false }: { defau
         });
     }, [cart, activeStoreConfig, promos, voucherCode, parsedManualDiscount, manualDiscountType, manualDiscountTargetItemId, manualDiscountInput, voucherUsage]);
 
-    // Auto-add bonus product when kriteria/bogo/bersyarat rewards are met — reserved, cannot be deleted
+    // Auto-add free product shopping line when a bonus_promo (BOGO different free
+    // product, criteria `bonus_product`, or conditional `bonus_product`) triggers.
+    // We add a regular shopping line (not reserved) so the cart never shows
+    // duplicate rows; `evaluateDiscounts` will mark those units as `freeQty` on
+    // the new line, and the renderer paints qty / discount in success color.
     useEffect(() => {
         if (cart.length === 0) return;
-        const bonusPromos = promos.filter(p => {
-            if (!p.is_active) return false;
-            if (isWholesaleMode && !(p as any).allowWholesale) return false;
-            if (!isPromoLive(p)) return false;
-            if (p.kind === 'bogo') {
-                // BOGO with a different free product auto-adds it; "same product" handled by promoService at checkout
-                return !!(p as any).free_product_id;
-            }
-            if (p.kind === 'criteria' || p.kind === 'conditional') {
-                return (p as any).reward_type === 'bonus_product';
-            }
-            return false;
-        });
-        if (bonusPromos.length === 0) return;
-
-        const cartIds = new Set(cart.filter(c => !(c as any).isReserved).map(c => c.id));
         const cartQtyBaseById: Record<string, number> = {};
         cart.filter(c => !(c as any).isReserved).forEach(c => {
             const anyC = c as any;
             const base = anyC.qtyBase ?? c.quantity * (anyC.selectedUomFactor || 1);
             cartQtyBaseById[c.id] = (cartQtyBaseById[c.id] || 0) + base;
         });
+        const cartIds = new Set(cart.filter(c => !(c as any).isReserved).map(c => c.id));
+        const shoppingBaseTotal = cart.filter(c => !(c as any).isReserved).reduce((s, l) => s + ((l as any).qtyBase ?? l.quantity), 0);
+        const shoppingPriceTotal = cart.filter(c => !(c as any).isReserved).reduce((s, c) => s + (c.price * c.quantity), 0);
 
+        const bonusPromos = promos.filter(p => {
+            if (!p.is_active) return false;
+            if (isWholesaleMode && !(p as any).allowWholesale) return false;
+            if (!isPromoLive(p)) return false;
+            if (p.kind === 'bogo') return !!(p as any).free_product_id;
+            if (p.kind === 'criteria' || p.kind === 'conditional') return (p as any).reward_type === 'bonus_product';
+            return false;
+        });
+        if (bonusPromos.length === 0) return;
+
+        // For each bonus promo compute grant list, then ensure a shopping line exists
+        // for each free product with at least `grant` quantity. The engine will
+        // apply freeQty=grant to those units so the customer doesn't pay for them.
         let needsSync = false;
-        const expectedReserved: { promoId: string; rewardId: string; qty: number }[] = [];
+        const actions: { promoId: string; freeProductId: string; grant: number; existingCartItemId?: string }[] = [];
 
         for (const promo of bonusPromos) {
             const anyP = promo as any;
             let rewardIds: string[] = [];
-            let triggerMet = false;
-            let grantQty = 1;
+            let grants: number[] = [];
 
             if (promo.kind === 'bogo') {
                 const freeProductId: string = anyP.free_product_id;
                 if (!freeProductId) continue;
                 const buyQty = Math.max(1, anyP.buy_quantity || 1);
                 const freeQty = Math.max(1, anyP.free_quantity || 1);
-                const maxFree = anyP.max_total_free_qty && anyP.max_total_free_qty > 0 ? anyP.max_total_free_qty : Infinity;
-
+                const cap = anyP.max_total_free_qty && anyP.max_total_free_qty > 0 ? anyP.max_total_free_qty : Infinity;
                 const scopeIds: string[] = anyP.applies_to_product_ids || [];
-                const purchasedBase = scopeIds.length === 0
-                    ? cart.filter(c => !(c as any).isReserved).reduce((s, l) => s + ((l as any).qtyBase ?? l.quantity), 0)
-                    : scopeIds.reduce((s: number, pid: string) => s + (cartQtyBaseById[pid] || 0), 0);
-                if (purchasedBase < buyQty) continue;
-
-                const total = Math.floor(purchasedBase / buyQty) * freeQty;
-                if (total <= 0) continue;
-                grantQty = Math.min(total, maxFree);
-                if (grantQty <= 0) continue;
+                const purchased = scopeIds.length === 0
+                    ? shoppingBaseTotal
+                    : scopeIds.reduce((s, pid) => s + (cartQtyBaseById[pid] || 0), 0);
+                if (purchased < buyQty) continue;
+                const grant = Math.min(Math.floor(purchased / buyQty) * freeQty, cap);
+                if (grant <= 0) continue;
                 rewardIds = [freeProductId];
-                triggerMet = true;
+                grants = [grant];
             } else {
                 rewardIds = anyP.reward_product_ids || [];
                 if (rewardIds.length === 0) continue;
+                let triggerMet = false;
                 if (promo.kind === 'criteria') {
                     const pids: string[] = anyP.applies_to_product_ids || [];
                     const cids: string[] = anyP.applies_to_category_ids || [];
                     if (pids.length === 0 && cids.length === 0) triggerMet = true;
                     else {
-                        triggerMet = pids.every((pid: string) => cartIds.has(pid)) && cids.every((cid: string) => cart.some(c => (c as any).category_id === cid && !(c as any).isReserved));
+                        triggerMet = pids.every((pid: string) => cartIds.has(pid))
+                            && cids.every((cid: string) => cart.some(c => (c as any).category_id === cid && !(c as any).isReserved));
                         if (triggerMet && anyP.min_scope_qty > 0) {
-                            const total = (pids.length ? pids.reduce((s, pid) => s + (cartQtyBaseById[pid] || 0), 0) : 0) + (cids.length ? cart.filter(c => cids.includes((c as any).category_id)).reduce((s, c) => s + ((c as any).qtyBase || c.quantity), 0) : 0);
+                            const total = (pids.length ? pids.reduce((s, pid) => s + (cartQtyBaseById[pid] || 0), 0) : 0)
+                                + (cids.length ? cart.filter(c => cids.includes((c as any).category_id)).reduce((s, c) => s + ((c as any).qtyBase || c.quantity), 0) : 0);
                             if (total < anyP.min_scope_qty) triggerMet = false;
                         }
                     }
                 } else if (promo.kind === 'conditional') {
-                    const base = cart.filter(c => !(c as any).isReserved).reduce((s, c) => s + (c.price * c.quantity), 0);
-                    const minMet = !anyP.min_purchase || base >= anyP.min_purchase;
-                    const scopeMet = !anyP.require_scope || ((anyP.applies_to_product_ids || []).length === 0 && (anyP.applies_to_category_ids || []).length === 0) || (anyP.applies_to_product_ids || []).some((pid: string) => cartIds.has(pid));
+                    const minMet = !anyP.min_purchase || shoppingPriceTotal >= anyP.min_purchase;
+                    const scopeMet = !anyP.require_scope
+                        || ((anyP.applies_to_product_ids || []).length === 0 && (anyP.applies_to_category_ids || []).length === 0)
+                        || (anyP.applies_to_product_ids || []).some((pid: string) => cartIds.has(pid));
                     triggerMet = minMet && scopeMet;
                 }
+                if (!triggerMet) continue;
+                // criteria/conditional bonus: 1 unit per reward product (clamped by max_bonus_qty)
+                const cap = anyP.max_bonus_qty && anyP.max_bonus_qty > 0 ? anyP.max_bonus_qty : rewardIds.length;
+                grants = rewardIds.map(() => 1).slice(0, cap);
             }
-            if (!triggerMet) continue;
-            for (const rid of rewardIds) {
-                expectedReserved.push({ promoId: promo.id, rewardId: rid, qty: grantQty });
-                const already = cart.some(c => (c as any).isReserved && (c as any).reservedPromoId === promo.id && c.id === rid);
-                if (!already) needsSync = true;
+
+            for (let i = 0; i < rewardIds.length; i++) {
+                const rid = rewardIds[i];
+                const grant = grants[i] || 1;
+                if (grant <= 0) continue;
+                const existing = cart.find(c => c.id === rid && !(c as any).isReserved);
+                if (!existing) {
+                    actions.push({ promoId: promo.id, freeProductId: rid, grant });
+                    needsSync = true;
+                } else if (existing.quantity < grant) {
+                    actions.push({ promoId: promo.id, freeProductId: rid, grant, existingCartItemId: existing.cartItemId });
+                    needsSync = true;
+                }
             }
         }
 
-        // Remove stale reserved bonuses that no longer meet trigger
-        const stale = cart.filter(c => (c as any).isReserved && !expectedReserved.some(e => e.promoId === (c as any).reservedPromoId && e.rewardId === c.id));
-        if (stale.length > 0) needsSync = true;
-
         if (!needsSync) return;
 
-        // Sync: add missing reserved
-        const { saveItemToCart } = useStore.getState() as any;
-        // Use microtask to avoid setState during render
         queueMicrotask(() => {
-            // Remove stale first
-            for (const s of stale) {
-                useStore.getState().removeFromCart(s.cartItemId, { force: true });
-            }
-            // Add missing
-            for (const exp of expectedReserved) {
-                const exists = useStore.getState().cart.some(c => (c as any).isReserved && (c as any).reservedPromoId === exp.promoId && c.id === exp.rewardId);
-                if (exists) continue;
-                const prod = products.find(p => p.id === exp.rewardId);
-                if (!prod) continue;
-                // Check if bonus product already exists as shopping (not reserved) - if so, create new reserved item
-                const alreadyShopping = useStore.getState().cart.some(c => c.id === exp.rewardId && !(c as any).isReserved);
-                if (alreadyShopping) {
-                    // Create new reserved item directly - do not merge with shopping line
-                    const newItem = {
-                        ...normalizeProductUoms(prod),
-                        cartItemId: `cart-item-${crypto.randomUUID().slice(0, 8)}`,
-                        quantity: exp.qty,
-                        qtyBase: exp.qty,
-                        price: prod.price,
-                        isReserved: true,
-                        reservedPromoId: exp.promoId,
-                        selectedUomId: (prod.uoms?.find(u => u.isBase) || { id: '', name: 'Pcs' }).id,
-                        selectedUomName: (prod.uoms?.find(u => u.isBase) || { id: '', name: 'Pcs' }).name,
-                        selectedUomFactor: 1,
-                    };
-                    useStore.setState(state => ({ cart: [...state.cart, newItem] }));
+            for (const act of actions) {
+                if (act.existingCartItemId) {
+                    useStore.getState().updateQuantity(act.existingCartItemId, act.grant, undefined, { force: true } as any);
                 } else {
-                    // Use saveItemToCart then mark reserved (original flow for new products)
-                    saveItemToCart(prod as any);
-                    const newCart = useStore.getState().cart;
-                    const added = [...newCart].reverse().find(c => c.id === exp.rewardId && !(c as any).isReserved);
-                    if (added) {
-                        useStore.setState((state: any) => ({ cart: state.cart.map((c: any) => c.cartItemId === added.cartItemId ? { ...c, isReserved: true, reservedPromoId: exp.promoId } : c) }));
-                        if (added.quantity !== exp.qty) {
-                            useStore.getState().updateQuantity(added.cartItemId, exp.qty, undefined, { force: true } as any);
-                            useStore.setState((state: any) => ({ cart: state.cart.map((c: any) => c.cartItemId === added.cartItemId ? { ...c, isReserved: true, reservedPromoId: exp.promoId } : c) }));
-                        }
+                    const prod = products.find(p => p.id === act.freeProductId);
+                    if (!prod) continue;
+                    useStore.getState().saveItemToCart(prod as any);
+                    const added = [...useStore.getState().cart].reverse().find(c => c.id === act.freeProductId && !(c as any).isReserved);
+                    if (added && added.quantity !== act.grant) {
+                        useStore.getState().updateQuantity(added.cartItemId, act.grant, undefined, { force: true } as any);
                     }
                 }
             }
@@ -965,7 +945,7 @@ export default function ClassicCashierPage({ defaultWholesale = false }: { defau
                                             <TableRow key={item.cartItemId} className={cn("group bg-card hover:bg-muted/40", cartActiveIndex === idx && "bg-muted/40")} onMouseEnter={() => setCartActiveIndex(idx)}>
                                                 <TableCell className={cn("!py-0.5 !px-2", cartActiveIndex === idx && cartActiveColumn === 0 && "bg-primary/10")}>{idx + 1}</TableCell>
                                                 <TableCell className={cn("font-normal !py-0.5 !px-2", cartActiveIndex === idx && cartActiveColumn === 1 && "bg-primary/10")}>
-                                                    <div className="truncate">{item.name}{(item as any).isReserved ? ' (1 bonus)' : ''}</div>
+                                                    <div className="truncate">{item.name}</div>
                                                     {item.selectedVariant && (
                                                         <button
                                                             className="mt-0.5 h-4 rounded-sm px-1 text-[10px] font-medium text-primary underline decoration-dotted underline-offset-2 hover:text-primary/80"
@@ -1037,19 +1017,23 @@ export default function ClassicCashierPage({ defaultWholesale = false }: { defau
                                                             aria-label={`Ubah jumlah ${item.name}`}
                                                         >
                                                             {(() => {
-                                                                const line = discountResult?.lines.find(l=>l.cartItemId===item.cartItemId);
+                                                                const line = discountResult?.lines.find(l => l.cartItemId === item.cartItemId);
                                                                 const free = line?.freeQty || 0;
                                                                 if (free > 0) {
                                                                     const totalQty = (line as any)?.qty ?? item.quantity;
-                                                                    const paid = totalQty - free;
-                                                                    return <span title={`${free} bonus`}>{paid}<span className="text-success">+{free}</span></span>;
+                                                                    return <span className="text-success" title={`${free} unit bonus (tidak dibayar)`}>{totalQty}</span>;
                                                                 }
                                                                 return item.quantity;
                                                             })()}
                                                         </button>
                                                     )}
                                                 </TableCell>
-                                                <TableCell className={cn("text-right tabular-nums !py-0.5 !px-2", cartActiveIndex === idx && cartActiveColumn === 9 && "bg-primary/10", (discountResult?.lines.find(l=>l.cartItemId===item.cartItemId)?.lineDiscount||0) >0 ? "text-success dark:text-success-foreground font-medium" : "text-muted-foreground/50")}>{formatIDR(discountResult?.lines.find(l=>l.cartItemId===item.cartItemId)?.lineDiscount||0)}</TableCell>
+                                                <TableCell className={cn("text-right tabular-nums !py-0.5 !px-2", cartActiveIndex === idx && cartActiveColumn === 9 && "bg-primary/10", (() => { const l = discountResult?.lines.find(l=>l.cartItemId===item.cartItemId); return (l?.lineDiscount||0) > 0; })() ? "text-success dark:text-success-foreground font-medium" : "text-muted-foreground/50")}>
+                                                    {(() => {
+                                                        const l = discountResult?.lines.find(l => l.cartItemId === item.cartItemId);
+                                                        return formatIDR(l?.lineDiscount || 0);
+                                                    })()}
+                                                </TableCell>
                                                 <TableCell className={cn("text-right font-bold tabular-nums whitespace-nowrap !py-0.5 !px-2", cartActiveIndex === idx && cartActiveColumn === 10 && "bg-primary/10")}>
                                                     {(() => {
                                                         const line: any = discountResult?.lines.find(l=>l.cartItemId===item.cartItemId);
