@@ -21,6 +21,7 @@ import { useStore } from '@/lib/store';
 import { exportPromoPerformanceToExcel, buildPromoPerformancePdfBytes } from '@/lib/export';
 import { Promotion, Transaction } from '@/lib/types';
 import { PdfPreviewSheet } from '@/components/PdfPreviewSheet';
+import { usePdfGeneration, PdfGeneratingOverlay } from '@/hooks/usePdfGeneration';
 import { useToast } from '@/hooks/use-toast';
 
 interface DiskonRow {
@@ -90,8 +91,7 @@ export default function PromoReportPage() {
     const { activeDeviceId } = useDeviceScope();
     const { transactions } = useLoadTransactions(date, activeDeviceId);
     const { toast } = useToast();
-    const [pdfBytes, setPdfBytes] = useState<Uint8Array | null>(null);
-    const [previewOpen, setPreviewOpen] = useState(false);
+    const pdf = usePdfGeneration();
 
     const paidTx = useMemo(() => transactions.filter(tx => tx.status === 'paid' && tx.transaction_type !== 'return'), [transactions]);
 
@@ -261,9 +261,12 @@ export default function PromoReportPage() {
             return;
         }
         try {
+            pdf.setTitle('Performa Promo');
+            pdf.setFilename('promoperformance.pdf');
+            pdf.start('Performa Promo');
+            await new Promise(r => setTimeout(r, 30));
             const bytes = await buildPromoPerformancePdfBytes(kpis, diskonRows, voucherRows, { from: date.from, to: date.to }, storeConfig.store_name);
-            setPdfBytes(bytes as unknown as Uint8Array);
-            setPreviewOpen(true);
+            pdf.finish(bytes as unknown as Uint8Array);
         } catch (e) {
             toast({ variant: 'destructive', title: 'Gagal cetak', description: String(e) });
         }
@@ -461,7 +464,8 @@ export default function PromoReportPage() {
                     </TabsContent>
                 </Tabs>
             </main>
-            <PdfPreviewSheet open={previewOpen} onOpenChange={setPreviewOpen} pdfBytes={pdfBytes} title="Laporan Promo & Voucher" filename="laporan_promo.pdf" />
+            <PdfPreviewSheet open={pdf.previewOpen} onOpenChange={pdf.setPreviewOpen} pdfBytes={pdf.pdfBytes} title={pdf.title} filename={pdf.filename} />
+                    <PdfGeneratingOverlay open={pdf.open} onCancel={pdf.cancel} title={pdf.title} elapsedMs={pdf.elapsedMs} pageCount={pdf.pageCount} />
         </div>
     );
 }

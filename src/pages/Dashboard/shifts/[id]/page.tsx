@@ -18,6 +18,7 @@ import { cn, formatDistanceShort } from '@/lib/utils';
 import { buildShiftDetailsPdfBytes } from '@/lib/export';
 import { Badge } from '@/components/ui/badge';
 import { PdfPreviewSheet } from '@/components/PdfPreviewSheet';
+import { usePdfGeneration, PdfGeneratingOverlay } from '@/hooks/usePdfGeneration';
 
 // Helper to safely parse dates that might be in different formats
 const getSafeDate = (dateInput: any): Date | null => {
@@ -45,8 +46,7 @@ export default function ShiftDetailsPage() {
     const shift = shifts.find(s => s.id === shiftId);
 
     const [voidReason, setVoidReason] = useState("");
-    const [pdfBytes, setPdfBytes] = useState<Uint8Array | null>(null);
-    const [previewOpen, setPreviewOpen] = useState(false);
+    const pdf = usePdfGeneration();
 
     const handleVoid = async (transactionId: string, invoiceNumber: string) => {
         if (!voidReason.trim()) {
@@ -68,9 +68,12 @@ export default function ShiftDetailsPage() {
     const handleCetak = async () => {
         if (storeConfig && shift) {
             try {
-                const bytes = await buildShiftDetailsPdfBytes(shift, shiftTransactions, storeConfig.store_name);
-                setPdfBytes(bytes as unknown as Uint8Array);
-                setPreviewOpen(true);
+                pdf.setTitle('Detail Sif');
+            pdf.setFilename('shiftdetails.pdf');
+            pdf.start('Detail Sif');
+            await new Promise(r => setTimeout(r, 30));
+            const bytes = await buildShiftDetailsPdfBytes(shift, shiftTransactions, storeConfig.store_name);
+                pdf.finish(bytes as unknown as Uint8Array);
             } catch (e: any) {
                 toast({ variant: 'destructive', title: 'Gagal cetak', description: String(e?.message || e) });
             }
@@ -276,7 +279,8 @@ export default function ShiftDetailsPage() {
                 </div>
             </div>
           </main>
-            <PdfPreviewSheet open={previewOpen} onOpenChange={setPreviewOpen} pdfBytes={pdfBytes} title={`Detail Sif — ${shift.id.slice(0,8)}`} filename={`shift_${shift.id.slice(0,8)}.pdf`} />
+            <PdfPreviewSheet open={pdf.previewOpen} onOpenChange={pdf.setPreviewOpen} pdfBytes={pdf.pdfBytes} title={`Detail Sif — ${shift.id.slice(0,8)}`} filename={`shift_${shift.id.slice(0,8)}.pdf`} />
+            <PdfGeneratingOverlay open={pdf.open} onCancel={pdf.cancel} title={pdf.title} elapsedMs={pdf.elapsedMs} pageCount={pdf.pageCount} />
         </div>
     )
 }

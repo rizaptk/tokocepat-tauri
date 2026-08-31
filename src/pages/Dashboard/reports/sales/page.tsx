@@ -7,6 +7,7 @@ import { endOfDay, startOfDay, subDays, format } from 'date-fns';
 import { ArrowLeft, BarChart2, DollarSign, ReceiptText, Landmark, Search, Loader2, FileDown, FileText, Package, Wallet, TrendingUp, BadgePercent, Printer } from 'lucide-react';
 import { exportSalesToExcel, buildSalesPdfBytes } from '@/lib/export';
 import { PdfPreviewSheet } from '@/components/PdfPreviewSheet';
+import { usePdfGeneration, PdfGeneratingOverlay } from '@/hooks/usePdfGeneration';
 
 // 1. Import Virtualizer
 import { useVirtualizer } from '@tanstack/react-virtual';
@@ -112,8 +113,7 @@ export default function SalesReportPage() {
     const [searchTerm, setSearchTerm] = useState('');
     const [typeFilter, setTypeFilter] = useState<'all' | 'retail' | 'grosir' | 'piutang'>('all');
     const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
-    const [pdfBytes, setPdfBytes] = useState<Uint8Array | null>(null);
-    const [previewOpen, setPreviewOpen] = useState(false);
+    const pdf = usePdfGeneration();
     const { storeConfig } = useStore();
     const nav = useNavigate();
 
@@ -198,12 +198,19 @@ export default function SalesReportPage() {
         }
     };
     
-    const handleCetak = async () => {
+    const handleCetak = () => {
         const paidTransactions = transactions.filter(tx => tx.status === 'paid');
         if (storeConfig && date?.from && date?.to) {
-            const bytes = await buildSalesPdfBytes(paidTransactions, {from: date.from, to: date.to }, storeConfig.store_name);
-            setPdfBytes(bytes as Uint8Array);
-            setPreviewOpen(true);
+            pdf.setTitle('Laporan Penjualan');
+            pdf.setFilename('laporan_penjualan.pdf');
+            pdf.setPageCount(paidTransactions.length);
+            pdf.start('Laporan Penjualan');
+            queueMicrotask(async () => {
+                try {
+                    const bytes = await buildSalesPdfBytes(paidTransactions, {from: date.from!, to: date.to! }, storeConfig.store_name);
+                    pdf.finish(bytes);
+                } catch (e) { pdf.fail(e); }
+            });
         } else {
             alert("Konfigurasi toko atau periode tidak ditemukan.");
         }
@@ -233,7 +240,8 @@ export default function SalesReportPage() {
                         <Button variant="outline" size="sm" onClick={handleCetak} disabled={transactions.length === 0}><Printer className="mr-2 h-4 w-4" /> Cetak</Button>
                         <Button variant="outline" size="sm" onClick={handleExcelExport} disabled={transactions.length === 0}><FileDown className="mr-2 h-4 w-4 text-green-600" /> Excel</Button>
                     </div>
-                    <PdfPreviewSheet open={previewOpen} onOpenChange={setPreviewOpen} pdfBytes={pdfBytes} title="Laporan Penjualan" filename="laporan_penjualan.pdf" />
+                    <PdfPreviewSheet open={pdf.previewOpen} onOpenChange={pdf.setPreviewOpen} pdfBytes={pdf.pdfBytes} title={pdf.title} filename={pdf.filename} />
+                    <PdfGeneratingOverlay open={pdf.open} onCancel={pdf.cancel} title={pdf.title} elapsedMs={pdf.elapsedMs} pageCount={pdf.pageCount} />
                     <NotificationBell />
                     <ThemeToggle />
                 </div>

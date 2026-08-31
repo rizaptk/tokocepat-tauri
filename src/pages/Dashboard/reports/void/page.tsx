@@ -21,6 +21,7 @@ import { PdfPreviewSheet } from '@/components/PdfPreviewSheet';
 import { useLoadTransactions } from '@/hooks/useLoadTransaction';
 import { useDeviceScope } from '@/hooks/useDeviceScope';
 import { DeviceScopeFilter } from '@/components/DeviceScopeFilter';
+import { usePdfGeneration, PdfGeneratingOverlay } from '@/hooks/usePdfGeneration';
 
 
 
@@ -32,8 +33,7 @@ export default function VoidReportPage() {
       to: endOfDay(new Date()),
     });
     const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
-    const [pdfBytes, setPdfBytes] = useState<Uint8Array | null>(null);
-    const [previewOpen, setPreviewOpen] = useState(false);
+    const pdf = usePdfGeneration();
     const nav = useNavigate();
 
     const { activeDeviceId } = useDeviceScope();
@@ -58,8 +58,12 @@ export default function VoidReportPage() {
 
     const handleCetak = async () => {
         if (storeConfig && date?.from && date?.to) {
+            pdf.setTitle('Laporan Void');
+            pdf.setFilename('void.pdf');
+            pdf.start('Laporan Void');
+            await new Promise(r => setTimeout(r, 30));
             const bytes = await buildVoidPdfBytes(voidedTransactions, { from: date.from, to: date.to }, storeConfig.store_name);
-            setPdfBytes(bytes); setPreviewOpen(true);
+            pdf.finish(bytes);
         } else {
             toast({ variant: 'destructive', title: 'Export Failed', description: 'Store config or date range missing.' });
         }
@@ -146,7 +150,8 @@ export default function VoidReportPage() {
               </main>
             </div>
             <TransactionDetailDialog transaction={selectedTx} onOpenChange={(isOpen) => !isOpen && setSelectedTx(null)} />
-            <PdfPreviewSheet open={previewOpen} onOpenChange={setPreviewOpen} pdfBytes={pdfBytes} filename={`laporan-void-${storeConfig?.store_name || 'Kastoko'}.pdf`} title="Pratinjau Laporan Void" />
+            <PdfPreviewSheet open={pdf.previewOpen} onOpenChange={pdf.setPreviewOpen} pdfBytes={pdf.pdfBytes} filename={`laporan-void-${storeConfig?.store_name || 'Kastoko'}.pdf`} title="Pratinjau Laporan Void" />
+            <PdfGeneratingOverlay open={pdf.open} onCancel={pdf.cancel} title={pdf.title} elapsedMs={pdf.elapsedMs} pageCount={pdf.pageCount} />
         </>
     );
 }

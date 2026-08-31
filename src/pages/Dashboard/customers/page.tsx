@@ -14,6 +14,7 @@ import { Customer, CustomerGroup } from '@/lib/types';
 import { CustomerCardPreview } from '@/components/CustomerCardPreview';
 import { buildCustomerCardPdfBytes } from '@/lib/customerCardPdf';
 import { PdfPreviewSheet } from '@/components/PdfPreviewSheet';
+import { usePdfGeneration, PdfGeneratingOverlay } from '@/hooks/usePdfGeneration';
 
 export default function CustomersPage() {
   const { customers, customerGroups, storeConfig } = useStore();
@@ -22,8 +23,7 @@ export default function CustomersPage() {
   const [selectedCard, setSelectedCard] = useState<Customer | null>(null);
   const [isCardOpen, setIsCardOpen] = useState(false);
   const [isPrintingCard, setIsPrintingCard] = useState(false);
-  const [pdfBytes, setPdfBytes] = useState<Uint8Array | null>(null);
-  const [previewOpen, setPreviewOpen] = useState(false);
+  const pdf = usePdfGeneration();
   const [customerSearch, setCustomerSearch] = useState('');
   const [customerGroupFilter, setCustomerGroupFilter] = useState<string>('all');
   const filteredCustomers = useMemo(() => {
@@ -89,9 +89,12 @@ export default function CustomersPage() {
     try {
       setIsPrintingCard(true);
       const group = customerGroups.find(g => g.id === selectedCard.groupId);
-      const bytes = await buildCustomerCardPdfBytes(selectedCard, group, storeConfig as any);
-      setPdfBytes(bytes as unknown as Uint8Array);
-      setPreviewOpen(true);
+      pdf.setTitle('CustomerCard');
+            pdf.setFilename('customercard.pdf');
+            pdf.start('CustomerCard');
+            await new Promise(r => setTimeout(r, 30));
+            const bytes = await buildCustomerCardPdfBytes(selectedCard, group, storeConfig as any);
+      pdf.finish(bytes as unknown as Uint8Array);
     } catch (e: any) {
       toast({ variant: 'destructive', title: 'Gagal cetak', description: e?.message || String(e) });
     } finally {
@@ -220,7 +223,8 @@ export default function CustomersPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      <PdfPreviewSheet open={previewOpen} onOpenChange={setPreviewOpen} pdfBytes={pdfBytes} title={selectedCard ? `Kartu — ${selectedCard.name}` : 'Kartu Pelanggan'} filename={selectedCard ? `kartu-${selectedCard.id}.pdf` : 'kartu.pdf'} />
+      <PdfPreviewSheet open={pdf.previewOpen} onOpenChange={pdf.setPreviewOpen} pdfBytes={pdf.pdfBytes} title={selectedCard ? `Kartu — ${selectedCard.name}` : 'Kartu Pelanggan'} filename={selectedCard ? `kartu-${selectedCard.id}.pdf` : 'kartu.pdf'} />
+            <PdfGeneratingOverlay open={pdf.open} onCancel={pdf.cancel} title={pdf.title} elapsedMs={pdf.elapsedMs} pageCount={pdf.pageCount} />
     </div>
   );
 }

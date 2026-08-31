@@ -12,6 +12,7 @@ import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, A
 import { ProductSearchBar } from '@/components/ProductSearchBar';
 import { WorksheetGrid } from './WorksheetGrid';
 import { PdfPreviewSheet } from '@/components/PdfPreviewSheet';
+import { usePdfGeneration, PdfGeneratingOverlay } from '@/hooks/usePdfGeneration';
 import { cn } from '@/lib/utils';
 import { useStore } from '@/lib/store';
 import { addWorksheetItem, updateWorksheetItem, removeWorksheetItem } from '@/services/stockService';
@@ -27,8 +28,7 @@ export function WorksheetSessionManager({ sessionId, onBackToHistory, onSessionC
     const [loading, setLoading] = useState(true);
     const [committing, setCommitting] = useState(false);
     const [exporting, setExporting] = useState(false);
-    const [pdfBytes, setPdfBytes] = useState<Uint8Array | null>(null);
-    const [previewOpen, setPreviewOpen] = useState(false);
+    const pdf = usePdfGeneration();
 
     const fmt = (iso: string) => { try { return format(new Date(iso), 'dd MMM yyyy HH:mm', { locale: localeId }); } catch { return iso; } };
     const subj = (s: string, o?: string) => s === 'other' ? (o || 'Lain-lain') : (SUBJECT_LABELS[s] || s);
@@ -80,7 +80,11 @@ export function WorksheetSessionManager({ sessionId, onBackToHistory, onSessionC
     const handleCancel = async () => { try { await cancelWorksheetSession(sessionId); toast({ title: 'Sesi dibatalkan' }); onSessionChange(null); onBackToHistory(); } catch (e) { toast({ variant: 'destructive', title: 'Gagal', description: String(e) }); } };
     const handleCetak = async () => {
         if (!session) return; setExporting(true);
-        try { const { buildWorksheetSessionPdfBytes } = await import('@/lib/export'); const bytes = await buildWorksheetSessionPdfBytes(session, items); setPdfBytes(bytes); setPreviewOpen(true); } catch (e) { toast({ variant: 'destructive', title: 'Gagal cetak', description: String(e) }); } finally { setExporting(false); }
+        try { const { buildWorksheetSessionPdfBytes } = await import('@/lib/export'); pdf.setTitle('Berita Acara');
+            pdf.setFilename('worksheetsession.pdf');
+            pdf.start('Berita Acara');
+            await new Promise(r => setTimeout(r, 30));
+            const bytes = await buildWorksheetSessionPdfBytes(session, items); pdf.finish(bytes); } catch (e) { toast({ variant: 'destructive', title: 'Gagal cetak', description: String(e) }); } finally { setExporting(false); }
     };
     const handleExcel = async () => {
         if (!session) return; setExporting(true);
@@ -127,7 +131,8 @@ export function WorksheetSessionManager({ sessionId, onBackToHistory, onSessionC
                     onItemRemove={handleRemove} 
                 />
             </div>
-            <PdfPreviewSheet open={previewOpen} onOpenChange={setPreviewOpen} pdfBytes={pdfBytes} title={`Berita Acara - ${session.name}`} filename={`berita_acara_${session.name}.pdf`} />
+            <PdfPreviewSheet open={pdf.previewOpen} onOpenChange={pdf.setPreviewOpen} pdfBytes={pdf.pdfBytes} title={`Berita Acara - ${session.name}`} filename={`berita_acara_${session.name}.pdf`} />
+                    <PdfGeneratingOverlay open={pdf.open} onCancel={pdf.cancel} title={pdf.title} elapsedMs={pdf.elapsedMs} pageCount={pdf.pageCount} />
         </div>
     );
 }

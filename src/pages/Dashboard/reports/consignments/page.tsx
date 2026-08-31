@@ -31,6 +31,7 @@ import { useLoadTransactions } from '@/hooks/useLoadTransaction';
 import { useDeviceScope } from '@/hooks/useDeviceScope';
 import { DeviceScopeFilter } from '@/components/DeviceScopeFilter';
 import { cn } from '@/lib/utils';
+import { usePdfGeneration, PdfGeneratingOverlay } from '@/hooks/usePdfGeneration';
 
 
 
@@ -50,8 +51,7 @@ export default function ConsignmentReportPage() {
     const [filterConsignor, setFilterConsignor] = useState<string>('all');
     const [filterStatus, setFilterStatus] = useState<string>('unpaid');
     const [searchTerm, setSearchTerm] = useState('');
-    const [pdfBytes, setPdfBytes] = useState<Uint8Array | null>(null);
-    const [previewOpen, setPreviewOpen] = useState(false);
+    const pdf = usePdfGeneration();
 
     // --- LOAD TRANSACTIONS REALTIME DARI DATABASE BERDASARKAN FILTER TANGGAL ---
     const { activeDeviceId } = useDeviceScope();
@@ -308,8 +308,12 @@ export default function ConsignmentReportPage() {
 
     const handleCetak = async () => {
         if (storeConfig && date?.from && date?.to) {
+            pdf.setTitle('Konsinyasi');
+            pdf.setFilename('consignorreport.pdf');
+            pdf.start('Konsinyasi');
+            await new Promise(r => setTimeout(r, 30));
             const bytes = await buildConsignorReportPdfBytes(calculatedReportData, { from: date.from, to: date.to }, storeConfig.store_name, filterStatus);
-            setPdfBytes(bytes); setPreviewOpen(true);
+            pdf.finish(bytes);
         }
     };
 
@@ -612,7 +616,8 @@ export default function ConsignmentReportPage() {
                     </CardContent>
                 </Card>
             </main>
-            <PdfPreviewSheet open={previewOpen} onOpenChange={setPreviewOpen} pdfBytes={pdfBytes} filename={`konsinyasi-${storeConfig?.store_name || 'Kastoko'}.pdf`} title="Pratinjau Bagi Hasil Konsinyasi" />
+            <PdfPreviewSheet open={pdf.previewOpen} onOpenChange={pdf.setPreviewOpen} pdfBytes={pdf.pdfBytes} filename={`konsinyasi-${storeConfig?.store_name || 'Kastoko'}.pdf`} title="Pratinjau Bagi Hasil Konsinyasi" />
+            <PdfGeneratingOverlay open={pdf.open} onCancel={pdf.cancel} title={pdf.title} elapsedMs={pdf.elapsedMs} pageCount={pdf.pageCount} />
         </div>
     );
 }

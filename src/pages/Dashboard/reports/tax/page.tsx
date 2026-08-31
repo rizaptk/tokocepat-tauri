@@ -21,6 +21,7 @@ import { useDeviceScope } from '@/hooks/useDeviceScope';
 import { DeviceScopeFilter } from '@/components/DeviceScopeFilter';
 import { ThemeToggle } from '@/components/ThemeButtons';
 import { formatIDR as formatCurrency } from "@/lib/format";
+import { usePdfGeneration, PdfGeneratingOverlay } from '@/hooks/usePdfGeneration';
 
 export default function TaxReportPage() {
     const { storeConfig } = useStore();
@@ -28,8 +29,7 @@ export default function TaxReportPage() {
     const [date, setDate] = useState<DateRange | undefined>({ from: startOfDay(subDays(new Date(), 29)), to: endOfDay(new Date()) });
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [pdfBytes, setPdfBytes] = useState<Uint8Array | null>(null);
-    const [previewOpen, setPreviewOpen] = useState(false);
+    const pdf = usePdfGeneration();
     const nav = useNavigate();
 
     useEffect(() => {
@@ -125,8 +125,12 @@ export default function TaxReportPage() {
 
     const handleCetak = async () => {
         if (storeConfig && date?.from && date?.to) {
+            pdf.setTitle('Audit Pajak');
+            pdf.setFilename('taxsummary.pdf');
+            pdf.start('Audit Pajak');
+            await new Promise(r => setTimeout(r, 30));
             const bytes = await buildTaxSummaryPdfBytes(dailySummary, { from: date.from, to: date.to }, storeConfig.store_name);
-            setPdfBytes(bytes); setPreviewOpen(true);
+            pdf.finish(bytes);
         }
     };
 
@@ -254,7 +258,8 @@ export default function TaxReportPage() {
                     </div>
                 </div>
             </main>
-            <PdfPreviewSheet open={previewOpen} onOpenChange={setPreviewOpen} pdfBytes={pdfBytes} filename={`audit-pajak-${storeConfig?.store_name || 'Kastoko'}.pdf`} title="Pratinjau Audit Pajak" />
+            <PdfPreviewSheet open={pdf.previewOpen} onOpenChange={pdf.setPreviewOpen} pdfBytes={pdf.pdfBytes} filename={`audit-pajak-${storeConfig?.store_name || 'Kastoko'}.pdf`} title="Pratinjau Audit Pajak" />
+            <PdfGeneratingOverlay open={pdf.open} onCancel={pdf.cancel} title={pdf.title} elapsedMs={pdf.elapsedMs} pageCount={pdf.pageCount} />
         </div>
     );
 }

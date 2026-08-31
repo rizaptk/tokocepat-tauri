@@ -18,6 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { NotificationBell } from '@/components/NotificationBell';
 import { ThemeToggle } from '@/components/ThemeButtons';
+import { usePdfGeneration, PdfGeneratingOverlay } from '@/hooks/usePdfGeneration';
 
 export default function StockSummaryReportPage() {
     const { products, productVariants, storeConfig } = useStore();
@@ -29,8 +30,7 @@ export default function StockSummaryReportPage() {
     const [stockMovements, setStockMovements] = useState<StockMovement[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [filterType, setFilterType] = useState<'all' | 'product' | 'variant'>('all');
-    const [pdfBytes, setPdfBytes] = useState<Uint8Array | null>(null);
-    const [previewOpen, setPreviewOpen] = useState(false);
+    const pdf = usePdfGeneration();
     const nav = useNavigate();
 
     useEffect(() => {
@@ -113,8 +113,12 @@ export default function StockSummaryReportPage() {
 
     const handleCetak = async () => {
         if (storeConfig && date?.from && date?.to) {
+            pdf.setTitle('Ringkasan Stok');
+            pdf.setFilename('stocksummary.pdf');
+            pdf.start('Ringkasan Stok');
+            await new Promise(r => setTimeout(r, 30));
             const bytes = await buildStockSummaryPdfBytes(reportData, { from: date.from, to: date.to }, storeConfig.store_name);
-            setPdfBytes(bytes); setPreviewOpen(true);
+            pdf.finish(bytes);
         } else {
             toast({ variant: 'destructive', title: 'Error', description: 'Store configuration or date range not found.' });
         }
@@ -216,7 +220,8 @@ export default function StockSummaryReportPage() {
                 </CardContent>
             </Card>
           </main>
-            <PdfPreviewSheet open={previewOpen} onOpenChange={setPreviewOpen} pdfBytes={pdfBytes} filename={`ringkasan-stok-${storeConfig?.store_name || 'Kastoko'}.pdf`} title="Pratinjau Ringkasan Stok" />
+            <PdfPreviewSheet open={pdf.previewOpen} onOpenChange={pdf.setPreviewOpen} pdfBytes={pdf.pdfBytes} filename={`ringkasan-stok-${storeConfig?.store_name || 'Kastoko'}.pdf`} title="Pratinjau Ringkasan Stok" />
+            <PdfGeneratingOverlay open={pdf.open} onCancel={pdf.cancel} title={pdf.title} elapsedMs={pdf.elapsedMs} pageCount={pdf.pageCount} />
         </div>
     );
 }

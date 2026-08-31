@@ -54,8 +54,7 @@ export default function ProductManagementPage() {
         labelHeightMm: 13,
         pageSizeName: 'A4',
     });
-    const [pdfBytes, setPdfBytes] = useState<Uint8Array | null>(null);
-    const [previewOpen, setPreviewOpen] = useState(false);
+    const pdf = usePdfGeneration();
     const [isGenerating, setIsGenerating] = useState(false);
 
     const paperSizeMap: Record<string, [number, number] | undefined> = {
@@ -99,14 +98,17 @@ export default function ProductManagementPage() {
         }
         setIsGenerating(true);
         try {
+            pdf.setTitle('Label Barcode');
+            pdf.setFilename('barcodestickers.pdf');
+            pdf.start('Label Barcode');
+            await new Promise(r => setTimeout(r, 30));
             const bytes = await buildBarcodeStickersPdfBytes(selectedProducts, {
                 repeat: printOptions.repeat,
                 labelWidthMm: printOptions.labelWidthMm,
                 labelHeightMm: printOptions.labelHeightMm,
                 pageSize: paperSizeMap[printOptions.pageSizeName],
             });
-            setPdfBytes(bytes as unknown as Uint8Array);
-            setPreviewOpen(true);
+            pdf.finish(bytes as unknown as Uint8Array);
         } catch (e: any) {
             toast({ variant: "destructive", title: "Gagal cetak", description: String(e?.message || e) });
         } finally {
@@ -584,7 +586,8 @@ export default function ProductManagementPage() {
                     catalogPrefill={promoCatalog}
                 />
             </aside>
-            <PdfPreviewSheet open={previewOpen} onOpenChange={setPreviewOpen} pdfBytes={pdfBytes} title={`Label Barcode — ${selectedProducts.length} produk`} filename={`barcode_labels_${selectedProducts.length}produk.pdf`} />
+            <PdfPreviewSheet open={pdf.previewOpen} onOpenChange={pdf.setPreviewOpen} pdfBytes={pdf.pdfBytes} title={`Label Barcode — ${selectedProducts.length} produk`} filename={`barcode_labels_${selectedProducts.length}produk.pdf`} />
+            <PdfGeneratingOverlay open={pdf.open} onCancel={pdf.cancel} title={pdf.title} elapsedMs={pdf.elapsedMs} pageCount={pdf.pageCount} />
         </div>
     );
 }
@@ -624,6 +627,7 @@ function PillButton({ active, onClick, children }: { active: boolean; onClick: (
 }
 
 import { formatIDR } from "@/lib/format";
+import { usePdfGeneration, PdfGeneratingOverlay } from '@/hooks/usePdfGeneration';
 
 function CatalogHitRow({ item, onSelect }: { item: CatalogProduct; onSelect: () => void }) {
     const brandLabel = item.brand || item.generic_name;

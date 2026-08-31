@@ -20,6 +20,7 @@ import { ThemeToggle } from '@/components/ThemeButtons';
 
 import { exportShiftsToExcel, buildShiftsPdfBytes } from '@/lib/export';
 import { PdfPreviewSheet } from '@/components/PdfPreviewSheet';
+import { usePdfGeneration, PdfGeneratingOverlay } from '@/hooks/usePdfGeneration';
 
 
 
@@ -33,8 +34,7 @@ export default function ShiftsReportPage() {
       from: startOfDay(subDays(new Date(), 29)),
       to: endOfDay(new Date()),
     });
-    const [pdfBytes, setPdfBytes] = useState<Uint8Array | null>(null);
-    const [previewOpen, setPreviewOpen] = useState(false);
+    const pdf = usePdfGeneration();
 
     const filteredShifts = useMemo(() => {
         if (!date?.from || !date?.to) return [];
@@ -48,8 +48,12 @@ export default function ShiftsReportPage() {
 
     const handleCetak = async () => {
         if (storeConfig && date?.from && date?.to) {
+            pdf.setTitle('Riwayat Sif');
+            pdf.setFilename('shifts.pdf');
+            pdf.start('Riwayat Sif');
+            await new Promise(r => setTimeout(r, 30));
             const bytes = await buildShiftsPdfBytes(filteredShifts, { from: date.from, to: date.to }, storeConfig.store_name);
-            setPdfBytes(bytes); setPreviewOpen(true);
+            pdf.finish(bytes);
         } else {
             toast({ variant: 'destructive', title: 'Export Failed', description: 'Store config or date range missing.' });
         }
@@ -149,7 +153,8 @@ export default function ShiftsReportPage() {
                 </CardContent>
             </Card>
           </main>
-            <PdfPreviewSheet open={previewOpen} onOpenChange={setPreviewOpen} pdfBytes={pdfBytes} filename={`riwayat-sif-${storeConfig?.store_name || 'Kastoko'}.pdf`} title="Pratinjau Riwayat Sif" />
+            <PdfPreviewSheet open={pdf.previewOpen} onOpenChange={pdf.setPreviewOpen} pdfBytes={pdf.pdfBytes} filename={`riwayat-sif-${storeConfig?.store_name || 'Kastoko'}.pdf`} title="Pratinjau Riwayat Sif" />
+            <PdfGeneratingOverlay open={pdf.open} onCancel={pdf.cancel} title={pdf.title} elapsedMs={pdf.elapsedMs} pageCount={pdf.pageCount} />
         </div>
     );
 }

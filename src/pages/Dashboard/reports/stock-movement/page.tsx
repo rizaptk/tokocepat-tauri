@@ -32,6 +32,7 @@ import {
 import { LineChart as LineChartIcon } from "lucide-react" // Rename to avoid conflict with Recharts
 import { isSameDay, differenceInDays, addDays } from 'date-fns';
 import { cn, itemMapping, typeConfig } from '@/lib/utils';
+import { usePdfGeneration, PdfGeneratingOverlay } from '@/hooks/usePdfGeneration';
 
 type ReportRow = StockMovement & {
     referenceDisplay: string;
@@ -101,8 +102,7 @@ export default function StockMovementReportPage() {
     const [filterProductId, setFilterProductId] = useState<string | null>(null);
     const [stockMovements, setStockMovements] = useState<StockMovement[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [pdfBytes, setPdfBytes] = useState<Uint8Array | null>(null);
-    const [previewOpen, setPreviewOpen] = useState(false);
+    const pdf = usePdfGeneration();
     const nav = useNavigate();
 
     const parentRef = useRef<HTMLDivElement>(null);
@@ -286,8 +286,12 @@ export default function StockMovementReportPage() {
 
     const handleCetak = async () => {
         if (storeConfig && date?.from && date?.to) {
+            pdf.setTitle('Mutasi Stok');
+            pdf.setFilename('stockmovement.pdf');
+            pdf.start('Mutasi Stok');
+            await new Promise(r => setTimeout(r, 30));
             const bytes = await buildStockMovementPdfBytes(reportData, { from: date.from, to: date.to }, storeConfig.store_name);
-            setPdfBytes(bytes); setPreviewOpen(true);
+            pdf.finish(bytes);
         } else {
             toast({ variant: 'destructive', title: 'Error', description: 'Konfigurasi toko atau periode tidak ditemukan.' });
         }
@@ -499,7 +503,8 @@ export default function StockMovementReportPage() {
                 </CardContent>
             </Card>
           </main>
-            <PdfPreviewSheet open={previewOpen} onOpenChange={setPreviewOpen} pdfBytes={pdfBytes} filename={`mutasi-stok-${storeConfig?.store_name || 'Kastoko'}.pdf`} title="Pratinjau Mutasi Stok" />
+            <PdfPreviewSheet open={pdf.previewOpen} onOpenChange={pdf.setPreviewOpen} pdfBytes={pdf.pdfBytes} filename={`mutasi-stok-${storeConfig?.store_name || 'Kastoko'}.pdf`} title="Pratinjau Mutasi Stok" />
+            <PdfGeneratingOverlay open={pdf.open} onCancel={pdf.cancel} title={pdf.title} elapsedMs={pdf.elapsedMs} pageCount={pdf.pageCount} />
         </div>
     );
 }

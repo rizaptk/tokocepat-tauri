@@ -19,6 +19,7 @@ import { useDeviceScope } from '@/hooks/useDeviceScope';
 import { DeviceScopeFilter } from '@/components/DeviceScopeFilter';
 import { NotificationBell } from '@/components/NotificationBell';
 import { ThemeToggle } from '@/components/ThemeButtons';
+import { usePdfGeneration, PdfGeneratingOverlay } from '@/hooks/usePdfGeneration';
 
 
 
@@ -32,10 +33,13 @@ export default function AuditReportPage() {
     const [isLoading, setIsLoading] = useState(true);
     const { storeConfig, shifts } = useStore();
     const { activeDeviceId } = useDeviceScope();
-    const [pdfBytes, setPdfBytes] = useState<Uint8Array | null>(null);
-    const [previewOpen, setPreviewOpen] = useState(false);
+    const pdf = usePdfGeneration();
     const nav = useNavigate();
-    const handleCetak = async () => { if (date?.from && date?.to) { const bytes = await buildAuditReportPdfBytes(auditData, {from: date.from, to: date.to }, storeConfig?.store_name || 'Kastoko'); setPdfBytes(bytes); setPreviewOpen(true); } };
+    const handleCetak = async () => { if (date?.from && date?.to) { pdf.setTitle('Audit Laba');
+            pdf.setFilename('auditreport.pdf');
+            pdf.start('Audit Laba');
+            await new Promise(r => setTimeout(r, 30));
+            const bytes = await buildAuditReportPdfBytes(auditData, {from: date.from, to: date.to }, storeConfig?.store_name || 'Kastoko'); pdf.finish(bytes); } };
     const handleExcel = () => { if (date?.from && date?.to) exportAuditReportToExcel(auditData, {from: date.from, to: date.to }, storeConfig?.store_name || 'Kastoko'); };
 
     useEffect(() => {
@@ -206,7 +210,8 @@ export default function AuditReportPage() {
                 </CardContent>
             </Card>
           </main>
-            <PdfPreviewSheet open={previewOpen} onOpenChange={setPreviewOpen} pdfBytes={pdfBytes} filename={`audit-laba-${storeConfig?.store_name || 'Kastoko'}.pdf`} title="Pratinjau Audit Laba" />
+            <PdfPreviewSheet open={pdf.previewOpen} onOpenChange={pdf.setPreviewOpen} pdfBytes={pdf.pdfBytes} filename={`audit-laba-${storeConfig?.store_name || 'Kastoko'}.pdf`} title="Pratinjau Audit Laba" />
+            <PdfGeneratingOverlay open={pdf.open} onCancel={pdf.cancel} title={pdf.title} elapsedMs={pdf.elapsedMs} pageCount={pdf.pageCount} />
         </div>
     );
 }
