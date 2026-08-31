@@ -10,7 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { ProductSearchBar } from "@/components/ProductSearchBar";
 import { ProductList } from "@/components/ProductList";
-import { exportBarcodeStickersToPdf } from "@/lib/export";
+import { buildBarcodeStickersPdfBytes } from "@/lib/export";
+import { PdfPreviewSheet } from "@/components/PdfPreviewSheet";
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import {
@@ -53,6 +54,9 @@ export default function ProductManagementPage() {
         labelHeightMm: 13,
         pageSizeName: 'A4',
     });
+    const [pdfBytes, setPdfBytes] = useState<Uint8Array | null>(null);
+    const [previewOpen, setPreviewOpen] = useState(false);
+    const [isGenerating, setIsGenerating] = useState(false);
 
     const paperSizeMap: Record<string, [number, number] | undefined> = {
         'A4': [595.28, 841.89],
@@ -84,7 +88,7 @@ export default function ProductManagementPage() {
         setActiveTab("product");
     };
 
-    const handlePrintLabels = () => {
+    const handlePrintLabels = async () => {
         if (selectedProducts.length === 0) {
             toast({
                 variant: "destructive",
@@ -93,12 +97,21 @@ export default function ProductManagementPage() {
             });
             return;
         }
-        exportBarcodeStickersToPdf(selectedProducts, {
-            repeat: printOptions.repeat,
-            labelWidthMm: printOptions.labelWidthMm,
-            labelHeightMm: printOptions.labelHeightMm,
-            pageSize: paperSizeMap[printOptions.pageSizeName],
-        });
+        setIsGenerating(true);
+        try {
+            const bytes = await buildBarcodeStickersPdfBytes(selectedProducts, {
+                repeat: printOptions.repeat,
+                labelWidthMm: printOptions.labelWidthMm,
+                labelHeightMm: printOptions.labelHeightMm,
+                pageSize: paperSizeMap[printOptions.pageSizeName],
+            });
+            setPdfBytes(bytes as unknown as Uint8Array);
+            setPreviewOpen(true);
+        } catch (e: any) {
+            toast({ variant: "destructive", title: "Gagal cetak", description: String(e?.message || e) });
+        } finally {
+            setIsGenerating(false);
+        }
     };
 
 
@@ -374,8 +387,8 @@ export default function ProductManagementPage() {
             </div>
 
             <DialogFooter>
-                <Button size="sm" onClick={handlePrintLabels}>
-                    <Printer className="mr-1.5 h-4 w-4" /> Cetak {totalLabels} Label
+                <Button size="sm" onClick={handlePrintLabels} disabled={isGenerating}>
+                    {isGenerating ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Printer className="mr-1.5 h-4 w-4" />} Cetak {totalLabels} Label
                 </Button>
             </DialogFooter>
         </DialogContent>
@@ -571,6 +584,7 @@ export default function ProductManagementPage() {
                     catalogPrefill={promoCatalog}
                 />
             </aside>
+            <PdfPreviewSheet open={previewOpen} onOpenChange={setPreviewOpen} pdfBytes={pdfBytes} title={`Label Barcode — ${selectedProducts.length} produk`} filename={`barcode_labels_${selectedProducts.length}produk.pdf`} />
         </div>
     );
 }

@@ -29,8 +29,7 @@ async function saveFileNative(data: Uint8Array, defaultFilename: string) {
   return false;
 }
 
-export async function exportCustomerCardPdf(customer: Customer, group: CustomerGroup | undefined, storeConfig?: StoreConfig | null) {
-  const { PDFDocument: _PDF, rgb: _rgb } = await import('pdf-lib');
+export async function buildCustomerCardPdfBytes(customer: Customer, group: CustomerGroup | undefined, storeConfig?: StoreConfig | null): Promise<Uint8Array> {
   // @ts-ignore
   const bwipjs = (await import('bwip-js')).default;
 
@@ -98,6 +97,11 @@ export async function exportCustomerCardPdf(customer: Customer, group: CustomerG
   page.drawText(rightFooter, { x: width - rightFooter.length * 2.2 - 14, y: 8, size: 4, font, color: rgb(0.6, 0.65, 0.72) });
 
   const bytes = await pdf.save();
+  return bytes;
+}
+
+export async function exportCustomerCardPdf(customer: Customer, group: CustomerGroup | undefined, storeConfig?: StoreConfig | null) {
+  const bytes = await buildCustomerCardPdfBytes(customer, group, storeConfig);
   const filename = `kartu-${customer.id}.pdf`;
   const saved = await saveFileNative(bytes, filename);
   if (!saved) {

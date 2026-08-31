@@ -12,7 +12,8 @@ import { saveCustomer, deleteCustomer, saveCustomerGroup, deleteCustomerGroup, g
 import { useToast } from '@/hooks/use-toast';
 import { Customer, CustomerGroup } from '@/lib/types';
 import { CustomerCardPreview } from '@/components/CustomerCardPreview';
-import { exportCustomerCardPdf } from '@/lib/customerCardPdf';
+import { buildCustomerCardPdfBytes } from '@/lib/customerCardPdf';
+import { PdfPreviewSheet } from '@/components/PdfPreviewSheet';
 
 export default function CustomersPage() {
   const { customers, customerGroups, storeConfig } = useStore();
@@ -21,6 +22,8 @@ export default function CustomersPage() {
   const [selectedCard, setSelectedCard] = useState<Customer | null>(null);
   const [isCardOpen, setIsCardOpen] = useState(false);
   const [isPrintingCard, setIsPrintingCard] = useState(false);
+  const [pdfBytes, setPdfBytes] = useState<Uint8Array | null>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
   const [customerSearch, setCustomerSearch] = useState('');
   const [customerGroupFilter, setCustomerGroupFilter] = useState<string>('all');
   const filteredCustomers = useMemo(() => {
@@ -86,9 +89,9 @@ export default function CustomersPage() {
     try {
       setIsPrintingCard(true);
       const group = customerGroups.find(g => g.id === selectedCard.groupId);
-      await exportCustomerCardPdf(selectedCard, group, storeConfig as any);
-      toast({ title: 'Kartu disimpan', description: selectedCard.name });
-      setIsCardOpen(false);
+      const bytes = await buildCustomerCardPdfBytes(selectedCard, group, storeConfig as any);
+      setPdfBytes(bytes as unknown as Uint8Array);
+      setPreviewOpen(true);
     } catch (e: any) {
       toast({ variant: 'destructive', title: 'Gagal cetak', description: e?.message || String(e) });
     } finally {
@@ -207,16 +210,17 @@ export default function CustomersPage() {
 
       <Dialog open={isCardOpen} onOpenChange={setIsCardOpen}>
         <DialogContent className="sm:max-w-[420px]">
-          <DialogHeader><DialogTitle>Kartu Pelanggan — Kastoko</DialogTitle><DialogDescription>1 sisi • Desain premium ATM • ID & barcode • Simpan PDF (printer biasa)</DialogDescription></DialogHeader>
+          <DialogHeader><DialogTitle>Kartu Pelanggan — Kastoko</DialogTitle><DialogDescription>1 sisi • Desain premium ATM • ID & barcode • Pratinjau PDF</DialogDescription></DialogHeader>
           {selectedCard && <CustomerCardPreview customer={selectedCard} group={customerGroups.find(g => g.id === selectedCard.groupId)} />}
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsCardOpen(false)}>Tutup</Button>
             <Button onClick={handleConfirmPrint} disabled={isPrintingCard}>
-              {isPrintingCard ? 'Menyimpan...' : <><Printer className="h-4 w-4 mr-1" /> Simpan PDF</>}
+              {isPrintingCard ? 'Memuat...' : <><Printer className="h-4 w-4 mr-1" /> Cetak</>}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <PdfPreviewSheet open={previewOpen} onOpenChange={setPreviewOpen} pdfBytes={pdfBytes} title={selectedCard ? `Kartu — ${selectedCard.name}` : 'Kartu Pelanggan'} filename={selectedCard ? `kartu-${selectedCard.id}.pdf` : 'kartu.pdf'} />
     </div>
   );
 }

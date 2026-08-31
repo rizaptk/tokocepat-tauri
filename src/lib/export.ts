@@ -1815,3 +1815,189 @@ export const exportWorksheetSessionToExcel = async (session: any, items: any[]) 
     const buf=XLSX.write(wb,{bookType:'xlsx',type:'array'});
     await saveFileNative(new Uint8Array(buf), `worksheet_${session.name}.xlsx`, [{ name:'Excel', extensions:['xlsx'] }]);
 };
+
+export const buildShiftDetailsPdfBytes = async (shift: any, transactions: Transaction[], storeName: string): Promise<Uint8Array> => {
+    const pdfDoc = await PDFDocument.create();
+    const page = pdfDoc.addPage();
+    const { width, height } = page.getSize();
+    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+    const fontSize = 10;
+    const bodyFontSize = 8;
+    const margin = 50;
+    const tableHeaders = ['Waktu', 'Invoice', 'Item', 'Total', 'Status'];
+    const colWidths = [80, 150, 50, 100, 80];
+    const drawTableHeader = (page: any, yPos: number) => {
+        let x = margin;
+        tableHeaders.forEach((header, i) => {
+            page.drawText(header, { x, y: yPos, font: boldFont, size: fontSize });
+            x += colWidths[i];
+        });
+        const lineY = yPos - 5;
+        page.drawLine({ start: { x: margin, y: lineY }, end: { x: width - margin, y: lineY }, thickness: 1 });
+        return lineY - 15;
+    };
+    let y = height - margin;
+    page.drawText(`${storeName} - Detail Sif`, { x: margin, y, font: boldFont, size: 18 });
+    y -= 30;
+    const openedAt = typeof shift.opened_at === 'string' ? parseISO(shift.opened_at) : new Date(shift.opened_at);
+    const closedAt = shift.closed_at ? (typeof shift.closed_at === 'string' ? parseISO(shift.closed_at) : new Date(shift.closed_at)) : null;
+    page.drawText(`Shift ID: ${shift.id}`, { x: margin, y, font, size: 12 });
+    y -= 18;
+    page.drawText(`Periode: ${format(openedAt, 'PPP p')} s.d. ${closedAt ? format(closedAt, 'PPP p') : 'Berjalan'}`, { x: margin, y, font, size: 12 });
+    y -= 25;
+    const totalSales = transactions.filter(t => t.status === 'paid').reduce((sum, t) => sum + t.total, 0);
+    const totalVoid = transactions.filter(t => t.status === 'voided').reduce((sum, t) => sum + t.total, 0);
+    const expectedCash = shift.opening_cash + totalSales;
+    const summaryData = [
+        { label: 'Kas Awal:', value: formatCurrency(shift.opening_cash) },
+        { label: 'Total Penjualan:', value: formatCurrency(totalSales) },
+        { label: 'Total Batal:', value: formatCurrency(totalVoid), color: rgb(0.8, 0, 0) },
+        { label: 'Ekspektasi Kas:', value: formatCurrency(expectedCash) },
+        { label: 'Kas Aktual:', value: formatCurrency(shift.declared_cash || 0) },
+        { label: 'Selisih:', value: formatCurrency(shift.variance || 0), color: shift.variance === 0 ? rgb(0, 0.5, 0) : rgb(0.8, 0, 0) }
+    ];
+    const x = margin;
+    summaryData.forEach(item => {
+        page.drawText(item.label, { x, y, font, size: fontSize });
+        page.drawText(item.value, { x: x + 120, y, font: boldFont, size: fontSize, color: item.color || rgb(0, 0, 0) });
+        y -= 15;
+    });
+    y = drawTableHeader(page, y);
+    let activePage = page;
+    for (const tx of transactions) {
+        if (y < 50) {
+            activePage = pdfDoc.addPage();
+            y = height - margin;
+            y = drawTableHeader(activePage, y);
+        }
+        let txDate = typeof tx.created_at === 'string' ? parseISO(tx.created_at) : new Date(tx.created_at);
+        if (isNaN(txDate.getTime())) txDate = new Date();
+        const row = [
+            format(txDate, 'HH:mm:ss'),
+            tx.invoice_number,
+            tx.items.reduce((sum, item) => sum + item.qty, 0).toString(),
+            formatCurrency(tx.total),
+            tx.status === 'paid' ? 'Lunas' : 'Void'
+        ];
+        let x2 = margin;
+        row.forEach((cell, i) => {
+            activePage.drawText(cell, { x: x2, y, font, size: bodyFontSize, color: tx.status === 'voided' ? rgb(0.5, 0.5, 0.5) : rgb(0, 0, 0) });
+            x2 += colWidths[i];
+        });
+        y -= 12;
+    }
+    const pdfBytes = await pdfDoc.save();
+    return pdfBytes as Uint8Array;
+};
+
+export const buildBarcodeStickersPdfBytes = async (products: Product[], options: LabelOptions = {}): Promise<Uint8Array> => {
+    const { pageSize = PageSizes.A4, labelWidthMm = 38, labelHeightMm = 13, repeat = 1, marginMm = 5, gapMm = 2 } = options
+    const labelWidth = mmToPt(labelWidthMm)
+    const labelHeight = mmToPt(labelHeightMm)
+    const margin = mmToPt(marginMm)
+    const gap = mmToPt(gapMm)
+    const pageWidth = pageSize[0]
+    const pageHeight = pageSize[1]
+    const cols = Math.floor((pageWidth - margin * 2 + gap) / (labelWidth + gap))
+    const rows = Math.floor((pageHeight - margin * 2 + gap) / (labelHeight + gap))
+    const pdfDoc = await PDFDocument.create()
+    const font = await pdfDoc.embedFont(StandardFonts.Helvetica)
+    const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold)
+    const monoFont = await pdfDoc.embedFont(StandardFonts.Courier)
+    const barcodeCache = new Map<string, any>()
+    async function getBarcode(barcode: string) {
+        if (barcodeCache.has(barcode)) return barcodeCache.get(barcode)
+        const canvas = document.createElement("canvas")
+        await bwipjs.toCanvas(canvas, { bcid: "code128", text: barcode, scale: 2, height: 6, includetext: false })
+        const pngBytes = await fetch(canvas.toDataURL()).then(r => r.arrayBuffer())
+        const img = await pdfDoc.embedPng(pngBytes)
+        barcodeCache.set(barcode, img)
+        return img
+    }
+    const expandedProducts: Product[] = []
+    for (const p of products) { for (let i = 0; i < repeat; i++) expandedProducts.push(p) }
+    let productIndex = 0
+    while (productIndex < expandedProducts.length) {
+        const page = pdfDoc.addPage(pageSize)
+        for (let r = 0; r < rows; r++) {
+            for (let c = 0; c < cols; c++) {
+                if (productIndex >= expandedProducts.length) break
+                const product = expandedProducts[productIndex]
+                if (!product.barcode) { productIndex++; c--; continue }
+                const x = margin + c * (labelWidth + gap)
+                const y = pageHeight - margin - labelHeight - r * (labelHeight + gap)
+                let name = product.name
+                if (name.length > 18) name = name.substring(0, 16) + "..."
+                page.drawText(name, { x: x + 3, y: y + labelHeight - 8, size: 6, font: boldFont })
+                page.drawText(formatCurrency(product.price), { x: x + labelWidth - font.widthOfTextAtSize(formatCurrency(product.price), 6) - 3, y: y + labelHeight - 8, size: 6, font })
+                const barcodeImg = await getBarcode(product.barcode)
+                page.drawImage(barcodeImg, { x: x + 3, y: y + labelHeight - 28, width: labelWidth - 6, height: labelHeight * 0.45 })
+                const barcodeTextWidth = monoFont.widthOfTextAtSize(product.barcode, 6);
+                page.drawText(product.barcode, { x: x + (labelWidth / 2) - (barcodeTextWidth / 2), y: y + 2, size: 6, font: monoFont })
+                productIndex++
+            }
+            if (productIndex >= expandedProducts.length) break
+        }
+    }
+    const pdfBytes = await pdfDoc.save()
+    return pdfBytes as Uint8Array;
+};
+
+export const buildPromoPerformancePdfBytes = async (summary: { totalDiscount: number; autoDiscount: number; voucherDiscount: number; manualDiscount: number; promoSharePct: number }, diskonRows: any[], voucherRows: any[], dateRange: { from: Date, to: Date }, storeName: string): Promise<Uint8Array> => {
+    const pdfDoc = await PDFDocument.create();
+    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+    const margin = 40;
+    const fontSize = 9;
+    let currentPage = pdfDoc.addPage(PageSizes.A4);
+    const { width, height } = currentPage.getSize();
+    let y = height - margin;
+    currentPage.drawText(`${storeName.toUpperCase()}`, { x: margin, y, font: boldFont, size: 16 });
+    y -= 18;
+    currentPage.drawText('LAPORAN PERFORMA PROMO & VOUCHER', { x: margin, y, font: boldFont, size: 11, color: rgb(0.3, 0.3, 0.3) });
+    y -= 15;
+    currentPage.drawText(`Periode: ${format(dateRange.from, 'dd MMM yyyy')} - ${format(dateRange.to, 'dd MMM yyyy')}`, { x: margin, y, font, size: 10 });
+    y -= 25;
+    const boxHeight = 80;
+    const boxY = y - boxHeight;
+    currentPage.drawRectangle({ x: margin, y: boxY, width: width - (margin * 2), height: boxHeight, color: rgb(0.96, 0.96, 0.96) });
+    const summaryRows = [
+        ['Total Diskon', formatCurrency(summary.totalDiscount)],
+        ['Diskon Otomatis', formatCurrency(summary.autoDiscount)],
+        ['Diskon Voucher', formatCurrency(summary.voucherDiscount)],
+        ['Diskon Manual', formatCurrency(summary.manualDiscount)],
+        ['% Omzet Terdiskon', `${summary.promoSharePct.toFixed(2)}%`],
+    ];
+    let kpiY = (boxY + boxHeight) - 15;
+    summaryRows.forEach(([label, value], i) => {
+        const col = i % 2 === 0 ? margin + 15 : margin + 220;
+        if (i > 0 && i % 2 === 0) kpiY -= 15;
+        currentPage.drawText(label, { x: col, y: kpiY, font, size: 8 });
+        currentPage.drawText(value, { x: col + 115, y: kpiY, font: boldFont, size: 8 });
+    });
+    y = boxY - 25;
+    const drawTableHeader = (page: any, yPos: number, headers: string[], colWidths: number[]) => {
+        let xPos = margin;
+        headers.forEach((h, i) => { page.drawText(h, { x: xPos, y: yPos, font: boldFont, size: fontSize }); xPos += colWidths[i]; });
+        const lineY = yPos - 5;
+        page.drawLine({ start: { x: margin, y: lineY }, end: { x: width - margin, y: lineY }, thickness: 1 });
+        return lineY - 15;
+    };
+    const drawRows = (headers: string[], colWidths: number[], rows: string[][]) => {
+        y = drawTableHeader(currentPage, y, headers, colWidths);
+        for (const row of rows) {
+            if (y < 50) { currentPage = pdfDoc.addPage(PageSizes.A4); y = height - margin; y = drawTableHeader(currentPage, y, headers, colWidths); }
+            let xPos = margin;
+            row.forEach((cell, i) => { const text = cell.length > 40 ? cell.substring(0, 38) + "..." : cell; currentPage.drawText(text, { x: xPos, y, font, size: 8 }); xPos += colWidths[i]; });
+            y -= 14;
+        }
+        y -= 10;
+    };
+    currentPage.drawText('PER PROMO (DISKON)', { x: margin, y, font: boldFont, size: 11 }); y -= 16;
+    drawRows(['Promo', 'Jenis', 'Transaksi', 'Total Diskon', 'Kontribusi'], [150, 120, 70, 110, 80], diskonRows.map(r => [r.name, r.type, String(r.transactions), formatCurrency(r.totalDiscount), `${r.sharePct.toFixed(1)}%`]));
+    currentPage.drawText('VOUCHER', { x: margin, y, font: boldFont, size: 11 }); y -= 16;
+    drawRows(['Kode', 'Nama', 'Redeem', 'Total Nilai', 'Kuota', 'Status'], [90, 130, 55, 95, 60, 70], voucherRows.map(r => [r.code, r.name, String(r.redeems), formatCurrency(r.totalValue), r.quotaTotal ? `${r.quotaUsed}/${r.quotaTotal}` : String(r.quotaUsed), r.status]));
+    const pdfBytes = await pdfDoc.save();
+    return pdfBytes as Uint8Array;
+};

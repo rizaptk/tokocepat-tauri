@@ -5,7 +5,7 @@ import { useLoadShiftTransactions } from '@/hooks/useLoadShiftTransactions';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Printer } from 'lucide-react';
 import { parseISO, isValid } from 'date-fns';
 import { Separator } from '@/components/ui/separator';
 import { useState } from 'react';
@@ -15,8 +15,9 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { cn, formatDistanceShort } from '@/lib/utils';
-import { exportShiftDetailsToPdf } from '@/lib/export';
+import { buildShiftDetailsPdfBytes } from '@/lib/export';
 import { Badge } from '@/components/ui/badge';
+import { PdfPreviewSheet } from '@/components/PdfPreviewSheet';
 
 // Helper to safely parse dates that might be in different formats
 const getSafeDate = (dateInput: any): Date | null => {
@@ -44,6 +45,8 @@ export default function ShiftDetailsPage() {
     const shift = shifts.find(s => s.id === shiftId);
 
     const [voidReason, setVoidReason] = useState("");
+    const [pdfBytes, setPdfBytes] = useState<Uint8Array | null>(null);
+    const [previewOpen, setPreviewOpen] = useState(false);
 
     const handleVoid = async (transactionId: string, invoiceNumber: string) => {
         if (!voidReason.trim()) {
@@ -62,9 +65,15 @@ export default function ShiftDetailsPage() {
         }
     };
 
-    const handlePdfExport = () => {
+    const handleCetak = async () => {
         if (storeConfig && shift) {
-            exportShiftDetailsToPdf(shift, shiftTransactions, storeConfig.store_name);
+            try {
+                const bytes = await buildShiftDetailsPdfBytes(shift, shiftTransactions, storeConfig.store_name);
+                setPdfBytes(bytes as unknown as Uint8Array);
+                setPreviewOpen(true);
+            } catch (e: any) {
+                toast({ variant: 'destructive', title: 'Gagal cetak', description: String(e?.message || e) });
+            }
         } else {
             toast({ variant: 'destructive', title: 'Error', description: 'Gagal ekspor PDF. Data toko atau sif tidak ditemukan.' });
         }
@@ -260,13 +269,14 @@ export default function ShiftDetailsPage() {
                 </Card>
 
                 <div className="flex gap-2 pt-4">
-                    <Button variant="outline" onClick={handlePdfExport} disabled={!shift}>Ekspor PDF</Button>
+                    <Button variant="outline" onClick={handleCetak} disabled={!shift}><Printer className="mr-2 h-4 w-4" />Cetak</Button>
                     <Button asChild>
                         <Link to="#" onClick={() => nav(-1)}>Selesai</Link>
                     </Button>
                 </div>
             </div>
           </main>
+            <PdfPreviewSheet open={previewOpen} onOpenChange={setPreviewOpen} pdfBytes={pdfBytes} title={`Detail Sif — ${shift.id.slice(0,8)}`} filename={`shift_${shift.id.slice(0,8)}.pdf`} />
         </div>
     )
 }

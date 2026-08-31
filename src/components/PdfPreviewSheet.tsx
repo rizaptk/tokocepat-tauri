@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Loader2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Download, Printer, Loader2, X } from 'lucide-react';
 
 interface PdfPreviewSheetProps {
     open: boolean;
@@ -11,7 +11,7 @@ interface PdfPreviewSheetProps {
     filename: string;
 }
 
-export function PdfPreviewSheet({ open, onOpenChange, pdfBytes, title, filename }: PdfPreviewSheetProps) {
+export function PdfPreviewSheet({ open, onOpenChange, pdfBytes, title }: PdfPreviewSheetProps) {
     const [url, setUrl] = useState<string | null>(null);
 
     useEffect(() => {
@@ -25,48 +25,25 @@ export function PdfPreviewSheet({ open, onOpenChange, pdfBytes, title, filename 
         return () => { URL.revokeObjectURL(blobUrl); };
     }, [pdfBytes, open]);
 
-    // cleanup on close
     useEffect(() => {
         if (!open && url) { URL.revokeObjectURL(url); setUrl(null); }
     }, [open]);
 
-    const handleDownload = () => {
-        if (!url) return;
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = filename;
-        a.click();
-    };
-
-    const handlePrint = () => {
-        if (!url) return;
-        const iframe = document.getElementById('pdf-preview-iframe') as HTMLIFrameElement | null;
-        iframe?.contentWindow?.print();
-    };
-
     return (
-        <Sheet open={open} onOpenChange={onOpenChange}>
-            <SheetContent side="right" className="w-screen h-screen max-w-none inset-0 p-0 flex flex-col bg-background [&>button:first-of-type]:hidden">
-                <SheetHeader className="shrink-0 flex flex-row items-center justify-between gap-2 px-4 py-3 border-b bg-card">
-                    <div className="min-w-0">
-                        <SheetTitle className="text-base truncate">{title}</SheetTitle>
-                        <SheetDescription className="text-xs truncate">{filename}</SheetDescription>
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="max-w-[66vw] w-[66vw] h-[80vh] p-0 flex flex-col resize overflow-auto bg-card [&>button]:hidden" aria-describedby={undefined}>
+                <DialogHeader className="shrink-0 flex flex-row items-center justify-between gap-2 px-4 py-3 border-b">
+                    <div className="min-w-0 flex-1">
+                        <DialogTitle className="text-sm font-semibold truncate">{title}</DialogTitle>
+                        <DialogDescription className="text-xs text-muted-foreground truncate">Pratinjau PDF — gunakan toolbar PDF untuk Simpan (Ctrl+S) atau Cetak (Ctrl+P)</DialogDescription>
                     </div>
-                    <div className="flex items-center gap-1.5 shrink-0">
-                        <Button variant="outline" size="sm" className="h-8" onClick={handleDownload} disabled={!url}>
-                            <Download className="size-4 mr-1.5" />Download
-                        </Button>
-                        <Button size="sm" className="h-8" onClick={handlePrint} disabled={!url}>
-                            <Printer className="size-4 mr-1.5" />Cetak
-                        </Button>
-                        <Button variant="ghost" size="icon" className="size-8" onClick={() => onOpenChange(false)}>
-                            <X className="size-4" />
-                        </Button>
-                    </div>
-                </SheetHeader>
-                <div className="flex-1 min-h-0 bg-muted/30 p-2">
+                    <Button variant="ghost" size="icon" className="size-7 shrink-0" onClick={() => onOpenChange(false)} aria-label="Tutup">
+                        <X className="size-4" />
+                    </Button>
+                </DialogHeader>
+                <div className="flex-1 min-h-0 bg-muted/20 p-3 flex items-center justify-center">
                     {!url ? (
-                        <div className="h-full flex items-center justify-center text-muted-foreground">
+                        <div className="h-full w-full flex items-center justify-center text-muted-foreground">
                             <Loader2 className="size-8 animate-spin" />
                         </div>
                     ) : (
@@ -78,7 +55,7 @@ export function PdfPreviewSheet({ open, onOpenChange, pdfBytes, title, filename 
                         />
                     )}
                 </div>
-            </SheetContent>
-        </Sheet>
+            </DialogContent>
+        </Dialog>
     );
 }

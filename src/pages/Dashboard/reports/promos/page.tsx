@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { formatIDR as formatCurrency } from "@/lib/format";
 import { DateRange } from 'react-day-picker';
 import { endOfDay, startOfDay, subDays, format } from 'date-fns';
-import { ArrowLeft, BadgePercent, TicketPercent, Wallet, ReceiptText, PiggyBank, PieChart, FileDown, FileText } from 'lucide-react';
+import { ArrowLeft, BadgePercent, TicketPercent, Wallet, ReceiptText, PiggyBank, PieChart, FileDown, Printer } from 'lucide-react';
 import { Bar, CartesianGrid, ComposedChart, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from "recharts";
 
 import { Button } from '@/components/ui/button';
@@ -11,7 +11,6 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { DateRangeFilter } from '@/components/DateRangeFilter';
 import { DeviceScopeFilter } from '@/components/DeviceScopeFilter';
 import { NotificationBell } from '@/components/NotificationBell';
@@ -19,8 +18,10 @@ import { ThemeToggle } from '@/components/ThemeButtons';
 import { useLoadTransactions } from '@/hooks/useLoadTransaction';
 import { useDeviceScope } from '@/hooks/useDeviceScope';
 import { useStore } from '@/lib/store';
-import { exportPromoPerformanceToExcel, exportPromoPerformanceToPdf } from '@/lib/export';
+import { exportPromoPerformanceToExcel, buildPromoPerformancePdfBytes } from '@/lib/export';
 import { Promotion, Transaction } from '@/lib/types';
+import { PdfPreviewSheet } from '@/components/PdfPreviewSheet';
+import { useToast } from '@/hooks/use-toast';
 
 interface DiskonRow {
     id: string;
@@ -88,6 +89,9 @@ export default function PromoReportPage() {
     const nav = useNavigate();
     const { activeDeviceId } = useDeviceScope();
     const { transactions } = useLoadTransactions(date, activeDeviceId);
+    const { toast } = useToast();
+    const [pdfBytes, setPdfBytes] = useState<Uint8Array | null>(null);
+    const [previewOpen, setPreviewOpen] = useState(false);
 
     const paidTx = useMemo(() => transactions.filter(tx => tx.status === 'paid' && tx.transaction_type !== 'return'), [transactions]);
 
@@ -247,11 +251,21 @@ export default function PromoReportPage() {
     const handleExcelExport = async () => {
         if (storeConfig && date?.from && date?.to) {
             await exportPromoPerformanceToExcel(kpis, diskonRows, voucherRows, { from: date.from, to: date.to }, storeConfig.store_name);
+        } else {
+            toast({ variant: 'destructive', title: 'Export gagal', description: 'Konfigurasi toko atau rentang tanggal tidak ditemukan.' });
         }
     };
-    const handlePdfExport = async () => {
-        if (storeConfig && date?.from && date?.to) {
-            await exportPromoPerformanceToPdf(kpis, diskonRows, voucherRows, { from: date.from, to: date.to }, storeConfig.store_name);
+    const handleCetak = async () => {
+        if (!storeConfig || !date?.from || !date?.to) {
+            toast({ variant: 'destructive', title: 'Export gagal', description: 'Konfigurasi toko atau rentang tanggal tidak ditemukan.' });
+            return;
+        }
+        try {
+            const bytes = await buildPromoPerformancePdfBytes(kpis, diskonRows, voucherRows, { from: date.from, to: date.to }, storeConfig.store_name);
+            setPdfBytes(bytes as unknown as Uint8Array);
+            setPreviewOpen(true);
+        } catch (e) {
+            toast({ variant: 'destructive', title: 'Gagal cetak', description: String(e) });
         }
     };
 
@@ -280,22 +294,12 @@ export default function PromoReportPage() {
                     </h1>
                 </div>
                 <div className="flex items-center gap-2">
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button variant="outline" size="sm" disabled={paidTx.length === 0}>
-                                <FileDown className="mr-2 h-4 w-4" />
-                                <span>Ekspor</span>
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                            <DropdownMenuItem onSelect={handleExcelExport}>
-                                <FileDown className="mr-2 h-4 w-4 text-success" /> Excel (.xlsx)
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onSelect={handlePdfExport}>
-                                <FileText className="mr-2 h-4 w-4 text-red-400" /> PDF (.pdf)
-                            </DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
+                    <Button variant="outline" size="sm" disabled={paidTx.length === 0} onClick={handleCetak}>
+                        <Printer className="mr-2 h-4 w-4" /> Cetak
+                    </Button>
+                    <Button variant="outline" size="sm" disabled={paidTx.length === 0} onClick={handleExcelExport}>
+                        <FileDown className="mr-2 h-4 w-4 text-success" /> Excel
+                    </Button>
                     <NotificationBell />
                     <ThemeToggle />
                 </div>
@@ -457,6 +461,7 @@ export default function PromoReportPage() {
                     </TabsContent>
                 </Tabs>
             </main>
+            <PdfPreviewSheet open={previewOpen} onOpenChange={setPreviewOpen} pdfBytes={pdfBytes} title="Laporan Promo & Voucher" filename="laporan_promo.pdf" />
         </div>
     );
 }
