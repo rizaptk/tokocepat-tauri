@@ -314,11 +314,16 @@ export default function ClassicCashierPage({ defaultWholesale = false }: { defau
         if (cart.length === 0) return;
         const bonusPromos = promos.filter(p => {
             if (!p.is_active) return false;
-            if (p.kind !== 'criteria' && p.kind !== 'conditional' && p.kind !== 'bogo') return false;
-            if ((p as any).reward_type !== 'bonus_product') return false;
             if (isWholesaleMode && !(p as any).allowWholesale) return false;
             if (!isPromoLive(p)) return false;
-            return true;
+            if (p.kind === 'bogo') {
+                // BOGO with a different free product auto-adds it; "same product" handled by promoService at checkout
+                return !!(p as any).free_product_id;
+            }
+            if (p.kind === 'criteria' || p.kind === 'conditional') {
+                return (p as any).reward_type === 'bonus_product';
+            }
+            return false;
         });
         if (bonusPromos.length === 0) return;
 
@@ -331,40 +336,57 @@ export default function ClassicCashierPage({ defaultWholesale = false }: { defau
         });
 
         let needsSync = false;
-        const expectedReserved: { promoId: string; rewardId: string }[] = [];
+        const expectedReserved: { promoId: string; rewardId: string; qty: number }[] = [];
 
         for (const promo of bonusPromos) {
             const anyP = promo as any;
-            const rewardIds: string[] = anyP.reward_product_ids || [];
-            if (rewardIds.length === 0) continue;
+            let rewardIds: string[] = [];
             let triggerMet = false;
+            let grantQty = 1;
+
             if (promo.kind === 'bogo') {
-                const buyQty = anyP.buy_quantity || 1;
-                const scopeIds = anyP.applies_to_product_ids || [];
-                const purchased = scopeIds.length === 0
-                    ? cart.filter(c => !(c as any).isReserved).reduce((s,l)=> s + ((l as any).qtyBase ?? l.quantity), 0)
-                    : scopeIds.reduce((s:number, pid:string)=> s + (cartQtyBaseById[pid]||0), 0);
-                triggerMet = purchased >= buyQty;
-            } else if (promo.kind === 'criteria') {
-                const pids: string[] = anyP.applies_to_product_ids || [];
-                const cids: string[] = anyP.applies_to_category_ids || [];
-                if (pids.length===0 && cids.length===0) triggerMet = true;
-                else {
-                    triggerMet = pids.every((pid: string) => cartIds.has(pid)) && cids.every((cid: string) => cart.some(c=> (c as any).category_id===cid && !(c as any).isReserved));
-                    if (triggerMet && anyP.min_scope_qty > 0) {
-                        const total = (pids.length ? pids.reduce((s,pid)=> s + (cartQtyBaseById[pid]||0),0) : 0) + (cids.length ? cart.filter(c=> cids.includes((c as any).category_id)).reduce((s,c)=> s+((c as any).qtyBase||c.quantity),0) : 0);
-                        if (total < anyP.min_scope_qty) triggerMet = false;
+                const freeProductId: string = anyP.free_product_id;
+                if (!freeProductId) continue;
+                const buyQty = Math.max(1, anyP.buy_quantity || 1);
+                const freeQty = Math.max(1, anyP.free_quantity || 1);
+                const maxFree = anyP.max_total_free_qty && anyP.max_total_free_qty > 0 ? anyP.max_total_free_qty : Infinity;
+
+                const scopeIds: string[] = anyP.applies_to_product_ids || [];
+                const purchasedBase = scopeIds.length === 0
+                    ? cart.filter(c => !(c as any).isReserved).reduce((s, l) => s + ((l as any).qtyBase ?? l.quantity), 0)
+                    : scopeIds.reduce((s: number, pid: string) => s + (cartQtyBaseById[pid] || 0), 0);
+                if (purchasedBase < buyQty) continue;
+
+                const total = Math.floor(purchasedBase / buyQty) * freeQty;
+                if (total <= 0) continue;
+                grantQty = Math.min(total, maxFree);
+                if (grantQty <= 0) continue;
+                rewardIds = [freeProductId];
+                triggerMet = true;
+            } else {
+                rewardIds = anyP.reward_product_ids || [];
+                if (rewardIds.length === 0) continue;
+                if (promo.kind === 'criteria') {
+                    const pids: string[] = anyP.applies_to_product_ids || [];
+                    const cids: string[] = anyP.applies_to_category_ids || [];
+                    if (pids.length === 0 && cids.length === 0) triggerMet = true;
+                    else {
+                        triggerMet = pids.every((pid: string) => cartIds.has(pid)) && cids.every((cid: string) => cart.some(c => (c as any).category_id === cid && !(c as any).isReserved));
+                        if (triggerMet && anyP.min_scope_qty > 0) {
+                            const total = (pids.length ? pids.reduce((s, pid) => s + (cartQtyBaseById[pid] || 0), 0) : 0) + (cids.length ? cart.filter(c => cids.includes((c as any).category_id)).reduce((s, c) => s + ((c as any).qtyBase || c.quantity), 0) : 0);
+                            if (total < anyP.min_scope_qty) triggerMet = false;
+                        }
                     }
+                } else if (promo.kind === 'conditional') {
+                    const base = cart.filter(c => !(c as any).isReserved).reduce((s, c) => s + (c.price * c.quantity), 0);
+                    const minMet = !anyP.min_purchase || base >= anyP.min_purchase;
+                    const scopeMet = !anyP.require_scope || ((anyP.applies_to_product_ids || []).length === 0 && (anyP.applies_to_category_ids || []).length === 0) || (anyP.applies_to_product_ids || []).some((pid: string) => cartIds.has(pid));
+                    triggerMet = minMet && scopeMet;
                 }
-            } else if (promo.kind === 'conditional') {
-                const base = cart.filter(c=> !(c as any).isReserved).reduce((s,c)=> s + (c.price * c.quantity), 0);
-                const minMet = !anyP.min_purchase || base >= anyP.min_purchase;
-                const scopeMet = !anyP.require_scope || ((anyP.applies_to_product_ids||[]).length===0 && (anyP.applies_to_category_ids||[]).length===0) || (anyP.applies_to_product_ids||[]).some((pid:string)=> cartIds.has(pid));
-                triggerMet = minMet && scopeMet;
             }
             if (!triggerMet) continue;
             for (const rid of rewardIds) {
-                expectedReserved.push({ promoId: promo.id, rewardId: rid });
+                expectedReserved.push({ promoId: promo.id, rewardId: rid, qty: grantQty });
                 const already = cart.some(c => (c as any).isReserved && (c as any).reservedPromoId === promo.id && c.id === rid);
                 if (!already) needsSync = true;
             }
@@ -397,8 +419,8 @@ export default function ClassicCashierPage({ defaultWholesale = false }: { defau
                     const newItem = {
                         ...normalizeProductUoms(prod),
                         cartItemId: `cart-item-${crypto.randomUUID().slice(0, 8)}`,
-                        quantity: 1,
-                        qtyBase: 1,
+                        quantity: exp.qty,
+                        qtyBase: exp.qty,
                         price: prod.price,
                         isReserved: true,
                         reservedPromoId: exp.promoId,
@@ -413,10 +435,10 @@ export default function ClassicCashierPage({ defaultWholesale = false }: { defau
                     const newCart = useStore.getState().cart;
                     const added = [...newCart].reverse().find(c => c.id === exp.rewardId && !(c as any).isReserved);
                     if (added) {
-                        useStore.setState(state => ({ cart: state.cart.map(c => c.cartItemId === added.cartItemId ? { ...c, isReserved: true, reservedPromoId: exp.promoId } as any : c) }));
-                        if (added.quantity !== 1) {
-                            useStore.getState().updateQuantity(added.cartItemId, 1, undefined, { force: true } as any);
-                            useStore.setState(state => ({ cart: state.cart.map(c => c.cartItemId === added.cartItemId ? { ...c, isReserved: true, reservedPromoId: exp.promoId } as any : c) }));
+                        useStore.setState((state: any) => ({ cart: state.cart.map((c: any) => c.cartItemId === added.cartItemId ? { ...c, isReserved: true, reservedPromoId: exp.promoId } : c) }));
+                        if (added.quantity !== exp.qty) {
+                            useStore.getState().updateQuantity(added.cartItemId, exp.qty, undefined, { force: true } as any);
+                            useStore.setState((state: any) => ({ cart: state.cart.map((c: any) => c.cartItemId === added.cartItemId ? { ...c, isReserved: true, reservedPromoId: exp.promoId } : c) }));
                         }
                     }
                 }
