@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useStore } from '@/lib/store';
 import { useDbStore } from '@/lib/db-store';
+import { useLoadTransactions } from '@/hooks/useLoadTransaction';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -22,7 +23,9 @@ function daysOverdue(due?: string) {
 }
 
 export default function PiutangPage() {
-  const { transactions, customers } = useStore();
+  const { customers } = useStore();
+  const { isInitialized } = useDbStore();
+  const { transactions, isLoading } = useLoadTransactions(undefined, 'all');
   const { toast } = useToast();
   const [q, setQ] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'piutang' | 'lunas_sebagian' | 'overdue'>('all');
@@ -73,8 +76,8 @@ export default function PiutangPage() {
     if (amt <= 0) { toast({ variant: 'destructive', title: 'Jumlah tidak valid' }); return; }
     const sisa = payTx.total - (payTx.cash_paid || 0);
     if (amt > sisa + 0.01) { toast({ variant: 'destructive', title: 'Melebihi sisa tagihan' }); return; }
-    const { db, firesqlite } = useDbStore.getState();
-    if (!db || !firesqlite) { toast({ variant: 'destructive', title: 'DB belum siap' }); return; }
+    const { db, firesqlite, isInitialized: ready } = useDbStore.getState();
+    if (!ready || !db || !firesqlite) { toast({ variant: 'destructive', title: 'DB belum siap' }); return; }
     const { doc, updateDoc, setDoc } = firesqlite as any;
     const newPaid = (payTx.cash_paid || 0) + amt;
     const newStatus = newPaid >= payTx.total - 0.01 ? 'lunas' : 'lunas_sebagian';
@@ -132,7 +135,9 @@ export default function PiutangPage() {
               <TableRow><TableHead>Invoice</TableHead><TableHead>Pelanggan</TableHead><TableHead>Tanggal</TableHead><TableHead>Jatuh Tempo</TableHead><TableHead className="text-right">Total</TableHead><TableHead className="text-right">Sisa</TableHead><TableHead>Status</TableHead><TableHead className="w-24">Aksi</TableHead></TableRow>
             </TableHeader>
             <TableBody>
-              {filtered.length === 0 ? (
+              {isLoading || !isInitialized ? (
+                <TableRow><TableCell colSpan={8} className="text-center py-12 text-muted-foreground">Memuat data piutang…</TableCell></TableRow>
+              ) : filtered.length === 0 ? (
                 <TableRow><TableCell colSpan={8} className="text-center py-12 text-muted-foreground">Tidak ada piutang {statusFilter !== 'all' ? `(${statusFilter})` : ''}</TableCell></TableRow>
               ) : filtered.map(tx => {
                 const sisa = tx.total - (tx.cash_paid || 0);

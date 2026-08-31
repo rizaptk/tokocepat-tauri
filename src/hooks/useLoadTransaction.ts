@@ -24,7 +24,15 @@ export function useLoadTransactions(range?: DateRange, device?: DeviceScope) {
 
         const { collection, query, where, orderBy, onSnapshot } = firesqlite;
 
-        const fromDate = (range?.from || new Date(new Date().setDate(new Date().getDate() - 30))).toISOString();
+        // Piutang can be older than 30 days (overdue buckets up to >30).
+        // For the dedicated Piutang page we use a 1-year lookback when no
+        // range is supplied; report pages still pass their own range.
+        const defaultFrom = (() => {
+            const d = new Date();
+            d.setDate(d.getDate() - 365);
+            return d;
+        })();
+        const fromDate = (range?.from || defaultFrom).toISOString();
         const toDate = (range?.to || new Date()).toISOString();
 
         const constraints = [
