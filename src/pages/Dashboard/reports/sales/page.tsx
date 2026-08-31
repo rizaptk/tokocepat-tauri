@@ -4,9 +4,9 @@ import * as React from 'react';
 import { useState, useMemo, useRef } from 'react';
 import { DateRange } from 'react-day-picker';
 import { endOfDay, startOfDay, subDays, format } from 'date-fns';
-import { ArrowLeft, BarChart2, DollarSign, ReceiptText, Landmark, Search, Loader2, FileDown, FileText, Package, Wallet, TrendingUp, BadgePercent } from 'lucide-react';
-import { exportSalesToExcel, exportSalesToPdf } from '@/lib/export';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { ArrowLeft, BarChart2, DollarSign, ReceiptText, Landmark, Search, Loader2, FileDown, FileText, Package, Wallet, TrendingUp, BadgePercent, Printer } from 'lucide-react';
+import { exportSalesToExcel, buildSalesPdfBytes } from '@/lib/export';
+import { PdfPreviewSheet } from '@/components/PdfPreviewSheet';
 
 // 1. Import Virtualizer
 import { useVirtualizer } from '@tanstack/react-virtual';
@@ -112,6 +112,8 @@ export default function SalesReportPage() {
     const [searchTerm, setSearchTerm] = useState('');
     const [typeFilter, setTypeFilter] = useState<'all' | 'retail' | 'grosir' | 'piutang'>('all');
     const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
+    const [pdfBytes, setPdfBytes] = useState<Uint8Array | null>(null);
+    const [previewOpen, setPreviewOpen] = useState(false);
     const { storeConfig } = useStore();
     const nav = useNavigate();
 
@@ -196,10 +198,12 @@ export default function SalesReportPage() {
         }
     };
     
-    const handlePdfExport = async () => {
+    const handleCetak = async () => {
         const paidTransactions = transactions.filter(tx => tx.status === 'paid');
         if (storeConfig && date?.from && date?.to) {
-            await exportSalesToPdf(paidTransactions, {from: date.from, to: date.to }, storeConfig.store_name);
+            const bytes = await buildSalesPdfBytes(paidTransactions, {from: date.from, to: date.to }, storeConfig.store_name);
+            setPdfBytes(bytes as Uint8Array);
+            setPreviewOpen(true);
         } else {
             alert("Konfigurasi toko atau periode tidak ditemukan.");
         }
@@ -225,22 +229,11 @@ export default function SalesReportPage() {
                     </h1>
                 </div>
                 <div className="flex items-center gap-2">
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="outline" size="sm" disabled={transactions.length === 0}>
-                            <FileDown className="mr-2 h-4 w-4" />
-                            <span>Ekspor</span>
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                            <DropdownMenuItem onSelect={handleExcelExport}>
-                                <FileDown className="mr-2 h-4 w-4 text-success"/> Excel (.xlsx)
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onSelect={handlePdfExport}>
-                                <FileText className="mr-2 h-4 w-4 text-red-400"/> PDF (.pdf)
-                            </DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
+                    <div className="flex items-center gap-1.5">
+                        <Button variant="outline" size="sm" onClick={handleCetak} disabled={transactions.length === 0}><Printer className="mr-2 h-4 w-4" /> Cetak</Button>
+                        <Button variant="outline" size="sm" onClick={handleExcelExport} disabled={transactions.length === 0}><FileDown className="mr-2 h-4 w-4 text-green-600" /> Excel</Button>
+                    </div>
+                    <PdfPreviewSheet open={previewOpen} onOpenChange={setPreviewOpen} pdfBytes={pdfBytes} title="Laporan Penjualan" filename="laporan_penjualan.pdf" />
                     <NotificationBell />
                     <ThemeToggle />
                 </div>

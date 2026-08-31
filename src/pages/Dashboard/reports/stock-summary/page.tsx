@@ -2,13 +2,13 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useStore } from '@/lib/store';
 import React, { useState, useMemo, useEffect } from 'react';
 import { DateRange } from 'react-day-picker';
-import { ArrowLeft, Warehouse, Loader2, Package, Layers2, FileDown, FileText } from 'lucide-react';
+import { ArrowLeft, Warehouse, Loader2, Package, Layers2, FileDown, FileText, Printer } from 'lucide-react';
 import { format, startOfDay, endOfDay } from 'date-fns';
-import { exportStockSummaryToExcel, exportStockSummaryToPdf } from '@/lib/export';
+import { exportStockSummaryToExcel, buildStockSummaryPdfBytes } from '@/lib/export';
 import { useToast } from '@/hooks/use-toast';
+import { PdfPreviewSheet } from '@/components/PdfPreviewSheet';
 import { getStockMovementsByDateRange } from '@/services/stockService';
 import { StockMovement } from '@/lib/types';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -29,6 +29,8 @@ export default function StockSummaryReportPage() {
     const [stockMovements, setStockMovements] = useState<StockMovement[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [filterType, setFilterType] = useState<'all' | 'product' | 'variant'>('all');
+    const [pdfBytes, setPdfBytes] = useState<Uint8Array | null>(null);
+    const [previewOpen, setPreviewOpen] = useState(false);
     const nav = useNavigate();
 
     useEffect(() => {
@@ -109,9 +111,10 @@ export default function StockSummaryReportPage() {
         }
     };
 
-    const handlePdfExport = async () => {
+    const handleCetak = async () => {
         if (storeConfig && date?.from && date?.to) {
-            await exportStockSummaryToPdf(reportData, { from: date.from, to: date.to }, storeConfig.store_name);
+            const bytes = await buildStockSummaryPdfBytes(reportData, { from: date.from, to: date.to }, storeConfig.store_name);
+            setPdfBytes(bytes); setPreviewOpen(true);
         } else {
             toast({ variant: 'destructive', title: 'Error', description: 'Store configuration or date range not found.' });
         }
@@ -132,22 +135,8 @@ export default function StockSummaryReportPage() {
                     </h1>
                 </div>
                 <div className="flex items-center gap-2">
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="outline" size="sm" disabled={reportData.length === 0}>
-                            <FileDown className="mr-2 h-4 w-4" />
-                            <span>Ekspor</span>
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                            <DropdownMenuItem onSelect={handleExcelExport}>
-                                <FileDown className="mr-2 h-4 w-4 text-success"/> Excel (.xlsx)
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onSelect={handlePdfExport}>
-                                <FileText className="mr-2 h-4 w-4 text-red-400"/> PDF (.pdf)
-                            </DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
+                    <Button variant="outline" size="sm" disabled={reportData.length === 0} onClick={handleCetak}><Printer className="mr-2 h-4 w-4" /> Cetak</Button>
+                    <Button variant="outline" size="sm" disabled={reportData.length === 0} onClick={handleExcelExport}><FileDown className="mr-2 h-4 w-4" /> Excel</Button>
                     <NotificationBell />
                     <ThemeToggle />
                 </div>
@@ -227,6 +216,7 @@ export default function StockSummaryReportPage() {
                 </CardContent>
             </Card>
           </main>
+            <PdfPreviewSheet open={previewOpen} onOpenChange={setPreviewOpen} pdfBytes={pdfBytes} filename={`ringkasan-stok-${storeConfig?.store_name || 'Kastoko'}.pdf`} title="Pratinjau Ringkasan Stok" />
         </div>
     );
 }

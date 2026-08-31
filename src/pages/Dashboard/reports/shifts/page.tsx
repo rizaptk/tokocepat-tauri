@@ -2,10 +2,9 @@ import { Link, useNavigate } from 'react-router-dom';
 import { formatIDR as formatCurrency } from "@/lib/format";
 import { useStore } from '@/lib/store';
 import { format, startOfDay, endOfDay, subDays } from 'date-fns';
-import { ArrowLeft, BookOpen, AlertTriangle, FileDown, FileText } from 'lucide-react';
-import React, { useMemo } from 'react';
+import { ArrowLeft, BookOpen, AlertTriangle, FileDown, FileText, Printer } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
 import { DateRange } from 'react-day-picker';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -19,7 +18,8 @@ import { cn } from '@/lib/utils';
 import { NotificationBell } from '@/components/NotificationBell';
 import { ThemeToggle } from '@/components/ThemeButtons';
 
-import { exportShiftsToExcel, exportShiftsToPdf } from '@/lib/export';
+import { exportShiftsToExcel, buildShiftsPdfBytes } from '@/lib/export';
+import { PdfPreviewSheet } from '@/components/PdfPreviewSheet';
 
 
 
@@ -33,6 +33,8 @@ export default function ShiftsReportPage() {
       from: startOfDay(subDays(new Date(), 29)),
       to: endOfDay(new Date()),
     });
+    const [pdfBytes, setPdfBytes] = useState<Uint8Array | null>(null);
+    const [previewOpen, setPreviewOpen] = useState(false);
 
     const filteredShifts = useMemo(() => {
         if (!date?.from || !date?.to) return [];
@@ -44,9 +46,10 @@ export default function ShiftsReportPage() {
         });
     }, [shifts, date, activeDeviceId]);
 
-    const handlePdfExport = async () => {
+    const handleCetak = async () => {
         if (storeConfig && date?.from && date?.to) {
-            await exportShiftsToPdf(filteredShifts, { from: date.from, to: date.to }, storeConfig.store_name);
+            const bytes = await buildShiftsPdfBytes(filteredShifts, { from: date.from, to: date.to }, storeConfig.store_name);
+            setPdfBytes(bytes); setPreviewOpen(true);
         } else {
             toast({ variant: 'destructive', title: 'Export Failed', description: 'Store config or date range missing.' });
         }
@@ -75,22 +78,8 @@ export default function ShiftsReportPage() {
                     </h1>
                 </div>
                 <div className="flex items-center gap-2">
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="outline" size="sm" disabled={filteredShifts.length === 0}>
-                            <FileDown className="mr-2 h-4 w-4" />
-                            <span>Ekspor</span>
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                            <DropdownMenuItem onSelect={handleExcelExport}>
-                                <FileDown className="mr-2 h-4 w-4 text-success"/> Excel (.xlsx)
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onSelect={handlePdfExport}>
-                                <FileText className="mr-2 h-4 w-4 text-red-400"/> PDF (.pdf)
-                            </DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
+                    <Button variant="outline" size="sm" disabled={filteredShifts.length === 0} onClick={handleCetak}><Printer className="mr-2 h-4 w-4" /> Cetak</Button>
+                    <Button variant="outline" size="sm" disabled={filteredShifts.length === 0} onClick={handleExcelExport}><FileDown className="mr-2 h-4 w-4" /> Excel</Button>
                     <NotificationBell />
                     <ThemeToggle />
                 </div>
@@ -160,6 +149,7 @@ export default function ShiftsReportPage() {
                 </CardContent>
             </Card>
           </main>
+            <PdfPreviewSheet open={previewOpen} onOpenChange={setPreviewOpen} pdfBytes={pdfBytes} filename={`riwayat-sif-${storeConfig?.store_name || 'Kastoko'}.pdf`} title="Pratinjau Riwayat Sif" />
         </div>
     );
 }

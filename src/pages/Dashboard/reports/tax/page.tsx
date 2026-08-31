@@ -4,13 +4,14 @@ import { DateRange } from 'react-day-picker';
 import { endOfDay, startOfDay, subDays, format } from 'date-fns';
 import { 
     ArrowLeft, Percent, Landmark, Receipt, FileDown, 
-    Loader2, AlertCircle, History, Calendar, FileText 
+    Loader2, AlertCircle, History, Calendar, FileText, Printer 
 } from 'lucide-react';
 import { useStore } from '@/lib/store';
 import { getTransactionsByDateRange } from '@/services/transactionService';
 import { Transaction } from '@/lib/types';
 // Import both export functions
-import { exportTaxAuditToExcel, exportTaxSummaryToPdf } from '@/lib/export';
+import { exportTaxAuditToExcel, buildTaxSummaryPdfBytes } from '@/lib/export';
+import { PdfPreviewSheet } from '@/components/PdfPreviewSheet';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -19,7 +20,6 @@ import { DateRangeFilter } from '@/components/DateRangeFilter';
 import { useDeviceScope } from '@/hooks/useDeviceScope';
 import { DeviceScopeFilter } from '@/components/DeviceScopeFilter';
 import { ThemeToggle } from '@/components/ThemeButtons';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { formatIDR as formatCurrency } from "@/lib/format";
 
 export default function TaxReportPage() {
@@ -28,6 +28,8 @@ export default function TaxReportPage() {
     const [date, setDate] = useState<DateRange | undefined>({ from: startOfDay(subDays(new Date(), 29)), to: endOfDay(new Date()) });
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [pdfBytes, setPdfBytes] = useState<Uint8Array | null>(null);
+    const [previewOpen, setPreviewOpen] = useState(false);
     const nav = useNavigate();
 
     useEffect(() => {
@@ -121,9 +123,10 @@ export default function TaxReportPage() {
         }
     };
 
-    const handlePdfExport = async () => {
+    const handleCetak = async () => {
         if (storeConfig && date?.from && date?.to) {
-            await exportTaxSummaryToPdf(dailySummary, { from: date.from, to: date.to }, storeConfig.store_name);
+            const bytes = await buildTaxSummaryPdfBytes(dailySummary, { from: date.from, to: date.to }, storeConfig.store_name);
+            setPdfBytes(bytes); setPreviewOpen(true);
         }
     };
 
@@ -140,21 +143,8 @@ export default function TaxReportPage() {
                     <h1 className="text-lg font-semibold flex items-center gap-2"><Landmark className="h-5 w-5" /> Audit Kewajiban Pajak</h1>
                 </div>
                 <div className="flex items-center gap-2">
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button variant="outline" size="sm" disabled={transactions.length === 0}>
-                                <FileDown className="mr-2 h-4 w-4" /> Ekspor
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                            <DropdownMenuItem onSelect={handleExcelExport}>
-                                <FileDown className="mr-2 h-4 w-4 text-success" /> Audit Detail (.xlsx)
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onSelect={handlePdfExport}>
-                                <FileText className="mr-2 h-4 w-4 text-red-400" /> Ringkasan Laporan (.pdf)
-                            </DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
+                    <Button variant="outline" size="sm" disabled={transactions.length === 0} onClick={handleCetak}><Printer className="mr-2 h-4 w-4" /> Cetak</Button>
+                    <Button variant="outline" size="sm" disabled={transactions.length === 0} onClick={handleExcelExport}><FileDown className="mr-2 h-4 w-4" /> Excel</Button>
                     <ThemeToggle />
                 </div>
             </header>
@@ -264,6 +254,7 @@ export default function TaxReportPage() {
                     </div>
                 </div>
             </main>
+            <PdfPreviewSheet open={previewOpen} onOpenChange={setPreviewOpen} pdfBytes={pdfBytes} filename={`audit-pajak-${storeConfig?.store_name || 'Kastoko'}.pdf`} title="Pratinjau Audit Pajak" />
         </div>
     );
 }

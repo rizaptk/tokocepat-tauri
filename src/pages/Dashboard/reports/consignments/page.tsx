@@ -6,7 +6,7 @@ import { useState, useMemo, useEffect, useTransition } from 'react';
 import { DateRange } from 'react-day-picker';
 import { startOfDay, endOfDay, format } from 'date-fns';
 import { 
-    ArrowLeft, Landmark, Loader2, FileDown, FileText, 
+    ArrowLeft, Landmark, Loader2, FileDown, FileText, Printer,
     Search, Users, Package, DollarSign, Wallet, CheckCircle,
     AlertTriangle // --- IMPORTED WARNING ICON ---
 } from 'lucide-react';
@@ -14,7 +14,8 @@ import { useStore } from '@/lib/store';
 import { getStockMovementsByDateRange } from '@/services/stockService';
 import { settleConsignment } from '@/services/consignmentService';
 import { StockMovement } from '@/lib/types';
-import { exportConsignorReportToExcel, exportConsignorReportToPdf } from '@/lib/export';
+import { exportConsignorReportToExcel, buildConsignorReportPdfBytes } from '@/lib/export';
+import { PdfPreviewSheet } from '@/components/PdfPreviewSheet';
 import { useToast } from '@/hooks/use-toast';
 
 // UI Components
@@ -25,7 +26,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { DateRangeFilter } from '@/components/DateRangeFilter';
 import { NotificationBell } from '@/components/NotificationBell';
 import { ThemeToggle } from '@/components/ThemeButtons';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useLoadTransactions } from '@/hooks/useLoadTransaction';
 import { useDeviceScope } from '@/hooks/useDeviceScope';
@@ -50,6 +50,8 @@ export default function ConsignmentReportPage() {
     const [filterConsignor, setFilterConsignor] = useState<string>('all');
     const [filterStatus, setFilterStatus] = useState<string>('unpaid');
     const [searchTerm, setSearchTerm] = useState('');
+    const [pdfBytes, setPdfBytes] = useState<Uint8Array | null>(null);
+    const [previewOpen, setPreviewOpen] = useState(false);
 
     // --- LOAD TRANSACTIONS REALTIME DARI DATABASE BERDASARKAN FILTER TANGGAL ---
     const { activeDeviceId } = useDeviceScope();
@@ -304,9 +306,10 @@ export default function ConsignmentReportPage() {
         }
     };
 
-    const handlePdfExport = async () => {
+    const handleCetak = async () => {
         if (storeConfig && date?.from && date?.to) {
-            await exportConsignorReportToPdf(calculatedReportData, { from: date.from, to: date.to }, storeConfig.store_name, filterStatus);
+            const bytes = await buildConsignorReportPdfBytes(calculatedReportData, { from: date.from, to: date.to }, storeConfig.store_name, filterStatus);
+            setPdfBytes(bytes); setPreviewOpen(true);
         }
     };
 
@@ -326,21 +329,8 @@ export default function ConsignmentReportPage() {
                     </h1>
                 </div>
                 <div className="flex items-center gap-2">
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button variant="outline" size="sm" disabled={calculatedReportData.length === 0}>
-                                <FileDown className="mr-2 h-4 w-4" /> Ekspor
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                            <DropdownMenuItem onSelect={handleExcelExport}>
-                                <FileDown className="mr-2 h-4 w-4 text-success" /> Excel (.xlsx)
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onSelect={handlePdfExport}>
-                                <FileText className="mr-2 h-4 w-4 text-red-400" /> PDF (.pdf)
-                            </DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
+                    <Button variant="outline" size="sm" disabled={calculatedReportData.length === 0} onClick={handleCetak}><Printer className="mr-2 h-4 w-4" /> Cetak</Button>
+                    <Button variant="outline" size="sm" disabled={calculatedReportData.length === 0} onClick={handleExcelExport}><FileDown className="mr-2 h-4 w-4" /> Excel</Button>
                     <NotificationBell />
                     <ThemeToggle />
                 </div>
@@ -622,6 +612,7 @@ export default function ConsignmentReportPage() {
                     </CardContent>
                 </Card>
             </main>
+            <PdfPreviewSheet open={previewOpen} onOpenChange={setPreviewOpen} pdfBytes={pdfBytes} filename={`konsinyasi-${storeConfig?.store_name || 'Kastoko'}.pdf`} title="Pratinjau Bagi Hasil Konsinyasi" />
         </div>
     );
 }

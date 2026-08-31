@@ -2001,3 +2001,880 @@ export const buildPromoPerformancePdfBytes = async (summary: { totalDiscount: nu
     const pdfBytes = await pdfDoc.save();
     return pdfBytes as Uint8Array;
 };
+
+
+export const buildSalesPdfBytes = async (transactions: Transaction[], dateRange: { from: Date, to: Date }, storeName: string) => {
+    const pdfDoc = await PDFDocument.create();
+    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+    
+    const fontSize = 9;
+    const bodyFontSize = 7; // Font size slightly reduced to 7pt to comfortably fit all 9 columns
+    const margin = 35;
+    
+    // Printable A4 width is 595 - 70 = 525 units.
+    // Sum of colWidths below is 518 units, ensuring complete alignment without overflow.
+    const tableHeaders = ['Tanggal', 'Invoice', 'Qty', 'Subtotal', 'Diskon', 'HPP Toko', 'Titipan', 'Laba', 'Pajak', 'Total'];
+    const colWidths = [66, 70, 16, 54, 46, 54, 54, 54, 48, 56];
+
+    const drawTableHeader = (page: any, yPos: number) => {
+        const { width } = page.getSize();
+        let currentX = margin;
+        tableHeaders.forEach((header, i) => {
+            page.drawText(header, { x: currentX, y: yPos, font: boldFont, size: fontSize });
+            currentX += colWidths[i];
+        });
+        const lineY = yPos - 5;
+        page.drawLine({
+            start: { x: margin, y: lineY },
+            end: { x: width - margin, y: lineY },
+            thickness: 1,
+        });
+        return lineY - 15;
+    };
+
+    let currentPage = pdfDoc.addPage();
+    const { height } = currentPage.getSize();
+    let y = height - margin;
+
+    currentPage.drawText(`${storeName} - Laporan Penjualan`, { x: margin, y: y, font: boldFont, size: 16 });
+    y -= 25;
+    currentPage.drawText(`Periode: ${format(dateRange.from, 'dd MMM yyyy')} - ${format(dateRange.to, 'dd MMM yyyy')}`, { x: margin, y: y, font: font, size: 10 });
+    y -= 30;
+
+    const totalRevenue = transactions.reduce((sum, tx) => sum + tx.total, 0);
+    const totalTax = transactions.reduce((sum, tx) => sum + tx.tax_amount, 0);
+    
+    currentPage.drawText(`Total Omzet: ${formatCurrency(totalRevenue)}`, { x: margin, y: y, font: font, size: 9 });
+    currentPage.drawText(`Total Transaksi: ${transactions.length}`, { x: margin + 200, y: y, font: font, size: 9 });
+    y -= 15;
+    currentPage.drawText(`Total Pajak: ${formatCurrency(totalTax)}`, { x: margin, y: y, font: font, size: 9 });
+    
+    y -= 40; 
+    y = drawTableHeader(currentPage, y);
+
+    for (const tx of transactions) {
+        if (y < 50) {
+            currentPage = pdfDoc.addPage();
+            y = height - margin;
+            y = drawTableHeader(currentPage, y);
+        }
+
+        let stdCost = 0;
+        let consPayout = 0;
+        
+        tx.items.forEach(item => {
+            const costVal = (item.cost_snapshot || 0) * item.qty;
+            if (item.product_snapshot.is_consignment) {
+                consPayout += costVal;
+            } else {
+                stdCost += costVal;
+            }
+        });
+
+        const txProfit = tx.subtotal - (tx.discount_total || 0) - stdCost - consPayout;
+
+        const row = [
+            format(new Date(tx.created_at), 'yyyy-MM-dd HH:mm'),
+            tx.invoice_number,
+            tx.items.reduce((sum, item) => sum + item.qty, 0).toString(),
+            formatCurrency(tx.subtotal),
+            formatCurrency(tx.discount_total || 0),
+            formatCurrency(stdCost),
+            formatCurrency(consPayout),
+            formatCurrency(txProfit),
+            formatCurrency(tx.tax_amount), // Re-introduced Tax Column
+            formatCurrency(tx.total)
+        ];
+
+        let currentX = margin;
+        row.forEach((cell, i) => {
+            currentPage.drawText(cell, { x: currentX, y: y, font: font, size: bodyFontSize });
+            currentX += colWidths[i];
+        });
+
+        y -= 14; 
+    }
+
+    // --- Grand Total Row ---
+    const grandTotal = transactions.reduce((acc, tx) => {
+        let stdCost = 0;
+        let consPayout = 0;
+        tx.items.forEach(item => {
+            const costVal = (item.cost_snapshot || 0) * item.qty;
+            if (item.product_snapshot.is_consignment) {
+                consPayout += costVal;
+            } else {
+                stdCost += costVal;
+            }
+        });
+        acc.subtotal += tx.subtotal;
+        acc.discount += tx.discount_total || 0;
+        acc.stdCost += stdCost;
+        acc.consPayout += consPayout;
+        acc.tax += tx.tax_amount;
+        acc.total += tx.total;
+        acc.qty += tx.items.reduce((sum, item) => sum + item.qty, 0);
+        return acc;
+    }, { subtotal: 0, discount: 0, stdCost: 0, consPayout: 0, tax: 0, total: 0, qty: 0 });
+
+    if (y < 50) {
+        currentPage = pdfDoc.addPage();
+        y = height - margin;
+        y = drawTableHeader(currentPage, y);
+    }
+
+    const pageSize = currentPage.getSize();
+    currentPage.drawLine({
+        start: { x: margin, y: y + 6 },
+        end: { x: pageSize.width - margin, y: y + 6 },
+        thickness: 1,
+    });
+
+    const grandRow = [
+        'TOTAL',
+        '',
+        grandTotal.qty.toString(),
+        formatCurrency(grandTotal.subtotal),
+        formatCurrency(grandTotal.discount),
+        formatCurrency(grandTotal.stdCost),
+        formatCurrency(grandTotal.consPayout),
+        formatCurrency(grandTotal.subtotal - grandTotal.discount - grandTotal.stdCost - grandTotal.consPayout),
+        formatCurrency(grandTotal.tax),
+        formatCurrency(grandTotal.total)
+    ];
+
+    let grandX = margin;
+    grandRow.forEach((cell, i) => {
+        currentPage.drawText(cell, { x: grandX, y: y, font: boldFont, size: bodyFontSize });
+        grandX += colWidths[i];
+    });
+
+    const pdfBytes = await pdfDoc.save();
+    const range = format(dateRange.from, 'yyyy-MM-dd') + '_to_' + format(dateRange.to, 'yyyy-MM-dd');
+    const filename = `sales_report_${storeName.replace(/\s+/g, '_')}_${range}.pdf`;
+    return pdfBytes;
+};
+
+export const buildStockMovementPdfBytes = async (movements: ReportRow[], dateRange: { from: Date, to: Date }, storeName: string) => {
+    const pdfDoc = await PDFDocument.create();
+    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+    
+    const fontSize = 9;
+    const bodyFontSize = 8;
+    const margin = 40;
+    
+    // Sesuaikan lebar kolom agar pas dengan lebar kertas A4 (total ~515 unit)
+    const tableHeaders = ['Waktu', 'Produk', 'Tipe', 'Awal', 'Ubah', 'Akhir', 'Ref'];
+    const colWidths = [75, 120, 45, 35, 35, 35, 170]; 
+
+    // --- HELPER: Fungsi menggambar Header Tabel ---
+    const drawTableHeader = (page: any, yPos: number) => {
+        const { width } = page.getSize();
+        let xPos = margin;
+        tableHeaders.forEach((header, i) => {
+            page.drawText(header, { x: xPos, y: yPos, font: boldFont, size: fontSize });
+            xPos += colWidths[i];
+        });
+        const lineY = yPos - 5;
+        page.drawLine({
+            start: { x: margin, y: lineY },
+            end: { x: width - margin, y: lineY },
+            thickness: 1,
+        });
+        return lineY - 15; // Posisi Y untuk data pertama
+    };
+
+    // --- HALAMAN 1: Judul & Info ---
+    let currentPage = pdfDoc.addPage();
+    const { height } = currentPage.getSize();
+    let y = height - margin;
+
+    // Gambar Judul Laporan (Hanya di halaman 1)
+    currentPage.drawText(`${storeName} - Laporan Mutasi Stok`, { x: margin, y, font: boldFont, size: 16 });
+    y -= 20;
+    currentPage.drawText(`Periode: ${format(dateRange.from, 'dd/MM/yy')} - ${format(dateRange.to, 'dd/MM/yy')}`, { x: margin, y, font, size: 10 });
+    y -= 35; // Jarak sebelum tabel
+
+    // Gambar Header Tabel Halaman 1
+    y = drawTableHeader(currentPage, y);
+
+    // --- LOOP DATA ---
+    for (const m of movements) {
+        // Cek batas bawah halaman (threshold 50)
+        if (y < 50) {
+            currentPage = pdfDoc.addPage();
+            y = height - margin; // Reset Y ke paling atas di halaman baru
+            y = drawTableHeader(currentPage, y); // Gambar ulang header tabel di halaman baru
+        }
+
+        const row = [
+            format(new Date(m.created_at), 'yy-MM-dd HH:mm'),
+            m.product_name_snapshot,
+            m.productType === 'Product' ? 'Produk' : m.productType === 'Ingredient' ? 'Bahan' : 'Varian',
+            m.openingStock.toString(),
+            (m.qty_change > 0 ? '+' : '') + m.qty_change.toString(),
+            m.resultingStock.toString(),
+            m.referenceDisplay,
+        ];
+
+        let xPos = margin;
+        row.forEach((cell, i) => {
+            // Logika Truncate agar teks tidak menabrak kolom sebelah
+            const text = String(cell || '');
+            const textWidth = font.widthOfTextAtSize(text, bodyFontSize);
+            const maxWidth = colWidths[i] - 8;
+            
+            let displayHeader = text;
+            if (textWidth > maxWidth) {
+                // Truncate sederhana jika terlalu panjang
+                displayHeader = text.substring(0, Math.floor(text.length * (maxWidth / textWidth))) + '..';
+            }
+
+            currentPage.drawText(displayHeader, { x: xPos, y, font, size: bodyFontSize });
+            xPos += colWidths[i];
+        });
+
+        y -= 14; // Tinggi baris
+    }
+
+    const pdfBytes = await pdfDoc.save();
+    const range = format(dateRange.from, 'yyyy-MM-dd') + '_to_' + format(dateRange.to, 'yyyy-MM-dd');
+    const filename = `mutasi_stok_${storeName.replace(/\s+/g, '_')}_${range}.pdf`;
+    return pdfBytes;
+}
+
+export const buildStockSummaryPdfBytes = async (reportData: any[], dateRange: { from: Date, to: Date }, storeName: string) => {
+    const pdfDoc = await PDFDocument.create();
+    let page = pdfDoc.addPage();
+    const { width, height } = page.getSize();
+    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+    const fontSize = 9;
+    const bodyFontSize = 8;
+    const margin = 40;
+
+    const tableHeaders = ['Produk/Bahan', 'Tipe', 'Awal', 'Masuk', 'Keluar', 'Adj', 'Akhir'];
+    const colWidths = [180, 60, 55, 55, 55, 55, 55];
+
+    const drawTableHeader = (page: any, yPos: number) => {
+        let x = margin;
+        tableHeaders.forEach((header, i) => {
+            page.drawText(header, { x, y: yPos, font: boldFont, size: fontSize });
+            x += colWidths[i];
+        });
+        const lineY = yPos - 5;
+        page.drawLine({ start: { x: margin, y: lineY }, end: { x: width - margin, y: lineY }, thickness: 1 });
+        return lineY - 15;
+    };
+
+    let y = height - margin;
+    page.drawText(`${storeName} - Ringkasan Stok`, { x: margin, y, font: boldFont, size: 16 });
+    y -= 20;
+    page.drawText(`Periode: ${format(dateRange.from, 'dd MMM yyyy')} - ${format(dateRange.to, 'dd MMM yyyy')}`, { x: margin, y, font, size: 10 });
+    y -= 30;
+
+    y = drawTableHeader(page, y);
+
+    for (const item of reportData) {
+        if (y < 50) {
+            page = pdfDoc.addPage();
+            y = height - margin;
+            y = drawTableHeader(page, y);
+        }
+
+        const row = [
+            item.name,
+            item.type === 'product' ? 'Produk' : 'Bahan',
+            item.openingStock.toLocaleString(),
+            item.added > 0 ? `+${item.added.toLocaleString()}` : '0',
+            item.sold > 0 ? `-${item.sold.toLocaleString()}` : '0',
+            item.adjusted !== 0 ? item.adjusted.toLocaleString() : '0',
+            item.closingStock.toLocaleString(),
+        ];
+
+        let x = margin;
+        row.forEach((cell, i) => {
+            page.drawText(cell, { x, y, font, size: bodyFontSize });
+            x += colWidths[i];
+        });
+        y -= 12;
+    }
+
+    const pdfBytes = await pdfDoc.save();
+
+    const range = format(dateRange.from, 'yyyy-MM-dd') + '_to_' + format(dateRange.to, 'yyyy-MM-dd');
+    const filename = `stocks_summary_report_${storeName.replace(/\s+/g, '_')}_${range}.pdf`;
+    return pdfBytes;
+};
+
+export const buildShiftsPdfBytes = async (shifts: Shift[], dateRange: { from: Date, to: Date }, storeName: string) => {
+    const pdfDoc = await PDFDocument.create();
+    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+    const fontSize = 9;
+    const bodyFontSize = 8;
+    const margin = 40;
+
+    const tableHeaders = ['Tanggal', 'Jam', 'Modal', 'Ekspetasi', 'Deklarasi', 'Selisih'];
+    const colWidths = [75, 85, 85, 85, 85, 85];
+
+    const drawTableHeader = (page: any, yPos: number) => {
+        const { width } = page.getSize();
+        let xPos = margin;
+        tableHeaders.forEach((header, i) => {
+            page.drawText(header, { x: xPos, y: yPos, font: boldFont, size: fontSize });
+            xPos += colWidths[i];
+        });
+        const lineY = yPos - 5;
+        page.drawLine({
+            start: { x: margin, y: lineY },
+            end: { x: width - margin, y: lineY },
+            thickness: 1,
+        });
+        return lineY - 15;
+    };
+
+    let currentPage = pdfDoc.addPage();
+    const { height } = currentPage.getSize();
+    let y = height - margin;
+
+    currentPage.drawText(`${storeName} - Laporan Riwayat Sif`, { x: margin, y, font: boldFont, size: 16 });
+    y -= 20;
+    currentPage.drawText(`Periode: ${format(dateRange.from, 'dd MMM yyyy')} - ${format(dateRange.to, 'dd MMM yyyy')}`, { x: margin, y, font, size: 10 });
+    y -= 35;
+
+    y = drawTableHeader(currentPage, y);
+
+    for (const s of shifts) {
+        if (y < 50) {
+            currentPage = pdfDoc.addPage();
+            y = height - margin;
+            y = drawTableHeader(currentPage, y);
+        }
+
+        const row = [
+            s.closed_at ? format(new Date(s.closed_at), 'dd/MM/yy') : '-',
+            (s.opened_at && s.closed_at) ? `${format(new Date(s.opened_at), 'HH:mm')}-${format(new Date(s.closed_at), 'HH:mm')}` : 'Aktif',
+            formatCurrency(s.opening_cash),
+            formatCurrency(s.system_cash || 0),
+            formatCurrency(s.declared_cash || 0),
+            formatCurrency(s.variance || 0)
+        ];
+
+        let xPos = margin;
+        row.forEach((cell, i) => {
+            currentPage.drawText(cell, { 
+                x: xPos, 
+                y, 
+                font, 
+                size: bodyFontSize,
+                color: i === 5 && (s.variance || 0) !== 0 ? rgb(0.8, 0, 0) : rgb(0, 0, 0)
+            });
+            xPos += colWidths[i];
+        });
+        y -= 14;
+    }
+
+    const pdfBytes = await pdfDoc.save();
+    const range = format(dateRange.from, 'yyyy-MM-dd') + '_to_' + format(dateRange.to, 'yyyy-MM-dd');
+    const filename = `shift_history_${storeName.replace(/\s+/g, '_')}_${range}.pdf`;
+    return pdfBytes;
+};
+
+export const buildVoidPdfBytes = async (transactions: Transaction[], dateRange: { from: Date, to: Date }, storeName: string) => {
+    const pdfDoc = await PDFDocument.create();
+    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+    
+    const fontSize = 9;
+    const margin = 40;
+    const tableHeaders = ['Waktu', 'No. Faktur', 'Alasan Void', 'Total'];
+    const colWidths = [90, 100, 225, 100];
+
+    const drawTableHeader = (page: any, yPos: number) => {
+        const { width } = page.getSize();
+        let xPos = margin;
+        tableHeaders.forEach((h, i) => {
+            page.drawText(h, { x: xPos, y: yPos, font: boldFont, size: fontSize });
+            xPos += colWidths[i];
+        });
+        const lineY = yPos - 5;
+        page.drawLine({ start: { x: margin, y: lineY }, end: { x: width - margin, y: lineY }, thickness: 1 });
+        return lineY - 15;
+    };
+
+    let currentPage = pdfDoc.addPage();
+    const { width, height } = currentPage.getSize();
+    let y = height - margin;
+
+    // Header Laporan
+    currentPage.drawText(`${storeName} - LAPORAN VOID`, { x: margin, y, font: boldFont, size: 16 });
+    y -= 20;
+    currentPage.drawText(`Periode: ${format(dateRange.from, 'dd/MM/yyyy')} - ${format(dateRange.to, 'dd/MM/yyyy')}`, { x: margin, y, font, size: 10 });
+    y -= 35;
+
+    y = drawTableHeader(currentPage, y);
+
+    for (const tx of transactions) {
+        if (y < 50) {
+            currentPage = pdfDoc.addPage();
+            y = height - margin;
+            y = drawTableHeader(currentPage, y);
+        }
+
+        const row = [
+            tx.voided_at ? format(new Date(tx.voided_at), 'dd/MM/yy HH:mm') : '-',
+            tx.invoice_number,
+            tx.void_reason || '-',
+            formatCurrency(tx.total)
+        ];
+
+        let xPos = margin;
+        row.forEach((cell, i) => {
+            const text = cell.length > 45 ? cell.substring(0, 42) + "..." : cell;
+            currentPage.drawText(text, { x: xPos, y, font, size: 8 });
+            xPos += colWidths[i];
+        });
+        y -= 15;
+    }
+
+    // --- Total Voided Row ---
+    const totalVoidedAmount = transactions.reduce((sum, tx) => sum + tx.total, 0);
+
+    if (y < 50) {
+        currentPage = pdfDoc.addPage();
+        y = height - margin;
+        y = drawTableHeader(currentPage, y);
+    }
+
+    currentPage.drawLine({
+        start: { x: margin, y: y + 6 },
+        end: { x: width - margin, y: y + 6 },
+        thickness: 1,
+    });
+
+    const totalRow = ['TOTAL', '', `${transactions.length} Transaksi`, formatCurrency(totalVoidedAmount)];
+    let totalX = margin;
+    totalRow.forEach((cell, i) => {
+        currentPage.drawText(cell, { x: totalX, y, font: boldFont, size: 8 });
+        totalX += colWidths[i];
+    });
+
+    const pdfBytes = await pdfDoc.save();
+    const range = format(dateRange.from, 'yyyyMMdd') + '_' + format(dateRange.to, 'yyyyMMdd');
+    return pdfBytes;
+};
+
+export const buildAuditReportPdfBytes = async (auditData: any[], dateRange: { from: Date, to: Date }, storeName: string) => {
+    const pdfDoc = await PDFDocument.create();
+    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+    
+    const margin = 35;
+    // Standard A4 printable width is 595 - 70 = 525 unit. 
+    // We adjust table widths and decrease cell sizes to ensure standardHPP and consignmentPayout fit.
+    const tableHeaders = ['Tanggal', 'Omzet', 'HPP Toko', 'Titipan', 'Margin', 'Selisih', 'Laba Riil'];
+    const colWidths = [70, 75, 75, 75, 75, 75, 80];
+
+    const drawTableHeader = (page: any, yPos: number) => {
+        const { width } = page.getSize();
+        let xPos = margin;
+        tableHeaders.forEach((h, i) => {
+            page.drawText(h, { x: xPos, y: yPos, font: boldFont, size: 8 });
+            xPos += colWidths[i];
+        });
+        const lineY = yPos - 5;
+        page.drawLine({ start: { x: margin, y: lineY }, end: { x: width - margin, y: lineY }, thickness: 1 });
+        return lineY - 15;
+    };
+
+    let currentPage = pdfDoc.addPage(PageSizes.A4);
+    const { height } = currentPage.getSize();
+    let y = height - margin;
+
+    currentPage.drawText(`${storeName.toUpperCase()} - AUDIT BISNIS`, { x: margin, y: y, font: boldFont, size: 16 });
+    y -= 20;
+    currentPage.drawText(`Periode: ${format(dateRange.from, 'dd MMM yyyy')} - ${format(dateRange.to, 'dd MMM yyyy')}`, { x: margin, y: y, font: font, size: 9 });
+    y -= 35;
+
+    y = drawTableHeader(currentPage, y);
+
+    auditData.forEach(row => {
+        if (y < 60) {
+            currentPage = pdfDoc.addPage(PageSizes.A4);
+            y = height - margin;
+            y = drawTableHeader(currentPage, y);
+        }
+
+        const cells = [
+            format(new Date(row.date), 'dd/MM/yyyy'),
+            formatCurrency(row.revenue),
+            formatCurrency(row.standardHPP),
+            formatCurrency(row.consignmentPayout),
+            formatCurrency(row.paperProfit),
+            formatCurrency(row.variance),
+            formatCurrency(row.actualProfit)
+        ];
+
+        let xPos = margin;
+        cells.forEach((c, i) => {
+            currentPage.drawText(c, { 
+                x: xPos, 
+                y: y, 
+                font: i === 6 ? boldFont : font, 
+                size: 7.5,
+                color: i === 5 && row.variance !== 0 ? rgb(0.8, 0, 0) : rgb(0, 0, 0)
+            });
+            xPos += colWidths[i];
+        });
+        y -= 15;
+    });
+
+    const pdfBytes = await pdfDoc.save();
+    const range = format(dateRange.from, 'yyyyMMdd');
+    return pdfBytes;
+};
+
+export const buildTaxSummaryPdfBytes = async (dailyStats: any[], dateRange: { from: Date, to: Date }, storeName: string) => {
+    const pdfDoc = await PDFDocument.create();
+    const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    
+    const margin = 50;
+    const tableHeaders = ['Tanggal', 'DPP (Dasar Pajak)', 'Terpungut', 'Void/Batal', 'Pajak Bersih'];
+    const colWidths = [90, 110, 100, 100, 100];
+
+    const drawTableHeader = (page: any, yPos: number) => {
+        const { width } = page.getSize();
+        let xPos = margin;
+        tableHeaders.forEach((h, i) => {
+            page.drawText(h, { x: xPos, y: yPos, font: boldFont, size: 9 });
+            xPos += colWidths[i];
+        });
+        const lineY = yPos - 5;
+        page.drawLine({ start: { x: margin, y: lineY }, end: { x: width - margin, y: lineY }, thickness: 1 });
+        return lineY - 15;
+    };
+
+    let currentPage = pdfDoc.addPage(PageSizes.A4);
+    const { width, height } = currentPage.getSize();
+    let y = height - margin;
+
+    // --- 1. HEADER & RINGKASAN (HANYA HALAMAN 1) ---
+    currentPage.drawText(storeName.toUpperCase(), { x: margin, y, font: boldFont, size: 16 });
+    y -= 20;
+    currentPage.drawText(`RINGKASAN AUDIT PAJAK`, { x: margin, y, font: boldFont, size: 12, color: rgb(0.3, 0.3, 0.3) });
+    y -= 15;
+    currentPage.drawText(`Periode: ${format(dateRange.from, 'dd MMM yyyy')} - ${format(dateRange.to, 'dd MMM yyyy')}`, { x: margin, y, font, size: 10 });
+    y -= 30;
+
+    const totalDPP = dailyStats.reduce((s, i) => s + i.taxableBase, 0);
+    const totalCollected = dailyStats.reduce((s, i) => s + i.taxCollected, 0);
+    const totalVoided = dailyStats.reduce((s, i) => s + i.taxVoided, 0);
+    const totalNet = dailyStats.reduce((s, i) => s + i.netTaxOwed, 0);
+
+    const boxHeight = 85; // Tinggi kotak ditingkatkan agar lebih lega
+    const boxY = y - boxHeight; // Koordinat bawah kotak
+
+    // Menggambar Kotak Abu-abu
+    currentPage.drawRectangle({
+        x: margin,
+        y: boxY,
+        width: width - (margin * 2),
+        height: boxHeight,
+        color: rgb(0.96, 0.96, 0.96),
+    });
+
+    // Mulai menggambar teks di dalam kotak dengan padding atas 15 unit
+    let kpiY = (boxY + boxHeight) - 18; 
+    const labelX = margin + 15;
+    const valueX = margin + 180;
+
+    currentPage.drawText(`Total DPP (Dasar Pajak):`, { x: labelX, y: kpiY, font, size: 9 });
+    currentPage.drawText(formatCurrency(totalDPP), { x: valueX, y: kpiY, font: boldFont, size: 9 });
+    
+    kpiY -= 15;
+    currentPage.drawText(`Total Pajak Terpungut:`, { x: labelX, y: kpiY, font, size: 9 });
+    currentPage.drawText(formatCurrency(totalCollected), { x: valueX, y: kpiY, font: boldFont, size: 9 });
+
+    kpiY -= 15;
+    currentPage.drawText(`Total Pajak Void:`, { x: labelX, y: kpiY, font, size: 9, color: rgb(0.7, 0, 0) });
+    currentPage.drawText(`(${formatCurrency(totalVoided)})`, { x: valueX, y: kpiY, font: boldFont, size: 9, color: rgb(0.7, 0, 0) });
+
+    kpiY -= 18; // Beri jarak sedikit lebih lebar untuk baris total bersih
+    currentPage.drawText(`KEWAJIBAN PAJAK BERSIH:`, { x: labelX, y: kpiY, font: boldFont, size: 10 });
+    currentPage.drawText(formatCurrency(totalNet), { x: valueX, y: kpiY, font: boldFont, size: 10, color: rgb(0, 0.4, 0.7) });
+
+    // Update 'y' ke posisi di bawah kotak untuk memulai tabel (beri jarak 40 unit)
+    y = boxY - 35;
+
+    // --- 2. TABEL DATA ---
+    for (const item of dailyStats) {
+        if (y < 60) {
+            currentPage = pdfDoc.addPage(PageSizes.A4);
+            y = height - margin;
+            currentPage.drawText(`${storeName} - Ringkasan Pajak (Lanj.)`, { x: margin, y, font: boldFont, size: 10 });
+            y -= 25;
+            y = drawTableHeader(currentPage, y);
+        }
+
+        const row = [
+            format(new Date(item.date), 'dd/MM/yyyy'),
+            formatCurrency(item.taxableBase),
+            formatCurrency(item.taxCollected),
+            item.taxVoided > 0 ? `(${formatCurrency(item.taxVoided)})` : 'Rp 0',
+            formatCurrency(item.netTaxOwed)
+        ];
+
+        let xPos = margin;
+        row.forEach((text, i) => {
+            currentPage.drawText(text, { 
+                x: xPos, y, font, size: 8,
+                color: i === 3 && item.taxVoided > 0 ? rgb(0.7, 0, 0) : rgb(0,0,0)
+            });
+            xPos += colWidths[i];
+        });
+        y -= 15;
+    }
+
+    const pdfBytes = await pdfDoc.save();
+    const rangeStr = format(dateRange.from, 'yyyyMMdd') + '-' + format(dateRange.to, 'yyyyMMdd');
+    return pdfBytes;
+};
+
+export const buildConsignorReportPdfBytes = async (
+    reportData: any[], 
+    dateRange: { from: Date, to: Date }, 
+    storeName: string,
+    filterStatus: string = 'unpaid' // --- TAMBAHAN PARAMETER STATUS FILTER ---
+) => {
+    const pdfDoc = await PDFDocument.create();
+    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+    
+    const margin = 40;
+    const fontSize = 9;
+    const bodyFontSize = 8;
+    const isPaidMode = filterStatus === 'paid';
+
+    // --- SETUP COLS & HEADER DYNAMICALLY ---
+    const tableHeaders = isPaidMode 
+        ? ['Tanggal Bayar', 'Produk', 'Harga', 'Qty Lunas', 'Komisi', 'Total Dibayar']
+        : ['Produk', 'Harga', 'Masuk', 'Laku', 'Sisa', 'Komisi', 'Bagi Hasil'];
+        
+    const colWidths = isPaidMode
+        ? [75, 150, 65, 45, 75, 80] // Total: 490pt
+        : [135, 65, 40, 40, 40, 75, 80]; // Total: 475pt
+
+    const drawTableHeader = (page: any, yPos: number) => {
+        const { width } = page.getSize();
+        let xPos = margin;
+        tableHeaders.forEach((h, i) => {
+            page.drawText(h, { x: xPos, y: yPos, font: boldFont, size: fontSize });
+            xPos += colWidths[i];
+        });
+        const lineY = yPos - 5;
+        page.drawLine({ start: { x: margin, y: lineY }, end: { x: width - margin, y: lineY }, thickness: 1 });
+        return lineY - 15;
+    };
+
+    let currentPage = pdfDoc.addPage(PageSizes.A4);
+    const { width, height } = currentPage.getSize();
+    let y = height - margin;
+
+    // --- HEADER DETAILS ---
+    currentPage.drawText(`${storeName.toUpperCase()}`, { x: margin, y: y, font: boldFont, size: 16 });
+    y -= 18;
+    
+    const subtitle = isPaidMode 
+        ? 'BUKU RIWAYAT PEMBAYARAN KONSINYASI (PAID LEDGER)'
+        : 'LAPORAN BAGI HASIL TITIPAN (KONSINYASI)';
+    currentPage.drawText(subtitle, { x: margin, y: y, font: boldFont, size: 11, color: rgb(0.3, 0.3, 0.3) });
+    y -= 15;
+    currentPage.drawText(`Periode: ${format(dateRange.from, 'dd MMM yyyy')} - ${format(dateRange.to, 'dd MMM yyyy')}`, { x: margin, y: y, font: font, size: 10 });
+    y -= 30;
+
+    // --- GRAND TOTAL BOX SUMMARY ---
+    const totalSupplied = isPaidMode ? 0 : reportData.reduce((sum, item) => sum + item.supplied, 0);
+    const totalSold = isPaidMode 
+        ? reportData.reduce((sum, item) => sum + item.qty, 0)
+        : reportData.reduce((sum, item) => sum + item.sold, 0);
+    const totalStoreCommission = reportData.reduce((sum, item) => sum + item.storeCommission, 0);
+    const totalPayout = reportData.reduce((sum, item) => sum + item.consignorShare, 0);
+
+    const boxHeight = 75;
+    const boxY = y - boxHeight;
+
+    currentPage.drawRectangle({
+        x: margin,
+        y: boxY,
+        width: width - (margin * 2),
+        height: boxHeight,
+        color: rgb(0.96, 0.96, 0.96),
+    });
+
+    let kpiY = (boxY + boxHeight) - 15;
+    if (isPaidMode) {
+        currentPage.drawText(`Total Kuantitas Lunas: ${totalSold} unit`, { x: margin + 15, y: kpiY, font: font, size: 8 });
+        currentPage.drawText(`Total Transaksi Payout: ${reportData.length} kali`, { x: margin + 220, y: kpiY, font: font, size: 8 });
+    } else {
+        currentPage.drawText(`Total Barang Masuk: ${totalSupplied} unit`, { x: margin + 15, y: kpiY, font: font, size: 8 });
+        currentPage.drawText(`Total Barang Terjual: ${totalSold} unit`, { x: margin + 220, y: kpiY, font: font, size: 8 });
+    }
+    
+    kpiY -= 15;
+    currentPage.drawText(`Total Komisi Toko:`, { x: margin + 15, y: kpiY, font: font, size: 9 });
+    currentPage.drawText(formatCurrency(totalStoreCommission), { x: margin + 130, y: kpiY, font: boldFont, size: 9 });
+
+    kpiY -= 20;
+    const greenLabel = isPaidMode ? 'TOTAL TELAH DIBAYARKAN:' : 'TOTAL SIAP BAYAR KE PENITIP:';
+    currentPage.drawText(greenLabel, { x: margin + 15, y: kpiY, font: boldFont, size: 10 });
+    currentPage.drawText(formatCurrency(totalPayout), { x: margin + 220, y: kpiY, font: boldFont, size: 10, color: rgb(0, 0.5, 0.2) });
+
+    y = boxY - 30;
+    y = drawTableHeader(currentPage, y);
+
+    // --- GROUP BY CONSIGNOR LOGIC ---
+    const groupedByConsignor = reportData.reduce((acc: any, item: any) => {
+        const key = item.consignorName || 'Umum';
+        if (!acc[key]) acc[key] = [];
+        acc[key].push(item);
+        return acc;
+    }, {});
+
+    for (const [consignor, items] of Object.entries(groupedByConsignor)) {
+        if (y < 80) {
+            currentPage = pdfDoc.addPage(PageSizes.A4);
+            y = height - margin;
+            y = drawTableHeader(currentPage, y);
+        }
+
+        currentPage.drawText(`PENITIP: ${consignor.toUpperCase()}`, { x: margin, y: y, font: boldFont, size: 10, color: rgb(0.1, 0.4, 0.7) });
+        y -= 15;
+
+        let consignorTotalPayout = 0;
+
+        for (const item of (items as any[])) {
+            if (y < 50) {
+                currentPage = pdfDoc.addPage(PageSizes.A4);
+                y = height - margin;
+                y = drawTableHeader(currentPage, y);
+            }
+
+            consignorTotalPayout += item.consignorShare;
+
+            const row = isPaidMode 
+                ? [
+                    format(new Date(item.settledDate), 'dd/MM/yyyy'),
+                    item.productName.length > 28 ? item.productName.substring(0, 25) + "..." : item.productName,
+                    formatCurrency(item.price),
+                    `${item.qty} unit`,
+                    formatCurrency(item.storeCommission),
+                    formatCurrency(item.consignorShare)
+                  ]
+                : [
+                    item.productName.length > 25 ? item.productName.substring(0, 22) + "..." : item.productName,
+                    formatCurrency(item.price),
+                    item.supplied.toString(),
+                    item.sold.toString(),
+                    item.returned.toString(),
+                    formatCurrency(item.storeCommission),
+                    formatCurrency(item.consignorShare)
+                  ];
+
+            let xPos = margin;
+            row.forEach((cell, i) => {
+                currentPage.drawText(cell, { x: xPos, y: y, font: font, size: bodyFontSize });
+                xPos += colWidths[i];
+            });
+            y -= 13;
+        }
+
+        // Draw subtotal separator line
+        currentPage.drawLine({
+            start: { x: margin, y: y + 5 },
+            end: { x: width - margin, y: y + 5 },
+            thickness: 0.5,
+            color: rgb(0.8, 0.8, 0.8)
+        });
+
+        const payoutLabel = isPaidMode ? `Total Terbayar (${consignor}):` : `Total Bayar (${consignor}):`;
+        currentPage.drawText(payoutLabel, { x: margin + 180, y: y, font: boldFont, size: 8 });
+        currentPage.drawText(formatCurrency(consignorTotalPayout), { x: margin + 380, y: y, font: boldFont, size: 8, color: rgb(0, 0.5, 0.2) });
+        y -= 25;
+    }
+
+    const pdfBytes = await pdfDoc.save();
+    const rangeStr = format(dateRange.from, 'yyyyMMdd') + '-' + format(dateRange.to, 'yyyyMMdd');
+    const filename = isPaidMode 
+        ? `riwayat_pembayaran_titipan_${rangeStr}.pdf`
+        : `laporan_payout_titipan_${rangeStr}.pdf`;
+
+    return pdfBytes;
+};
+
+export const buildConsumptionPdfBytes = async (reportData: any[], dateRange: { from: Date, to: Date }, storeName: string) => {
+    const pdfDoc = await PDFDocument.create();
+    let page = pdfDoc.addPage();
+    const { width, height } = page.getSize();
+    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+    const fontSize = 9;
+    const bodyFontSize = 8;
+    const margin = 40;
+
+    const tableHeaders = ['Bahan', 'Awal', 'Keluar', 'Nilai Keluar', 'Adj', 'Akhir', 'Nilai Akhir'];
+    const colWidths = [120, 60, 60, 75, 50, 60, 75];
+
+    const drawTableHeader = (page: any, yPos: number) => {
+        let x = margin;
+        tableHeaders.forEach((header, i) => {
+            page.drawText(header, { x, y: yPos, font: boldFont, size: fontSize });
+            x += colWidths[i];
+        });
+        const lineY = yPos - 5;
+        page.drawLine({ start: { x: margin, y: lineY }, end: { x: width - margin, y: lineY }, thickness: 1 });
+        return lineY - 15;
+    };
+
+    let y = height - margin;
+    page.drawText(`${storeName} - Laporan Konsumsi Bahan`, { x: margin, y, font: boldFont, size: 16 });
+    y -= 20;
+    page.drawText(`Periode: ${format(dateRange.from, 'dd MMM yyyy')} - ${format(dateRange.to, 'dd MMM yyyy')}`, { x: margin, y, font, size: 10 });
+    y -= 30;
+
+    y = drawTableHeader(page, y);
+
+    for (const item of reportData) {
+        if (y < 50) {
+            page = pdfDoc.addPage();
+            y = height - margin;
+            y = drawTableHeader(page, y);
+        }
+
+        const row = [
+            item.name,
+            `${item.openingStock.toLocaleString()}`,
+            `${item.consumed > 0 ? `-${item.consumed.toLocaleString()}` : '0'}`,
+            formatCurrency(item.costOfConsumed),
+            `${item.adjusted > 0 ? `+${item.adjusted.toLocaleString()}` : item.adjusted.toLocaleString()}`,
+            `${item.closingStock.toLocaleString()}`,
+            formatCurrency(item.closingStock * item.cost_per_unit),
+        ];
+
+        let x = margin;
+        row.forEach((cell, i) => {
+            page.drawText(cell, { x, y, font, size: bodyFontSize });
+            x += colWidths[i];
+        });
+        y -= 12;
+    }
+
+    const pdfBytes = await pdfDoc.save();
+
+    const range = format(dateRange.from, 'yyyy-MM-dd') + '_to_' + format(dateRange.to, 'yyyy-MM-dd');
+    const filename = `consumption_report_${storeName.replace(/\s+/g, '_')}_${range}.pdf`;
+    return pdfBytes;
+};

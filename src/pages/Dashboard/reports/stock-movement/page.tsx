@@ -2,11 +2,11 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useStore } from '@/lib/store';
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { DateRange } from 'react-day-picker';
-import { ArrowLeft, History, PackageSearch, Filter, X, Package, Loader2, FileDown, FileText } from 'lucide-react';
+import { ArrowLeft, History, PackageSearch, Filter, X, Package, Loader2, FileDown, FileText, Printer } from 'lucide-react';
 import { format, startOfDay, endOfDay } from 'date-fns';
-import { exportStockMovementToExcel, exportStockMovementToPdf } from '@/lib/export';
+import { exportStockMovementToExcel, buildStockMovementPdfBytes } from '@/lib/export';
 import { useToast } from '@/hooks/use-toast';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { PdfPreviewSheet } from '@/components/PdfPreviewSheet';
 
 import { useVirtualizer } from '@tanstack/react-virtual';
 
@@ -101,6 +101,8 @@ export default function StockMovementReportPage() {
     const [filterProductId, setFilterProductId] = useState<string | null>(null);
     const [stockMovements, setStockMovements] = useState<StockMovement[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [pdfBytes, setPdfBytes] = useState<Uint8Array | null>(null);
+    const [previewOpen, setPreviewOpen] = useState(false);
     const nav = useNavigate();
 
     const parentRef = useRef<HTMLDivElement>(null);
@@ -282,9 +284,10 @@ export default function StockMovementReportPage() {
         }
     };
 
-    const handlePdfExport = async () => {
+    const handleCetak = async () => {
         if (storeConfig && date?.from && date?.to) {
-            await exportStockMovementToPdf(reportData, { from: date.from, to: date.to }, storeConfig.store_name);
+            const bytes = await buildStockMovementPdfBytes(reportData, { from: date.from, to: date.to }, storeConfig.store_name);
+            setPdfBytes(bytes); setPreviewOpen(true);
         } else {
             toast({ variant: 'destructive', title: 'Error', description: 'Konfigurasi toko atau periode tidak ditemukan.' });
         }
@@ -311,22 +314,8 @@ export default function StockMovementReportPage() {
                     </h1>
                 </div>
                 <div className="flex items-center gap-2">
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="outline" size="sm" disabled={reportData.length === 0}>
-                            <FileDown className="mr-2 h-4 w-4" />
-                            <span>Ekspor</span>
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                            <DropdownMenuItem onSelect={handleExcelExport}>
-                                <FileDown className="mr-2 h-4 w-4 text-success"/> Excel (.xlsx)
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onSelect={handlePdfExport}>
-                                <FileText className="mr-2 h-4 w-4 text-red-400"/> PDF (.pdf)
-                            </DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
+                    <Button variant="outline" size="sm" disabled={reportData.length === 0} onClick={handleCetak}><Printer className="mr-2 h-4 w-4" /> Cetak</Button>
+                    <Button variant="outline" size="sm" disabled={reportData.length === 0} onClick={handleExcelExport}><FileDown className="mr-2 h-4 w-4" /> Excel</Button>
                     <NotificationBell />
                     <ThemeToggle />
                 </div>
@@ -510,6 +499,7 @@ export default function StockMovementReportPage() {
                 </CardContent>
             </Card>
           </main>
+            <PdfPreviewSheet open={previewOpen} onOpenChange={setPreviewOpen} pdfBytes={pdfBytes} filename={`mutasi-stok-${storeConfig?.store_name || 'Kastoko'}.pdf`} title="Pratinjau Mutasi Stok" />
         </div>
     );
 }

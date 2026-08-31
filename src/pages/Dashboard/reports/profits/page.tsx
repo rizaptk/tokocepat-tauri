@@ -4,9 +4,9 @@ import * as React from 'react';
 import { useState, useMemo, useEffect } from 'react';
 import { DateRange } from 'react-day-picker';
 import { endOfDay, startOfDay, subDays, format } from 'date-fns';
-import { ArrowLeft, ShieldCheck, DollarSign, TrendingUp, Loader2, FileDown, Package, Wallet } from 'lucide-react';
-import { exportAuditReportToExcel, exportAuditReportToPdf } from '@/lib/export';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { ArrowLeft, ShieldCheck, DollarSign, TrendingUp, Loader2, FileDown, Package, Wallet, Printer } from 'lucide-react';
+import { exportAuditReportToExcel, buildAuditReportPdfBytes } from '@/lib/export';
+import { PdfPreviewSheet } from '@/components/PdfPreviewSheet';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -32,7 +32,11 @@ export default function AuditReportPage() {
     const [isLoading, setIsLoading] = useState(true);
     const { storeConfig, shifts } = useStore();
     const { activeDeviceId } = useDeviceScope();
+    const [pdfBytes, setPdfBytes] = useState<Uint8Array | null>(null);
+    const [previewOpen, setPreviewOpen] = useState(false);
     const nav = useNavigate();
+    const handleCetak = async () => { if (date?.from && date?.to) { const bytes = await buildAuditReportPdfBytes(auditData, {from: date.from, to: date.to }, storeConfig?.store_name || 'Kastoko'); setPdfBytes(bytes); setPreviewOpen(true); } };
+    const handleExcel = () => { if (date?.from && date?.to) exportAuditReportToExcel(auditData, {from: date.from, to: date.to }, storeConfig?.store_name || 'Kastoko'); };
 
     useEffect(() => {
         if (!date?.from || !date?.to) return;
@@ -132,15 +136,8 @@ export default function AuditReportPage() {
                 </Button>
                 <div className="flex-1"><h1 className="text-lg font-semibold flex items-center gap-2"><ShieldCheck className="h-5 w-5" /> Audit Laba & Kas</h1></div>
                 <div className="flex items-center gap-2">
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button variant="outline" size="sm" disabled={auditData.length === 0}><FileDown className="mr-2 h-4 w-4" /> Ekspor</Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                            <DropdownMenuItem onSelect={() => date?.from && date?.to && exportAuditReportToExcel(auditData, {from: date.from, to: date.to }, storeConfig?.store_name || 'Kastoko')}>Excel (.xlsx)</DropdownMenuItem>
-                            <DropdownMenuItem onSelect={() => date?.from && date?.to && exportAuditReportToPdf(auditData, {from: date.from, to: date.to }, storeConfig?.store_name || 'Kastoko')}>PDF (.pdf)</DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
+                    <Button variant="outline" size="sm" disabled={auditData.length === 0} onClick={handleCetak}><Printer className="mr-2 h-4 w-4" /> Cetak</Button>
+                    <Button variant="outline" size="sm" disabled={auditData.length === 0} onClick={handleExcel}><FileDown className="mr-2 h-4 w-4" /> Excel</Button>
                     <NotificationBell /><ThemeToggle />
                 </div>
            </header>
@@ -209,6 +206,7 @@ export default function AuditReportPage() {
                 </CardContent>
             </Card>
           </main>
+            <PdfPreviewSheet open={previewOpen} onOpenChange={setPreviewOpen} pdfBytes={pdfBytes} filename={`audit-laba-${storeConfig?.store_name || 'Kastoko'}.pdf`} title="Pratinjau Audit Laba" />
         </div>
     );
 }

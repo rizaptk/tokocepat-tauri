@@ -2,10 +2,10 @@ import { Link, useNavigate } from 'react-router-dom';
 import { formatIDR as formatCurrency } from "@/lib/format";
 import { useStore } from '@/lib/store';
 import { format, startOfDay, endOfDay } from 'date-fns';
-import { ArrowLeft, ArchiveX, FileDown, FileText, Loader2 } from 'lucide-react';
+import { ArrowLeft, ArchiveX, FileDown, FileText, Loader2, Printer } from 'lucide-react';
 import React, { useState, useMemo } from 'react';
 import { DateRange } from 'react-day-picker';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -16,7 +16,8 @@ import { useToast } from '@/hooks/use-toast';
 import TransactionDetailDialog from '@/components/TransactionDetailDialog';
 import { NotificationBell } from '@/components/NotificationBell';
 import { ThemeToggle } from '@/components/ThemeButtons';
-import { exportVoidToExcel, exportVoidToPdf } from '@/lib/export';
+import { exportVoidToExcel, buildVoidPdfBytes } from '@/lib/export';
+import { PdfPreviewSheet } from '@/components/PdfPreviewSheet';
 import { useLoadTransactions } from '@/hooks/useLoadTransaction';
 import { useDeviceScope } from '@/hooks/useDeviceScope';
 import { DeviceScopeFilter } from '@/components/DeviceScopeFilter';
@@ -31,6 +32,8 @@ export default function VoidReportPage() {
       to: endOfDay(new Date()),
     });
     const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
+    const [pdfBytes, setPdfBytes] = useState<Uint8Array | null>(null);
+    const [previewOpen, setPreviewOpen] = useState(false);
     const nav = useNavigate();
 
     const { activeDeviceId } = useDeviceScope();
@@ -53,9 +56,10 @@ export default function VoidReportPage() {
         }
     };
 
-    const handlePdfExport = async () => {
+    const handleCetak = async () => {
         if (storeConfig && date?.from && date?.to) {
-            await exportVoidToPdf(voidedTransactions, { from: date.from, to: date.to }, storeConfig.store_name);
+            const bytes = await buildVoidPdfBytes(voidedTransactions, { from: date.from, to: date.to }, storeConfig.store_name);
+            setPdfBytes(bytes); setPreviewOpen(true);
         } else {
             toast({ variant: 'destructive', title: 'Export Failed', description: 'Store config or date range missing.' });
         }
@@ -77,22 +81,8 @@ export default function VoidReportPage() {
                         </h1>
                     </div>
                     <div className="flex items-center gap-2">
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="outline" size="sm" disabled={voidedTransactions.length === 0}>
-                                <FileDown className="mr-2 h-4 w-2" />
-                                <span>Ekspor</span>
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                                <DropdownMenuItem onSelect={handleExcelExport}>
-                                    <FileDown className="mr-2 h-4 w-4 text-success"/> Excel (.xlsx)
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onSelect={handlePdfExport}>
-                                    <FileText className="mr-2 h-4 w-4 text-red-400"/> PDF (.pdf)
-                                </DropdownMenuItem>
-                            </DropdownMenuContent>
-                        </DropdownMenu>
+                        <Button variant="outline" size="sm" disabled={voidedTransactions.length === 0} onClick={handleCetak}><Printer className="mr-2 h-4 w-4" /> Cetak</Button>
+                        <Button variant="outline" size="sm" disabled={voidedTransactions.length === 0} onClick={handleExcelExport}><FileDown className="mr-2 h-4 w-4" /> Excel</Button>
                         <NotificationBell />
                         <ThemeToggle />
                     </div>
@@ -156,6 +146,7 @@ export default function VoidReportPage() {
               </main>
             </div>
             <TransactionDetailDialog transaction={selectedTx} onOpenChange={(isOpen) => !isOpen && setSelectedTx(null)} />
+            <PdfPreviewSheet open={previewOpen} onOpenChange={setPreviewOpen} pdfBytes={pdfBytes} filename={`laporan-void-${storeConfig?.store_name || 'Kastoko'}.pdf`} title="Pratinjau Laporan Void" />
         </>
     );
 }

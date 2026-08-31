@@ -15,7 +15,6 @@ import { useLoadTransactions } from '@/hooks/useLoadTransaction';
 import { formatIDR } from '@/lib/format';
 import { NotificationBell } from '@/components/NotificationBell';
 import { ThemeToggle } from '@/components/ThemeButtons';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import * as XLSX from 'xlsx';
 
 
@@ -128,12 +127,7 @@ export default function PiutangReportPage() {
         </Button>
         <h1 className="text-lg font-semibold flex items-center gap-2"><Wallet className="h-5 w-5" /> Laporan Piutang</h1>
         <div className="ml-auto flex items-center gap-2">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild><Button variant="outline" size="sm"><FileDown className="mr-2 h-4 w-4" /> Ekspor</Button></DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onSelect={handleExportExcel}><FileDown className="mr-2 h-4 w-4 text-green-600" /> Excel (.xlsx)</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <Button variant="outline" size="sm" onClick={handleExportExcel}><FileDown className="mr-2 h-4 w-4" /> Excel</Button>
           <NotificationBell />
           <ThemeToggle />
         </div>
