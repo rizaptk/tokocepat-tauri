@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogCancel, AlertDialogAction, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { ProductSearchBar } from '@/components/ProductSearchBar';
 import { WorksheetGrid } from './WorksheetGrid';
+import { PdfPreviewSheet } from '@/components/PdfPreviewSheet';
 import { cn } from '@/lib/utils';
 import { useStore } from '@/lib/store';
 import { addWorksheetItem, updateWorksheetItem, removeWorksheetItem } from '@/services/stockService';
@@ -26,6 +27,8 @@ export function WorksheetSessionManager({ sessionId, onBackToHistory, onSessionC
     const [loading, setLoading] = useState(true);
     const [committing, setCommitting] = useState(false);
     const [exporting, setExporting] = useState(false);
+    const [pdfBytes, setPdfBytes] = useState<Uint8Array | null>(null);
+    const [previewOpen, setPreviewOpen] = useState(false);
 
     const fmt = (iso: string) => { try { return format(new Date(iso), 'dd MMM yyyy HH:mm', { locale: localeId }); } catch { return iso; } };
     const subj = (s: string, o?: string) => s === 'other' ? (o || 'Lain-lain') : (SUBJECT_LABELS[s] || s);
@@ -75,33 +78,13 @@ export function WorksheetSessionManager({ sessionId, onBackToHistory, onSessionC
         try { const r = await commitWorksheetSession(sessionId, session.created_by); toast({ title: 'Sesi dikomit', description: `${r.movements.length} pergerakan stok dibuat` }); onSessionChange(null); onBackToHistory(); } catch (e) { toast({ variant: 'destructive', title: 'Gagal komit', description: String(e) }); } finally { setCommitting(false); }
     };
     const handleCancel = async () => { try { await cancelWorksheetSession(sessionId); toast({ title: 'Sesi dibatalkan' }); onSessionChange(null); onBackToHistory(); } catch (e) { toast({ variant: 'destructive', title: 'Gagal', description: String(e) }); } };
-    const handlePrint = async () => {
+    const handleCetak = async () => {
         if (!session) return; setExporting(true);
-        try { const { exportWorksheetSessionToPdf } = await import('@/lib/export'); await (exportWorksheetSessionToPdf as any)(session, items, 'Kastoko'); toast({ title: 'PDF dibuat' }); } catch (e) { toast({ variant: 'destructive', title: 'Gagal cetak', description: String(e) }); } finally { setExporting(false); }
+        try { const { buildWorksheetSessionPdfBytes } = await import('@/lib/export'); const bytes = await buildWorksheetSessionPdfBytes(session, items); setPdfBytes(bytes); setPreviewOpen(true); } catch (e) { toast({ variant: 'destructive', title: 'Gagal cetak', description: String(e) }); } finally { setExporting(false); }
     };
     const handleExcel = async () => {
         if (!session) return; setExporting(true);
         try { const { exportWorksheetSessionToExcel } = await import('@/lib/export'); await (exportWorksheetSessionToExcel as any)(session, items, 'Kastoko'); toast({ title: 'Excel diekspor' }); } catch (e) { toast({ variant: 'destructive', title: 'Gagal ekspor', description: String(e) }); } finally { setExporting(false); }
-    };
-    const handleCetakPreview = () => {
-        if (!session) return;
-        const subjLabel = (s: string, o?: string) => s === 'other' ? (o || 'Lain-lain') : ({ dealer_in: 'Produk Masuk dari Dealer', restock: 'Stok Masuk', routine_check: 'Cek Rutin', warehouse_cleanup: 'Bersih Gudang' } as any)[s] || s;
-        const totals = items.reduce((a: any, it: any) => { const base = it.qty * (it.uom_factor || 1); if (it.action === 'tambah') a.tambah += base; else if (it.action === 'kurang') a.kurang += base; else a.koreksi += 1; return a; }, { tambah: 0, kurang: 0, koreksi: 0 });
-        const rows = items.map((it: any, idx: number) => {
-            const phys = it.action === 'tambah' ? it.system_qty + it.qty * (it.uom_factor || 1) : it.action === 'kurang' ? Math.max(0, it.system_qty - it.qty * (it.uom_factor || 1)) : it.qty * (it.uom_factor || 1);
-            const baseUom = it.uom_name || 'Pcs';
-            return `<tr><td style="border:1px solid #ddd;padding:6px;text-align:center">${idx+1}</td><td style="border:1px solid #ddd;padding:6px">${it.product_name_snapshot}${it.variant_name_snapshot ? ` (${it.variant_name_snapshot})` : ''}</td><td style="border:1px solid #ddd;padding:6px;text-align:center">${it.action}</td><td style="border:1px solid #ddd;padding:6px;text-align:right">${it.qty} ${it.uom_name}</td><td style="border:1px solid #ddd;padding:6px;text-align:right">${it.system_qty} ${baseUom}</td><td style="border:1px solid #ddd;padding:6px;text-align:right;font-weight:bold">${phys} ${baseUom}</td><td style="border:1px solid #ddd;padding:6px">${it.notes || '-'}</td></tr>`;
-        }).join('');
-        const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Berita Acara - ${session.name}</title><style>body{font-family:Segoe UI,system-ui,sans-serif;padding:24px;color:#222}h1{font-size:18px;margin:0 0 4px}h2{font-size:14px;color:#666;margin:0 0 12px}table{width:100%;border-collapse:collapse;font-size:12px}th{background:#f3f4f6;text-align:left;padding:6px;border:1px solid #ddd;text-transform:uppercase;font-size:10px} @media print{button{display:none}}</style></head><body>
-            <h1>BERITA ACARA SERAH TERIMA INVENTORI</h1><h2>${session.name} • ${new Date(session.created_at).toLocaleString('id-ID')} • ${session.created_by}</h2>
-            <p style="font-size:12px"><b>Perihal:</b> ${subjLabel(session.subject, session.subject_other)} &nbsp; <b>Pihak Terkait:</b> ${session.related_party || '-'} &nbsp; <b>Keterangan:</b> ${session.description}</p>
-            <table><thead><tr><th>No</th><th>Produk</th><th>Aksi</th><th>Jumlah</th><th>Stok</th><th>Stok Fisik</th><th>Keterangan</th></tr></thead><tbody>${rows}</tbody></table>
-            <p style="margin-top:12px;font-size:12px"><b>Total Tambah:</b> ${totals.tambah} &nbsp; <b>Kurang:</b> ${totals.kurang} &nbsp; <b>Koreksi:</b> ${totals.koreksi}</p>
-            <div style="display:flex;justify-content:space-between;margin-top:40px"><div style="text-align:center"><div style="border-top:1px solid #000;width:180px;margin:0 auto;padding-top:6px">Operator<br>${session.created_by}</div></div><div style="text-align:center"><div style="border-top:1px solid #000;width:180px;margin:0 auto;padding-top:6px">Yang menyerahkan<br>&nbsp;</div></div></div>
-            <div style="text-align:center;margin-top:24px"><button onclick="window.print()" style="padding:8px 16px;background:#0078D7;color:#fff;border:none;border-radius:4px;cursor:pointer">Cetak</button></div>
-            </body></html>`;
-        const w = window.open('', '_blank');
-        if (w) { w.document.write(html); w.document.close(); setTimeout(() => w.print(), 300); } else { toast({ variant: 'destructive', title: 'Gagal membuka preview' }); }
     };
 
     const totals = items.reduce((a, it) => { if (it.action === 'tambah') a.tambah += it.qty; else if (it.action === 'kurang') a.kurang += it.qty; else a.koreksi += 1; return a; }, { tambah: 0, kurang: 0, koreksi: 0 });
@@ -127,9 +110,8 @@ export function WorksheetSessionManager({ sessionId, onBackToHistory, onSessionC
                     </div>
                     <div className="flex items-center gap-1.5 shrink-0">
                         <Select value={session.status} onValueChange={async (v) => { try { await updateWorksheetSession(sessionId, { status: v as any }); setSession(prev => prev ? { ...prev, status: v as any } : prev); toast({ title: 'Status diperbarui' }); } catch (e: any) { toast({ variant: 'destructive', title: 'Gagal', description: String(e) }); } }}><SelectTrigger className="h-7 w-28 text-xs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="draft">Draft</SelectItem><SelectItem value="committed">Selesai</SelectItem><SelectItem value="cancelled">Cancelled</SelectItem></SelectContent></Select>
-                        <Button variant="outline" size="sm" className="h-7" onClick={handlePrint} disabled={exporting}><Printer className="size-3.5 mr-1" />PDF</Button>
+                        <Button variant="outline" size="sm" className="h-7" onClick={handleCetak} disabled={exporting}><Printer className="size-3.5 mr-1" />Cetak</Button>
                         <Button variant="outline" size="sm" className="h-7" onClick={handleExcel} disabled={exporting}><FileText className="size-3.5 mr-1" />Excel</Button>
-                        <Button variant="outline" size="sm" className="h-7" onClick={handleCetakPreview} disabled={exporting}>Cetak</Button>
                         <Button variant="outline" size="sm" className="h-7" onClick={handleCancel}><XCircle className="size-3.5 mr-1" />Batalkan</Button>
                         <AlertDialog><AlertDialogTrigger asChild><Button size="sm" className="h-7" disabled={committing || items.length===0}><Save className="size-3.5 mr-1" />Simpan</Button></AlertDialogTrigger><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Simpan Sesi?</AlertDialogTitle><AlertDialogDescription>Akan membuat pergerakan stok permanen. Tidak dapat dibatalkan.</AlertDialogDescription></AlertDialogHeader><div className="flex justify-end gap-2"><AlertDialogCancel>Batal</AlertDialogCancel><AlertDialogAction onClick={handleCommit}>{committing ? <Loader2 className="size-4 animate-spin mr-2" /> : null}Ya, Simpan</AlertDialogAction></div></AlertDialogContent></AlertDialog>
                     </div>
@@ -145,6 +127,7 @@ export function WorksheetSessionManager({ sessionId, onBackToHistory, onSessionC
                     onItemRemove={handleRemove} 
                 />
             </div>
+            <PdfPreviewSheet open={previewOpen} onOpenChange={setPreviewOpen} pdfBytes={pdfBytes} title={`Berita Acara - ${session.name}`} filename={`berita_acara_${session.name}.pdf`} />
         </div>
     );
 }
