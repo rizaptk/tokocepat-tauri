@@ -132,12 +132,12 @@ export default function PiutangPage() {
   const payValid = payTx ? (() => { const v = parseFloat(payAmount) || 0; return v > 0 && v <= paySisa + 0.01; })() : false;
 
   return (
-    <div className="flex h-screen w-full flex-col bg-muted/40">
+    <div className="flex h-screen w-full flex-col bg-muted/40 selection:bg-primary selection:text-primary-foreground">
       <header className="sticky top-0 z-20 flex h-10 items-center gap-3 border-b border-border/60 bg-background/80 px-4 backdrop-blur-md shrink-0">
-        <Link to="/" aria-label="Kembali ke beranda">
+        <Link to="/" aria-label="Kembali ke beranda" className="shrink-0 rounded-[2px] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
           <TokoCepatLogo />
         </Link>
-        <span className="hidden sm:inline-flex items-center gap-1.5 text-sm font-semibold">
+        <span className="hidden sm:inline-flex items-center gap-1.5 text-sm font-semibold tracking-tight">
           <Wallet className="h-4 w-4" aria-hidden /> Piutang Grosir
         </span>
         <span className="hidden md:inline text-xs text-muted-foreground tabular-nums" aria-live="polite" aria-atomic="true">
@@ -207,14 +207,14 @@ export default function PiutangPage() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3 shrink-0">
-        <Card><CardHeader className="p-3 pb-1"><CardTitle className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Total Piutang</CardTitle></CardHeader><CardContent className="px-3 pb-3"><p className="text-2xl font-light tracking-tight tabular-nums">{formatIDR(summary.totalPiutang)}</p><p className="text-xs text-muted-foreground tabular-nums">{summary.count} transaksi</p></CardContent></Card>
-        <Card className={summary.overdueCount > 0 ? 'border-destructive/50' : ''}><CardHeader className="p-3 pb-1"><CardTitle className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1"><AlertTriangle className="h-3 w-3" aria-hidden /> Jatuh Tempo</CardTitle></CardHeader><CardContent className="px-3 pb-3"><p className="text-2xl font-light tracking-tight tabular-nums text-destructive">{formatIDR(summary.totalOverdue)}</p><p className="text-xs text-muted-foreground">{summary.overdueCount} tagihan lewat</p></CardContent></Card>
-        <Card><CardHeader className="p-3 pb-1"><CardTitle className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1"><CheckCircle className="h-3 w-3" aria-hidden /> Pelanggan</CardTitle></CardHeader><CardContent className="px-3 pb-3"><p className="text-2xl font-light tracking-tight tabular-nums">{customers.length}</p><p className="text-xs text-muted-foreground">terdaftar</p></CardContent></Card>
+        <Card className="rounded-[2px]"><CardHeader className="p-3 pb-1"><CardTitle className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Total Piutang</CardTitle></CardHeader><CardContent className="px-3 pb-3"><p className="text-2xl font-light tracking-tight tabular-nums">{formatIDR(summary.totalPiutang)}</p><p className="text-xs text-muted-foreground tabular-nums">{summary.count} transaksi</p></CardContent></Card>
+        <Card className={summary.overdueCount > 0 ? 'rounded-[2px] border-destructive/50 bg-destructive/[0.03]' : 'rounded-[2px]'}><CardHeader className="p-3 pb-1"><CardTitle className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1"><AlertTriangle className="h-3 w-3" aria-hidden /> Jatuh Tempo</CardTitle></CardHeader><CardContent className="px-3 pb-3"><p className="text-2xl font-light tracking-tight tabular-nums text-destructive">{formatIDR(summary.totalOverdue)}</p><p className="text-xs text-muted-foreground">{summary.overdueCount} tagihan lewat</p></CardContent></Card>
+        <Card className="rounded-[2px]"><CardHeader className="p-3 pb-1"><CardTitle className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1"><CheckCircle className="h-3 w-3" aria-hidden /> Pelanggan</CardTitle></CardHeader><CardContent className="px-3 pb-3"><p className="text-2xl font-light tracking-tight tabular-nums">{customers.length}</p><p className="text-xs text-muted-foreground">terdaftar</p></CardContent></Card>
       </div>
 
       <div className="flex-1 min-h-0 overflow-auto px-3 pb-3">
-        <div className="rounded-md border bg-card overflow-hidden">
-          <div className="overflow-x-auto">
+        <div className="rounded-[2px] border bg-card overflow-hidden">
+          <div className="overflow-x-auto [scrollbar-width:thin]">
           <Table className="min-w-[760px]">
             <TableHeader className="sticky top-0 z-10 bg-card">
               <TableRow className="hover:bg-transparent">
@@ -261,9 +261,9 @@ export default function PiutangPage() {
                 const dueLabel = tx.due_date ? format(new Date(tx.due_date), 'dd MMM yyyy', { locale: localeId }) : '-';
                 const createdLabel = (() => { try { return format(new Date(tx.created_at), 'dd MMM yyyy, HH:mm', { locale: localeId }); } catch { return new Date(tx.created_at).toLocaleDateString('id-ID'); } })();
                 return (
-                  <TableRow key={tx.id} className="hover:bg-muted/40 focus-within:bg-muted/40" data-invoice={tx.id}>
-                    <TableCell className="font-mono text-xs font-medium tabular-nums">{tx.invoice_number}</TableCell>
-                    <TableCell><div className="font-medium text-sm leading-tight">{tx.customer_name_snapshot || '-'}</div><div className="text-xs text-muted-foreground">{tx.customer_group_snapshot || ''}</div></TableCell>
+                  <TableRow key={tx.id} className="hover:bg-muted/40 focus-within:bg-muted/40 transition-colors" data-invoice={tx.id}>
+                    <TableCell className="font-mono text-xs font-medium tabular-nums tracking-tight">{tx.invoice_number}</TableCell>
+                    <TableCell><div className="font-medium text-sm leading-tight truncate max-w-[18ch]">{tx.customer_name_snapshot || '-'}</div><div className="text-xs text-muted-foreground truncate max-w-[18ch]">{tx.customer_group_snapshot || ''}</div></TableCell>
                     <TableCell className="text-xs tabular-nums whitespace-nowrap">{createdLabel}</TableCell>
                     <TableCell className={od > 0 ? 'text-destructive' : ''}>
                       <span className="flex items-center gap-1 text-xs whitespace-nowrap"><Clock className="h-3 w-3 shrink-0" aria-hidden />{dueLabel}</span>
@@ -272,12 +272,12 @@ export default function PiutangPage() {
                     <TableCell className="text-right tabular-nums text-sm whitespace-nowrap">{formatIDR(tx.total)}</TableCell>
                     <TableCell className="text-right tabular-nums font-bold text-destructive whitespace-nowrap">{formatIDR(sisa)}</TableCell>
                     <TableCell>
-                      {tx.payment_status === 'piutang' ? <Badge variant="secondary" className="bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30">Piutang</Badge> : <Badge variant="outline">Cicilan</Badge>}
+                      {tx.payment_status === 'piutang' ? <Badge variant="secondary" className="bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30">Piutang</Badge> : <Badge variant="outline" className="rounded-none">Cicilan</Badge>}
                     </TableCell>
                     <TableCell className="text-right">
                       <Button
                         size="sm"
-                        className="h-8 min-h-[44px] md:min-h-0 md:h-8"
+                        className="h-8 min-h-[44px] md:min-h-0 md:h-8 rounded-none"
                         onClick={e => openPay(tx, e.currentTarget)}
                         aria-label={`Bayar piutang ${tx.invoice_number} sisa ${formatIDR(sisa)}`}
                       >
@@ -307,20 +307,23 @@ export default function PiutangPage() {
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="pay-amount">Jumlah Bayar <span className="text-destructive" aria-hidden>*</span></Label>
-                <Input
-                  id="pay-amount"
-                  type="text"
-                  inputMode="decimal"
-                  autoFocus
-                  value={payAmount}
-                  onChange={e => { setPayAmount(e.target.value.replace(/[^0-9]/g, '')); setPayError(null); }}
-                  placeholder="0"
-                  aria-required="true"
-                  aria-describedby="pay-sisa pay-error"
-                  aria-invalid={!!payError}
-                  className="tabular-nums"
-                />
-                <p className="text-xs text-muted-foreground">Maks {formatIDR(paySisa)} · ketik nominal Rupiah tanpa titik.</p>
+                <div className="relative">
+                  <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-muted-foreground">Rp</span>
+                  <Input
+                    id="pay-amount"
+                    type="text"
+                    inputMode="decimal"
+                    autoFocus
+                    value={payAmount}
+                    onChange={e => { setPayAmount(e.target.value.replace(/[^0-9]/g, '')); setPayError(null); }}
+                    placeholder="0"
+                    aria-required="true"
+                    aria-describedby="pay-sisa pay-error"
+                    aria-invalid={!!payError}
+                    className="pl-8 tabular-nums font-medium"
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">Maks <span className="tabular-nums font-medium text-foreground">{formatIDR(paySisa)}</span> · tanpa titik.</p>
                 {payError && <p id="pay-error" role="alert" className="text-xs font-medium text-destructive">{payError}</p>}
               </div>
             </div>
