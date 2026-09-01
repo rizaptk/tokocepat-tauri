@@ -105,7 +105,12 @@ const LedgerRow = ({
     value: string;
     muted?: boolean;
     strong?: boolean;
-}) => (
+}) => {
+    const onOverflow = (e: React.SyntheticEvent<HTMLSpanElement>) => {
+        const el = e.currentTarget;
+        if (el.scrollWidth > el.clientWidth) el.title = label;
+    };
+    return (
     <div
         className="flex items-baseline gap-1.5"
         style={{
@@ -113,7 +118,7 @@ const LedgerRow = ({
             fontWeight: strong ? 700 : 400,
         }}
     >
-        <span className="shrink-0">{label}</span>
+        <span className="shrink min-w-0 truncate" style={{ maxWidth: '60%' }} onLoad={onOverflow as any} title={label}>{label}</span>
         <span
             aria-hidden
             className="min-w-0 flex-1 border-b border-dotted"
@@ -121,7 +126,8 @@ const LedgerRow = ({
         />
         <span className="shrink-0 tabular-nums">{value}</span>
     </div>
-);
+    );
+};
 
 const Step = ({
     delay,
@@ -191,18 +197,21 @@ export function ReceiptTape({ data, storeName, storeAddress, footer, className }
 
         data.items.forEach((item, i) => {
             const bonusSuffix = item.bonusLabel ? ` (${item.bonusLabel})` : '';
+            const variantSuffix = item.variant ? ` · ${item.variant}` : '';
+            const fullName = item.name + bonusSuffix + variantSuffix;
             list.push(
                 <div
                     key={`n${i}`}
-                    className="font-mono font-bold"
-                    style={{ fontSize: 11, color: INK, lineHeight: 1.4 }}
+                    className="font-mono font-bold min-w-0"
+                    style={{ fontSize: 11, color: INK, lineHeight: 1.4, wordBreak: 'break-word', overflowWrap: 'anywhere' }}
+                    title={fullName}
                 >
-                    {item.name}
+                    <span>{item.name}</span>
                     {bonusSuffix ? (
                         <span style={{ color: LED, fontWeight: 600 }}>{bonusSuffix}</span>
                     ) : null}
                     {item.variant ? (
-                        <span style={{ color: INK_MUTED, fontWeight: 500 }}> · {item.variant}</span>
+                        <span style={{ color: INK_MUTED, fontWeight: 500 }}>{variantSuffix}</span>
                     ) : null}
                 </div>
             );
@@ -226,7 +235,7 @@ export function ReceiptTape({ data, storeName, storeAddress, footer, className }
         list.push(<LedgerRow key="subtotal" label="Subtotal" value={formatIDNumber(data.subtotal)} strong />);
         const promoExclVoucher = data.promoDiscount - (data.voucherDiscount || 0);
         if (promoExclVoucher > 0) {
-            list.push(<LedgerRow key="promo" label="Promo & Diskon Produk" value={`-${formatIDNumber(promoExclVoucher)}`} muted />);
+            list.push(<LedgerRow key="promo" label="Promo & Diskon" value={`-${formatIDNumber(promoExclVoucher)}`} muted />);
         }
         if ((data.voucherDiscount || 0) > 0) {
             const vLabel = data.voucherCode ? `Voucher ${data.voucherCode}` : 'Voucher';
