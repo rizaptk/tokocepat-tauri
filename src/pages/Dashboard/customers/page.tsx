@@ -183,6 +183,8 @@ export default function CustomersPage() {
         return m;
     }, [customers]);
 
+    const groupById = useMemo(() => new Map(customerGroups.map(g => [g.id, g])), [customerGroups]);
+
     const openAddGroup = () => {
         setEditingGroup(null);
         setGroupForm({ name: '', topDays: 0, rank: customerGroups.length });
@@ -283,24 +285,24 @@ export default function CustomersPage() {
                             ))}
                         </div>
                     </div>
-                    <div className="flex flex-col flex-1 min-h-0 bg-background">
+                    <div className="flex flex-col flex-1 min-h-0" role="table" aria-label="Daftar pelanggan" aria-colcount={4} aria-rowcount={filteredCustomers.length + 1}>
                         <div className="px-4 w-full shrink-0">
-                            <div className="rounded-t-lg h-8 w-full border bg-card flex items-center px-4">
-                                <div className={CustomerColumnClass.name}>
+                            <div className="rounded-t-lg h-8 w-full border bg-card flex items-center px-4" role="row">
+                                <div className={CustomerColumnClass.name} role="columnheader" aria-colindex={1}>
                                     <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Nama</span>
                                 </div>
-                                <div className={CustomerColumnClass.group}>
+                                <div className={CustomerColumnClass.group} role="columnheader" aria-colindex={2}>
                                     <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Grup</span>
                                 </div>
-                                <div className={CustomerColumnClass.top}>
+                                <div className={CustomerColumnClass.top} role="columnheader" aria-colindex={3}>
                                     <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">TOP</span>
                                 </div>
-                                <div className={CustomerColumnClass.phone}>
+                                <div className={CustomerColumnClass.phone} role="columnheader" aria-colindex={4}>
                                     <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Telepon</span>
                                 </div>
                             </div>
                         </div>
-                        <div className="flex-1 min-h-0 overflow-auto">
+                        <div className="flex-1 min-h-0 overflow-auto" role="rowgroup">
                             {filteredCustomers.length === 0 ? (
                                 <div className="flex flex-col items-center justify-center text-center text-muted-foreground h-full p-8">
                                     <Users className="w-12 h-12 mb-4 opacity-30" aria-hidden />
@@ -309,17 +311,16 @@ export default function CustomersPage() {
                                     {customerSearch && <Button variant="outline" size="sm" className="mt-3 h-7" onClick={() => setCustomerSearch('')}>Hapus filter</Button>}
                                 </div>
                             ) : (
-                                <div className="px-4 pb-4">
+                                <div className="px-4 pb-4" role="rowgroup">
                                     {filteredCustomers.map(c => {
-                                        const g = customerGroups.find(gr => gr.id === c.groupId);
+                                        const g = groupById.get(c.groupId || '');
                                         const top = c.topDays ?? g?.topDays ?? 0;
                                         const isSelected = editingCustomer?.id === c.id;
                                         return (
-                                            <div key={c.id} className="bg-card border-x border-b border-b-border/50 p-0 h-9">
+                                            <div key={c.id} className="bg-card border-x border-b border-b-border/50 p-0 h-9" role="row" aria-selected={isSelected}>
                                                 <div
                                                     role="button"
                                                     tabIndex={0}
-                                                    aria-selected={isSelected}
                                                     aria-label={`Pilih pelanggan ${c.name}`}
                                                     onClick={() => { openEditCustomer(c); setRightTab('customers'); }}
                                                     onKeyDown={e => {
@@ -334,19 +335,19 @@ export default function CustomersPage() {
                                                         isSelected ? "bg-primary/10 text-primary ring-1 ring-inset ring-primary" : ''
                                                     )}
                                                 >
-                                                    <div className={CustomerColumnClass.name}>
+                                                    <div className={CustomerColumnClass.name} role="cell">
                                                         <p className="text-sm font-normal truncate flex items-center gap-2">
                                                             {isSelected && <ChevronRight className="size-3.5 text-primary shrink-0" aria-hidden />}
                                                             {c.name}
                                                         </p>
                                                     </div>
-                                                    <div className={CustomerColumnClass.group}>
+                                                    <div className={CustomerColumnClass.group} role="cell">
                                                         {g ? <Badge variant="secondary" className="truncate max-w-[100px]">{g.name}</Badge> : <span className="text-muted-foreground/40 text-sm">—</span>}
                                                     </div>
-                                                    <div className={CustomerColumnClass.top}>
+                                                    <div className={CustomerColumnClass.top} role="cell">
                                                         <span className="text-sm tabular-nums">{top === 0 ? 'COD' : `${top} hari`}</span>
                                                     </div>
-                                                    <div className={CustomerColumnClass.phone}>
+                                                    <div className={CustomerColumnClass.phone} role="cell">
                                                         <span className={cn("truncate text-sm", !c.phone && "text-muted-foreground/40")}>{c.phone || '—'}</span>
                                                     </div>
                                                 </div>

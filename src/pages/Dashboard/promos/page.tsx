@@ -517,34 +517,35 @@ export default function PromosPage() {
                                 </div>
                             ) : (
                                 <>
-                                    <div className="px-4 w-full">
-                                        <div className="rounded-t-lg h-8 w-full border bg-card flex items-center px-4">
-                                            <div className={PromoDiskonColumnClass.name}>
+                                    <div className="px-4 w-full" role="table" aria-label="Daftar diskon" aria-colcount={5}>
+                                        <div className="rounded-t-lg h-8 w-full border bg-card flex items-center px-4" role="row">
+                                            <div className={PromoDiskonColumnClass.name} role="columnheader" aria-colindex={1}>
                                                 <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Promo</span>
                                             </div>
-                                            <div className={PromoDiskonColumnClass.type}>
+                                            <div className={PromoDiskonColumnClass.type} role="columnheader" aria-colindex={2}>
                                                 <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Tipe</span>
                                             </div>
-                                            <div className={PromoDiskonColumnClass.ketentuan}>
+                                            <div className={PromoDiskonColumnClass.ketentuan} role="columnheader" aria-colindex={3}>
                                                 <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Ketentuan</span>
                                             </div>
-                                            <div className={PromoDiskonColumnClass.aktif}>
+                                            <div className={PromoDiskonColumnClass.aktif} role="columnheader" aria-colindex={4}>
                                                 <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Aktif</span>
                                             </div>
-                                            <div className={PromoDiskonColumnClass.aksi}>
+                                            <div className={PromoDiskonColumnClass.aksi} role="columnheader" aria-colindex={5}>
                                                 <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Aksi</span>
                                             </div>
                                         </div>
                                     </div>
-                                    <div className="px-4 pb-4">
+                                    <div className="px-4 pb-4" role="rowgroup">
                                         {filteredDiskons.map(promo => {
                                             const Icon = KIND_ICON[promo.kind];
                                             const isSelected = selectedId === promo.id;
                                             return (
-                                                <div key={promo.id} className="bg-card border-x border-b border-b-border/50 p-0 h-9">
+                                                <div key={promo.id} className="bg-card border-x border-b border-b-border/50 p-0 h-9" role="row" aria-selected={isSelected}>
                                                     <div
                                                         role="button"
                                                         tabIndex={0}
+                                                        aria-label={`Pilih diskon ${promo.name}`}
                                                         onClick={() => handleSelect(promo)}
                                                         onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleSelect(promo); }}}
                                                         className={cn(
@@ -552,7 +553,7 @@ export default function PromosPage() {
                                                             isSelected ? "bg-primary/10 text-primary ring-1 ring-inset ring-primary" : ''
                                                         )}
                                                     >
-                                                        <div className={PromoDiskonColumnClass.name}>
+                                                        <div className={PromoDiskonColumnClass.name} role="cell">
                                                             <div className="min-w-0">
                                                                 <p className="text-sm font-medium truncate">{promo.name}</p>
                                                                 {(promo.is_active && !isPromoLive(promo) || conflictFor(promo)) && (
@@ -567,18 +568,18 @@ export default function PromosPage() {
                                                                 )}
                                                             </div>
                                                         </div>
-                                                        <div className={PromoDiskonColumnClass.type}>
+                                                        <div className={PromoDiskonColumnClass.type} role="cell">
                                                             <Badge variant="secondary" className="gap-1 font-medium text-xs max-w-[100px] truncate">
                                                                 <Icon className="h-3 w-3 shrink-0" /> {KIND_LABEL[promo.kind]}
                                                             </Badge>
                                                         </div>
-                                                        <div className={PromoDiskonColumnClass.ketentuan}>
+                                                        <div className={PromoDiskonColumnClass.ketentuan} role="cell">
                                                             <span className="truncate text-sm text-muted-foreground">{describe(promo)}</span>
                                                         </div>
-                                                        <div className={PromoDiskonColumnClass.aktif} onClick={e => e.stopPropagation()}>
-                                                            <Switch checked={promo.is_active} onCheckedChange={v => handleToggle(promo, v)} />
+                                                        <div className={PromoDiskonColumnClass.aktif} role="cell" onClick={e => e.stopPropagation()}>
+                                                            <Switch checked={promo.is_active} onCheckedChange={(v) => handleToggle(promo, v)} aria-label={`Aktifkan ${promo.name}`} />
                                                         </div>
-                                                        <div className={PromoDiskonColumnClass.aksi} onClick={e => e.stopPropagation()}>
+                                                        <div className={PromoDiskonColumnClass.aksi} role="cell" onClick={e => e.stopPropagation()}>
                                                             <AlertDialog>
                                                                 <AlertDialogTrigger asChild>
                                                                     <Button variant="ghost" size="icon" className="size-8 text-muted-foreground hover:text-destructive" aria-label={`Hapus promo ${promo.name}`}>
@@ -617,34 +618,35 @@ export default function PromosPage() {
                                 </div>
                             ) : (
                                 <>
-                                    <div className="px-4 w-full">
-                                        <div className="rounded-t-lg h-8 w-full border bg-card flex items-center px-4">
-                                            <div className={PromoVoucherColumnClass.name}>
+                                    <div className="px-4 w-full" role="table" aria-label="Daftar voucher" aria-colcount={5}>
+                                        <div className="rounded-t-lg h-8 w-full border bg-card flex items-center px-4" role="row">
+                                            <div className={PromoVoucherColumnClass.name} role="columnheader" aria-colindex={1}>
                                                 <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Promo</span>
                                             </div>
-                                            <div className={PromoVoucherColumnClass.ketentuan}>
+                                            <div className={PromoVoucherColumnClass.ketentuan} role="columnheader" aria-colindex={2}>
                                                 <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Ketentuan</span>
                                             </div>
-                                            <div className={PromoVoucherColumnClass.pemakaian}>
+                                            <div className={PromoVoucherColumnClass.pemakaian} role="columnheader" aria-colindex={3}>
                                                 <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Pemakaian</span>
                                             </div>
-                                            <div className={PromoVoucherColumnClass.aktif}>
+                                            <div className={PromoVoucherColumnClass.aktif} role="columnheader" aria-colindex={4}>
                                                 <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Aktif</span>
                                             </div>
-                                            <div className={PromoVoucherColumnClass.aksi}>
+                                            <div className={PromoVoucherColumnClass.aksi} role="columnheader" aria-colindex={5}>
                                                 <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Aksi</span>
                                             </div>
                                         </div>
                                     </div>
-                                    <div className="px-4 pb-4">
+                                    <div className="px-4 pb-4" role="rowgroup">
                                         {filteredVouchers.map(promo => {
                                             const uses = (usageByCode[(promo.code || '').toUpperCase()] || 0) + (promo.uses_count || 0);
                                             const isSelected = selectedId === promo.id;
                                             return (
-                                                <div key={promo.id} className="bg-card border-x border-b border-b-border/50 p-0 h-9">
+                                                <div key={promo.id} className="bg-card border-x border-b border-b-border/50 p-0 h-9" role="row" aria-selected={isSelected}>
                                                     <div
                                                         role="button"
                                                         tabIndex={0}
+                                                        aria-label={`Pilih voucher ${promo.name}`}
                                                         onClick={() => handleSelect(promo)}
                                                         onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleSelect(promo); }}}
                                                         className={cn(
@@ -652,22 +654,22 @@ export default function PromosPage() {
                                                             isSelected ? "bg-primary/10 text-primary ring-1 ring-inset ring-primary" : ''
                                                         )}
                                                     >
-                                                        <div className={PromoVoucherColumnClass.name}>
+                                                        <div className={PromoVoucherColumnClass.name} role="cell">
                                                             <div className="min-w-0">
                                                                 <p className="text-sm font-medium truncate">{promo.name}</p>
                                                                 <p className="font-mono text-xs text-muted-foreground truncate">{promo.code}</p>
                                                             </div>
                                                         </div>
-                                                        <div className={PromoVoucherColumnClass.ketentuan}>
+                                                        <div className={PromoVoucherColumnClass.ketentuan} role="cell">
                                                             <span className="truncate text-sm text-muted-foreground">{describe(promo)}</span>
                                                         </div>
-                                                        <div className={PromoVoucherColumnClass.pemakaian}>
+                                                        <div className={PromoVoucherColumnClass.pemakaian} role="cell">
                                                             <span className="text-sm tabular-nums">{promo.max_uses ? `${Math.min(uses, promo.max_uses)}/${promo.max_uses}` : `${uses}×`}</span>
                                                         </div>
-                                                        <div className={PromoVoucherColumnClass.aktif} onClick={e => e.stopPropagation()}>
-                                                            <Switch checked={promo.is_active} onCheckedChange={v => handleToggle(promo, v)} />
+                                                        <div className={PromoVoucherColumnClass.aktif} role="cell" onClick={e => e.stopPropagation()}>
+                                                            <Switch checked={promo.is_active} onCheckedChange={(v) => handleToggle(promo, v)} aria-label={`Aktifkan ${promo.name}`} />
                                                         </div>
-                                                        <div className={PromoVoucherColumnClass.aksi} onClick={e => e.stopPropagation()}>
+                                                        <div className={PromoVoucherColumnClass.aksi} role="cell" onClick={e => e.stopPropagation()}>
                                                             <AlertDialog>
                                                                 <AlertDialogTrigger asChild>
                                                                     <Button variant="ghost" size="icon" className="size-8 text-muted-foreground hover:text-destructive" aria-label={`Hapus voucher ${promo.name}`}>
@@ -707,32 +709,34 @@ export default function PromosPage() {
                                 </div>
                             ) : (
                                 <div className="flex h-full flex-col min-h-0">
-                                    <div className="px-4 w-full">
-                                        <div className="rounded-t-lg h-8 w-full border bg-card flex items-center px-4">
-                                            <div className={PromoProductColumnClass.check}>
+                                    <div className="px-4 w-full" role="table" aria-label="Daftar produk untuk promo" aria-colcount={5}>
+                                        <div className="rounded-t-lg h-8 w-full border bg-card flex items-center px-4" role="row">
+                                            <div className={PromoProductColumnClass.check} role="columnheader" aria-colindex={1}>
                                                 <span className="sr-only">Pilih</span>
                                             </div>
-                                            <div className={PromoProductColumnClass.name}>
+                                            <div className={PromoProductColumnClass.name} role="columnheader" aria-colindex={2}>
                                                 <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Produk</span>
                                             </div>
-                                            <div className={PromoProductColumnClass.brand}>
+                                            <div className={PromoProductColumnClass.brand} role="columnheader" aria-colindex={3}>
                                                 <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Brand</span>
                                             </div>
-                                            <div className={PromoProductColumnClass.category}>
+                                            <div className={PromoProductColumnClass.category} role="columnheader" aria-colindex={4}>
                                                 <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Kategori</span>
                                             </div>
-                                            <div className={PromoProductColumnClass.price}>
+                                            <div className={PromoProductColumnClass.price} role="columnheader" aria-colindex={5}>
                                                 <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Harga</span>
                                             </div>
                                         </div>
                                     </div>
-                                    <div className="min-h-0 flex-1 overflow-auto px-4 pb-4">
+                                    <div className="min-h-0 flex-1 overflow-auto px-4 pb-4" role="rowgroup">
                                         {filteredProducts.map(p => {
                                             const isChecked = selectedProductIds.has(p.id);
                                             return (
-                                                <div key={p.id} className="bg-card border-x border-b border-b-border/50 p-0 h-9">
+                                                <div key={p.id} className="bg-card border-x border-b border-b-border/50 p-0 h-9" role="row" aria-selected={isChecked}>
                                                     <div
-                                                        role="button"
+                                                        role="checkbox"
+                                                        aria-checked={isChecked}
+                                                        aria-label={`${isChecked ? 'Batal pilih' : 'Pilih'} produk ${p.name}`}
                                                         tabIndex={0}
                                                         onClick={() => toggleProduct(p.id)}
                                                         onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleProduct(p.id); }}}
@@ -777,23 +781,25 @@ export default function PromosPage() {
                                 </div>
                             ) : (
                                 <div className="flex h-full flex-col min-h-0">
-                                    <div className="px-4 w-full">
-                                        <div className="rounded-t-lg h-8 w-full border bg-card flex items-center px-4">
-                                            <div className="flex items-center justify-center w-10 shrink-0 h-full">
+                                    <div className="px-4 w-full" role="table" aria-label="Daftar kategori untuk promo" aria-colcount={2}>
+                                        <div className="rounded-t-lg h-8 w-full border bg-card flex items-center px-4" role="row">
+                                            <div className="flex items-center justify-center w-10 shrink-0 h-full" role="columnheader" aria-colindex={1}>
                                                 <span className="sr-only">Pilih</span>
                                             </div>
-                                            <div className="flex items-center gap-2 flex-1 min-w-0 h-full">
+                                            <div className="flex items-center gap-2 flex-1 min-w-0 h-full" role="columnheader" aria-colindex={2}>
                                                 <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Kategori</span>
                                             </div>
                                         </div>
                                     </div>
-                                    <div className="min-h-0 flex-1 overflow-auto px-4 pb-4">
+                                    <div className="min-h-0 flex-1 overflow-auto px-4 pb-4" role="rowgroup">
                                         {filteredCategories.map(c => {
                                             const isChecked = selectedCategoryIds.has(c.id);
                                             return (
-                                                <div key={c.id} className="bg-card border-x border-b border-b-border/50 p-0 h-9">
+                                                <div key={c.id} className="bg-card border-x border-b border-b-border/50 p-0 h-9" role="row" aria-selected={isChecked}>
                                                     <div
-                                                        role="button"
+                                                        role="checkbox"
+                                                        aria-checked={isChecked}
+                                                        aria-label={`${isChecked ? 'Batal pilih' : 'Pilih'} kategori ${c.name}`}
                                                         tabIndex={0}
                                                         onClick={() => toggleCategory(c.id)}
                                                         onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleCategory(c.id); }}}
