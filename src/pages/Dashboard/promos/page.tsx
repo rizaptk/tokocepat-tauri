@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,6 +8,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Plus, Trash2, Search, Percent, TicketPercent, Package, Tags } from 'lucide-react';
+import { useOverlayScrollbar } from '@/hooks/useScrollOverlay';
 import { NotificationBell } from '@/components/NotificationBell';
 import { ThemeToggle } from '@/components/ThemeButtons';
 import { TokoCepatLogo } from '@/components/TokoCepatLogo';
@@ -85,11 +86,11 @@ const PromoVoucherColumnClass = {
 };
 
 const PromoProductColumnClass = {
-    check: "flex items-center justify-center w-10 shrink-0 h-full",
-    name: "flex items-center gap-2 flex-1 min-w-0 h-full",
-    brand: "hidden sm:flex items-center text-sm text-muted-foreground truncate max-w-[120px] w-[120px] px-2 border-l border-l-border/50 h-full",
-    category: "hidden md:flex items-center text-sm text-muted-foreground truncate max-w-[140px] w-[140px] px-2 border-l border-l-border/50 h-full",
-    price: "flex items-center justify-end shrink-0 text-right tabular-nums whitespace-nowrap w-[100px] px-2 border-l border-l-border/50 h-full",
+    check: "flex items-center justify-center w-9 shrink-0 h-8",
+    name: "flex items-center gap-2 flex-1 min-w-0 h-8",
+    brand: "hidden sm:flex items-center text-sm text-muted-foreground truncate max-w-[140px] w-[140px] px-2 border-l border-l-border/50 h-8",
+    category: "hidden md:flex items-center text-sm text-muted-foreground truncate max-w-[160px] w-[160px] px-2 border-l border-l-border/50 h-8",
+    price: "flex items-center justify-end shrink-0 text-right tabular-nums whitespace-nowrap w-28 border-l border-l-border/50 h-8",
 };
 
 export default function PromosPage() {
@@ -103,6 +104,24 @@ export default function PromosPage() {
     const [isSheetOpen, setIsSheetOpen] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [activeTab, setActiveTab] = useState<PromoEditorTab>('diskon');
+
+    // Overlay scrollbar for Produk tab — mirrors ProductList / Inventory
+    const promoProductOuterRef = useRef<HTMLDivElement>(null);
+    const promoProductThumbRef = useRef<HTMLDivElement>(null);
+    const promoProductTrackRef = useRef<HTMLDivElement>(null);
+    const promoProductContainerRef = useRef<HTMLDivElement>(null);
+    const [isPromoScrolling, setIsPromoScrolling] = useState(false);
+    const { subscribe: promoSubscribe, getScrollTop: promoGetScrollTop } = useOverlayScrollbar({
+        outerRef: promoProductOuterRef,
+        thumbRef: promoProductThumbRef,
+        trackRef: promoProductTrackRef,
+        containerRef: promoProductContainerRef,
+        options: { autoHideDelay: 800, minThumbHeight: 24 },
+    });
+    useEffect(() => {
+        const unsub = promoSubscribe(() => setIsPromoScrolling(promoGetScrollTop() > 0));
+        return () => { unsub(); };
+    }, [promoSubscribe, promoGetScrollTop]);
 
     // Shared scope: the left-panel checkbox selection feeds BOTH Diskon & Voucher.
     const [selectedProductIds, setSelectedProductIds] = useState<Set<string>>(new Set());
@@ -728,42 +747,50 @@ export default function PromosPage() {
                                             </div>
                                         </div>
                                     </div>
-                                    <div className="min-h-0 flex-1 overflow-auto px-4 pb-4" role="rowgroup">
-                                        {filteredProducts.map(p => {
-                                            const isChecked = selectedProductIds.has(p.id);
-                                            return (
-                                                <div key={p.id} className="bg-card border-x border-b border-b-border/50 p-0 h-9" role="row" aria-selected={isChecked}>
-                                                    <div
-                                                        role="checkbox"
-                                                        aria-checked={isChecked}
-                                                        aria-label={`${isChecked ? 'Batal pilih' : 'Pilih'} produk ${p.name}`}
-                                                        tabIndex={0}
-                                                        onClick={() => toggleProduct(p.id)}
-                                                        onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleProduct(p.id); }}}
-                                                        className={cn(
-                                                            "group flex items-center px-4 transition-colors cursor-pointer hover:bg-accent h-9 focus:outline-none focus-visible:bg-accent",
-                                                            isChecked ? "bg-primary/10 ring-1 ring-inset ring-primary" : ''
-                                                        )}
-                                                    >
-                                                        <div className={PromoProductColumnClass.check}>
-                                                            <Checkbox checked={isChecked} className="pointer-events-none" tabIndex={-1} />
+                                    <div className="relative flex-1 overflow-hidden" ref={promoProductContainerRef}>
+                                        <div className={`absolute left-4 right-4 -top-px h-0 shadow border-b transition-opacity duration-150 pointer-events-none z-10 ${isPromoScrolling ? 'opacity-100' : 'opacity-0'}`} aria-hidden />
+                                        <div ref={promoProductOuterRef} className="h-full overflow-auto no-scrollbar">
+                                            <div className="px-4 pb-4" role="rowgroup">
+                                                {filteredProducts.map(p => {
+                                                    const isChecked = selectedProductIds.has(p.id);
+                                                    return (
+                                                        <div key={p.id} className="bg-card border-x border-b border-b-border/50 p-0 h-8" role="row" aria-selected={isChecked}>
+                                                            <div
+                                                                role="checkbox"
+                                                                aria-checked={isChecked}
+                                                                aria-label={`${isChecked ? 'Batal pilih' : 'Pilih'} produk ${p.name}`}
+                                                                tabIndex={0}
+                                                                onClick={() => toggleProduct(p.id)}
+                                                                onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleProduct(p.id); }}}
+                                                                className={cn(
+                                                                    "group flex items-center px-4 transition-colors cursor-pointer hover:bg-accent h-8 focus:outline-none focus-visible:bg-accent",
+                                                                    isChecked ? "bg-primary/10 ring-1 ring-inset ring-primary" : ''
+                                                                )}
+                                                            >
+                                                                <div className={PromoProductColumnClass.check}>
+                                                                    <Checkbox checked={isChecked} className="pointer-events-none" tabIndex={-1} />
+                                                                </div>
+                                                                <div className={PromoProductColumnClass.name}>
+                                                                    <p className="text-sm font-normal truncate">{p.name}</p>
+                                                                </div>
+                                                                <div className={PromoProductColumnClass.brand}>
+                                                                    <span className={cn("truncate text-sm", !p.brand && "text-muted-foreground/40")}>{p.brand || '—'}</span>
+                                                                </div>
+                                                                <div className={PromoProductColumnClass.category}>
+                                                                    <span className="truncate text-sm text-muted-foreground">{p.category_id ? categoryName(p.category_id) : '—'}</span>
+                                                                </div>
+                                                                <div className={PromoProductColumnClass.price}>
+                                                                    <span className="text-sm font-bold tabular-nums">{formatIDR(p.price)}</span>
+                                                                </div>
+                                                            </div>
                                                         </div>
-                                                        <div className={PromoProductColumnClass.name}>
-                                                            <p className="text-sm font-medium truncate">{p.name}</p>
-                                                        </div>
-                                                        <div className={PromoProductColumnClass.brand}>
-                                                            <span className={cn("truncate text-sm", !p.brand && "text-muted-foreground/40")}>{p.brand || '—'}</span>
-                                                        </div>
-                                                        <div className={PromoProductColumnClass.category}>
-                                                            <span className="truncate text-sm text-muted-foreground">{p.category_id ? categoryName(p.category_id) : '—'}</span>
-                                                        </div>
-                                                        <div className={PromoProductColumnClass.price}>
-                                                            <span className="text-sm font-bold tabular-nums">{formatIDR(p.price)}</span>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            );
-                                        })}
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                        <div ref={promoProductTrackRef} className="absolute right-2 top-0 bottom-0 w-2 opacity-0 transition-opacity duration-200 z-20" aria-hidden>
+                                            <div ref={promoProductThumbRef} className="absolute w-full rounded-full bg-border/40 hover:bg-border/70 cursor-pointer" />
+                                        </div>
                                     </div>
                                     {scopePickerFooter(selectedProductIds.size, 'produk')}
                                 </div>
