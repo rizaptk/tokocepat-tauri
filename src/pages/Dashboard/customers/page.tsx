@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Trash2, Users, Layers, Search, CreditCard, Printer, Save, ChevronRight, UserCog } from 'lucide-react';
+import { Plus, Trash2, Users, Layers, Search, CreditCard, Printer, Save, ChevronRight, UserCog, X } from 'lucide-react';
 import { saveCustomer, deleteCustomer, saveCustomerGroup, deleteCustomerGroup, generateCustomerId, generateGroupId } from '@/services/customerService';
 import { useToast } from '@/hooks/use-toast';
 import { Customer, CustomerGroup } from '@/lib/types';
@@ -249,10 +249,20 @@ export default function CustomersPage() {
                             <Input
                                 value={customerSearch}
                                 onChange={e => setCustomerSearch(e.target.value)}
-                                placeholder="Cari nama / telepon / ID..."
-                                className="pl-9 h-8 bg-card"
+                                placeholder="Cari nama / telepon / scan ID..."
+                                className="pl-9 pr-9 h-8 bg-card"
                                 aria-label="Cari pelanggan"
                             />
+                            {customerSearch && (
+                                <button
+                                    type="button"
+                                    onClick={() => setCustomerSearch('')}
+                                    className="absolute right-2 top-1/2 -translate-y-1/2 grid size-6 place-items-center rounded-sm text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                                    aria-label="Hapus pencarian"
+                                >
+                                    <X className="size-3.5" aria-hidden />
+                                </button>
+                            )}
                         </div>
                         <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar" role="tablist" aria-label="Filter grup">
                             <FilterPill active={customerGroupFilter === 'all'} onClick={() => setCustomerGroupFilter('all')}>Semua</FilterPill>
@@ -265,17 +275,22 @@ export default function CustomersPage() {
                         <Table>
                             <TableHeader className="sticky top-0 z-10 bg-card border-b">
                                 <TableRow className="hover:bg-transparent">
-                                    <TableHead scope="col">Nama</TableHead>
-                                    <TableHead scope="col">Grup</TableHead>
-                                    <TableHead scope="col">TOP</TableHead>
-                                    <TableHead scope="col">Telepon</TableHead>
+                                    <TableHead scope="col" className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground h-6">Nama</TableHead>
+                                    <TableHead scope="col" className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground h-6">Grup</TableHead>
+                                    <TableHead scope="col" className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground h-6">TOP</TableHead>
+                                    <TableHead scope="col" className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground h-6">Telepon</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {filteredCustomers.length === 0 ? (
                                     <TableRow>
-                                        <TableCell colSpan={4} className="h-32 text-center text-muted-foreground">
-                                            {customers.length === 0 ? 'Belum ada pelanggan.' : 'Tidak ada pelanggan yang cocok.'}
+                                        <TableCell colSpan={4} className="h-40 text-center">
+                                            <div className="flex flex-col items-center justify-center gap-2 py-6 text-muted-foreground">
+                                                <Users className="size-8 opacity-30" aria-hidden />
+                                                <p className="text-sm font-medium">{customers.length === 0 ? 'Belum ada pelanggan.' : 'Tidak ada pelanggan yang cocok.'}</p>
+                                                <p className="text-xs max-w-[28ch]">{customers.length === 0 ? 'Tambah pelanggan pertama lewat panel kanan.' : `Tidak ada hasil untuk "${customerSearch}". Coba kata kunci lain atau filter grup.`}</p>
+                                                {customerSearch && <Button variant="outline" size="sm" className="mt-1 h-7" onClick={() => setCustomerSearch('')}>Hapus filter</Button>}
+                                            </div>
                                         </TableCell>
                                     </TableRow>
                                 ) : filteredCustomers.map(c => {
@@ -314,13 +329,13 @@ export default function CustomersPage() {
                             </TableBody>
                         </Table>
                     </div>
-                    <div className="hidden md:flex px-3 pb-2 pt-1 items-center gap-3 text-[11px] text-muted-foreground shrink-0">
+                    <div className="hidden md:flex px-3 pb-2 pt-1 items-center gap-3 text-[11px] text-muted-foreground shrink-0" aria-live="polite" aria-atomic="true">
                         <span className="flex items-center gap-1.5">
                             <Users className="size-3.5" aria-hidden /> {filteredCustomers.length} pelanggan
                         </span>
-                        <span>Klik baris atau tekan Enter untuk mengedit.</span>
+                        <span className="hidden lg:inline">Klik baris atau tekan Enter untuk mengedit.</span>
                     </div>
-                    <div className="flex md:hidden px-3 pb-3 pt-1 text-[11px] text-muted-foreground shrink-0">
+                    <div className="flex md:hidden px-3 pb-3 pt-1 text-[11px] text-muted-foreground shrink-0" aria-live="polite">
                         <span>{filteredCustomers.length} pelanggan · ketuk baris untuk mengedit.</span>
                     </div>
                 </div>
@@ -365,7 +380,6 @@ export default function CustomersPage() {
                                         onChange={e => setCustomerForm({ ...customerForm, name: e.target.value })}
                                         placeholder="cth. Toko Sumber Rezeki"
                                         aria-required="true"
-                                        aria-invalid={!customerForm.name?.trim() && canEditCustomer ? undefined : undefined}
                                         disabled={!canEditCustomer}
                                     />
                                     {!canEditCustomer && (
@@ -462,25 +476,39 @@ export default function CustomersPage() {
                                         value={groupSearch}
                                         onChange={e => setGroupSearch(e.target.value)}
                                         placeholder="Cari nama grup..."
-                                        className="pl-9 h-8 bg-background"
+                                        className="pl-9 pr-9 h-8 bg-background"
                                         aria-label="Cari grup"
                                     />
+                                    {groupSearch && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setGroupSearch('')}
+                                            className="absolute right-2 top-1/2 -translate-y-1/2 grid size-6 place-items-center rounded-sm text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                                            aria-label="Hapus pencarian grup"
+                                        >
+                                            <X className="size-3.5" aria-hidden />
+                                        </button>
+                                    )}
                                 </div>
                             </div>
                             <div className="grow min-h-0 overflow-auto">
                                 <Table>
                                     <TableHeader className="sticky top-0 z-10 bg-card border-b">
                                         <TableRow className="hover:bg-transparent">
-                                            <TableHead scope="col">Nama Grup</TableHead>
-                                            <TableHead scope="col" className="text-right">Anggota</TableHead>
-                                            <TableHead scope="col" className="w-24 text-right">Aksi</TableHead>
+                                            <TableHead scope="col" className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground h-6">Nama Grup</TableHead>
+                                            <TableHead scope="col" className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground h-6 text-right">Anggota</TableHead>
+                                            <TableHead scope="col" className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground h-6 w-24 text-right">Aksi</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
                                         {filteredGroups.length === 0 ? (
                                             <TableRow>
-                                                <TableCell colSpan={3} className="h-32 text-center text-muted-foreground">
-                                                    {groupSearch.trim() ? 'Tidak ada grup yang cocok.' : 'Belum ada grup.'}
+                                                <TableCell colSpan={3} className="h-40 text-center">
+                                                    <div className="flex flex-col items-center justify-center gap-2 py-6 text-muted-foreground">
+                                                        <Layers className="size-8 opacity-30" aria-hidden />
+                                                        <p className="text-sm font-medium">{groupSearch.trim() ? 'Tidak ada grup yang cocok.' : 'Belum ada grup.'}</p>
+                                                        {groupSearch.trim() ? <Button variant="outline" size="sm" className="mt-1 h-7" onClick={() => setGroupSearch('')}>Hapus filter</Button> : <p className="text-xs">Klik Tambah untuk buat grup baru.</p>}
+                                                    </div>
                                                 </TableCell>
                                             </TableRow>
                                         ) : filteredGroups.map(g => {
