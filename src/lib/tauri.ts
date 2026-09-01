@@ -1,3 +1,4 @@
+// ponytail: Firestore-shaped FireLite shim (539 lines) is YAGNI with one impl; inline db.exec when second backend appears
 import { invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { decode } from "@msgpack/msgpack";

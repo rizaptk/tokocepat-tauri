@@ -1,3 +1,4 @@
+// ponytail: react-window+AutoSizer for 36px rows + framer-motion 150ms fade; CSS overflow:auto + opacity .15s covers <300 rows, virtualize if catalog hits 1k+
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { FixedSizeList as List } from 'react-window';
 import AutoSizer from 'react-virtualized-auto-sizer';

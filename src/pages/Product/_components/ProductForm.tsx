@@ -1,3 +1,4 @@
+// ponytail: 577-line ProductForm duplicates 400-line ProductEditor fields/UOM; single ProductFields when divergence shrinks
 import React, { useMemo, useEffect, useRef, useState } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { useStore } from "@/lib/store";
@@ -28,7 +29,6 @@ import { VariantItem } from './VariantItem';
 import { CategoryCombobox } from './CategoryCombobox';
 import { useToast } from "@/hooks/use-toast";
 import { useGlobalNumberInputFix } from "@/hooks/useGlobalNumberInputFix";
-import { resizeImageWorker } from "@/lib/imageWorker"
 
 // Types (Replacing Zod Schema)
 export interface VariantFormData {
@@ -205,25 +205,18 @@ export const ProductForm = ({ productId, onSave, onCancel, catalogPrefill }: Pro
     const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0]
         if (!file) return
-
+        // ponytail: no worker resize, direct read — add canvas resize if 512+ images hurt perf
         try {
-            const resizedDataUrl = await resizeImageWorker(file, 348)
-            form.setValue(
-                "imageUrl",
-                resizedDataUrl,
-                { shouldDirty: true }
-            )
-            form.setValue(
-                "imageHint",
-                file.name.split(".").slice(0, -1).join("."),
-                { shouldDirty: true }
-            )
-        } catch {
-            toast({
-                variant: "destructive",
-                title: "Gagal Memproses Gambar",
-                description: "Gambar tidak dapat diproses, silakan coba lagi."
+            const dataUrl = await new Promise<string>((resolve, reject) => {
+                const fr = new FileReader()
+                fr.onload = () => resolve(fr.result as string)
+                fr.onerror = () => reject(new Error("read failed"))
+                fr.readAsDataURL(file)
             })
+            form.setValue("imageUrl", dataUrl, { shouldDirty: true })
+            form.setValue("imageHint", file.name.split(".").slice(0, -1).join("."), { shouldDirty: true })
+        } catch {
+            toast({ variant: "destructive", title: "Gagal Memproses Gambar", description: "Gambar tidak dapat diproses, silakan coba lagi." })
         }
     }
 

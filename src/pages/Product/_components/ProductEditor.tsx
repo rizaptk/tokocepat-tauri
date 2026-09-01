@@ -1,3 +1,4 @@
+// ponytail: see ProductForm note — shared fields extracted when editor/form drift <20%
 'use client';
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";

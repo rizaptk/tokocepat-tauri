@@ -15,6 +15,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Wallet, AlertTriangle, CheckCircle, Clock, Search, CreditCard, X } from 'lucide-react';
 import { formatIDR } from '@/lib/format';
 import { useToast } from '@/hooks/use-toast';
+// ponytail: date-fns format+id for "dd MMM yyyy HH:mm" vs Intl.DateTimeFormat; keep for startOfDay/etc elsewhere, drop if only this call remains
 import { format } from 'date-fns';
 import { id as localeId } from 'date-fns/locale';
 import { Transaction } from '@/lib/types';

@@ -1,3 +1,4 @@
+// ponytail: 1315-line god component; extract StockHistoryCards/WorksheetGrid when change frequency warrants split
 import { useState, useMemo, useEffect, memo, useRef, useTransition } from "react";
 import { useStore } from "@/lib/store";
 import { Product, StockMovementType, Category, ProductVariant, StockMovement } from "@/lib/types";

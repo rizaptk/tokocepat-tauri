@@ -1,4 +1,5 @@
 
+// ponytail: 28 Excel/Pdf/Bytes fns share 80% boilerplate; single makeReport helper when report count doubles or change rate rises
 import { formatIDR as formatCurrency } from "@/lib/format";
 import * as XLSX from 'xlsx';
 import { Transaction, Product, StockMovement, Shift } from '@/lib/types';

@@ -1,3 +1,4 @@
+// ponytail: keep CODE_CHARS loop (6-char, no look-alikes) vs crypto.randomUUID 36-char; switch if voucher length spec changes
 import { Promotion, PromoKind } from './types';
 
 const LEGACY_TO_FLAT: Record<string, PromoKind> = {

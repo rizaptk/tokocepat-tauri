@@ -1,3 +1,4 @@
+// ponytail: 11 boolean zustand stores (print/*, product-*, theme, ismobile, sync, settings) as one impl each; merge to ui-store/data-store if store count doubles
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { Product, CartItem, Transaction, Category, ProductVariant, Shift, StoreConfig, PendingCart, StockMovement, CustomAccessType, Promotion, Customer, CustomerGroup } from '@/lib/types';

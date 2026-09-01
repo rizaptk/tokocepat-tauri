@@ -3,7 +3,6 @@
 import { Product, StockMovement } from '@/lib/types';
 import { useDbStore } from '@/lib/db-store';
 import { useStore } from '@/lib/store';
-import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { setProductVariants, type VariantFormData } from './variantService';
 
 // This type should match the Zod schema in the form dialog
@@ -98,13 +97,12 @@ export const addProduct = async (productData: ProductFormData): Promise<Product 
     const hasVariant = !!(variants && variants.length > 0);
 
     const newId = `prod-${crypto.randomUUID().slice(0,8)}`;
-    const placeholder = PlaceHolderImages[Math.floor(Math.random() * PlaceHolderImages.length)];
-
+    // ponytail: single fallback vs 14-image catalog, add back if placeholder variety matters
     const newProduct: Product = {
         id: newId,
         ...restOfProductData,
-        imageUrl: productData.imageUrl || placeholder.imageUrl,
-        imageHint: productData.imageHint || placeholder.imageHint,
+        imageUrl: productData.imageUrl || "",
+        imageHint: productData.imageHint || "product",
         track_stock: hasVariant ? false : restOfProductData.track_stock,
         has_variant: hasVariant,
     };

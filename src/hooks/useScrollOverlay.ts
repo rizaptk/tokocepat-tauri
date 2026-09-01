@@ -1,3 +1,4 @@
+// ponytail: 210-line custom overlay reimplements scrollbar-width:thin + scrollbar-gutter:stable + CSS :hover opacity; keep if thumb drag matters
 import { useLayoutEffect, useRef } from "react";
 
 type OverlayScrollbarOptions = {
