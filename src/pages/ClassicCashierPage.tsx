@@ -30,6 +30,7 @@ import { DEFAULT_STORE_CONFIG } from '@/lib/defaults';
 import { normalizeProductUoms } from '@/lib/uom';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { format } from 'date-fns';
+import { id as idLocale } from 'date-fns/locale';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ReceiptTape, type ReceiptSnapshot } from '@/components/ReceiptTape';
 import { formatIDR, formatCompactIDR, isCompactable } from '@/lib/format';
@@ -1167,7 +1168,7 @@ export default function ClassicCashierPage({ defaultWholesale = false }: { defau
                                     ) : (
                                         shiftTransactions.map(tx => (
                                             <TableRow key={tx.id} className="cursor-pointer hover:bg-accent" onClick={() => setReviewingTx(tx)}>
-                                                <TableCell>{format(new Date(tx.created_at), 'p')}</TableCell>
+                                                <TableCell className="whitespace-nowrap text-muted-foreground">{(() => { try { return format(new Date(tx.created_at), 'dd MMM yyyy, HH:mm', { locale: idLocale }); } catch { return String(tx.created_at); } })()}</TableCell>
                                                 <TableCell className="font-bold">{tx.invoice_number}</TableCell>
                                                 <TableCell className="text-right font-bold tabular-nums">{formatIDR(tx.total)}</TableCell>
                                                 <TableCell className="text-center">

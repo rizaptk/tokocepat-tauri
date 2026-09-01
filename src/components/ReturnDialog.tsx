@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useStore } from '@/lib/store';
 import { Transaction, TransactionItem } from '@/lib/types';
-import { findTransactionByInvoice, getReturnsByOriginalTx, voidTransaction, isVoidBlockedByPiutang } from '@/services/transactionService';
+import { findTransactionByInvoice, getReturnsByOriginalTx } from '@/services/transactionService';
 import { useLoadTransactions } from '@/hooks/useLoadTransaction';
 import { useGlobalBarcodeScanner } from '@/hooks/use-global-barcode-scanner';
 import { useToast } from '@/hooks/use-toast';
@@ -12,8 +12,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
-import { Search, ArrowLeft, Undo2, Minus, Plus, CheckCircle2, XCircle, Loader2 } from 'lucide-react';
+import { Search, ArrowLeft, Undo2, Minus, Plus, CheckCircle2, Loader2, Printer } from 'lucide-react';
 import { format } from 'date-fns';
+import { id as idLocale } from 'date-fns/locale';
 import { formatIDR } from "@/lib/format";
 
 // Stable identity for a purchased line across original + return transactions.
@@ -40,7 +41,7 @@ export default function ReturnDialog({ open, onOpenChange }: ReturnDialogProps) 
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     const inputRef = useRef<HTMLInputElement>(null);
-    const { transactions: recentTransactions } = useLoadTransactions();
+    const { transactions: recentTransactions, isLoading: isLoadingTx } = useLoadTransactions();
 
     // Autofocus the invoice field whenever the dialog opens / phase resets.
     useEffect(() => {
@@ -63,14 +64,17 @@ export default function ReturnDialog({ open, onOpenChange }: ReturnDialogProps) 
         }
     }, [open]);
 
-    // Candidate history: paid sale transactions within the default 30-day window.
+    // Candidate history: paid sale transactions within the lookback window.
+    // Always sorted by created_at descending so the freshest transaction is
+    // at the top — this matches the F2 history table and prevents the bug
+    // where older rows appeared above today's row due to a slice() before sort.
     const candidateTransactions = useMemo(() => {
         const term = invoiceInput.trim().toLowerCase();
         return recentTransactions
             .filter(tx => tx.status === 'paid' && tx.transaction_type !== 'return')
             .filter(tx => !term || tx.invoice_number.toLowerCase().includes(term))
-            .slice(0, 50)
-            .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+            .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+            .slice(0, 50);
     }, [recentTransactions, invoiceInput]);
 
     // Per-line return data for the selected ticket (purchased / already / remaining / qty).
@@ -97,18 +101,6 @@ export default function ReturnDialog({ open, onOpenChange }: ReturnDialogProps) 
             return { key: k, item, purchased, already, remaining, qty };
         });
     }, [selectedTx, priorReturns, returnQty]);
-
-    const isFullReturn = useMemo(() =>
-        !!selectedTx && lines.length > 0 && lines.every(l => l.remaining > 0 && l.qty === l.remaining),
-    [selectedTx, lines]);
-
-    // Suggest void ONLY when every line is returned on the SAME shift and nothing
-    // was returned before (voiding would otherwise double-restock prior returns).
-    // Also blocked if transaction is piutang or customer has other piutang.
-    const voidBlock = useMemo(() => selectedTx ? isVoidBlockedByPiutang(selectedTx as any) : { blocked: false } as any, [selectedTx]);
-    const canSuggestVoid = useMemo(() =>
-        isFullReturn && !!activeShift && selectedTx?.shift_id === activeShift.id && priorReturns.length === 0 && !voidBlock.blocked,
-    [isFullReturn, activeShift, selectedTx, priorReturns, voidBlock]);
 
     const refundSummary = useMemo(() => {
         let subtotal = 0;
@@ -198,22 +190,6 @@ export default function ReturnDialog({ open, onOpenChange }: ReturnDialogProps) 
         setReturnQty(prev => ({ ...prev, [key]: Math.max(0, qty) }));
     };
 
-    const handleVoidInstead = async () => {
-        if (!selectedTx || !reason.trim() || isSubmitting) return;
-        const block = isVoidBlockedByPiutang(selectedTx as any);
-        if (block.blocked) { toast({ variant: 'destructive', title: 'Void diblokir', description: block.reason }); return; }
-        setIsSubmitting(true);
-        try {
-            await voidTransaction(selectedTx.id, reason);
-            toast({ title: 'Transaksi Dibatalkan', description: `Invoice ${selectedTx.invoice_number} berhasil di-void.` });
-            onOpenChange(false);
-        } catch (e: any) {
-            toast({ variant: 'destructive', title: 'Gagal Void', description: e.message });
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
-
     const handleConfirm = async () => {
         if (!selectedTx || !activeShift || !storeConfig || isSubmitting) return;
 
@@ -259,27 +235,43 @@ export default function ReturnDialog({ open, onOpenChange }: ReturnDialogProps) 
 
     const hasAnyReturn = lines.some(l => l.qty > 0);
 
+    // Discount/promo amounts from the selected transaction (mirrors History detail)
+    const promoAmount = (selectedTx?.promo_discount || 0) - (selectedTx?.voucher_code ? 0 : 0) - (selectedTx?.voucher_code ? 0 : 0);
+    const voucherAmount = (selectedTx?.voucher_code && selectedTx?.manual_discount) ? 0 : 0;
+    // Simpler: pull from applied_promos like History does
+    const appliedPromos = selectedTx?.applied_promos || [];
+    const autoPromoAmount = appliedPromos.filter(p => p.kind === 'auto').reduce((s, p) => s + (p.amount || 0), 0);
+    const voucherPromoAmount = appliedPromos.filter(p => p.kind === 'voucher').reduce((s, p) => s + (p.amount || 0), 0);
+
+    const formatTxDate = (iso: string) => {
+        try { return format(new Date(iso), 'dd MMM yyyy, HH:mm', { locale: idLocale }); }
+        catch { return iso; }
+    };
+
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-lg max-h-[85vh] flex flex-col p-0 overflow-hidden">
-                <div className="flex items-center justify-between px-5 py-4 border-b shrink-0">
-                    <div className="flex items-center gap-2">
+            <DialogContent className="sm:max-w-4xl max-h-[85vh] flex flex-col p-0 overflow-hidden">
+                <div className="flex items-center justify-between px-6 py-4 border-b shrink-0">
+                    <div className="flex items-center gap-3">
                         {selectedTx && (
                             <Button variant="ghost" size="icon" aria-label="Kembali ke daftar transaksi" onClick={() => { setSelectedTx(null); setError(null); }}>
-                                <ArrowLeft className="size-4" />
+                                <ArrowLeft className="size-5" />
                             </Button>
                         )}
-                        <h2 className="text-lg font-semibold tracking-tight flex items-center gap-2">
-                            <Undo2 className="size-5 text-primary" /> Retur & Void
+                        <h2 className="text-xl font-semibold tracking-tight flex items-center gap-2">
+                            <Undo2 className="size-5 text-primary" />
+                            {selectedTx ? `Retur · ${selectedTx.invoice_number}` : 'Retur (F4)'}
                         </h2>
                     </div>
-                    {selectedTx && <Badge variant="outline" className="font-mono">{selectedTx.invoice_number}</Badge>}
+                    {selectedTx && (
+                        <Badge variant="outline" className="font-mono">{formatTxDate(selectedTx.created_at)}</Badge>
+                    )}
                 </div>
 
-                <div className="flex-1 overflow-auto p-5 space-y-6">
+                <div className="flex-1 overflow-auto p-0">
                     {!selectedTx ? (
-                        <>
-                            <div className="space-y-3">
+                        <div className="p-6 space-y-6">
+                            <div className="space-y-3 max-w-xl">
                                 <Label className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
                                     No. Struk / Invoice
                                 </Label>
@@ -304,130 +296,166 @@ export default function ReturnDialog({ open, onOpenChange }: ReturnDialogProps) 
                             {error && <p className="text-sm font-medium text-destructive">{error}</p>}
 
                             <div className="space-y-3">
-                                <Label className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                                    Riwayat Transaksi (30 hari terakhir)
-                                </Label>
-                                <div className="border rounded-lg overflow-hidden max-h-[45vh] overflow-y-auto">
+                                <div className="flex items-center justify-between">
+                                    <Label className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                                        Riwayat Transaksi
+                                    </Label>
+                                    <span className="text-[11px] text-muted-foreground">
+                                        {candidateTransactions.length} transaksi · urut dari yang terbaru
+                                    </span>
+                                </div>
+                                <div className="border rounded-lg overflow-hidden max-h-[55vh] overflow-y-auto">
                                     <Table>
                                         <TableHeader className="sticky top-0 z-10 border-b border-border bg-card">
                                             <TableRow className="hover:bg-transparent">
-                                                <TableHead className="w-40">Waktu</TableHead>
+                                                <TableHead className="w-44">Waktu</TableHead>
                                                 <TableHead>Invoice</TableHead>
                                                 <TableHead className="w-32 text-right">Total</TableHead>
+                                                <TableHead className="w-24 text-center">Status</TableHead>
+                                                <TableHead className="w-20"></TableHead>
                                             </TableRow>
                                         </TableHeader>
                                         <TableBody>
-                                            {candidateTransactions.length === 0 ? (
+                                            {isLoadingTx && candidateTransactions.length === 0 ? (
                                                 <TableRow>
-                                                    <TableCell colSpan={3} className="h-24 text-center text-muted-foreground">Tidak ada transaksi yang cocok.</TableCell>
+                                                    <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
+                                                        <Loader2 className="inline size-4 mr-2 animate-spin" /> Memuat…
+                                                    </TableCell>
+                                                </TableRow>
+                                            ) : candidateTransactions.length === 0 ? (
+                                                <TableRow>
+                                                    <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">Tidak ada transaksi yang cocok.</TableCell>
                                                 </TableRow>
                                             ) : (
                                                 candidateTransactions.map(tx => (
                                                     <TableRow key={tx.id} className="cursor-pointer hover:bg-accent" onClick={() => openTicket(tx)}>
-                                                        <TableCell className="whitespace-nowrap text-muted-foreground">{format(new Date(tx.created_at), 'dd MMM yyyy, HH:mm')}</TableCell>
+                                                        <TableCell className="whitespace-nowrap text-muted-foreground">{formatTxDate(tx.created_at)}</TableCell>
                                                         <TableCell className="font-mono font-bold">{tx.invoice_number}</TableCell>
                                                         <TableCell className="text-right font-bold tabular-nums">{formatIDR(tx.total)}</TableCell>
+                                                        <TableCell className="text-center">
+                                                            <Badge variant={tx.status === 'paid' ? 'success' : 'destructive'}>
+                                                                {tx.status.toUpperCase()}
+                                                            </Badge>
+                                                        </TableCell>
+                                                        <TableCell className="text-right">
+                                                            <Button variant="outline" size="sm">Retur</Button>
+                                                        </TableCell>
                                                     </TableRow>
                                                 ))
                                             )}
                                         </TableBody>
                                     </Table>
                                 </div>
+                                <p className="text-[11px] text-muted-foreground">
+                                    Void / pembatalan transaksi dilakukan dari <span className="font-semibold">Riwayat Sif (F2)</span>, bukan dari sini.
+                                </p>
                             </div>
-                        </>
+                        </div>
                     ) : (
-                        <>
-                            <div className="border rounded-lg overflow-hidden">
-                                <div className="px-4 py-2.5 bg-muted/50 text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                                    Barang yang dikembalikan · scan barcode / atur jumlah
+                        <div className="p-6 space-y-6">
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                                <div className="space-y-4">
+                                    <h4 className="font-bold text-muted-foreground uppercase text-xs tracking-widest">Item Pesanan</h4>
+                                    <div className="border rounded-lg overflow-hidden">
+                                        <Table>
+                                            <TableBody>
+                                                {lines.map(l => {
+                                                    const bonusSuffix = (l.item as any).bonus_label ? ` (${(l.item as any).bonus_label})` : '';
+                                                    const isFree = l.item.is_free_item;
+                                                    return (
+                                                        <TableRow key={l.key}>
+                                                            <TableCell className="py-3">
+                                                                <div className="font-medium">
+                                                                    {l.item.product_snapshot.name}
+                                                                    {bonusSuffix ? <span className="text-success"> {bonusSuffix}</span> : null}
+                                                                </div>
+                                                                <div className="text-xs text-muted-foreground tabular-nums">
+                                                                    {formatIDR(l.item.price_snapshot)}
+                                                                    {(l.item.unit_discount || 0) > 0 ? ` → net ${formatIDR(Math.max(0, l.item.price_snapshot - (l.item.unit_discount || 0)))} setelah diskon` : ''}
+                                                                    {isFree ? ' · gratis (promo)' : ''}
+                                                                    {' · beli ' + l.purchased + ' · sudah ' + l.already + ' · sisa ' + l.remaining}
+                                                                </div>
+                                                            </TableCell>
+                                                            <TableCell className="text-right align-middle">
+                                                                <div className="flex items-center justify-end gap-1">
+                                                                    <Button variant="outline" size="icon" className="size-7" aria-label={`Kurangi jumlah retur ${l.item.product_snapshot?.name || ''}`} onClick={() => setLineQty(l.key, l.qty - 1)} disabled={l.qty <= 0}>
+                                                                        <Minus className="size-3" />
+                                                                    </Button>
+                                                                    <span className="w-8 text-center font-bold tabular-nums">{l.qty}</span>
+                                                                    <Button variant="outline" size="icon" className="size-7" aria-label={`Tambah jumlah retur ${l.item.product_snapshot?.name || ''}`} onClick={() => setLineQty(l.key, l.qty + 1)} disabled={l.qty >= l.remaining}>
+                                                                        <Plus className="size-3" />
+                                                                    </Button>
+                                                                </div>
+                                                            </TableCell>
+                                                        </TableRow>
+                                                    );
+                                                })}
+                                            </TableBody>
+                                        </Table>
+                                    </div>
+                                    <p className="text-[11px] text-muted-foreground">Scan barcode produk (saat tiket terbuka) untuk menambah jumlah retur baris tersebut.</p>
                                 </div>
-                                <div className="divide-y divide-border/60">
-                                    {lines.map(l => (
-                                        <div key={l.key} className="px-4 py-3.5 flex items-center gap-3">
-                                            <div className="flex-1 min-w-0">
-                                                <p className="text-sm font-medium truncate">{l.item.product_snapshot.name}</p>
-                                                <p className="text-xs text-muted-foreground tabular-nums">
-                                                    {formatIDR(l.item.price_snapshot)}
-                                                    {(l.item.unit_discount || 0) > 0 ? ` → net ${formatIDR(Math.max(0, l.item.price_snapshot - (l.item.unit_discount || 0)))} setelah diskon` : ''}
-                                                    {' · beli ' + l.purchased + ' · sudah ' + l.already + ' · sisa ' + l.remaining}
-                                                </p>
-                                            </div>
-                                            <div className="flex items-center gap-1 shrink-0">
-                                                <Button variant="outline" size="icon" className="size-7" aria-label={`Kurangi jumlah retur ${l.item.product_snapshot?.name || ''}`} onClick={() => setLineQty(l.key, l.qty - 1)} disabled={l.qty <= 0}>
-                                                    <Minus className="size-3" />
-                                                </Button>
-                                                <span className="w-8 text-center font-bold tabular-nums">{l.qty}</span>
-                                                <Button variant="outline" size="icon" className="size-7" aria-label={`Tambah jumlah retur ${l.item.product_snapshot?.name || ''}`} onClick={() => setLineQty(l.key, l.qty + 1)} disabled={l.qty >= l.remaining}>
-                                                    <Plus className="size-3" />
-                                                </Button>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
 
-                            {canSuggestVoid && (
-                                <div className="rounded-lg border border-warning bg-warning/10 p-4 space-y-3">
-                                    <p className="text-sm font-semibold">
-                                        Semua item transaksi ini dikembalikan pada sif yang sama dan belum pernah di-retur.
-                                    </p>
-                                    <p className="text-sm text-muted-foreground">
-                                        Disarankan <span className="font-semibold">membatalkan transaksi (Void)</span> daripada membuat retur terpisah.
-                                    </p>
-                                    <Button variant="destructive" className="w-full" onClick={handleVoidInstead} disabled={!reason.trim() || isSubmitting}>
-                                        <XCircle className="mr-2 size-4" /> Batalkan Transaksi (Void)
+                                <div className="space-y-4">
+                                    <h4 className="font-bold text-muted-foreground uppercase text-xs tracking-widest">Ringkasan Pembelian</h4>
+                                    <div className="bg-muted/30 p-4 rounded-lg space-y-2">
+                                        <div className="flex justify-between"><span>Subtotal</span><span className="tabular-nums">{formatIDR(selectedTx.subtotal)}</span></div>
+                                        {autoPromoAmount > 0 && (
+                                            <div className="flex justify-between text-success"><span>Promo & Diskon Produk</span><span className="tabular-nums">-{formatIDR(autoPromoAmount)}</span></div>
+                                        )}
+                                        {voucherPromoAmount > 0 && (
+                                            <div className="flex justify-between text-success"><span>Voucher {selectedTx.voucher_code ? `(${selectedTx.voucher_code})` : ''}</span><span className="tabular-nums">-{formatIDR(voucherPromoAmount)}</span></div>
+                                        )}
+                                        {(selectedTx.manual_discount || 0) > 0 && (
+                                            <div className="flex justify-between text-success"><span>Diskon Kasir</span><span className="tabular-nums">-{formatIDR(selectedTx.manual_discount || 0)}</span></div>
+                                        )}
+                                        <div className="flex justify-between"><span>Pajak</span><span className="tabular-nums">{formatIDR(selectedTx.tax_amount)}</span></div>
+                                        <div className="flex justify-between font-black text-lg border-t pt-2"><span>Total</span><span className="tabular-nums">{formatIDR(selectedTx.total)}</span></div>
+                                    </div>
+
+                                    <h4 className="font-bold text-muted-foreground uppercase text-xs tracking-widest">Form Retur</h4>
+                                    <div className="space-y-3">
+                                        <div className="space-y-2">
+                                            <Label htmlFor="retur-reason">Alasan Retur *</Label>
+                                            <Input
+                                                id="retur-reason"
+                                                placeholder="cth. salah ukuran / rusak / tidak sesuai"
+                                                value={reason}
+                                                onChange={(e) => setReason(e.target.value)}
+                                            />
+                                        </div>
+                                        <label className="flex items-start gap-2 text-sm cursor-pointer">
+                                            <Checkbox checked={conditionOk} onCheckedChange={(v) => setConditionOk(v === true)} />
+                                            <span className="text-muted-foreground">
+                                                Barang dalam <span className="font-semibold text-foreground">kondisi baik</span> dan dapat dijual kembali.
+                                            </span>
+                                        </label>
+                                    </div>
+
+                                    {error && <p className="text-sm font-medium text-destructive">{error}</p>}
+
+                                    <div className="bg-muted/40 rounded-lg p-5 space-y-2">
+                                        <div className="flex justify-between text-sm">
+                                            <span className="text-muted-foreground">Kembali Subtotal</span>
+                                            <span className="tabular-nums">{formatIDR(refundSummary.subtotal)}</span>
+                                        </div>
+                                        <div className="flex justify-between text-sm">
+                                            <span className="text-muted-foreground">Pajak</span>
+                                            <span className="tabular-nums">{formatIDR(refundSummary.tax)}</span>
+                                        </div>
+                                        <div className="flex justify-between font-black text-lg border-t pt-2">
+                                            <span>Total Refund (Kas Sif)</span>
+                                            <span className="tabular-nums text-destructive">{formatIDR(refundSummary.total)}</span>
+                                        </div>
+                                    </div>
+
+                                    <Button className="w-full h-12 font-semibold" onClick={handleConfirm} disabled={isSubmitting || !hasAnyReturn}>
+                                        <CheckCircle2 className="mr-2 size-5" />
+                                        {isSubmitting ? 'Memproses...' : `Buat Retur & Refund ${formatIDR(refundSummary.total)}`}
                                     </Button>
                                 </div>
-                            )}
-                            {selectedTx && voidBlock.blocked && (
-                                <div className="rounded-lg border border-destructive bg-destructive/10 p-3 text-sm text-destructive">
-                                    Void diblokir: {voidBlock.reason} — lunasi piutang di menu Piutang terlebih dahulu.
-                                </div>
-                            )}
-
-                            <div className="space-y-4">
-                                <div className="space-y-2">
-                                    <Label htmlFor="retur-reason">Alasan Retur/Void *</Label>
-                                    <Input
-                                        id="retur-reason"
-                                        placeholder="cth. salah ukuran / rusak / void — salah input"
-                                        value={reason}
-                                        onChange={(e) => setReason(e.target.value)}
-                                    />
-                                </div>
-                                <label className="flex items-start gap-2 text-sm cursor-pointer">
-                                    <Checkbox checked={conditionOk} onCheckedChange={(v) => setConditionOk(v === true)} />
-                                    <span className="text-muted-foreground">
-                                        Barang dalam <span className="font-semibold text-foreground">kondisi baik</span> dan dapat dijual kembali.
-                                    </span>
-                                </label>
                             </div>
-
-                            {error && <p className="text-sm font-medium text-destructive">{error}</p>}
-
-                            <div className="bg-muted/40 rounded-lg p-5 space-y-2">
-                                <div className="flex justify-between text-sm">
-                                    <span className="text-muted-foreground">Kembali Subtotal</span>
-                                    <span className="tabular-nums">{formatIDR(refundSummary.subtotal)}</span>
-                                </div>
-                                <div className="flex justify-between text-sm">
-                                    <span className="text-muted-foreground">Pajak</span>
-                                    <span className="tabular-nums">{formatIDR(refundSummary.tax)}</span>
-                                </div>
-                                <div className="flex justify-between font-black text-lg border-t pt-2">
-                                    <span>Total Refund (Kas Sif)</span>
-                                    <span className="tabular-nums text-destructive">{formatIDR(refundSummary.total)}</span>
-                                </div>
-                            </div>
-
-                            <Button className="w-full h-12 font-semibold" onClick={handleConfirm} disabled={isSubmitting || !hasAnyReturn}>
-                                <CheckCircle2 className="mr-2 size-5" />
-                                {isSubmitting ? 'Memproses...' : `Buat Retur & Refund ${formatIDR(refundSummary.total)}`}
-                            </Button>
-                            <Button variant="outline" className="w-full h-10 border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground" onClick={handleVoidInstead} disabled={!reason.trim() || isSubmitting || !selectedTx || voidBlock.blocked} title={voidBlock.blocked ? voidBlock.reason : ''}>
-                                <XCircle className="mr-2 size-4" /> Void Transaksi {selectedTx ? `(${selectedTx.invoice_number})` : ''}
-                            </Button>
-                        </>
+                        </div>
                     )}
                 </div>
             </DialogContent>
