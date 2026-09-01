@@ -249,6 +249,8 @@ export const createTransaction = async (
             discount_amount: line?.lineDiscount || 0,
             promo_ids: line?.promoIds || [],
             is_free_item: line?.isFreeItem || false,
+            free_qty: line?.freeQty || 0,
+            bonus_label: line?.freeQty ? `${line.freeQty} bonus` : undefined,
         };
       }),
       subtotal,

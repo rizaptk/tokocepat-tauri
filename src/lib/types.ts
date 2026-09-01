@@ -177,6 +177,8 @@ export interface TransactionItem {
     discount_amount?: number;   // total discount for this line = unit_discount * qty
     promo_ids?: string[];       // promotion ids that contributed to this line
     is_free_item?: boolean;     // line was granted free via a promo (price_snapshot = 0)
+    free_qty?: number;          // units granted free within this line (BOGO/bonus; line qty stays the combined total)
+    bonus_label?: string;       // human-readable bonus suffix, e.g. "1 bonus" — shown in cart and receipt
 }
 
 export interface AppliedPromoRecord {

@@ -11,6 +11,7 @@ export interface ReceiptLineItem {
     qty: number;
     price: number;
     discount?: number;
+    bonusLabel?: string;
 }
 
 export interface ReceiptSnapshot {
@@ -189,6 +190,7 @@ export function ReceiptTape({ data, storeName, storeAddress, footer, className }
         list.push(<div key="rule1" className="font-mono" style={{ borderTop: `2px dashed ${RULE}` }} />);
 
         data.items.forEach((item, i) => {
+            const bonusSuffix = item.bonusLabel ? ` (${item.bonusLabel})` : '';
             list.push(
                 <div
                     key={`n${i}`}
@@ -196,6 +198,9 @@ export function ReceiptTape({ data, storeName, storeAddress, footer, className }
                     style={{ fontSize: 11, color: INK, lineHeight: 1.4 }}
                 >
                     {item.name}
+                    {bonusSuffix ? (
+                        <span style={{ color: LED, fontWeight: 600 }}>{bonusSuffix}</span>
+                    ) : null}
                     {item.variant ? (
                         <span style={{ color: INK_MUTED, fontWeight: 500 }}> · {item.variant}</span>
                     ) : null}

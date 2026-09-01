@@ -125,7 +125,9 @@ export function generateReceiptBinary(
     // --- Items ---
     transaction.items.forEach(item => {
         // Product Name (truncated to width, keep it on a single line)
-        encoder.line(fit(receiptWidth, item.product_snapshot.name));
+        const bonusSuffix = (item as any).bonus_label ? ` (${(item as any).bonus_label})` : '';
+        const itemName = (item as any).product_snapshot.name + bonusSuffix;
+        encoder.line(fit(receiptWidth, itemName));
 
         // Price details — show the NET line total (gross minus discounts) so a
         // discounted or free line prints what the customer actually paid.
@@ -242,7 +244,9 @@ export function generateReturnReceiptBinary(
         const lineDiscount = item.discount_amount || 0;
         const isFreeItem = item.is_free_item;
         const lineTotal = isFreeItem ? 0 : Math.abs(item.subtotal);
-        encoder.line(fit(receiptWidth, item.product_snapshot.name));
+        const bonusSuffix = (item as any).bonus_label ? ` (${(item as any).bonus_label})` : '';
+        const itemName = item.product_snapshot.name + bonusSuffix;
+        encoder.line(fit(receiptWidth, itemName));
         encoder.line(twoCols(receiptWidth, `${qty} x ${formatCurrency(item.price_snapshot)}`, formatCurrency(lineTotal)));
         if (lineDiscount > 0 && !isFreeItem) {
             encoder.line(twoCols(receiptWidth, `   Diskon -${formatCurrency(lineDiscount)}`, ''));

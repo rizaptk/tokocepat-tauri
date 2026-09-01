@@ -620,13 +620,18 @@ export default function ClassicCashierPage({ defaultWholesale = false }: { defau
                 invoice: invoiceNum,
                 change,
                 cashPaid: parseFloat(curr.raw) || 0,
-                items: cart.map(item => ({
-                    name: item.name,
-                    variant: item.selectedVariant?.name,
-                    qty: item.quantity,
-                    price: item.price,
-                    discount: lineDiscounts.get(item.cartItemId)?.lineDiscount ?? 0,
-                })),
+                items: cart.map(item => {
+                    const ln = lineDiscounts.get(item.cartItemId);
+                    const free = ln?.freeQty || 0;
+                    return {
+                        name: item.name,
+                        variant: item.selectedVariant?.name,
+                        qty: item.quantity,
+                        price: item.price,
+                        discount: ln?.lineDiscount ?? 0,
+                        bonusLabel: free > 0 ? `${free} bonus` : undefined,
+                    };
+                }),
                 subtotal,
                 tax,
                 total,
@@ -945,7 +950,14 @@ export default function ClassicCashierPage({ defaultWholesale = false }: { defau
                                             <TableRow key={item.cartItemId} className={cn("group bg-card hover:bg-muted/40", cartActiveIndex === idx && "bg-muted/40")} onMouseEnter={() => setCartActiveIndex(idx)}>
                                                 <TableCell className={cn("!py-0.5 !px-2", cartActiveIndex === idx && cartActiveColumn === 0 && "bg-primary/10")}>{idx + 1}</TableCell>
                                                 <TableCell className={cn("font-normal !py-0.5 !px-2", cartActiveIndex === idx && cartActiveColumn === 1 && "bg-primary/10")}>
-                                                    <div className="truncate">{item.name}</div>
+                                                    <div className="truncate">
+                                                        {item.name}
+                                                        {(() => {
+                                                            const line = discountResult?.lines.find(l => l.cartItemId === item.cartItemId);
+                                                            const free = line?.freeQty || 0;
+                                                            return free > 0 ? <span className="text-success"> ({free} bonus)</span> : null;
+                                                        })()}
+                                                    </div>
                                                     {item.selectedVariant && (
                                                         <button
                                                             className="mt-0.5 h-4 rounded-sm px-1 text-[10px] font-medium text-primary underline decoration-dotted underline-offset-2 hover:text-primary/80"
