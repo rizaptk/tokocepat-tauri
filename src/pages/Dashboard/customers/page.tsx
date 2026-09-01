@@ -4,7 +4,6 @@ import { useStore } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
@@ -56,6 +55,19 @@ function PillButton({ active, onClick, children }: { active: boolean; onClick: (
         </Button>
     );
 }
+
+const CustomerColumnClass = {
+    name: "flex items-center gap-2 flex-1 min-w-0 h-full",
+    group: "hidden sm:flex items-center text-sm truncate max-w-[120px] w-[120px] px-2 border-l border-l-border/50 h-full",
+    top: "hidden md:flex items-center justify-center text-sm tabular-nums w-[90px] px-2 border-l border-l-border/50 h-full",
+    phone: "hidden lg:flex items-center justify-end shrink-0 text-right text-sm tabular-nums whitespace-nowrap w-[130px] border-l border-l-border/50 h-full px-2",
+};
+
+const GroupColumnClass = {
+    name: "flex items-center gap-2 flex-1 min-w-0 h-full",
+    members: "hidden sm:flex items-center justify-end shrink-0 text-right tabular-nums whitespace-nowrap w-[80px] px-2 border-l border-l-border/50 h-full",
+    actions: "flex items-center justify-end shrink-0 w-[96px] px-2 border-l border-l-border/50 h-full",
+};
 
 export default function CustomersPage() {
     const { customers, customerGroups, storeConfig } = useStore();
@@ -271,63 +283,79 @@ export default function CustomersPage() {
                             ))}
                         </div>
                     </div>
-                    <div className="grow min-h-0 overflow-auto">
-                        <Table>
-                            <TableHeader className="sticky top-0 z-10 bg-card border-b">
-                                <TableRow className="hover:bg-transparent">
-                                    <TableHead scope="col" className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground h-6">Nama</TableHead>
-                                    <TableHead scope="col" className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground h-6">Grup</TableHead>
-                                    <TableHead scope="col" className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground h-6">TOP</TableHead>
-                                    <TableHead scope="col" className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground h-6">Telepon</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {filteredCustomers.length === 0 ? (
-                                    <TableRow>
-                                        <TableCell colSpan={4} className="h-40 text-center">
-                                            <div className="flex flex-col items-center justify-center gap-2 py-6 text-muted-foreground">
-                                                <Users className="size-8 opacity-30" aria-hidden />
-                                                <p className="text-sm font-medium">{customers.length === 0 ? 'Belum ada pelanggan.' : 'Tidak ada pelanggan yang cocok.'}</p>
-                                                <p className="text-xs max-w-[28ch]">{customers.length === 0 ? 'Tambah pelanggan pertama lewat panel kanan.' : `Tidak ada hasil untuk "${customerSearch}". Coba kata kunci lain atau filter grup.`}</p>
-                                                {customerSearch && <Button variant="outline" size="sm" className="mt-1 h-7" onClick={() => setCustomerSearch('')}>Hapus filter</Button>}
+                    <div className="flex flex-col flex-1 min-h-0 bg-background">
+                        <div className="px-4 w-full shrink-0">
+                            <div className="rounded-t-lg h-8 w-full border bg-card flex items-center px-4">
+                                <div className={CustomerColumnClass.name}>
+                                    <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Nama</span>
+                                </div>
+                                <div className={CustomerColumnClass.group}>
+                                    <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Grup</span>
+                                </div>
+                                <div className={CustomerColumnClass.top}>
+                                    <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">TOP</span>
+                                </div>
+                                <div className={CustomerColumnClass.phone}>
+                                    <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Telepon</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="flex-1 min-h-0 overflow-auto">
+                            {filteredCustomers.length === 0 ? (
+                                <div className="flex flex-col items-center justify-center text-center text-muted-foreground h-full p-8">
+                                    <Users className="w-12 h-12 mb-4 opacity-30" aria-hidden />
+                                    <p className="text-sm font-medium">{customers.length === 0 ? 'Belum ada pelanggan.' : 'Tidak ada pelanggan yang cocok.'}</p>
+                                    <p className="text-xs max-w-[28ch] mt-1">{customers.length === 0 ? 'Tambah pelanggan pertama lewat panel kanan.' : `Tidak ada hasil untuk "${customerSearch}". Coba kata kunci lain atau filter grup.`}</p>
+                                    {customerSearch && <Button variant="outline" size="sm" className="mt-3 h-7" onClick={() => setCustomerSearch('')}>Hapus filter</Button>}
+                                </div>
+                            ) : (
+                                <div className="px-4 pb-4">
+                                    {filteredCustomers.map(c => {
+                                        const g = customerGroups.find(gr => gr.id === c.groupId);
+                                        const top = c.topDays ?? g?.topDays ?? 0;
+                                        const isSelected = editingCustomer?.id === c.id;
+                                        return (
+                                            <div key={c.id} className="bg-card border-x border-b border-b-border/50 p-0 h-9">
+                                                <div
+                                                    role="button"
+                                                    tabIndex={0}
+                                                    aria-selected={isSelected}
+                                                    aria-label={`Pilih pelanggan ${c.name}`}
+                                                    onClick={() => { openEditCustomer(c); setRightTab('customers'); }}
+                                                    onKeyDown={e => {
+                                                        if (e.key === 'Enter' || e.key === ' ') {
+                                                            e.preventDefault();
+                                                            openEditCustomer(c);
+                                                            setRightTab('customers');
+                                                        }
+                                                    }}
+                                                    className={cn(
+                                                        "group flex items-center px-4 transition-colors cursor-pointer hover:bg-accent h-9 focus:outline-none focus-visible:bg-accent",
+                                                        isSelected ? "bg-primary/10 text-primary ring-1 ring-inset ring-primary" : ''
+                                                    )}
+                                                >
+                                                    <div className={CustomerColumnClass.name}>
+                                                        <p className="text-sm font-normal truncate flex items-center gap-2">
+                                                            {isSelected && <ChevronRight className="size-3.5 text-primary shrink-0" aria-hidden />}
+                                                            {c.name}
+                                                        </p>
+                                                    </div>
+                                                    <div className={CustomerColumnClass.group}>
+                                                        {g ? <Badge variant="secondary" className="truncate max-w-[100px]">{g.name}</Badge> : <span className="text-muted-foreground/40 text-sm">—</span>}
+                                                    </div>
+                                                    <div className={CustomerColumnClass.top}>
+                                                        <span className="text-sm tabular-nums">{top === 0 ? 'COD' : `${top} hari`}</span>
+                                                    </div>
+                                                    <div className={CustomerColumnClass.phone}>
+                                                        <span className={cn("truncate text-sm", !c.phone && "text-muted-foreground/40")}>{c.phone || '—'}</span>
+                                                    </div>
+                                                </div>
                                             </div>
-                                        </TableCell>
-                                    </TableRow>
-                                ) : filteredCustomers.map(c => {
-                                    const g = customerGroups.find(gr => gr.id === c.groupId);
-                                    const top = c.topDays ?? g?.topDays ?? 0;
-                                    const isSelected = editingCustomer?.id === c.id;
-                                    return (
-                                        <TableRow
-                                            key={c.id}
-                                            role="button"
-                                            tabIndex={0}
-                                            aria-selected={isSelected}
-                                            aria-label={`Pilih pelanggan ${c.name}`}
-                                            onClick={() => { openEditCustomer(c); setRightTab('customers'); }}
-                                            onKeyDown={e => {
-                                                if (e.key === 'Enter' || e.key === ' ') {
-                                                    e.preventDefault();
-                                                    openEditCustomer(c);
-                                                    setRightTab('customers');
-                                                }
-                                            }}
-                                            className={cn('cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-inset', isSelected && 'bg-primary/10 hover:bg-primary/15')}
-                                        >
-                                            <TableCell className="font-medium py-3 md:py-2.5">
-                                                <span className="flex items-center gap-2">
-                                                    {isSelected && <ChevronRight className="size-3.5 text-primary shrink-0" aria-hidden />}
-                                                    {c.name}
-                                                </span>
-                                            </TableCell>
-                                            <TableCell className="py-3 md:py-2.5">{g ? <Badge variant="secondary">{g.name}</Badge> : <span className="text-muted-foreground">Umum</span>}</TableCell>
-                                            <TableCell className="py-3 md:py-2.5">{top === 0 ? 'COD' : `${top} hari`}</TableCell>
-                                            <TableCell className="py-3 md:py-2.5 text-muted-foreground">{c.phone || '—'}</TableCell>
-                                        </TableRow>
-                                    );
-                                })}
-                            </TableBody>
-                        </Table>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
                     </div>
                     <div className="hidden md:flex px-3 pb-2 pt-1 items-center gap-3 text-[11px] text-muted-foreground shrink-0" aria-live="polite" aria-atomic="true">
                         <span className="flex items-center gap-1.5">
@@ -491,50 +519,60 @@ export default function CustomersPage() {
                                     )}
                                 </div>
                             </div>
-                            <div className="grow min-h-0 overflow-auto">
-                                <Table>
-                                    <TableHeader className="sticky top-0 z-10 bg-card border-b">
-                                        <TableRow className="hover:bg-transparent">
-                                            <TableHead scope="col" className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground h-6">Nama Grup</TableHead>
-                                            <TableHead scope="col" className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground h-6 text-right">Anggota</TableHead>
-                                            <TableHead scope="col" className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground h-6 w-24 text-right">Aksi</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {filteredGroups.length === 0 ? (
-                                            <TableRow>
-                                                <TableCell colSpan={3} className="h-40 text-center">
-                                                    <div className="flex flex-col items-center justify-center gap-2 py-6 text-muted-foreground">
-                                                        <Layers className="size-8 opacity-30" aria-hidden />
-                                                        <p className="text-sm font-medium">{groupSearch.trim() ? 'Tidak ada grup yang cocok.' : 'Belum ada grup.'}</p>
-                                                        {groupSearch.trim() ? <Button variant="outline" size="sm" className="mt-1 h-7" onClick={() => setGroupSearch('')}>Hapus filter</Button> : <p className="text-xs">Klik Tambah untuk buat grup baru.</p>}
-                                                    </div>
-                                                </TableCell>
-                                            </TableRow>
-                                        ) : filteredGroups.map(g => {
-                                            const memberCount = memberCountByGroup.get(g.id) || 0;
-                                            return (
-                                                <TableRow key={g.id} className="hover:bg-muted/40">
-                                                    <TableCell className="font-medium py-3 md:py-2.5">
-                                                        <div>{g.name}</div>
-                                                        <div className="text-xs text-muted-foreground">Rank {g.rank} · {g.topDays === 0 ? 'COD' : `${g.topDays} hari`}</div>
-                                                    </TableCell>
-                                                    <TableCell className="text-right tabular-nums text-muted-foreground py-3 md:py-2.5">{memberCount}</TableCell>
-                                                    <TableCell className="text-right py-2">
-                                                        <div className="flex items-center justify-end gap-1">
-                                                            <Button variant="ghost" size="icon" className="size-11 md:size-8 shrink-0" onClick={() => openEditGroup(g)} aria-label={`Ubah grup ${g.name}`}>
-                                                                <Save className="size-4 md:size-3.5" aria-hidden />
-                                                            </Button>
-                                                            <Button variant="ghost" size="icon" className="size-11 md:size-8 shrink-0 text-destructive hover:bg-destructive hover:text-destructive-foreground" onClick={() => setConfirmDeleteGroupId(g.id)} aria-label={`Hapus grup ${g.name}`}>
-                                                                <Trash2 className="size-4 md:size-3.5" aria-hidden />
-                                                            </Button>
+                            <div className="flex flex-col flex-1 min-h-0 bg-background">
+                                <div className="px-3 w-full shrink-0">
+                                    <div className="rounded-t-lg h-8 w-full border bg-card flex items-center px-4">
+                                        <div className={GroupColumnClass.name}>
+                                            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Nama Grup</span>
+                                        </div>
+                                        <div className={GroupColumnClass.members}>
+                                            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Anggota</span>
+                                        </div>
+                                        <div className={GroupColumnClass.actions}>
+                                            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Aksi</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="flex-1 min-h-0 overflow-auto">
+                                    {filteredGroups.length === 0 ? (
+                                        <div className="flex flex-col items-center justify-center text-center text-muted-foreground h-full p-8">
+                                            <Layers className="w-12 h-12 mb-4 opacity-30" aria-hidden />
+                                            <p className="text-sm font-medium">{groupSearch.trim() ? 'Tidak ada grup yang cocok.' : 'Belum ada grup.'}</p>
+                                            {groupSearch.trim() ? <Button variant="outline" size="sm" className="mt-3 h-7" onClick={() => setGroupSearch('')}>Hapus filter</Button> : <p className="text-xs mt-1">Klik Tambah untuk buat grup baru.</p>}
+                                        </div>
+                                    ) : (
+                                        <div className="px-3 pb-4">
+                                            {filteredGroups.map(g => {
+                                                const memberCount = memberCountByGroup.get(g.id) || 0;
+                                                return (
+                                                    <div key={g.id} className="bg-card border-x border-b border-b-border/50 p-0 h-9">
+                                                        <div className="group flex items-center px-4 transition-colors hover:bg-accent h-9">
+                                                            <div className={GroupColumnClass.name}>
+                                                                <div className="min-w-0">
+                                                                    <p className="text-sm font-medium truncate">{g.name}</p>
+                                                                    <p className="text-xs text-muted-foreground truncate">Rank {g.rank} · {g.topDays === 0 ? 'COD' : `${g.topDays} hari`}</p>
+                                                                </div>
+                                                            </div>
+                                                            <div className={GroupColumnClass.members}>
+                                                                <span className="text-sm font-bold tabular-nums">{memberCount}</span>
+                                                            </div>
+                                                            <div className={GroupColumnClass.actions}>
+                                                                <div className="flex items-center justify-end gap-1">
+                                                                    <Button variant="ghost" size="icon" className="size-8 shrink-0" onClick={() => openEditGroup(g)} aria-label={`Ubah grup ${g.name}`}>
+                                                                        <Save className="size-3.5" aria-hidden />
+                                                                    </Button>
+                                                                    <Button variant="ghost" size="icon" className="size-8 shrink-0 text-muted-foreground hover:text-destructive" onClick={() => setConfirmDeleteGroupId(g.id)} aria-label={`Hapus grup ${g.name}`}>
+                                                                        <Trash2 className="size-3.5" aria-hidden />
+                                                                    </Button>
+                                                                </div>
+                                                            </div>
                                                         </div>
-                                                    </TableCell>
-                                                </TableRow>
-                                            );
-                                        })}
-                                    </TableBody>
-                                </Table>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         </div>
                     )}

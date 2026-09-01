@@ -6,7 +6,6 @@ import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Checkbox } from '@/components/ui/checkbox';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Plus, Trash2, Search, Percent, TicketPercent, Package, Tags } from 'lucide-react';
 import { NotificationBell } from '@/components/NotificationBell';
@@ -68,6 +67,30 @@ function PillButton({ active, onClick, children }: { active: boolean; onClick: (
         </Button>
     );
 }
+
+const PromoDiskonColumnClass = {
+    name: "flex items-center gap-2 flex-1 min-w-0 h-full",
+    type: "hidden sm:flex items-center w-[110px] px-2 border-l border-l-border/50 h-full",
+    ketentuan: "hidden lg:flex items-center flex-1 min-w-0 max-w-[260px] px-2 border-l border-l-border/50 h-full",
+    aktif: "flex items-center justify-center w-[64px] px-2 border-l border-l-border/50 h-full",
+    aksi: "flex items-center justify-end w-[48px] px-2 border-l border-l-border/50 h-full",
+};
+
+const PromoVoucherColumnClass = {
+    name: "flex items-center gap-2 flex-1 min-w-0 h-full",
+    ketentuan: "hidden lg:flex items-center flex-1 min-w-0 max-w-[260px] px-2 border-l border-l-border/50 h-full",
+    pemakaian: "hidden sm:flex items-center justify-end w-[96px] px-2 border-l border-l-border/50 h-full tabular-nums",
+    aktif: "flex items-center justify-center w-[64px] px-2 border-l border-l-border/50 h-full",
+    aksi: "flex items-center justify-end w-[48px] px-2 border-l border-l-border/50 h-full",
+};
+
+const PromoProductColumnClass = {
+    check: "flex items-center justify-center w-10 shrink-0 h-full",
+    name: "flex items-center gap-2 flex-1 min-w-0 h-full",
+    brand: "hidden sm:flex items-center text-sm text-muted-foreground truncate max-w-[120px] w-[120px] px-2 border-l border-l-border/50 h-full",
+    category: "hidden md:flex items-center text-sm text-muted-foreground truncate max-w-[140px] w-[140px] px-2 border-l border-l-border/50 h-full",
+    price: "flex items-center justify-end shrink-0 text-right tabular-nums whitespace-nowrap w-[100px] px-2 border-l border-l-border/50 h-full",
+};
 
 export default function PromosPage() {
     const { promos, products, categories } = useStore();
@@ -493,73 +516,93 @@ export default function PromosPage() {
                                     <p className="text-sm">Isi form diskon di panel kanan untuk aturan pertama.</p>
                                 </div>
                             ) : (
-                                <div className="px-3 pb-3">
-                                    <div className="overflow-hidden rounded-md border border-border/60 bg-card">
-                                        <Table>
-                                            <TableHeader className="sticky top-0 z-10 bg-card">
-                                                <TableRow className="hover:bg-transparent">
-                                                    <TableHead>Promo</TableHead>
-                                                    <TableHead className="w-28">Tipe</TableHead>
-                                                    <TableHead>Ketentuan</TableHead>
-                                                    <TableHead className="w-14 text-center">Aktif</TableHead>
-                                                    <TableHead className="w-12 text-right">Aksi</TableHead>
-                                                </TableRow>
-                                            </TableHeader>
-                                            <TableBody>
-                                                {filteredDiskons.map(promo => {
-                                                    const Icon = KIND_ICON[promo.kind];
-                                                    return (
-                                                        <TableRow
-                                                            key={promo.id}
-                                                            className={cn('cursor-pointer', selectedId === promo.id && 'bg-primary/10 text-primary')}
-                                                            onClick={() => handleSelect(promo)}
-                                                        >
-                                                            <TableCell>
-                                                                <div className="font-medium">{promo.name}</div>
-                                                                <div className="mt-0.5 flex items-center gap-1.5">
-                                                                    {promo.is_active && !isPromoLive(promo) && (
-                                                                        <Badge variant="outline" className="text-warning dark:text-warning-foreground border-warning/40">Di luar jadwal</Badge>
-                                                                    )}
-                                                                    {conflictFor(promo) && (
-                                                                        <Badge variant="outline" className="border-warning/50 text-warning dark:text-warning-foreground">Bentrok</Badge>
-                                                                    )}
-                                                                </div>
-                                                            </TableCell>
-                                                            <TableCell>
-                                                                <Badge variant="secondary" className="gap-1 font-medium">
-                                                                    <Icon className="h-3 w-3" /> {KIND_LABEL[promo.kind]}
-                                                                </Badge>
-                                                            </TableCell>
-                                                            <TableCell className="max-w-md truncate text-sm text-muted-foreground">{describe(promo)}</TableCell>
-                                                            <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
-                                                                <Switch checked={promo.is_active} onCheckedChange={(v) => handleToggle(promo, v)} />
-                                                            </TableCell>
-                                                            <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                                                                <AlertDialog>
-                                                                    <AlertDialogTrigger asChild>
-                                                                        <Button variant="ghost" size="icon" className="size-8 text-muted-foreground hover:text-destructive" aria-label={`Hapus promo ${promo.name}`}>
-                                                                            <Trash2 className="h-4 w-4" />
-                                                                        </Button>
-                                                                    </AlertDialogTrigger>
-                                                                    <AlertDialogContent>
-                                                                        <AlertDialogHeader>
-                                                                            <AlertDialogTitle>Hapus diskon "{promo.name}"?</AlertDialogTitle>
-                                                                            <AlertDialogDescription>Transaksi lama tetap tersimpan; hanya aturan yang dihapus.</AlertDialogDescription>
-                                                                        </AlertDialogHeader>
-                                                                        <AlertDialogFooter>
-                                                                            <AlertDialogCancel>Batal</AlertDialogCancel>
-                                                                            <AlertDialogAction onClick={() => handleDelete(promo)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Hapus</AlertDialogAction>
-                                                                        </AlertDialogFooter>
-                                                                    </AlertDialogContent>
-                                                                </AlertDialog>
-                                                            </TableCell>
-                                                        </TableRow>
-                                                    );
-                                                })}
-                                            </TableBody>
-                                        </Table>
+                                <>
+                                    <div className="px-4 w-full">
+                                        <div className="rounded-t-lg h-8 w-full border bg-card flex items-center px-4">
+                                            <div className={PromoDiskonColumnClass.name}>
+                                                <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Promo</span>
+                                            </div>
+                                            <div className={PromoDiskonColumnClass.type}>
+                                                <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Tipe</span>
+                                            </div>
+                                            <div className={PromoDiskonColumnClass.ketentuan}>
+                                                <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Ketentuan</span>
+                                            </div>
+                                            <div className={PromoDiskonColumnClass.aktif}>
+                                                <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Aktif</span>
+                                            </div>
+                                            <div className={PromoDiskonColumnClass.aksi}>
+                                                <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Aksi</span>
+                                            </div>
+                                        </div>
                                     </div>
-                                </div>
+                                    <div className="px-4 pb-4">
+                                        {filteredDiskons.map(promo => {
+                                            const Icon = KIND_ICON[promo.kind];
+                                            const isSelected = selectedId === promo.id;
+                                            return (
+                                                <div key={promo.id} className="bg-card border-x border-b border-b-border/50 p-0 h-9">
+                                                    <div
+                                                        role="button"
+                                                        tabIndex={0}
+                                                        onClick={() => handleSelect(promo)}
+                                                        onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleSelect(promo); }}}
+                                                        className={cn(
+                                                            "group flex items-center px-4 transition-colors cursor-pointer hover:bg-accent h-9 focus:outline-none focus-visible:bg-accent",
+                                                            isSelected ? "bg-primary/10 text-primary ring-1 ring-inset ring-primary" : ''
+                                                        )}
+                                                    >
+                                                        <div className={PromoDiskonColumnClass.name}>
+                                                            <div className="min-w-0">
+                                                                <p className="text-sm font-medium truncate">{promo.name}</p>
+                                                                {(promo.is_active && !isPromoLive(promo) || conflictFor(promo)) && (
+                                                                    <div className="flex items-center gap-1 mt-0.5">
+                                                                        {promo.is_active && !isPromoLive(promo) && (
+                                                                            <Badge variant="outline" className="text-[10px] leading-none py-0.5 px-1.5 text-warning dark:text-warning-foreground border-warning/40">Di luar jadwal</Badge>
+                                                                        )}
+                                                                        {conflictFor(promo) && (
+                                                                            <Badge variant="outline" className="text-[10px] leading-none py-0.5 px-1.5 border-warning/50 text-warning dark:text-warning-foreground">Bentrok</Badge>
+                                                                        )}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                        <div className={PromoDiskonColumnClass.type}>
+                                                            <Badge variant="secondary" className="gap-1 font-medium text-xs max-w-[100px] truncate">
+                                                                <Icon className="h-3 w-3 shrink-0" /> {KIND_LABEL[promo.kind]}
+                                                            </Badge>
+                                                        </div>
+                                                        <div className={PromoDiskonColumnClass.ketentuan}>
+                                                            <span className="truncate text-sm text-muted-foreground">{describe(promo)}</span>
+                                                        </div>
+                                                        <div className={PromoDiskonColumnClass.aktif} onClick={e => e.stopPropagation()}>
+                                                            <Switch checked={promo.is_active} onCheckedChange={v => handleToggle(promo, v)} />
+                                                        </div>
+                                                        <div className={PromoDiskonColumnClass.aksi} onClick={e => e.stopPropagation()}>
+                                                            <AlertDialog>
+                                                                <AlertDialogTrigger asChild>
+                                                                    <Button variant="ghost" size="icon" className="size-8 text-muted-foreground hover:text-destructive" aria-label={`Hapus promo ${promo.name}`}>
+                                                                        <Trash2 className="h-4 w-4" />
+                                                                    </Button>
+                                                                </AlertDialogTrigger>
+                                                                <AlertDialogContent>
+                                                                    <AlertDialogHeader>
+                                                                        <AlertDialogTitle>Hapus diskon "{promo.name}"?</AlertDialogTitle>
+                                                                        <AlertDialogDescription>Transaksi lama tetap tersimpan; hanya aturan yang dihapus.</AlertDialogDescription>
+                                                                    </AlertDialogHeader>
+                                                                    <AlertDialogFooter>
+                                                                        <AlertDialogCancel>Batal</AlertDialogCancel>
+                                                                        <AlertDialogAction onClick={() => handleDelete(promo)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Hapus</AlertDialogAction>
+                                                                    </AlertDialogFooter>
+                                                                </AlertDialogContent>
+                                                            </AlertDialog>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </>
                             )
                         )}
 
@@ -573,64 +616,82 @@ export default function PromosPage() {
                                     <p className="text-sm">Buka tab Voucher di panel kanan untuk kode diskon.</p>
                                 </div>
                             ) : (
-                                <div className="px-3 pb-3">
-                                    <div className="overflow-hidden rounded-md border border-border/60 bg-card">
-                                        <Table>
-                                            <TableHeader className="sticky top-0 z-10 bg-card">
-                                                <TableRow className="hover:bg-transparent">
-                                                    <TableHead>Promo</TableHead>
-                                                    <TableHead>Ketentuan</TableHead>
-                                                    <TableHead className="w-20 text-right">Pemakaian</TableHead>
-                                                    <TableHead className="w-14 text-center">Aktif</TableHead>
-                                                    <TableHead className="w-12 text-right">Aksi</TableHead>
-                                                </TableRow>
-                                            </TableHeader>
-                                            <TableBody>
-                                                {filteredVouchers.map(promo => {
-                                                    const uses = (usageByCode[(promo.code || '').toUpperCase()] || 0) + (promo.uses_count || 0);
-                                                    return (
-                                                        <TableRow
-                                                            key={promo.id}
-                                                            className={cn('cursor-pointer', selectedId === promo.id && 'bg-primary/10 text-primary')}
-                                                            onClick={() => handleSelect(promo)}
-                                                        >
-                                                            <TableCell>
-                                                                <div className="font-medium">{promo.name}</div>
-                                                                <div className="mt-0.5 font-mono text-xs text-muted-foreground">{promo.code}</div>
-                                                            </TableCell>
-                                                            <TableCell className="max-w-md truncate text-sm text-muted-foreground">{describe(promo)}</TableCell>
-                                                            <TableCell className="text-right text-sm tabular-nums">
-                                                                {promo.max_uses ? `${Math.min(uses, promo.max_uses)}/${promo.max_uses}` : `${uses}×`}
-                                                            </TableCell>
-                                                            <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
-                                                                <Switch checked={promo.is_active} onCheckedChange={(v) => handleToggle(promo, v)} />
-                                                            </TableCell>
-                                                            <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                                                                <AlertDialog>
-                                                                    <AlertDialogTrigger asChild>
-                                                                        <Button variant="ghost" size="icon" className="size-8 text-muted-foreground hover:text-destructive" aria-label={`Hapus voucher ${promo.name}`}>
-                                                                            <Trash2 className="h-4 w-4" />
-                                                                        </Button>
-                                                                    </AlertDialogTrigger>
-                                                                    <AlertDialogContent>
-                                                                        <AlertDialogHeader>
-                                                                            <AlertDialogTitle>Hapus voucher "{promo.name}"?</AlertDialogTitle>
-                                                                            <AlertDialogDescription>Transaksi lama tetap tersimpan; hanya aturan yang dihapus.</AlertDialogDescription>
-                                                                        </AlertDialogHeader>
-                                                                        <AlertDialogFooter>
-                                                                            <AlertDialogCancel>Batal</AlertDialogCancel>
-                                                                            <AlertDialogAction onClick={() => handleDelete(promo)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Hapus</AlertDialogAction>
-                                                                        </AlertDialogFooter>
-                                                                    </AlertDialogContent>
-                                                                </AlertDialog>
-                                                            </TableCell>
-                                                        </TableRow>
-                                                    );
-                                                })}
-                                            </TableBody>
-                                        </Table>
+                                <>
+                                    <div className="px-4 w-full">
+                                        <div className="rounded-t-lg h-8 w-full border bg-card flex items-center px-4">
+                                            <div className={PromoVoucherColumnClass.name}>
+                                                <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Promo</span>
+                                            </div>
+                                            <div className={PromoVoucherColumnClass.ketentuan}>
+                                                <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Ketentuan</span>
+                                            </div>
+                                            <div className={PromoVoucherColumnClass.pemakaian}>
+                                                <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Pemakaian</span>
+                                            </div>
+                                            <div className={PromoVoucherColumnClass.aktif}>
+                                                <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Aktif</span>
+                                            </div>
+                                            <div className={PromoVoucherColumnClass.aksi}>
+                                                <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Aksi</span>
+                                            </div>
+                                        </div>
                                     </div>
-                                </div>
+                                    <div className="px-4 pb-4">
+                                        {filteredVouchers.map(promo => {
+                                            const uses = (usageByCode[(promo.code || '').toUpperCase()] || 0) + (promo.uses_count || 0);
+                                            const isSelected = selectedId === promo.id;
+                                            return (
+                                                <div key={promo.id} className="bg-card border-x border-b border-b-border/50 p-0 h-9">
+                                                    <div
+                                                        role="button"
+                                                        tabIndex={0}
+                                                        onClick={() => handleSelect(promo)}
+                                                        onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleSelect(promo); }}}
+                                                        className={cn(
+                                                            "group flex items-center px-4 transition-colors cursor-pointer hover:bg-accent h-9 focus:outline-none focus-visible:bg-accent",
+                                                            isSelected ? "bg-primary/10 text-primary ring-1 ring-inset ring-primary" : ''
+                                                        )}
+                                                    >
+                                                        <div className={PromoVoucherColumnClass.name}>
+                                                            <div className="min-w-0">
+                                                                <p className="text-sm font-medium truncate">{promo.name}</p>
+                                                                <p className="font-mono text-xs text-muted-foreground truncate">{promo.code}</p>
+                                                            </div>
+                                                        </div>
+                                                        <div className={PromoVoucherColumnClass.ketentuan}>
+                                                            <span className="truncate text-sm text-muted-foreground">{describe(promo)}</span>
+                                                        </div>
+                                                        <div className={PromoVoucherColumnClass.pemakaian}>
+                                                            <span className="text-sm tabular-nums">{promo.max_uses ? `${Math.min(uses, promo.max_uses)}/${promo.max_uses}` : `${uses}×`}</span>
+                                                        </div>
+                                                        <div className={PromoVoucherColumnClass.aktif} onClick={e => e.stopPropagation()}>
+                                                            <Switch checked={promo.is_active} onCheckedChange={v => handleToggle(promo, v)} />
+                                                        </div>
+                                                        <div className={PromoVoucherColumnClass.aksi} onClick={e => e.stopPropagation()}>
+                                                            <AlertDialog>
+                                                                <AlertDialogTrigger asChild>
+                                                                    <Button variant="ghost" size="icon" className="size-8 text-muted-foreground hover:text-destructive" aria-label={`Hapus voucher ${promo.name}`}>
+                                                                        <Trash2 className="h-4 w-4" />
+                                                                    </Button>
+                                                                </AlertDialogTrigger>
+                                                                <AlertDialogContent>
+                                                                    <AlertDialogHeader>
+                                                                        <AlertDialogTitle>Hapus voucher "{promo.name}"?</AlertDialogTitle>
+                                                                        <AlertDialogDescription>Transaksi lama tetap tersimpan; hanya aturan yang dihapus.</AlertDialogDescription>
+                                                                    </AlertDialogHeader>
+                                                                    <AlertDialogFooter>
+                                                                        <AlertDialogCancel>Batal</AlertDialogCancel>
+                                                                        <AlertDialogAction onClick={() => handleDelete(promo)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Hapus</AlertDialogAction>
+                                                                    </AlertDialogFooter>
+                                                                </AlertDialogContent>
+                                                            </AlertDialog>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </>
                             )
                         )}
 
@@ -646,38 +707,59 @@ export default function PromosPage() {
                                 </div>
                             ) : (
                                 <div className="flex h-full flex-col min-h-0">
-                                    <div className="min-h-0 flex-1 overflow-auto px-3 pt-1 pb-1">
-                                        <div className="overflow-hidden rounded-md border border-border/60 bg-card">
-                                            <Table>
-                                                <TableHeader className="sticky top-0 z-10 bg-card">
-                                                    <TableRow className="hover:bg-transparent">
-                                                        <TableHead className="w-10"><span className="sr-only">Pilih</span></TableHead>
-                                                        <TableHead>Produk</TableHead>
-                                                        <TableHead className="w-28">Brand</TableHead>
-                                                        <TableHead className="w-32">Kategori</TableHead>
-                                                        <TableHead className="w-24 text-right">Harga</TableHead>
-                                                    </TableRow>
-                                                </TableHeader>
-                                                <TableBody>
-                                                    {filteredProducts.map(p => (
-                                                        <TableRow
-                                                            key={p.id}
-                                                            className="cursor-pointer"
-                                                            data-state={selectedProductIds.has(p.id) ? 'selected' : undefined}
-                                                            onClick={() => toggleProduct(p.id)}
-                                                        >
-                                                            <TableCell className="pr-0">
-                                                                <Checkbox checked={selectedProductIds.has(p.id)} className="pointer-events-none" />
-                                                            </TableCell>
-                                                            <TableCell className="font-medium">{p.name}</TableCell>
-                                                            <TableCell className="text-sm text-muted-foreground">{p.brand || '—'}</TableCell>
-                                                            <TableCell className="text-sm text-muted-foreground">{p.category_id ? categoryName(p.category_id) : '—'}</TableCell>
-                                                            <TableCell className="text-right text-sm tabular-nums">{formatIDR(p.price)}</TableCell>
-                                                        </TableRow>
-                                                    ))}
-                                                </TableBody>
-                                            </Table>
+                                    <div className="px-4 w-full">
+                                        <div className="rounded-t-lg h-8 w-full border bg-card flex items-center px-4">
+                                            <div className={PromoProductColumnClass.check}>
+                                                <span className="sr-only">Pilih</span>
+                                            </div>
+                                            <div className={PromoProductColumnClass.name}>
+                                                <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Produk</span>
+                                            </div>
+                                            <div className={PromoProductColumnClass.brand}>
+                                                <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Brand</span>
+                                            </div>
+                                            <div className={PromoProductColumnClass.category}>
+                                                <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Kategori</span>
+                                            </div>
+                                            <div className={PromoProductColumnClass.price}>
+                                                <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Harga</span>
+                                            </div>
                                         </div>
+                                    </div>
+                                    <div className="min-h-0 flex-1 overflow-auto px-4 pb-4">
+                                        {filteredProducts.map(p => {
+                                            const isChecked = selectedProductIds.has(p.id);
+                                            return (
+                                                <div key={p.id} className="bg-card border-x border-b border-b-border/50 p-0 h-9">
+                                                    <div
+                                                        role="button"
+                                                        tabIndex={0}
+                                                        onClick={() => toggleProduct(p.id)}
+                                                        onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleProduct(p.id); }}}
+                                                        className={cn(
+                                                            "group flex items-center px-4 transition-colors cursor-pointer hover:bg-accent h-9 focus:outline-none focus-visible:bg-accent",
+                                                            isChecked ? "bg-primary/10 ring-1 ring-inset ring-primary" : ''
+                                                        )}
+                                                    >
+                                                        <div className={PromoProductColumnClass.check}>
+                                                            <Checkbox checked={isChecked} className="pointer-events-none" tabIndex={-1} />
+                                                        </div>
+                                                        <div className={PromoProductColumnClass.name}>
+                                                            <p className="text-sm font-medium truncate">{p.name}</p>
+                                                        </div>
+                                                        <div className={PromoProductColumnClass.brand}>
+                                                            <span className={cn("truncate text-sm", !p.brand && "text-muted-foreground/40")}>{p.brand || '—'}</span>
+                                                        </div>
+                                                        <div className={PromoProductColumnClass.category}>
+                                                            <span className="truncate text-sm text-muted-foreground">{p.category_id ? categoryName(p.category_id) : '—'}</span>
+                                                        </div>
+                                                        <div className={PromoProductColumnClass.price}>
+                                                            <span className="text-sm font-bold tabular-nums">{formatIDR(p.price)}</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
                                     </div>
                                     {scopePickerFooter(selectedProductIds.size, 'produk')}
                                 </div>
@@ -688,19 +770,48 @@ export default function PromosPage() {
                         {leftTab === 'kategori' && (
                             filteredCategories.length === 0 ? (
                                 <div className="py-16 text-center text-muted-foreground">
+                                    <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+                                        <Tags className="h-6 w-6" />
+                                    </div>
                                     <p className="font-medium text-foreground/70">{categories.length === 0 ? 'Belum ada kategori' : 'Kategori tidak ditemukan'}</p>
                                 </div>
                             ) : (
                                 <div className="flex h-full flex-col min-h-0">
-                                    <div className="min-h-0 flex-1 overflow-auto px-3 pt-1 pb-1">
-                                        <div className="overflow-hidden rounded-md border border-border/60 bg-card">
-                                            {filteredCategories.map(c => (
-                                                <label key={c.id} className="flex cursor-pointer items-center gap-2.5 rounded-md px-2 py-2 hover:bg-muted">
-                                                    <Checkbox checked={selectedCategoryIds.has(c.id)} onCheckedChange={() => toggleCategory(c.id)} />
-                                                    <span className="min-w-0 flex-1 truncate text-sm font-medium">{c.name}</span>
-                                                </label>
-                                            ))}
+                                    <div className="px-4 w-full">
+                                        <div className="rounded-t-lg h-8 w-full border bg-card flex items-center px-4">
+                                            <div className="flex items-center justify-center w-10 shrink-0 h-full">
+                                                <span className="sr-only">Pilih</span>
+                                            </div>
+                                            <div className="flex items-center gap-2 flex-1 min-w-0 h-full">
+                                                <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Kategori</span>
+                                            </div>
                                         </div>
+                                    </div>
+                                    <div className="min-h-0 flex-1 overflow-auto px-4 pb-4">
+                                        {filteredCategories.map(c => {
+                                            const isChecked = selectedCategoryIds.has(c.id);
+                                            return (
+                                                <div key={c.id} className="bg-card border-x border-b border-b-border/50 p-0 h-9">
+                                                    <div
+                                                        role="button"
+                                                        tabIndex={0}
+                                                        onClick={() => toggleCategory(c.id)}
+                                                        onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleCategory(c.id); }}}
+                                                        className={cn(
+                                                            "group flex items-center px-4 transition-colors cursor-pointer hover:bg-accent h-9 focus:outline-none focus-visible:bg-accent",
+                                                            isChecked ? "bg-primary/10 ring-1 ring-inset ring-primary" : ''
+                                                        )}
+                                                    >
+                                                        <div className="flex items-center justify-center w-10 shrink-0 h-full">
+                                                            <Checkbox checked={isChecked} className="pointer-events-none" tabIndex={-1} />
+                                                        </div>
+                                                        <div className="flex items-center gap-2 flex-1 min-w-0 h-full">
+                                                            <span className="text-sm font-medium truncate">{c.name}</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
                                     </div>
                                     {scopePickerFooter(selectedCategoryIds.size, 'kategori')}
                                 </div>
