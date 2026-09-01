@@ -218,7 +218,7 @@ export default function CustomersPage() {
             pdf.setTitle('CustomerCard');
             pdf.setFilename('customercard.pdf');
             pdf.start('CustomerCard');
-            await new Promise(r => setTimeout(r, 30));
+            await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
             const bytes = await buildCustomerCardPdfBytes(selectedCard, group, storeConfig as any);
             pdf.finish(bytes as unknown as Uint8Array);
         } catch (e: any) {
@@ -264,7 +264,7 @@ export default function CustomersPage() {
                                 </button>
                             )}
                         </div>
-                        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar" role="tablist" aria-label="Filter grup">
+                        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar [mask-image:linear-gradient(to_right,black_88%,transparent)]" role="tablist" aria-label="Filter grup">
                             <FilterPill active={customerGroupFilter === 'all'} onClick={() => setCustomerGroupFilter('all')}>Semua</FilterPill>
                             {customerGroups.map(g => (
                                 <FilterPill key={g.id} active={customerGroupFilter === g.id} onClick={() => setCustomerGroupFilter(g.id)}>{g.name}</FilterPill>
@@ -356,9 +356,9 @@ export default function CustomersPage() {
                     {rightTab === 'customers' ? (
                         <>
                             <div className="px-5 py-3 border-b border-border/60 flex items-center justify-between shrink-0">
-                                <h3 className="font-semibold text-sm">
+                                <h2 className="font-semibold text-sm">
                                     {editingCustomer ? 'Ubah Pelanggan' : isCreatingCustomer ? 'Pelanggan Baru' : 'Detail Pelanggan'}
-                                </h3>
+                                </h2>
                                 {!editingCustomer && !isCreatingCustomer ? (
                                     <Button size="sm" onClick={openNewCustomer} className="h-9 md:h-7">
                                         <Plus className="mr-1 size-3.5" aria-hidden /> Baru
@@ -464,7 +464,7 @@ export default function CustomersPage() {
                     ) : (
                         <div className="flex-1 min-h-0 flex flex-col">
                             <div className="px-5 py-3 border-b border-border/60 flex items-center justify-between shrink-0">
-                                <h3 className="font-semibold text-sm">Kelola Grup</h3>
+                                <h2 className="font-semibold text-sm">Kelola Grup</h2>
                                 <Button size="sm" onClick={openAddGroup} className="h-9 md:h-7">
                                     <Plus className="mr-1 size-3.5" aria-hidden /> Tambah
                                 </Button>
