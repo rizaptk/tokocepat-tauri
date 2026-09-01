@@ -1,5 +1,5 @@
-import { Link, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -8,9 +8,10 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { ArrowLeft, Plus, Trash2, Search, Percent, TicketPercent, Package, Tags } from 'lucide-react';
+import { Plus, Trash2, Search, Percent, TicketPercent, Package, Tags } from 'lucide-react';
 import { NotificationBell } from '@/components/NotificationBell';
 import { ThemeToggle } from '@/components/ThemeButtons';
+import { TokoCepatLogo } from '@/components/TokoCepatLogo';
 import { useStore } from '@/lib/store';
 import { useDbStore } from '@/lib/db-store';
 import { toast } from '@/hooks/use-toast';
@@ -69,7 +70,6 @@ function PillButton({ active, onClick, children }: { active: boolean; onClick: (
 }
 
 export default function PromosPage() {
-    const nav = useNavigate();
     const { promos, products, categories } = useStore();
 
     const [leftTab, setLeftTab] = useState<LeftTab>('diskon');
@@ -451,18 +451,14 @@ export default function PromosPage() {
 
     return (
         <div className="flex h-screen w-full flex-col overflow-hidden bg-muted/40">
-            <header className="z-20 flex h-12 shrink-0 items-center gap-4 border-b border-border/60 bg-background/80 px-4 backdrop-blur-md">
-                <Button variant="outline" size="icon" className="shrink-0" asChild>
-                    <Link to="#" onClick={() => nav(-1)}>
-                        <ArrowLeft className="h-4 w-4" />
-                        <span className="sr-only">Kembali</span>
-                    </Link>
-                </Button>
-                <h1 className="flex-1 text-lg font-semibold tracking-tight">Promo & Voucher</h1>
-                <Button onClick={() => { resetToNewDiskon(); setIsSheetOpen(true); }} className="md:hidden">
-                    <Plus className="mr-2 h-4 w-4" /> Tambah
-                </Button>
+            <header className="sticky top-0 z-20 flex h-10 items-center gap-4 border-b border-border/60 bg-background/80 px-4 justify-between shrink-0 backdrop-blur-md">
+                <Link to="/">
+                    <TokoCepatLogo />
+                </Link>
                 <div className="flex items-center gap-2">
+                    <Button onClick={() => { resetToNewDiskon(); setIsSheetOpen(true); }} className="md:hidden" size="sm">
+                        <Plus className="mr-1 h-4 w-4" /> Tambah
+                    </Button>
                     <NotificationBell />
                     <ThemeToggle />
                 </div>
