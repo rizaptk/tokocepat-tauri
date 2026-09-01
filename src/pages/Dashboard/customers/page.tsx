@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Trash2, Users, Layers, Search, CreditCard, Printer, Save, Edit, ChevronRight, UserCog, PackageSearch } from 'lucide-react';
+import { Plus, Trash2, Users, Layers, Search, CreditCard, Printer, Save, ChevronRight, UserCog } from 'lucide-react';
 import { saveCustomer, deleteCustomer, saveCustomerGroup, deleteCustomerGroup, generateCustomerId, generateGroupId } from '@/services/customerService';
 import { useToast } from '@/hooks/use-toast';
 import { Customer, CustomerGroup } from '@/lib/types';
@@ -29,7 +29,7 @@ function FilterPill({ active, onClick, children }: { active: boolean; onClick: (
             variant="ghost"
             size="sm"
             className={cn(
-                "rounded-md px-2.5 h-7 shrink-0 text-xs",
+                "rounded-md px-3 h-11 md:h-7 shrink-0 text-xs",
                 active ? "bg-background text-foreground ring-1 ring-inset ring-border" : "text-muted-foreground hover:text-foreground"
             )}
             aria-pressed={active}
@@ -46,7 +46,7 @@ function PillButton({ active, onClick, children }: { active: boolean; onClick: (
             variant="ghost"
             size="sm"
             className={cn(
-                "rounded-md px-2.5 h-7 shrink-0 text-xs gap-1.5 flex-1",
+                "rounded-md px-3 h-11 md:h-7 shrink-0 text-xs gap-1.5 flex-1",
                 active ? "bg-background text-foreground ring-1 ring-inset ring-border" : "text-muted-foreground hover:text-foreground"
             )}
             aria-pressed={active}
@@ -80,23 +80,33 @@ export default function CustomersPage() {
                 c.id.toLowerCase().includes(q)
             );
         }
-        return list.sort((a, b) => a.name.localeCompare(b.name));
+        return [...list].sort((a, b) => a.name.localeCompare(b.name));
     }, [customers, customerSearch, customerGroupFilter]);
 
     // ===== Customer form (right panel — tab Pelanggan, always visible) =====
     const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
+    const [isCreatingCustomer, setIsCreatingCustomer] = useState(false);
     const [customerForm, setCustomerForm] = useState<Partial<Customer>>({
         name: '', phone: '', address: '', groupId: 'grp-umum', topDays: 0,
     });
+    const canEditCustomer = !!editingCustomer || isCreatingCustomer;
     const [confirmDeleteCustomerId, setConfirmDeleteCustomerId] = useState<string | null>(null);
 
     const openNewCustomer = () => {
         setEditingCustomer(null);
+        setIsCreatingCustomer(true);
+        setCustomerForm({ name: '', phone: '', address: '', groupId: 'grp-umum', topDays: 0 });
+    };
+
+    const closeCustomerForm = () => {
+        setEditingCustomer(null);
+        setIsCreatingCustomer(false);
         setCustomerForm({ name: '', phone: '', address: '', groupId: 'grp-umum', topDays: 0 });
     };
 
     const openEditCustomer = (c: Customer) => {
         setEditingCustomer(c);
+        setIsCreatingCustomer(false);
         setCustomerForm({
             name: c.name, phone: c.phone || '', address: c.address || '',
             groupId: c.groupId || 'grp-umum', topDays: c.topDays ?? 0,
@@ -120,6 +130,7 @@ export default function CustomersPage() {
         await saveCustomer(cust);
         toast({ title: 'Pelanggan disimpan', description: cust.name });
         setEditingCustomer(cust);
+        setIsCreatingCustomer(false);
         setCustomerForm({
             name: cust.name, phone: cust.phone || '', address: cust.address || '',
             groupId: cust.groupId || 'grp-umum', topDays: cust.topDays ?? 0,
@@ -129,7 +140,7 @@ export default function CustomersPage() {
     const handleDeleteCustomer = async (id: string) => {
         await deleteCustomer(id);
         toast({ title: 'Pelanggan dihapus' });
-        if (editingCustomer?.id === id) openNewCustomer();
+        if (editingCustomer?.id === id) closeCustomerForm();
         setConfirmDeleteCustomerId(null);
     };
 
@@ -150,6 +161,15 @@ export default function CustomersPage() {
         const q = groupSearch.trim().toLowerCase();
         return sortedGroups.filter(g => g.name.toLowerCase().includes(q));
     }, [sortedGroups, groupSearch]);
+
+    const memberCountByGroup = useMemo(() => {
+        const m = new Map<string, number>();
+        for (const c of customers) {
+            const gid = c.groupId || 'grp-umum';
+            m.set(gid, (m.get(gid) || 0) + 1);
+        }
+        return m;
+    }, [customers]);
 
     const openAddGroup = () => {
         setEditingGroup(null);
@@ -211,7 +231,7 @@ export default function CustomersPage() {
     return (
         <div className="flex h-screen w-full flex-col bg-muted/40">
             <header className="sticky top-0 z-20 flex h-10 items-center gap-4 border-b border-border/60 bg-background/80 px-4 justify-between shrink-0 backdrop-blur-md">
-                <Link to="/">
+                <Link to="/" aria-label="Kembali ke beranda">
                     <TokoCepatLogo />
                 </Link>
                 <div className="flex items-center gap-2">
@@ -225,15 +245,16 @@ export default function CustomersPage() {
                 <div className="col-span-10 md:col-span-6 lg:col-span-6 flex h-full flex-col min-h-0 bg-background">
                     <div className="px-3 pt-3 pb-2 flex flex-col w-full gap-2 shrink-0">
                         <div className="relative">
-                            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/50" />
+                            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/50" aria-hidden />
                             <Input
                                 value={customerSearch}
                                 onChange={e => setCustomerSearch(e.target.value)}
                                 placeholder="Cari nama / telepon / ID..."
                                 className="pl-9 h-8 bg-card"
+                                aria-label="Cari pelanggan"
                             />
                         </div>
-                        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+                        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar" role="tablist" aria-label="Filter grup">
                             <FilterPill active={customerGroupFilter === 'all'} onClick={() => setCustomerGroupFilter('all')}>Semua</FilterPill>
                             {customerGroups.map(g => (
                                 <FilterPill key={g.id} active={customerGroupFilter === g.id} onClick={() => setCustomerGroupFilter(g.id)}>{g.name}</FilterPill>
@@ -244,10 +265,10 @@ export default function CustomersPage() {
                         <Table>
                             <TableHeader className="sticky top-0 z-10 bg-card border-b">
                                 <TableRow className="hover:bg-transparent">
-                                    <TableHead>Nama</TableHead>
-                                    <TableHead>Grup</TableHead>
-                                    <TableHead>TOP</TableHead>
-                                    <TableHead>Telepon</TableHead>
+                                    <TableHead scope="col">Nama</TableHead>
+                                    <TableHead scope="col">Grup</TableHead>
+                                    <TableHead scope="col">TOP</TableHead>
+                                    <TableHead scope="col">Telepon</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -264,43 +285,55 @@ export default function CustomersPage() {
                                     return (
                                         <TableRow
                                             key={c.id}
-                                            className={cn('cursor-pointer', isSelected && 'bg-primary/10 hover:bg-primary/15')}
+                                            role="button"
+                                            tabIndex={0}
+                                            aria-selected={isSelected}
+                                            aria-label={`Pilih pelanggan ${c.name}`}
                                             onClick={() => { openEditCustomer(c); setRightTab('customers'); }}
+                                            onKeyDown={e => {
+                                                if (e.key === 'Enter' || e.key === ' ') {
+                                                    e.preventDefault();
+                                                    openEditCustomer(c);
+                                                    setRightTab('customers');
+                                                }
+                                            }}
+                                            className={cn('cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-inset', isSelected && 'bg-primary/10 hover:bg-primary/15')}
                                         >
-                                            <TableCell className="font-medium py-2.5">
-                                                <div className="flex items-center gap-2">
-                                                    {isSelected && <ChevronRight className="size-3.5 text-primary" />}
+                                            <TableCell className="font-medium py-3 md:py-2.5">
+                                                <span className="flex items-center gap-2">
+                                                    {isSelected && <ChevronRight className="size-3.5 text-primary shrink-0" aria-hidden />}
                                                     {c.name}
-                                                </div>
+                                                </span>
                                             </TableCell>
-                                            <TableCell className="py-2.5">{g ? <Badge variant="secondary">{g.name}</Badge> : <span className="text-muted-foreground">Umum</span>}</TableCell>
-                                            <TableCell className="py-2.5">{top === 0 ? 'COD' : `${top} hari`}</TableCell>
-                                            <TableCell className="py-2.5 text-muted-foreground">{c.phone || '—'}</TableCell>
+                                            <TableCell className="py-3 md:py-2.5">{g ? <Badge variant="secondary">{g.name}</Badge> : <span className="text-muted-foreground">Umum</span>}</TableCell>
+                                            <TableCell className="py-3 md:py-2.5">{top === 0 ? 'COD' : `${top} hari`}</TableCell>
+                                            <TableCell className="py-3 md:py-2.5 text-muted-foreground">{c.phone || '—'}</TableCell>
                                         </TableRow>
                                     );
                                 })}
                             </TableBody>
                         </Table>
                     </div>
-                    {window.innerWidth >= 768 && (
-                        <div className="px-3 pb-2 pt-1 flex items-center gap-3 text-[11px] text-muted-foreground shrink-0">
-                            <span className="flex items-center gap-1.5">
-                                <Users className="size-3.5" /> {filteredCustomers.length} pelanggan
-                            </span>
-                            <span>Klik baris untuk mengedit.</span>
-                        </div>
-                    )}
+                    <div className="hidden md:flex px-3 pb-2 pt-1 items-center gap-3 text-[11px] text-muted-foreground shrink-0">
+                        <span className="flex items-center gap-1.5">
+                            <Users className="size-3.5" aria-hidden /> {filteredCustomers.length} pelanggan
+                        </span>
+                        <span>Klik baris atau tekan Enter untuk mengedit.</span>
+                    </div>
+                    <div className="flex md:hidden px-3 pb-3 pt-1 text-[11px] text-muted-foreground shrink-0">
+                        <span>{filteredCustomers.length} pelanggan · ketuk baris untuk mengedit.</span>
+                    </div>
                 </div>
 
                 {/* RIGHT: tab Pelanggan | Grup + content (mirrors Product page right panel) */}
                 <aside className="col-span-10 md:col-span-4 lg:col-span-4 h-full min-h-0 flex flex-col bg-card md:border-l border-border/60">
                     <div className="px-3 pt-3 pb-2 shrink-0">
-                        <div className="flex items-center gap-1.5 bg-muted/60 rounded-md p-1">
+                        <div className="flex items-center gap-1.5 bg-muted/60 rounded-md p-1" role="tablist" aria-label="Mode pelanggan">
                             <PillButton active={rightTab === 'customers'} onClick={() => setRightTab('customers')}>
-                                <UserCog className="size-3.5" /> Pelanggan
+                                <UserCog className="size-3.5" aria-hidden /> Pelanggan
                             </PillButton>
                             <PillButton active={rightTab === 'groups'} onClick={() => setRightTab('groups')}>
-                                <Layers className="size-3.5" /> Grup
+                                <Layers className="size-3.5" aria-hidden /> Grup
                             </PillButton>
                         </div>
                     </div>
@@ -309,30 +342,40 @@ export default function CustomersPage() {
                         <>
                             <div className="px-5 py-3 border-b border-border/60 flex items-center justify-between shrink-0">
                                 <h3 className="font-semibold text-sm">
-                                    {editingCustomer ? 'Ubah Pelanggan' : 'Detail Pelanggan'}
+                                    {editingCustomer ? 'Ubah Pelanggan' : isCreatingCustomer ? 'Pelanggan Baru' : 'Detail Pelanggan'}
                                 </h3>
-                                {!editingCustomer && (
-                                    <Button size="sm" onClick={openNewCustomer} className="h-7">
-                                        <Plus className="mr-1 size-3.5" /> Baru
+                                {!editingCustomer && !isCreatingCustomer ? (
+                                    <Button size="sm" onClick={openNewCustomer} className="h-9 md:h-7">
+                                        <Plus className="mr-1 size-3.5" aria-hidden /> Baru
+                                    </Button>
+                                ) : (
+                                    <Button variant="ghost" size="icon" className="size-11 md:size-7 shrink-0" onClick={closeCustomerForm} aria-label="Tutup form pelanggan">
+                                        <ChevronRight className="size-4 md:size-3.5 rotate-90 md:rotate-0" aria-hidden />
+                                        <span className="sr-only">Tutup</span>
                                     </Button>
                                 )}
                             </div>
 
                             <div className="flex-1 overflow-auto p-5 space-y-4">
                                 <div className="space-y-1.5">
-                                    <Label htmlFor="cust-name" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Nama *</Label>
+                                    <Label htmlFor="cust-name" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Nama <span className="text-destructive" aria-hidden>*</span></Label>
                                     <Input
                                         id="cust-name"
                                         value={customerForm.name || ''}
                                         onChange={e => setCustomerForm({ ...customerForm, name: e.target.value })}
-                                        placeholder={editingCustomer ? '' : 'Pilih baris pelanggan atau klik Baru'}
-                                        readOnly={!editingCustomer && !customerForm.id}
+                                        placeholder="cth. Toko Sumber Rezeki"
+                                        aria-required="true"
+                                        aria-invalid={!customerForm.name?.trim() && canEditCustomer ? undefined : undefined}
+                                        disabled={!canEditCustomer}
                                     />
+                                    {!canEditCustomer && (
+                                        <p className="text-xs text-muted-foreground">Pilih baris di tabel atau klik Baru untuk mengisi form.</p>
+                                    )}
                                 </div>
                                 <div className="space-y-1.5">
-                                    <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Grup</Label>
-                                    <Select value={customerForm.groupId || 'grp-umum'} onValueChange={v => setCustomerForm({ ...customerForm, groupId: v })} disabled={!editingCustomer && !customerForm.id}>
-                                        <SelectTrigger><SelectValue placeholder="Umum" /></SelectTrigger>
+                                    <Label htmlFor="cust-group" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Grup</Label>
+                                    <Select value={customerForm.groupId || 'grp-umum'} onValueChange={v => setCustomerForm({ ...customerForm, groupId: v })} disabled={!canEditCustomer}>
+                                        <SelectTrigger id="cust-group" aria-label="Pilih grup pelanggan"><SelectValue placeholder="Umum" /></SelectTrigger>
                                         <SelectContent>
                                             {customerGroups.map(g => (
                                                 <SelectItem key={g.id} value={g.id}>
@@ -343,55 +386,61 @@ export default function CustomersPage() {
                                     </Select>
                                 </div>
                                 <div className="space-y-1.5">
-                                    <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">TOP Override (0 = ikut grup)</Label>
+                                    <Label htmlFor="cust-top" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">TOP Override (0 = ikut grup)</Label>
                                     <Input
+                                        id="cust-top"
                                         type="number"
+                                        inputMode="numeric"
                                         value={customerForm.topDays ?? 0}
                                         onChange={e => setCustomerForm({ ...customerForm, topDays: Number(e.target.value) || 0 })}
-                                        disabled={!editingCustomer && !customerForm.id}
+                                        disabled={!canEditCustomer}
                                     />
                                 </div>
                                 <div className="space-y-1.5">
-                                    <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Telepon</Label>
+                                    <Label htmlFor="cust-phone" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Telepon</Label>
                                     <Input
+                                        id="cust-phone"
+                                        type="tel"
+                                        inputMode="tel"
                                         value={customerForm.phone || ''}
                                         onChange={e => setCustomerForm({ ...customerForm, phone: e.target.value })}
-                                        placeholder={editingCustomer ? '' : '08xxx'}
-                                        readOnly={!editingCustomer && !customerForm.id}
+                                        placeholder="08xxx"
+                                        disabled={!canEditCustomer}
                                     />
                                 </div>
                                 <div className="space-y-1.5">
-                                    <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Alamat</Label>
+                                    <Label htmlFor="cust-address" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Alamat</Label>
                                     <Input
+                                        id="cust-address"
                                         value={customerForm.address || ''}
                                         onChange={e => setCustomerForm({ ...customerForm, address: e.target.value })}
-                                        placeholder={editingCustomer ? '' : '(opsional)'}
-                                        readOnly={!editingCustomer && !customerForm.id}
+                                        placeholder="(opsional)"
+                                        disabled={!canEditCustomer}
                                     />
                                 </div>
                                 {editingCustomer && (
-                                    <div className="rounded-md border bg-muted/30 p-3 text-xs text-muted-foreground space-y-1">
-                                        <div className="flex justify-between"><span>ID</span><span className="font-mono text-foreground">{editingCustomer.id}</span></div>
-                                        <div className="flex justify-between"><span>Dibuat</span><span>{new Date(editingCustomer.created_at).toLocaleDateString('id-ID')}</span></div>
+                                    <dl className="rounded-md border bg-muted/30 p-3 text-xs">
+                                        <div className="flex justify-between py-0.5"><dt className="text-muted-foreground">ID</dt><dd className="font-mono text-foreground">{editingCustomer.id}</dd></div>
+                                        <div className="flex justify-between py-0.5"><dt className="text-muted-foreground">Dibuat</dt><dd className="text-foreground">{new Date(editingCustomer.created_at).toLocaleDateString('id-ID')}</dd></div>
                                         {editingCustomer.updated_at && (
-                                            <div className="flex justify-between"><span>Diubah</span><span>{new Date(editingCustomer.updated_at).toLocaleDateString('id-ID')}</span></div>
+                                            <div className="flex justify-between py-0.5"><dt className="text-muted-foreground">Diubah</dt><dd className="text-foreground">{new Date(editingCustomer.updated_at).toLocaleDateString('id-ID')}</dd></div>
                                         )}
-                                    </div>
+                                    </dl>
                                 )}
                             </div>
 
-                            {(editingCustomer || customerForm.id) && (
+                            {canEditCustomer && (
                                 <div className="px-5 py-3 border-t border-border/60 bg-muted/20 flex items-center gap-2 shrink-0">
-                                    <Button className="flex-1" onClick={handleSaveCustomer}>
-                                        <Save className="mr-2 size-4" /> Simpan
+                                    <Button className="flex-1 h-11 md:h-9" onClick={handleSaveCustomer} disabled={!customerForm.name?.trim()}>
+                                        <Save className="mr-2 size-4" aria-hidden /> Simpan
                                     </Button>
                                     {editingCustomer && (
                                         <>
-                                            <Button variant="outline" size="icon" className="shrink-0" onClick={() => handlePrintCard(editingCustomer)} aria-label="Cetak kartu" title="Cetak kartu">
-                                                <CreditCard className="size-4" />
+                                            <Button variant="outline" size="icon" className="shrink-0 size-11 md:size-9" onClick={() => handlePrintCard(editingCustomer)} aria-label={`Cetak kartu ${editingCustomer.name}`}>
+                                                <CreditCard className="size-4" aria-hidden />
                                             </Button>
-                                            <Button variant="outline" size="icon" className="shrink-0 text-destructive hover:bg-destructive hover:text-destructive-foreground" onClick={() => setConfirmDeleteCustomerId(editingCustomer.id)} aria-label="Hapus pelanggan" title="Hapus">
-                                                <Trash2 className="size-4" />
+                                            <Button variant="outline" size="icon" className="shrink-0 size-11 md:size-9 text-destructive hover:bg-destructive hover:text-destructive-foreground" onClick={() => setConfirmDeleteCustomerId(editingCustomer.id)} aria-label={`Hapus pelanggan ${editingCustomer.name}`}>
+                                                <Trash2 className="size-4" aria-hidden />
                                             </Button>
                                         </>
                                     )}
@@ -402,18 +451,19 @@ export default function CustomersPage() {
                         <div className="flex-1 min-h-0 flex flex-col">
                             <div className="px-5 py-3 border-b border-border/60 flex items-center justify-between shrink-0">
                                 <h3 className="font-semibold text-sm">Kelola Grup</h3>
-                                <Button size="sm" onClick={openAddGroup} className="h-7">
-                                    <Plus className="mr-1 size-3.5" /> Tambah
+                                <Button size="sm" onClick={openAddGroup} className="h-9 md:h-7">
+                                    <Plus className="mr-1 size-3.5" aria-hidden /> Tambah
                                 </Button>
                             </div>
                             <div className="px-3 pt-2 pb-1 shrink-0">
                                 <div className="relative">
-                                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/50" />
+                                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/50" aria-hidden />
                                     <Input
                                         value={groupSearch}
                                         onChange={e => setGroupSearch(e.target.value)}
                                         placeholder="Cari nama grup..."
                                         className="pl-9 h-8 bg-background"
+                                        aria-label="Cari grup"
                                     />
                                 </div>
                             </div>
@@ -421,30 +471,34 @@ export default function CustomersPage() {
                                 <Table>
                                     <TableHeader className="sticky top-0 z-10 bg-card border-b">
                                         <TableRow className="hover:bg-transparent">
-                                            <TableHead>Nama Grup</TableHead>
-                                            <TableHead className="text-right">Produk</TableHead>
-                                            <TableHead className="w-20 text-right">Aksi</TableHead>
+                                            <TableHead scope="col">Nama Grup</TableHead>
+                                            <TableHead scope="col" className="text-right">Anggota</TableHead>
+                                            <TableHead scope="col" className="w-24 text-right">Aksi</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
                                         {filteredGroups.length === 0 ? (
-                                            <TableRow><TableCell colSpan={3} className="h-32 text-center text-muted-foreground">Belum ada grup.</TableCell></TableRow>
+                                            <TableRow>
+                                                <TableCell colSpan={3} className="h-32 text-center text-muted-foreground">
+                                                    {groupSearch.trim() ? 'Tidak ada grup yang cocok.' : 'Belum ada grup.'}
+                                                </TableCell>
+                                            </TableRow>
                                         ) : filteredGroups.map(g => {
-                                            const memberCount = customers.filter(c => c.groupId === g.id).length;
+                                            const memberCount = memberCountByGroup.get(g.id) || 0;
                                             return (
-                                                <TableRow key={g.id}>
-                                                    <TableCell className="font-medium py-2.5">
+                                                <TableRow key={g.id} className="hover:bg-muted/40">
+                                                    <TableCell className="font-medium py-3 md:py-2.5">
                                                         <div>{g.name}</div>
                                                         <div className="text-xs text-muted-foreground">Rank {g.rank} · {g.topDays === 0 ? 'COD' : `${g.topDays} hari`}</div>
                                                     </TableCell>
-                                                    <TableCell className="text-right tabular-nums text-muted-foreground py-2.5">{memberCount}</TableCell>
-                                                    <TableCell className="text-right py-2.5">
+                                                    <TableCell className="text-right tabular-nums text-muted-foreground py-3 md:py-2.5">{memberCount}</TableCell>
+                                                    <TableCell className="text-right py-2">
                                                         <div className="flex items-center justify-end gap-1">
-                                                            <Button variant="ghost" size="icon" className="size-7" onClick={() => openEditGroup(g)} aria-label={`Ubah ${g.name}`} title="Ubah">
-                                                                <Edit className="size-3.5" />
+                                                            <Button variant="ghost" size="icon" className="size-11 md:size-8 shrink-0" onClick={() => openEditGroup(g)} aria-label={`Ubah grup ${g.name}`}>
+                                                                <Save className="size-4 md:size-3.5" aria-hidden />
                                                             </Button>
-                                                            <Button variant="ghost" size="icon" className="size-7 text-destructive hover:bg-destructive hover:text-destructive-foreground" onClick={() => setConfirmDeleteGroupId(g.id)} aria-label={`Hapus ${g.name}`} title="Hapus">
-                                                                <Trash2 className="size-3.5" />
+                                                            <Button variant="ghost" size="icon" className="size-11 md:size-8 shrink-0 text-destructive hover:bg-destructive hover:text-destructive-foreground" onClick={() => setConfirmDeleteGroupId(g.id)} aria-label={`Hapus grup ${g.name}`}>
+                                                                <Trash2 className="size-4 md:size-3.5" aria-hidden />
                                                             </Button>
                                                         </div>
                                                     </TableCell>
@@ -464,30 +518,36 @@ export default function CustomersPage() {
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader>
                         <DialogTitle>{editingGroup ? 'Ubah Grup' : 'Tambah Grup'}</DialogTitle>
+                        <DialogDescription className="sr-only">Form grup grosir</DialogDescription>
                     </DialogHeader>
                     <div className="space-y-3">
                         <div className="space-y-1.5">
-                            <Label htmlFor="grp-name">Nama Grup *</Label>
+                            <Label htmlFor="grp-name">Nama Grup <span className="text-destructive" aria-hidden>*</span></Label>
                             <Input
                                 id="grp-name"
                                 autoFocus
                                 value={groupForm.name || ''}
                                 onChange={e => setGroupForm({ ...groupForm, name: e.target.value })}
                                 placeholder="cth. Agen"
+                                aria-required="true"
                             />
                         </div>
                         <div className="space-y-1.5">
-                            <Label>TOP (hari, 0=COD)</Label>
+                            <Label htmlFor="grp-top">TOP (hari, 0=COD)</Label>
                             <Input
+                                id="grp-top"
                                 type="number"
+                                inputMode="numeric"
                                 value={groupForm.topDays ?? 0}
                                 onChange={e => setGroupForm({ ...groupForm, topDays: Number(e.target.value) || 0 })}
                             />
                         </div>
                         <div className="space-y-1.5">
-                            <Label>Rank (urutan)</Label>
+                            <Label htmlFor="grp-rank">Rank (urutan)</Label>
                             <Input
+                                id="grp-rank"
                                 type="number"
+                                inputMode="numeric"
                                 value={groupForm.rank ?? 0}
                                 onChange={e => setGroupForm({ ...groupForm, rank: Number(e.target.value) || 0 })}
                             />
@@ -495,8 +555,8 @@ export default function CustomersPage() {
                     </div>
                     <DialogFooter className="gap-2">
                         <Button variant="ghost" onClick={() => setGroupModalOpen(false)}>Batal</Button>
-                        <Button onClick={handleSaveGroup}>
-                            <Save className="mr-2 size-4" /> Simpan
+                        <Button onClick={handleSaveGroup} disabled={!groupForm.name?.trim()}>
+                            <Save className="mr-2 size-4" aria-hidden /> Simpan
                         </Button>
                     </DialogFooter>
                 </DialogContent>
@@ -530,12 +590,12 @@ export default function CustomersPage() {
 
             <Dialog open={isCardOpen} onOpenChange={setIsCardOpen}>
                 <DialogContent className="sm:max-w-[420px]">
-                    <DialogHeader><DialogTitle>Kartu Pelanggan — Kastoko</DialogTitle><DialogDescription>1 sisi • Desain premium ATM • ID & barcode • Pratinjau PDF</DialogDescription></DialogHeader>
+                    <DialogHeader><DialogTitle>Kartu Pelanggan — Kastoko</DialogTitle><DialogDescription>1 sisi · Desain premium ATM · ID &amp; barcode · Pratinjau PDF</DialogDescription></DialogHeader>
                     {selectedCard && <CustomerCardPreview customer={selectedCard} group={customerGroups.find(g => g.id === selectedCard.groupId)} />}
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setIsCardOpen(false)}>Tutup</Button>
                         <Button onClick={handleConfirmPrint} disabled={isPrintingCard}>
-                            {isPrintingCard ? 'Memuat...' : <><Printer className="h-4 w-4 mr-1" /> Cetak</>}
+                            {isPrintingCard ? 'Memuat...' : <><Printer className="h-4 w-4 mr-1" aria-hidden /> Cetak</>}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
