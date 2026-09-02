@@ -2,7 +2,6 @@ import { Link } from 'react-router-dom';
 import { LicenseManager } from '@/components/LicenseManager';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Shield, CreditCard } from 'lucide-react';
-import { TokoCepatLogo } from '@/components/TokoCepatLogo';
 import { ThemeToggle } from '@/components/ThemeButtons';
 import { NotificationBell } from '@/components/NotificationBell';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -17,9 +16,9 @@ export default function LicensePage() {
   return (
     <div className="flex h-screen w-full flex-col bg-muted/40">
         <header className="sticky shrink-0 top-0 z-20 flex h-10 items-center gap-4 border-b border-border/60 bg-background/80 px-4 backdrop-blur-md justify-between">
-            <Link to="/dashboard/settings">
-                <TokoCepatLogo />
-            </Link>
+            <div className="flex items-center gap-2 text-sm font-semibold">
+                <Shield className="h-4 w-4" aria-hidden /> Lisensi
+            </div>
             <div className="flex items-center gap-2">
                 <NotificationBell />
                 <ThemeToggle />

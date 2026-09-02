@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from 'react';
-import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -11,7 +10,6 @@ import { Plus, Trash2, Search, Percent, TicketPercent, Package, Tags } from 'luc
 import { useOverlayScrollbar } from '@/hooks/useScrollOverlay';
 import { NotificationBell } from '@/components/NotificationBell';
 import { ThemeToggle } from '@/components/ThemeButtons';
-import { TokoCepatLogo } from '@/components/TokoCepatLogo';
 import { useStore } from '@/lib/store';
 import { useDbStore } from '@/lib/db-store';
 import { toast } from '@/hooks/use-toast';
@@ -494,9 +492,9 @@ export default function PromosPage() {
     return (
         <div className="flex h-screen w-full flex-col overflow-hidden bg-muted/40">
             <header className="sticky top-0 z-20 flex h-10 items-center gap-4 border-b border-border/60 bg-background/80 px-4 justify-between shrink-0 backdrop-blur-md">
-                <Link to="/">
-                    <TokoCepatLogo />
-                </Link>
+                <div className="flex items-center gap-2 text-sm font-semibold">
+                    <Percent className="h-4 w-4" aria-hidden /> Promo
+                </div>
                 <div className="flex items-center gap-2">
                     <Button onClick={() => { resetToNewDiskon(); setIsSheetOpen(true); }} className="md:hidden" size="sm">
                         <Plus className="mr-1 h-4 w-4" /> Tambah

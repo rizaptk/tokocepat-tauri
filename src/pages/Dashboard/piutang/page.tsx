@@ -1,5 +1,4 @@
 import { useMemo, useState, useRef } from 'react';
-import { Link } from 'react-router-dom';
 import { useStore } from '@/lib/store';
 import { useDbStore } from '@/lib/db-store';
 import { useLoadTransactions } from '@/hooks/useLoadTransaction';
@@ -19,7 +18,6 @@ import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { id as localeId } from 'date-fns/locale';
 import { Transaction } from '@/lib/types';
-import { TokoCepatLogo } from '@/components/TokoCepatLogo';
 import { ThemeToggle } from '@/components/ThemeButtons';
 import { NotificationBell } from '@/components/NotificationBell';
 
@@ -135,15 +133,9 @@ export default function PiutangPage() {
   return (
     <div className="flex h-screen w-full flex-col bg-muted/40 selection:bg-primary selection:text-primary-foreground">
       <header className="sticky top-0 z-20 flex h-10 items-center gap-3 border-b border-border/60 bg-background/80 px-4 backdrop-blur-md shrink-0">
-        <Link to="/" aria-label="Kembali ke beranda" className="shrink-0 rounded-[2px] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
-          <TokoCepatLogo />
-        </Link>
-        <span className="hidden sm:inline-flex items-center gap-1.5 text-sm font-semibold tracking-tight">
+        <div className="flex items-center gap-1.5 text-sm font-semibold tracking-tight">
           <Wallet className="h-4 w-4" aria-hidden /> Piutang Grosir
-        </span>
-        <span className="hidden md:inline text-xs text-muted-foreground tabular-nums" aria-live="polite" aria-atomic="true">
-          {filtered.length}/{summary.count} ditampilkan · {formatIDR(summary.totalPiutang)} tertagih
-        </span>
+        </div>
         <div className="ml-auto flex items-center gap-2 min-w-0">
           <div className="relative hidden sm:block">
             <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" aria-hidden />
@@ -292,7 +284,7 @@ export default function PiutangPage() {
           </Table>
           </div>
         </div>
-        <p className="mt-2 text-[11px] text-muted-foreground hidden md:block">Menampilkan {filtered.length} dari {summary.count} piutang · terbaru di atas.</p>
+        <p className="mt-2 text-[11px] text-muted-foreground hidden md:block tabular-nums" aria-live="polite" aria-atomic="true">Menampilkan {filtered.length} dari {summary.count} piutang · {formatIDR(summary.totalPiutang)} tertagih · terbaru di atas.</p>
       </div>
 
       <Dialog open={payOpen} onOpenChange={handlePayOpenChange}>

@@ -32,7 +32,6 @@ import { ButtonGroup } from "@/components/ui/button-group";
 import { ScrollShadow } from "@/components/ui/scrollshadow";
 import { useOverlayScrollbar } from "@/hooks/useScrollOverlay";
 import { Link } from "react-router-dom";
-import { TokoCepatLogo } from "@/components/TokoCepatLogo";
 import { NotificationBell } from "@/components/NotificationBell";
 import { ThemeToggle } from "@/components/ThemeButtons";
 import { itemMapping } from "@/lib/utils"; 
@@ -1244,9 +1243,9 @@ export default function InventoryPage() {
     return (
         <div className="flex flex-col h-full min-h-0">
             <header className="sticky top-0 z-20 flex h-10 items-center gap-4 px-4 justify-between border-b border-border/60 bg-background/80 backdrop-blur-md">
-                <Link to="/">
-                    <TokoCepatLogo />
-                </Link>
+                <div className="flex items-center gap-2 text-sm font-semibold">
+                    <WarehouseIcon className="h-4 w-4" aria-hidden /> Inventaris
+                </div>
                 <div className="flex items-center gap-2">
                     <NotificationBell />
                     <ThemeToggle />

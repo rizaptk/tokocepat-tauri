@@ -10,7 +10,6 @@ import { StoreInfoForm } from './_components/StoreInfoForm';
 import { TaxSettingsForm } from './_components/TaxSettingsForm';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Settings2, Trash2, Printer, Usb, AlertTriangle, Store, Percent, Bluetooth, RefreshCw, Download, MenuIcon } from 'lucide-react';
-import { TokoCepatLogo } from '@/components/TokoCepatLogo';
 import { ThemeToggle } from '@/components/ThemeButtons';
 import { NotificationBell } from '@/components/NotificationBell';
 import { LicenseInfo } from '@/components/LicenseInfo';
@@ -99,7 +98,9 @@ export default function SettingsPage() {
     return (
         <div className="flex h-screen min-h-0 w-full flex-col bg-muted/40">
             <header className="sticky shrink-0 top-0 z-20 flex h-10 items-center gap-4 border-b border-border/60 bg-background/80 px-4 backdrop-blur-md justify-between">
-                <Link to="#" onClick={() => nav(-1)}><TokoCepatLogo /></Link>
+                <div className="flex items-center gap-2 text-sm font-semibold">
+                    Pengaturan
+                </div>
                 <div className="flex items-center gap-2">
                     <NotificationBell />
                     <ThemeToggle />

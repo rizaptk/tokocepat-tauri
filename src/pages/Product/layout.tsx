@@ -1,5 +1,4 @@
-import { Link } from 'react-router-dom';
-import { TokoCepatLogo } from '@/components/TokoCepatLogo';
+import { Package } from 'lucide-react';
 import { ThemeToggle } from '@/components/ThemeButtons';
 import { NotificationBell } from '@/components/NotificationBell';
 
@@ -11,9 +10,9 @@ export default function ProductLayout({
   return (
     <div className="flex min-h-screen w-full flex-col">
       <header className="sticky top-0 z-20 flex h-10 items-center gap-4 border-b border-border/60 bg-background/80 px-4 backdrop-blur-md justify-between">
-        <Link to="/">
-          <TokoCepatLogo />
-        </Link>
+        <div className="flex items-center gap-2 text-sm font-semibold">
+          <Package className="h-4 w-4" aria-hidden /> Produk
+        </div>
         <div className="flex items-center gap-2">
             <NotificationBell />
             <ThemeToggle />

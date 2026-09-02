@@ -1,5 +1,4 @@
 import { useState, useMemo } from 'react';
-import { Link } from 'react-router-dom';
 import { useStore } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,7 +14,6 @@ import { CustomerCardPreview } from '@/components/CustomerCardPreview';
 import { buildCustomerCardPdfBytes } from '@/lib/customerCardPdf';
 import { PdfPreviewSheet } from '@/components/PdfPreviewSheet';
 import { usePdfGeneration, PdfGeneratingOverlay } from '@/hooks/usePdfGeneration';
-import { TokoCepatLogo } from '@/components/TokoCepatLogo';
 import { ThemeToggle } from '@/components/ThemeButtons';
 import { NotificationBell } from '@/components/NotificationBell';
 import { cn } from '@/lib/utils';
@@ -245,9 +243,9 @@ export default function CustomersPage() {
     return (
         <div className="flex h-screen w-full flex-col bg-muted/40">
             <header className="sticky top-0 z-20 flex h-10 items-center gap-4 border-b border-border/60 bg-background/80 px-4 justify-between shrink-0 backdrop-blur-md">
-                <Link to="/" aria-label="Kembali ke beranda">
-                    <TokoCepatLogo />
-                </Link>
+                <div className="flex items-center gap-2 text-sm font-semibold">
+                    <Users className="h-4 w-4" aria-hidden /> Pelanggan
+                </div>
                 <div className="flex items-center gap-2">
                     <NotificationBell />
                     <ThemeToggle />
