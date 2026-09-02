@@ -23,6 +23,8 @@ import { usePdfGeneration, PdfGeneratingOverlay } from '@/hooks/usePdfGeneration
 import { PdfPreviewSheet } from '@/components/PdfPreviewSheet';
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import { cn } from '@/lib/utils';
+import { DateRange } from 'react-day-picker';
+import { DateRangeFilter } from '@/components/DateRangeFilter';
 
 function daysOverdue(due?: string) {
   if (!due) return 0;
@@ -230,6 +232,7 @@ export default function PiutangPage() {
   const [payError, setPayError] = useState<string | null>(null);
   const lastTriggerRef = useRef<HTMLButtonElement | null>(null);
   const [activeTab, setActiveTab] = useState<'aktif' | 'riwayat'>('aktif');
+  const [historyRange, setHistoryRange] = useState<DateRange | undefined>(undefined);
   const suratPdf = usePdfGeneration();
   const [isGeneratingSurat, setIsGeneratingSurat] = useState(false);
 
@@ -275,8 +278,24 @@ export default function PiutangPage() {
       const term = q.toLowerCase();
       list = list.filter(({ t }) => `${t.invoice_number} ${t.customer_name_snapshot || ''}`.toLowerCase().includes(term));
     }
+    if (historyRange?.from || historyRange?.to) {
+      list = list.filter(({ t }) => {
+        const d = new Date(t.created_at);
+        if (historyRange?.from) {
+          const from = new Date(historyRange.from);
+          from.setHours(0, 0, 0, 0);
+          if (d < from) return false;
+        }
+        if (historyRange?.to) {
+          const to = new Date(historyRange.to);
+          to.setHours(23, 59, 59, 999);
+          if (d > to) return false;
+        }
+        return true;
+      });
+    }
     return list;
-  }, [historyDerived, q]);
+  }, [historyDerived, q, historyRange]);
 
   const summary = useMemo(() => {
     let totalPiutang = 0;
@@ -423,16 +442,20 @@ export default function PiutangPage() {
               </button>
             )}
           </div>
-          <Label htmlFor="piutang-status" className="sr-only">Filter status</Label>
-          <Select value={statusFilter} onValueChange={v => setStatusFilter(v as any)}>
-            <SelectTrigger id="piutang-status" className="h-8 w-36 bg-card" aria-label="Filter status"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Semua</SelectItem>
-              <SelectItem value="piutang">Piutang</SelectItem>
-              <SelectItem value="lunas_sebagian">Cicilan</SelectItem>
-              <SelectItem value="overdue">Jatuh Tempo</SelectItem>
-            </SelectContent>
-          </Select>
+          {isAktif && (
+            <>
+              <Label htmlFor="piutang-status" className="sr-only">Filter status</Label>
+              <Select value={statusFilter} onValueChange={v => setStatusFilter(v as any)}>
+                <SelectTrigger id="piutang-status" className="h-8 w-36 bg-card" aria-label="Filter status"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Semua</SelectItem>
+                  <SelectItem value="piutang">Piutang</SelectItem>
+                  <SelectItem value="lunas_sebagian">Cicilan</SelectItem>
+                  <SelectItem value="overdue">Jatuh Tempo</SelectItem>
+                </SelectContent>
+              </Select>
+            </>
+          )}
           <NotificationBell />
           <ThemeToggle />
         </div>
@@ -474,7 +497,7 @@ export default function PiutangPage() {
           <>
             <Card className="rounded-[2px]"><CardHeader className="p-3 pb-1"><CardTitle className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1"><History className="h-3 w-3" aria-hidden /> Total Riwayat</CardTitle></CardHeader><CardContent className="px-3 pb-3"><p className="text-2xl font-light tracking-tight tabular-nums">{formatIDR(historySummary.totalLunas)}</p><p className="text-xs text-muted-foreground tabular-nums">{historySummary.count} transaksi lunas</p></CardContent></Card>
             <Card className="rounded-[2px]"><CardHeader className="p-3 pb-1"><CardTitle className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Pelanggan</CardTitle></CardHeader><CardContent className="px-3 pb-3"><p className="text-2xl font-light tracking-tight tabular-nums">{customers.length}</p><p className="text-xs text-muted-foreground">terdaftar</p></CardContent></Card>
-            <Card className="rounded-[2px]"><CardHeader className="p-3 pb-1"><CardTitle className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Periode</CardTitle></CardHeader><CardContent className="px-3 pb-3"><p className="text-sm font-medium">Riwayat Selesai</p><p className="text-xs text-muted-foreground">Untuk keperluan audit</p></CardContent></Card>
+            <Card className="rounded-[2px]"><CardHeader className="p-3 pb-1"><CardTitle className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Periode</CardTitle></CardHeader><CardContent className="px-3 pb-3"><p className="text-sm font-medium">Riwayat Selesai</p></CardContent></Card>
           </>
         )}
       </div>
@@ -486,6 +509,11 @@ export default function PiutangPage() {
           <PillButton active={!isAktif} onClick={() => setActiveTab('riwayat')}><History className="size-3.5" aria-hidden /> Riwayat</PillButton>
         </div>
       </div>
+      {!isAktif && (
+        <div className="px-3 pb-2 shrink-0">
+          <DateRangeFilter date={historyRange} setDate={setHistoryRange} />
+        </div>
+      )}
 
       <div className="flex-1 min-h-0 overflow-auto px-3 pb-3">
         <div className="rounded-[2px] border bg-card overflow-hidden">
@@ -557,14 +585,6 @@ export default function PiutangPage() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1">
-                        <Button
-                          size="sm"
-                          className="h-8 min-h-[44px] md:min-h-0 md:h-8 rounded-none"
-                          onClick={e => openPay(tx, e.currentTarget)}
-                          aria-label={`Bayar piutang ${tx.invoice_number} sisa ${formatIDR(sisa)}`}
-                        >
-                          <CreditCard className="h-3.5 w-3.5 mr-1" aria-hidden /> Bayar
-                        </Button>
                         {isOverdue && (
                           <Button
                             size="sm"
@@ -578,6 +598,14 @@ export default function PiutangPage() {
                             <Mail className="h-3.5 w-3.5 mr-1" aria-hidden /> Surat
                           </Button>
                         )}
+                        <Button
+                          size="sm"
+                          className="h-8 min-h-[44px] md:min-h-0 md:h-8 rounded-none"
+                          onClick={e => openPay(tx, e.currentTarget)}
+                          aria-label={`Bayar piutang ${tx.invoice_number} sisa ${formatIDR(sisa)}`}
+                        >
+                          <CreditCard className="h-3.5 w-3.5 mr-1" aria-hidden /> Bayar
+                        </Button>
                       </div>
                     </TableCell>
                   </TableRow>
