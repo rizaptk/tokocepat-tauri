@@ -43,6 +43,10 @@ package-lock.json
 # untracked working notes / suggestions (kept out of VCS)
 /firelite_suggestion_update.md
 
+# local seed data + seeding scripts (regenerated per machine, kept out of VCS)
+/seed/
+/scripts/
+
 /src-tauri/target
 /src-tauri/gen
 /dist
