@@ -140,11 +140,15 @@ export default function ShiftDetailsPage() {
                     <CardHeader>
                         <CardTitle>Ringkasan Sif</CardTitle>
                         <CardDescription>
-                            ID Sif: {shift.id}
+                            ID Sif: {shift.id} {(shift as any).opened_by ? `· Kasir: ${(shift as any).opened_by}` : ''}
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
+                            <div>
+                                <p className="text-muted-foreground">Kasir</p>
+                                <p className="font-medium">{(shift as any).opened_by || '-'}</p>
+                            </div>
                             <div>
                                 <p className="text-muted-foreground">Waktu Buka</p>
                                 <p className="font-medium">{openedAt ? openedAt.toLocaleString() : '-'}</p>

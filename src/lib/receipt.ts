@@ -104,8 +104,10 @@ export function generateReceiptBinary(
     encoder.bold(true).line(storeConfig.store_name.toUpperCase()).bold(false);
 
     if (storeConfig.address && storeConfig.address.trim()) {
-        // We must remain in 'center' alignment
         encoder.line(storeConfig.address);
+    }
+    if ((storeConfig as any).npwp && String((storeConfig as any).npwp).trim()) {
+        encoder.line(`NPWP: ${String((storeConfig as any).npwp).trim()}`);
     }
     
     encoder.newline();
@@ -224,6 +226,9 @@ export function generateReturnReceiptBinary(
 
     if (storeConfig.address && storeConfig.address.trim()) {
         encoder.line(storeConfig.address);
+    }
+    if ((storeConfig as any).npwp && String((storeConfig as any).npwp).trim()) {
+        encoder.line(`NPWP: ${String((storeConfig as any).npwp).trim()}`);
     }
 
     encoder.bold(true).line('== STRUK RETUR ==').bold(false);

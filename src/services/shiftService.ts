@@ -4,7 +4,7 @@ import { generateDeviceFingerprint } from '@/lib/security';
 import { useStore } from '@/lib/store';
 import { useEffect } from 'react';
 
-export const openShift = async (openingCash: number): Promise<void> => {
+export const openShift = async (openingCash: number, openedBy?: string): Promise<void> => {
     const { db, firesqlite } = useDbStore.getState();
     if (!db || !firesqlite) throw new Error("Database not initialized");
 
@@ -16,6 +16,7 @@ export const openShift = async (openingCash: number): Promise<void> => {
         id: id,
         opened_at: now,
         opening_cash: openingCash,
+        opened_by: openedBy?.trim() || undefined,
         status: 'open',
         device
     };

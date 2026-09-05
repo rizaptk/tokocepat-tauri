@@ -154,7 +154,7 @@ export class QuerySnapshot {
     forEach(callback: (doc: DocumentSnapshot) => void) { this.docs.forEach(callback); }
 }
 
-export type QueryConstraintType = 'where' | 'order_by' | 'limit' | 'offset' | 'select' | 'start_at' | 'start_after' | 'end_at' | 'end_before' | 'or';
+export type QueryConstraintType = 'where' | 'order_by' | 'limit' | 'offset' | 'select' | 'start_at' | 'start_after' | 'end_at' | 'end_before' | 'or' | 'defer_blobs';
 
 export class QueryConstraint {
     constructor(public readonly type: QueryConstraintType, public readonly data: any) {}
@@ -257,6 +257,9 @@ export const startAt = (...values: any[]) => new QueryConstraint('start_at', val
 export const startAfter = (...values: any[]) => new QueryConstraint('start_after', values);
 export const endAt = (...values: any[]) => new QueryConstraint('end_at', values);
 export const endBefore = (...values: any[]) => new QueryConstraint('end_before', values);
+// Blob-backed fields come back as __blob__ placeholders (no blob-file
+// reads); resolve per doc with a getDoc. List views over image docs.
+export const deferBlobs = () => new QueryConstraint('defer_blobs', true);
 
 export const getDocs = async (q: Query | CollectionReference | CollectionGroupReference) => {
     const params = buildQueryParams(q);
@@ -514,7 +517,8 @@ function buildQueryParams(q: Query | CollectionReference | CollectionGroupRefere
             start_at: undefined,
             start_after: undefined,
             end_at: undefined,
-            end_before: undefined
+            end_before: undefined,
+            defer_blobs: false
         };
     }
 
@@ -531,6 +535,7 @@ function buildQueryParams(q: Query | CollectionReference | CollectionGroupRefere
     let start_after: any[] | undefined = undefined;
     let end_at: any[] | undefined = undefined;
     let end_before: any[] | undefined = undefined;
+    let defer_blobs = false;
 
     // 3. Extract all constraints from the query object
     for (const c of queryObj.constraints) {
@@ -557,6 +562,7 @@ function buildQueryParams(q: Query | CollectionReference | CollectionGroupRefere
             case 'start_after': start_after = c.data.map(normalizeValue); break;
             case 'end_at': end_at = c.data.map(normalizeValue); break;
             case 'end_before': end_before = c.data.map(normalizeValue); break;
+            case 'defer_blobs': defer_blobs = true; break;
         }
     }
 
@@ -578,7 +584,8 @@ function buildQueryParams(q: Query | CollectionReference | CollectionGroupRefere
         start_at,
         start_after,
         end_at,
-        end_before
+        end_before,
+        defer_blobs
     };
 }
 

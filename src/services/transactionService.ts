@@ -3,6 +3,7 @@ import { useDbStore } from '@/lib/db-store';
 import { useStore } from '@/lib/store';
 import { toast } from '@/hooks/use-toast';
 import { evaluateDiscounts, DiscountOptions } from './promoService';
+import { splitTxCosts, MONEY_VERSION } from '@/lib/money';
 
 export const hasOutstandingPiutang = (customerId: string, excludeTxId?: string): boolean => {
     if (!customerId) return false;
@@ -275,7 +276,15 @@ export const createTransaction = async (
       due_date: dueDate,
       term_days: termDays || undefined,
       payment_status: paymentStatus,
+      cashier_name_snapshot: (activeShift as any).opened_by || undefined,
     };
+
+    // Event-stored money: freeze the cost split at write time so reports
+    // read scalars instead of re-walking items.
+    const costSplit = splitTxCosts(newTransaction.items);
+    newTransaction.hpp_standard = costSplit.hppStandard;
+    newTransaction.payout_consignment = costSplit.payoutConsignment;
+    newTransaction.money_v = MONEY_VERSION;
 
 
     // --- Database Operations ---

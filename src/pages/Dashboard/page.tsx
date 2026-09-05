@@ -21,6 +21,7 @@ import { DateRange } from "react-day-picker";
 import { isSameDay, differenceInDays, addDays, startOfDay, endOfDay, format } from 'date-fns';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useLoadTransactions } from "@/hooks/useLoadTransaction";
+import { txProfit } from "@/lib/money";
 import { LicenseBadge } from "@/components/LicenseBadge";
 import { useDeviceScope } from "@/hooks/useDeviceScope";
 import { DeviceScopeFilter } from "@/components/DeviceScopeFilter";
@@ -89,10 +90,7 @@ export default function DashboardPage() {
   // --- KPIs ---
   const { totalRevenue, totalProfit, totalTransactions } = useMemo(() => {
     const revenue = filteredTransactions.reduce((sum, tx) => sum + tx.total, 0);
-    const profit = filteredTransactions.reduce((sum, tx) => {
-      const cost = tx.items.reduce((itemSum, item) => itemSum + ((item.cost_snapshot || 0) * item.qty), 0);
-      return sum + (tx.subtotal - (tx.discount_total || 0) - cost);
-    }, 0);
+    const profit = filteredTransactions.reduce((sum, tx) => sum + txProfit(tx), 0);
 
     return {
       totalRevenue: revenue,
@@ -117,7 +115,7 @@ export default function DashboardPage() {
       }));
       filteredTransactions.forEach(tx => {
         const hour = new Date(tx.created_at).getHours();
-        const profit = tx.subtotal - (tx.discount_total || 0) - tx.items.reduce((sum, item) => sum + (item.cost_snapshot || 0) * item.qty, 0);
+        const profit = txProfit(tx);
         data[hour].sales += tx.total;
         data[hour].profit += profit;
       });
@@ -139,7 +137,7 @@ export default function DashboardPage() {
 
       filteredTransactions.forEach(tx => {
         const dayKey = format(new Date(tx.created_at), 'yyyy-MM-dd');
-        const profit = tx.subtotal - (tx.discount_total || 0) - tx.items.reduce((sum, item) => sum + (item.cost_snapshot || 0) * item.qty, 0);
+        const profit = txProfit(tx);
         if (data[dayKey]) {
           data[dayKey].sales += tx.total;
           data[dayKey].profit += profit;
@@ -241,8 +239,9 @@ export default function DashboardPage() {
                 <div>
                   <p className="text-xs text-muted-foreground">Sif Aktif</p>
                   <p className="font-semibold">
-                    Mulai {new Date(activeShift.opened_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    {(activeShift as any).opened_by ? `${(activeShift as any).opened_by} · ` : ''}{(() => { try { return format(new Date(activeShift.opened_at), 'dd MMM yyyy, HH:mm', { locale: undefined as any }); } catch { return new Date(activeShift.opened_at).toLocaleString('id-ID'); } })()}
                   </p>
+                  <p className="text-xs text-muted-foreground">Buka {new Date(activeShift.opened_at).toLocaleDateString('id-ID', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' })} · {new Date(activeShift.opened_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}</p>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4 pt-2">

@@ -3,6 +3,7 @@ import { useDbStore } from '@/lib/db-store';
 import { useStore } from '@/lib/store';
 import { toast } from '@/hooks/use-toast';
 import { getReturnsByOriginalTx } from './transactionService';
+import { splitTxCosts, MONEY_VERSION } from '@/lib/money';
 
 // Same stable identity used by the ReturnDialog so different variants of the
 // same parent product stay separate when validating return quantities.
@@ -145,6 +146,15 @@ export const createReturnTransaction = async ({
         condition_ok: conditionOk,
         device: activeShift.device,
     };
+
+    // Event-stored money: same split helper; negative line qty negates the
+    // costs so refunds net like totals do. No discount_total on returns —
+    // return subtotals are already net-of-discount and readers treat an
+    // absent discount_total as 0.
+    const costSplit = splitTxCosts(newTransaction.items);
+    newTransaction.hpp_standard = costSplit.hppStandard;
+    newTransaction.payout_consignment = costSplit.payoutConsignment;
+    newTransaction.money_v = MONEY_VERSION;
 
     const { doc, setDoc, updateDoc, getDoc } = firesqlite;
 

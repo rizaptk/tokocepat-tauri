@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Transaction } from '@/lib/types';
+import { txCosts } from '@/lib/money';
 import { DateRangeFilter } from '@/components/DateRangeFilter';
 import { getTransactionsByDateRange } from '@/services/transactionService';
 import { useStore } from '@/lib/store';
@@ -78,19 +79,14 @@ export default function AuditReportPage() {
             const subtotal = shiftTx.reduce((sum, tx) => sum + tx.subtotal, 0);
             
             // --- SPLIT INVENTORY COGS AND CONSIGNMENT PAYOUTS ---
+            // Event-stored scalars (legacy docs derive from line items).
             let standardHPP = 0;
             let consignmentPayout = 0;
 
             shiftTx.forEach(tx => {
-                tx.items.forEach(i => {
-                    const isCons = i.product_snapshot.is_consignment;
-                    const costVal = (i.cost_snapshot || 0) * i.qty;
-                    if (isCons) {
-                        consignmentPayout += costVal;
-                    } else {
-                        standardHPP += costVal;
-                    }
-                });
+                const { std, payout } = txCosts(tx);
+                standardHPP += std;
+                consignmentPayout += payout;
             });
 
             // Profit = Subtotal (Omzet Netto) - Discounts - Total Costs (COGS + Payouts)

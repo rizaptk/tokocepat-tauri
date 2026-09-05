@@ -20,6 +20,7 @@ export interface StoreConfig {
     id: string;
     store_name: string;
     address?: string;
+    npwp?: string;
     tax_rate: number; // Legacy, will be default rate from tax_settings
     tax_settings?: TaxSettings;
     currency: string;
@@ -221,6 +222,13 @@ export interface Transaction {
   manual_discount?: number;  // cashier-entered manual discount
   voucher_code?: string;
   applied_promos?: AppliedPromoRecord[];
+  // Event-stored cost split (frozen at write time from each line's
+  // cost_snapshot, so reports read scalars instead of re-walking items).
+  // money_v versions the split formula; readers derive when it mismatches
+  // (legacy docs). Return docs carry negated splits via negative qty.
+  hpp_standard?: number;         // standard store COGS (cost_snapshot * qty)
+  payout_consignment?: number;   // consignor payout (cost_snapshot * qty)
+  money_v?: number;
 
   // Wholesale / customer snapshot (v0.5 grosir)
   is_wholesale?: boolean;
@@ -231,6 +239,7 @@ export interface Transaction {
   term_days?: number;
   payment_status?: 'lunas' | 'piutang' | 'lunas_sebagian';
   amount_paid_snapshot?: number;
+  cashier_name_snapshot?: string;
 }
 
 export type StockMovementType = 'sale' | 'restock' | 'correction' | 'lost' | 'damaged' | 'initial_balance' | 'return' | 'worksheet_commit';
@@ -308,6 +317,7 @@ export interface Customer {
   name: string;
   phone?: string;
   address?: string;
+  npwp?: string;
   groupId?: string;
   topDays?: number; // override group's topDays
   creditLimit?: number;
@@ -330,6 +340,7 @@ export interface Shift {
     id: string;
     opened_at: string;
     opening_cash: number;
+    opened_by?: string;
     closed_at?: string;
     declared_cash?: number;
     system_cash?: number;

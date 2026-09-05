@@ -1,6 +1,6 @@
 [package]
 name = "Kastoko"
-version = "0.7.0"
+version = "0.8.0"
 description = "Kastoko - Kelola Transaksi, Cepat Lengkap"
 authors = ["Abc Developer"]
 license = ""
@@ -28,7 +28,7 @@ tauri-plugin-store = "2.4.2"
 tauri-plugin-dialog = "2.6.0"
 uuid = {version = "1.20.0", features = ["v4"] }
 tokio = { version = "1", features = ["full"] }
-firelite = { git = "https://github.com/rizaptk/firelite", branch = "cloud_sync" , version = "0.7.1", features = ["tauri-gateway", "net-sync", "cloud-sync"] }
+firelite = { git = "https://github.com/rizaptk/firelite", branch = "cloud_sync" , version = "0.7.5", features = ["tauri-gateway", "net-sync", "cloud-sync"] }
 tauri-plugin-fs = "2"
 jsonwebtoken = "9.3"
 chrono = { version = "0.4", features = ["serde"] }

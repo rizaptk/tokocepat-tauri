@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Wallet, AlertTriangle, CheckCircle, Clock, Search, CreditCard, X, Mail, History } from 'lucide-react';
+import { Wallet, AlertTriangle, CheckCircle, Clock, Search, CreditCard, X, Mail, History, FileText } from 'lucide-react';
 import { formatIDR } from '@/lib/format';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
@@ -25,6 +25,7 @@ import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import { cn } from '@/lib/utils';
 import { DateRange } from 'react-day-picker';
 import { DateRangeFilter } from '@/components/DateRangeFilter';
+import { buildFakturPdfBytes } from '@/lib/fakturPdf';
 
 function daysOverdue(due?: string) {
   if (!due) return 0;
@@ -58,7 +59,8 @@ async function buildSuratTagihanPdfBytes(
   customerName: string,
   customerGroup: string | undefined,
   invoices: PiutangTx[],
-  storeConfig: any
+  storeConfig: any,
+  customerNpwp?: string
 ): Promise<Uint8Array> {
   const pdfDoc = await PDFDocument.create();
   const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
@@ -70,6 +72,7 @@ async function buildSuratTagihanPdfBytes(
 
   const storeName = storeConfig?.store_name || 'Toko';
   const storeAddr = storeConfig?.address || '';
+  const storeNpwp = (storeConfig as any)?.npwp || '';
   const todayStr = format(new Date(), 'd MMMM yyyy', { locale: localeId });
 
   // Kop surat
@@ -78,6 +81,13 @@ async function buildSuratTagihanPdfBytes(
   if (storeAddr) {
     page.drawText(storeAddr, { x: margin, y, font, size: 8, color: rgb(0.4, 0.4, 0.4) });
     y -= 12;
+  }
+  if (storeNpwp) {
+    page.drawText(`NPWP: ${storeNpwp}`, { x: margin, y, font, size: 7, color: rgb(0.4, 0.4, 0.4) });
+    y -= 10;
+  } else {
+    page.drawText('NPWP: ______________________', { x: margin, y, font, size: 7, color: rgb(0.5, 0.5, 0.5) });
+    y -= 10;
   }
   page.drawLine({ start: { x: margin, y }, end: { x: width - margin, y }, thickness: 1.5, color: rgb(0.13, 0.4, 0.8) });
   y -= 18;
@@ -97,6 +107,13 @@ async function buildSuratTagihanPdfBytes(
   if (customerGroup) {
     page.drawText(`Grup: ${customerGroup}`, { x: margin, y, font, size: 8, color: rgb(0.4, 0.4, 0.4) });
     y -= 12;
+  }
+  if (customerNpwp) {
+    page.drawText(`NPWP: ${customerNpwp}`, { x: margin, y, font, size: 7, color: rgb(0.4, 0.4, 0.4) });
+    y -= 10;
+  } else {
+    page.drawText('NPWP: ______________________', { x: margin, y, font, size: 7, color: rgb(0.5, 0.5, 0.5) });
+    y -= 10;
   }
   page.drawText('di Tempat', { x: margin, y, font, size: 9, color: rgb(0.2, 0.2, 0.2) });
   y -= 20;
@@ -234,6 +251,7 @@ export default function PiutangPage() {
   const [activeTab, setActiveTab] = useState<'aktif' | 'riwayat'>('aktif');
   const [historyRange, setHistoryRange] = useState<DateRange | undefined>(undefined);
   const suratPdf = usePdfGeneration();
+  const fakturPdf = usePdfGeneration();
   const [isGeneratingSurat, setIsGeneratingSurat] = useState(false);
 
   const piutangTx = useMemo(() => {
@@ -390,19 +408,36 @@ export default function PiutangPage() {
 
     try {
       setIsGeneratingSurat(true);
-      const group = customers.find(c => c.id === customerId) as any;
+      const custDoc = customers.find(c => c.id === customerId) as any;
       const displayName = customerName;
-      const displayGroup = customerGroup || group?.groupId;
+      const displayGroup = customerGroup || custDoc?.groupId;
+      const customerNpwp = custDoc?.npwp || (invoices[0] as any)?.customer_npwp_snapshot || undefined;
       suratPdf.setTitle('Surat Tagihan');
       suratPdf.setFilename(`surat-tagihan-${displayName.replace(/\s+/g, '-')}.pdf`);
       suratPdf.start('Surat Tagihan');
       await new Promise(r => setTimeout(r, 30));
-      const bytes = await buildSuratTagihanPdfBytes(displayName, displayGroup, invoices, storeConfig as any);
+      const bytes = await buildSuratTagihanPdfBytes(displayName, displayGroup, invoices, storeConfig as any, customerNpwp);
       suratPdf.finish(bytes);
     } catch (e: any) {
       toast({ variant: 'destructive', title: 'Gagal cetak surat', description: e?.message || String(e) });
     } finally {
       setIsGeneratingSurat(false);
+    }
+  };
+
+  const handleCetakFaktur = async (tx: PiutangTx) => {
+    try {
+      const anyTx = tx as any;
+      const cust = anyTx.customer_id ? customers.find(c => c.id === anyTx.customer_id) || null : null;
+      const shiftDoc = anyTx.shift_id ? (useStore.getState().shifts.find(s => s.id === anyTx.shift_id) || null) : null;
+      fakturPdf.setTitle('Faktur Penjualan');
+      fakturPdf.setFilename(`faktur-${tx.invoice_number}.pdf`);
+      fakturPdf.start('Faktur Penjualan');
+      await new Promise(r => setTimeout(r, 30));
+      const bytes = await buildFakturPdfBytes(tx as any, storeConfig as any, cust as any, shiftDoc as any);
+      fakturPdf.finish(bytes);
+    } catch (e: any) {
+      toast({ variant: 'destructive', title: 'Gagal cetak faktur', description: e?.message || String(e) });
     }
   };
 
@@ -585,6 +620,16 @@ export default function PiutangPage() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-8 min-h-[44px] md:min-h-0 md:h-8 rounded-none"
+                          onClick={() => handleCetakFaktur(tx)}
+                          aria-label={`Cetak faktur ${tx.invoice_number}`}
+                          title="Cetak faktur per transaksi — reuse INV, DPP+PPN terpisah"
+                        >
+                          <FileText className="h-3.5 w-3.5 mr-1" aria-hidden /> Faktur
+                        </Button>
                         {isOverdue && (
                           <Button
                             size="sm"
@@ -623,7 +668,9 @@ export default function PiutangPage() {
                       <TableCell className="text-right tabular-nums text-sm whitespace-nowrap">{formatIDR(tx.total)}</TableCell>
                       <TableCell className="text-right tabular-nums text-sm whitespace-nowrap text-muted-foreground">{formatIDR(0)}</TableCell>
                       <TableCell><Badge variant="outline" className="rounded-none border-emerald-500/30 text-emerald-700">Lunas</Badge></TableCell>
-                      <TableCell className="text-right text-xs text-muted-foreground">—</TableCell>
+                      <TableCell className="text-right">
+                        <Button size="sm" variant="outline" className="h-8 min-h-[44px] md:min-h-0 md:h-8 rounded-none" onClick={() => handleCetakFaktur(tx)} aria-label={`Cetak faktur ${tx.invoice_number}`} title="Cetak faktur per transaksi"><FileText className="h-3.5 w-3.5 mr-1" aria-hidden /> Faktur</Button>
+                      </TableCell>
                     </TableRow>
                   );
                 })
@@ -682,6 +729,8 @@ export default function PiutangPage() {
 
       <PdfPreviewSheet open={suratPdf.previewOpen} onOpenChange={suratPdf.setPreviewOpen} pdfBytes={suratPdf.pdfBytes} title={suratPdf.title || 'Surat Tagihan'} filename={suratPdf.filename || 'surat-tagihan.pdf'} />
       <PdfGeneratingOverlay open={suratPdf.open} onCancel={suratPdf.cancel} title={suratPdf.title} elapsedMs={suratPdf.elapsedMs} pageCount={suratPdf.pageCount} />
+      <PdfPreviewSheet open={fakturPdf.previewOpen} onOpenChange={fakturPdf.setPreviewOpen} pdfBytes={fakturPdf.pdfBytes} title={fakturPdf.title || 'Faktur Penjualan'} filename={fakturPdf.filename || 'faktur.pdf'} />
+      <PdfGeneratingOverlay open={fakturPdf.open} onCancel={fakturPdf.cancel} title={fakturPdf.title} elapsedMs={fakturPdf.elapsedMs} pageCount={fakturPdf.pageCount} />
     </div>
   );
 }

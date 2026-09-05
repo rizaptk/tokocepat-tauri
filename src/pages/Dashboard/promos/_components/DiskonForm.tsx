@@ -1,13 +1,15 @@
-import { useRef } from 'react';
+import { useRef, useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { X } from 'lucide-react';
 import { ScrollArea, ScrollAreaHandle } from '@/components/ui/scroll-area';
 import { ScrollShadow } from '@/components/ui/scrollshadow';
 import { cn } from '@/lib/utils';
-import { MultiSelect, SingleSelect } from './SelectCombobox';
+import { SearchDropdown } from '@/components/SearchDropdown';
+import { Badge } from '@/components/ui/badge';
 import { DiscountFields } from './DiscountFields';
 import { SchedulePicker } from './SchedulePicker';
 import { ScopeSummary } from './ScopeSummary';
@@ -34,6 +36,9 @@ export function DiskonForm({ draft, isNew, onChange, onCancel, onSave, isSaving,
     const set = (patch: Partial<Promotion>) => onChange({ ...draft, ...patch });
     const scrollRef = useRef<ScrollAreaHandle>(null);
     const reward = draft.reward_type || 'discount';
+    const [bogoQuery, setBogoQuery] = useState('');
+    const [criteriaQuery, setCriteriaQuery] = useState('');
+    const [conditionalQuery, setConditionalQuery] = useState('');
 
     const handleKindChange = (kind: PromoKind) => {
         if (kind === draft.kind) return;
@@ -148,7 +153,19 @@ export function DiskonForm({ draft, isNew, onChange, onCancel, onSave, isSaving,
                                         </div>
                                         <div className="space-y-2">
                                             <Label>Produk Gratis (opsional; kosong = produk yang sama)</Label>
-                                            <SingleSelect items={products} value={draft.free_product_id || ''} onChange={(id) => set({ free_product_id: id })} placeholder="Produk yang sama dengan yang dibeli" />
+                                            {draft.free_product_id && (
+                                                <div className="flex flex-wrap gap-1.5">
+                                                    <Badge variant="secondary" className="font-normal">{products.find(p=>p.id===draft.free_product_id)?.name || draft.free_product_id}</Badge>
+                                                    <Button variant="ghost" size="sm" className="h-5 px-2 text-xs" onClick={()=>set({ free_product_id: '' })}>Hapus</Button>
+                                                </div>
+                                            )}
+                                            <SearchDropdown
+                                                value={bogoQuery}
+                                                onChange={setBogoQuery}
+                                                options={products.map(p=>({ id:p.id, label:p.name }))}
+                                                onSelect={opt=>{ set({ free_product_id: opt.id }); setBogoQuery(''); }}
+                                                placeholder="Cari produk gratis..."
+                                            />
                                         </div>
                                         <div className="space-y-2">
                                             <Label>Maks Free Per Transaksi (0 = tanpa batas)</Label>
@@ -182,7 +199,19 @@ export function DiskonForm({ draft, isNew, onChange, onCancel, onSave, isSaving,
                                             <>
                                                 <div className="space-y-2">
                                                     <Label>Produk Bonus</Label>
-                                                    <SingleSelect items={products} value={draft.reward_product_ids?.[0] || ''} onChange={(id) => set({ reward_product_ids: [id] })} placeholder="Pilih produk..." />
+                                                    {draft.reward_product_ids?.[0] && (
+                                                        <div className="flex flex-wrap gap-1.5">
+                                                            <Badge variant="secondary" className="font-normal">{products.find(p=>p.id===draft.reward_product_ids![0])?.name || draft.reward_product_ids![0]}</Badge>
+                                                            <Button variant="ghost" size="sm" className="h-5 px-2 text-xs" onClick={()=>set({ reward_product_ids: [] })}>Hapus</Button>
+                                                        </div>
+                                                    )}
+                                                    <SearchDropdown
+                                                        value={criteriaQuery}
+                                                        onChange={setCriteriaQuery}
+                                                        options={products.map(p=>({ id:p.id, label:p.name }))}
+                                                        onSelect={opt=>{ set({ reward_product_ids: [opt.id] }); setCriteriaQuery(''); }}
+                                                        placeholder="Cari produk bonus..."
+                                                    />
                                                     <p className="text-xs text-muted-foreground">Bonus akan auto-ditambah ke cart 1 baris jika syarat terpenuhi.</p>
                                                 </div>
                                                 <div className="space-y-2">
@@ -231,7 +260,23 @@ export function DiskonForm({ draft, isNew, onChange, onCancel, onSave, isSaving,
                                             <>
                                                 <div className="space-y-2">
                                                     <Label>Produk Bonus (bisa lebih dari satu)</Label>
-                                                    <MultiSelect items={products} selected={draft.reward_product_ids || []} onChange={(ids) => set({ reward_product_ids: ids })} placeholder="Pilih produk bonus..." />
+                                                    {(draft.reward_product_ids?.length || 0) > 0 && (
+                                                        <div className="flex flex-wrap gap-1.5">
+                                                            {draft.reward_product_ids!.map(id=> {
+                                                                const item = products.find(p=>p.id===id);
+                                                                return <Badge key={id} variant="secondary" className="font-normal gap-1">{item?.name || id} <button type="button" onClick={()=>set({ reward_product_ids: draft.reward_product_ids!.filter(x=>x!==id) })} className="ml-1 rounded-full hover:bg-muted p-0.5"><X className="size-3" /></button></Badge>;
+                                                            })}
+                                                        </div>
+                                                    )}
+                                                    <SearchDropdown
+                                                        value={conditionalQuery}
+                                                        onChange={setConditionalQuery}
+                                                        options={products.map(p=>({ id:p.id, label:p.name }))}
+                                                        onSelect={opt=>{ const cur = draft.reward_product_ids || []; const next = cur.includes(opt.id) ? cur.filter(x=>x!==opt.id) : [...cur, opt.id]; set({ reward_product_ids: next }); setConditionalQuery(''); }}
+                                                        placeholder="Cari produk bonus..."
+                                                        multiple
+                                                        selectedIds={draft.reward_product_ids || []}
+                                                    />
                                                     <p className="text-xs text-muted-foreground">Bonus akan auto-ditambah 1 baris saat syarat terpenuhi.</p>
                                                 </div>
                                                 <div className="space-y-2">

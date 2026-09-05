@@ -97,7 +97,7 @@ export default function CustomersPage() {
     const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
     const [isCreatingCustomer, setIsCreatingCustomer] = useState(false);
     const [customerForm, setCustomerForm] = useState<Partial<Customer>>({
-        name: '', phone: '', address: '', groupId: 'grp-umum', topDays: 0,
+        name: '', phone: '', address: '', npwp: '', groupId: 'grp-umum', topDays: 0,
     });
     const canEditCustomer = !!editingCustomer || isCreatingCustomer;
     const [confirmDeleteCustomerId, setConfirmDeleteCustomerId] = useState<string | null>(null);
@@ -105,13 +105,13 @@ export default function CustomersPage() {
     const openNewCustomer = () => {
         setEditingCustomer(null);
         setIsCreatingCustomer(true);
-        setCustomerForm({ name: '', phone: '', address: '', groupId: 'grp-umum', topDays: 0 });
+        setCustomerForm({ name: '', phone: '', address: '', npwp: '', groupId: 'grp-umum', topDays: 0 });
     };
 
     const closeCustomerForm = () => {
         setEditingCustomer(null);
         setIsCreatingCustomer(false);
-        setCustomerForm({ name: '', phone: '', address: '', groupId: 'grp-umum', topDays: 0 });
+        setCustomerForm({ name: '', phone: '', address: '', npwp: '', groupId: 'grp-umum', topDays: 0 });
     };
 
     const openEditCustomer = (c: Customer) => {
@@ -119,6 +119,7 @@ export default function CustomersPage() {
         setIsCreatingCustomer(false);
         setCustomerForm({
             name: c.name, phone: c.phone || '', address: c.address || '',
+            npwp: (c as any).npwp || '',
             groupId: c.groupId || 'grp-umum', topDays: c.topDays ?? 0,
         });
     };
@@ -130,6 +131,7 @@ export default function CustomersPage() {
             name: customerForm.name!.trim(),
             phone: customerForm.phone?.trim() || undefined,
             address: customerForm.address?.trim() || undefined,
+            npwp: (customerForm as any).npwp?.trim() || undefined,
             groupId: customerForm.groupId || undefined,
             topDays: customerForm.topDays ?? 0,
             creditLimit: customerForm.creditLimit,
@@ -143,6 +145,7 @@ export default function CustomersPage() {
         setIsCreatingCustomer(false);
         setCustomerForm({
             name: cust.name, phone: cust.phone || '', address: cust.address || '',
+            npwp: (cust as any).npwp || '',
             groupId: cust.groupId || 'grp-umum', topDays: cust.topDays ?? 0,
         });
     };
@@ -456,6 +459,16 @@ export default function CustomersPage() {
                                         value={customerForm.address || ''}
                                         onChange={e => setCustomerForm({ ...customerForm, address: e.target.value })}
                                         placeholder="(opsional)"
+                                        disabled={!canEditCustomer}
+                                    />
+                                </div>
+                                <div className="space-y-1.5">
+                                    <Label htmlFor="cust-npwp" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">NPWP (opsional — kosong = space manual di faktur)</Label>
+                                    <Input
+                                        id="cust-npwp"
+                                        value={(customerForm as any).npwp || ''}
+                                        onChange={e => setCustomerForm({ ...customerForm, npwp: e.target.value })}
+                                        placeholder="00.000.000.0-000.000"
                                         disabled={!canEditCustomer}
                                     />
                                 </div>

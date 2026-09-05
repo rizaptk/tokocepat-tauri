@@ -242,7 +242,7 @@ export default function SettingsPage() {
                                                     <div className="space-y-1 text-center md:text-left">
                                                         <p className="text-sm font-bold text-destructive">Hapus Semua Data Bisnis</p>
                                                         <p className="text-xs text-muted-foreground">
-                                                            Menghapus permanen semua produk, transaksi, dan laporan.
+                                                            Menghapus permanen semua data bisnis (produk, transaksi, diskon, pelanggan, worksheet, piutang). Katalog, status aplikasi &amp; lisensi tidak terhapus.
                                                         </p>
                                                     </div>
                                                     <Button variant="destructive" size="sm" onClick={() => setIsResetAlertOpen(true)}>
@@ -265,7 +265,7 @@ export default function SettingsPage() {
                     <AlertDialogHeader>
                         <AlertDialogTitle>Hapus semua data?</AlertDialogTitle>
                         <AlertDialogDescription>
-                            Tindakan ini tidak dapat dibatalkan. Semua transaksi dan produk akan hilang permanen.
+                            Tindakan ini tidak dapat dibatalkan. Semua data bisnis (produk, transaksi, diskon, pelanggan, sesi worksheet, piutang) akan hilang permanen. Katalog, status aplikasi &amp; lisensi tetap.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>

@@ -15,6 +15,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { createWorksheetSession } from '@/services/stockService';
+import { SearchDropdown } from '@/components/SearchDropdown';
 
 const SUBJECT_LABELS: Record<string, string> = {
     dealer_in: 'Produk Masuk dari Dealer',
@@ -39,6 +40,7 @@ export function WorksheetHistoryList({ onSessionSelect, onNewSessionCreated, onE
     const [showCreate, setShowCreate] = useState(false);
     const [submitting, setSubmitting] = useState(false);
     const [form, setForm] = useState({ session_date: new Date().toISOString().split('T')[0], created_by: '', subject: 'restock' as WorksheetSubject, subject_other: '', description: '', related_party: '' });
+    const [sessionQuery, setSessionQuery] = useState('');
 
     useEffect(() => {
         let unsub: (() => void) | null = null;
@@ -72,8 +74,25 @@ export function WorksheetHistoryList({ onSessionSelect, onNewSessionCreated, onE
         return s.name.toLowerCase().includes(q) || s.created_by.toLowerCase().includes(q) || subjLabel(s.subject, s.subject_other).toLowerCase().includes(q) || (s.related_party || '').toLowerCase().includes(q);
     }) : sessions;
 
+    const sessionDropdownOptions = filteredSessions.map(s => ({
+        id: s.id,
+        label: s.name,
+        subLabel: `${s.created_by} • ${subjLabel(s.subject, s.subject_other)}`,
+        data: s,
+    }));
+
     return (
         <div className="h-full flex flex-col border bg-card">
+            <div className="p-3 border-b bg-card">
+                <SearchDropdown
+                    value={sessionQuery}
+                    onChange={setSessionQuery}
+                    options={sessionDropdownOptions}
+                    onSelect={opt => { setSessionQuery(''); onSessionSelect(opt.id); }}
+                    placeholder="Cari sesi (nama/operator/perihal) — Enter untuk buka"
+                    emptyText="Tidak ada sesi yang cocok"
+                />
+            </div>
             {/* <div className="flex items-center justify-between p-4 border-b bg-card">
                 <div className="flex items-center gap-3"><h2 className="text-base font-semibold">Histori Sesi</h2><Badge variant="secondary" className="text-xs">{sessions.length} sesi</Badge></div>
                 <Button size="sm" onClick={() => setShowCreate(true)} className="gap-1.5"><Plus className="size-4" /> Buat Sesi</Button>

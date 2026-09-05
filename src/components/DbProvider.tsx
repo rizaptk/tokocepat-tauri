@@ -1,6 +1,6 @@
 import { useDbStore } from "@/lib/db-store";
 import { useStore } from "@/lib/store";
-import { ensureIndexes, backfillTransactionDevice } from "@/lib/database";
+import { ensureIndexes, backfillTransactionDevice, backfillTransactionMoney } from "@/lib/database";
 import { useEffect, useState } from "react";
 import { 
     Product, ProductVariant, 
@@ -48,6 +48,7 @@ export function DbProvider({ children }: { children: React.ReactNode }) {
                     await ensureIndexes(firesqlite, db);
                 }
                 await backfillTransactionDevice(firesqlite, db);
+                await backfillTransactionMoney(firesqlite, db);
                 
                 // B. Guard: If user navigated away during seeding, don't start listeners
                 if (!isMounted) return;

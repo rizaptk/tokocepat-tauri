@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/table";
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
+import { SearchDropdown } from '@/components/SearchDropdown';
 import { Button } from '@/components/ui/button';
 import { Search, Trash2, ReceiptCent, Printer, CheckCircle2, LogIn, ArrowLeft, XCircle, TicketPercent, GitBranch, Handshake, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -35,6 +36,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ReceiptTape, type ReceiptSnapshot } from '@/components/ReceiptTape';
 import { formatIDR, formatCompactIDR, isCompactable } from '@/lib/format';
 import { usePrefersReducedMotion } from '@/hooks/usePrefersReducedMotion';
+import { FileText } from 'lucide-react';
+import { usePdfGeneration, PdfGeneratingOverlay } from '@/hooks/usePdfGeneration';
+import { PdfPreviewSheet } from '@/components/PdfPreviewSheet';
+import { buildFakturPdfBytes } from '@/lib/fakturPdf';
 
 type ItemWithVariant = Product & { _selectedVariant: ProductVariant };
 
@@ -61,9 +66,11 @@ export default function ClassicCashierPage({ defaultWholesale = false }: { defau
     const showTapeWhenDisabled = usePrinterStore(s => s.showTapeWhenDisabled);
     const showVirtualTape = !printerEnabled && showTapeWhenDisabled;
     const reducedMotion = usePrefersReducedMotion();
+    const fakturPdf = usePdfGeneration();
     const { query, setQuery } = useProductSearch();
     const curr = useCurrencyFormat();
     const openingCash = useCurrencyFormat();
+    const [openingCashierName, setOpeningCashierName] = useState('');
 
     // Actual redemptions per voucher code, derived from persisted transactions.
     const voucherUsage = useMemo(() => {
@@ -666,6 +673,22 @@ export default function ClassicCashierPage({ defaultWholesale = false }: { defau
         }
     };
 
+    const handleCetakFaktur = async (tx: Transaction) => {
+        try {
+            const anyTx = tx as any;
+            const cust = anyTx.customer_id ? customers.find(c => c.id === anyTx.customer_id) || null : null;
+            const shiftDoc = anyTx.shift_id ? (useStore.getState().shifts.find(s => s.id === anyTx.shift_id) || null) : null;
+            fakturPdf.setTitle('Faktur Penjualan');
+            fakturPdf.setFilename(`faktur-${tx.invoice_number}.pdf`);
+            fakturPdf.start('Faktur Penjualan');
+            await new Promise(r => setTimeout(r, 30));
+            const bytes = await buildFakturPdfBytes(tx, storeConfig, cust, shiftDoc);
+            fakturPdf.finish(bytes);
+        } catch (e: any) {
+            toast({ variant: 'destructive', title: 'Gagal cetak faktur', description: e?.message || String(e) });
+        }
+    };
+
     // --- Shift Guard ---
     if (!activeShift) {
         return (
@@ -677,16 +700,22 @@ export default function ClassicCashierPage({ defaultWholesale = false }: { defau
                     </div>
                     <div className="rounded-xl border border-border bg-card p-5">
                         <div className="space-y-4">
+                            <div className="space-y-1.5">
+                                <Label htmlFor="opening-cashier">Nama Kasir *</Label>
+                                <Input id="opening-cashier" value={openingCashierName} onChange={e => setOpeningCashierName(e.target.value)} placeholder="cth. Riza / Andi / Siti" className="h-11" autoFocus />
+                            </div>
                             <div className="relative">
+                                <Label htmlFor="opening-cash" className="sr-only">Kas Awal</Label>
                                 <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">Rp</span>
                                 <Input 
+                                    id="opening-cash"
                                     type="text" inputMode="numeric" value={openingCash.value} 
                                     onChange={openingCash.onChange}
-                                    className="pl-10 h-12 text-lg tabular-nums" autoFocus
-                                    onKeyDown={(e) => e.key === 'Enter' && openShift(parseInt(openingCash.raw, 10) || 0)}
+                                    className="pl-10 h-12 text-lg tabular-nums"
+                                    onKeyDown={(e) => e.key === 'Enter' && openingCashierName.trim() && openShift(parseInt(openingCash.raw, 10) || 0, openingCashierName.trim())}
                                 />
                             </div>
-                            <Button onClick={() => openShift(parseInt(openingCash.raw, 10) || 0)} className="w-full h-12" disabled={(parseInt(openingCash.raw, 10) || 0) < 0}>
+                            <Button onClick={() => openShift(parseInt(openingCash.raw, 10) || 0, openingCashierName.trim())} className="w-full h-12" disabled={!openingCashierName.trim() || (parseInt(openingCash.raw, 10) || 0) < 0}>
                                 <LogIn className="mr-2 h-4 w-4" /> Mulai Sif
                             </Button>
                         </div>
@@ -878,33 +907,15 @@ export default function ClassicCashierPage({ defaultWholesale = false }: { defau
                                         <Button variant="ghost" size="sm" className="h-5 ml-1 px-1 text-xs" onClick={()=>{setSelectedCustomerId(null); setCustomerQuery('');}}>× Hapus</Button>
                                     </span>
                                 ) : (
-                                    <div className="relative">
-                                        <Search className="absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-muted-foreground" />
-                                        <Input
-                                            placeholder="Cari pelanggan (nama/hp/scan barcode)"
-                                            className="h-7 w-64 pl-7 text-xs"
+                                    <div className="w-64">
+                                        <SearchDropdown
                                             value={customerQuery}
-                                            onChange={e=>setCustomerQuery(e.target.value)}
-                                            onFocus={()=>setCustomerQuery('')}
+                                            onChange={setCustomerQuery}
+                                            placeholder="Cari pelanggan (nama/hp/scan barcode)"
+                                            options={customers.map(c => ({ id: c.id, label: c.name, subLabel: customerGroups.find(g=>g.id===c.groupId)?.name, data: c }))}
+                                            onSelect={opt => { setSelectedCustomerId(opt.id); setCustomerQuery(''); }}
+                                            emptyText="Tidak ditemukan"
                                         />
-                                        {customerQuery && (
-                                            <div className="absolute top-full left-0 z-50 mt-1 w-64 rounded-md border bg-popover shadow-md max-h-48 overflow-auto">
-                                                {customers.filter(c=>{
-                                                    const q=customerQuery.toLowerCase();
-                                                    return c.name.toLowerCase().includes(q) || (c.phone||'').includes(q) || c.id.toLowerCase().includes(q);
-                                                }).slice(0,8).map(c=>{
-                                                    const g=customerGroups.find(gr=>gr.id===c.groupId);
-                                                    return (
-                                                        <div key={c.id} className="px-3 py-1.5 text-xs cursor-pointer hover:bg-accent flex justify-between" onMouseDown={e=>{e.preventDefault(); setSelectedCustomerId(c.id); setCustomerQuery('');}}>
-                                                            <span>{c.name}</span><span className="text-muted-foreground">{g?.name || ''}</span>
-                                                        </div>
-                                                    );
-                                                })}
-                                                {customers.filter(c=>c.name.toLowerCase().includes(customerQuery.toLowerCase()) || (c.phone||'').includes(customerQuery) || c.id.toLowerCase().includes(customerQuery.toLowerCase())).length===0 && (
-                                                    <div className="px-3 py-2 text-xs text-muted-foreground">Tidak ditemukan</div>
-                                                )}
-                                            </div>
-                                        )}
                                     </div>
                                 )}
                                 {selectedCustomer && (
@@ -1243,9 +1254,14 @@ export default function ClassicCashierPage({ defaultWholesale = false }: { defau
                             </div>
                         )}
                     </div>
-                    <DialogFooter className="p-4 border-t bg-muted/20">
+                    <DialogFooter className="p-4 border-t bg-muted/20 gap-2">
                         <Button variant="ghost" onClick={() => setIsHistoryOpen(false)}>Tutup (Esc)</Button>
-                        {reviewingTx && <Button onClick={() => addToQueue(reviewingTx)}><Printer className="mr-2 size-4"/> Cetak Ulang Struk</Button>}
+                        {reviewingTx && (
+                          <>
+                            <Button variant="outline" onClick={() => handleCetakFaktur(reviewingTx)}><FileText className="mr-2 size-4"/> Cetak Faktur</Button>
+                            <Button onClick={() => addToQueue(reviewingTx)}><Printer className="mr-2 size-4"/> Cetak Ulang Struk</Button>
+                          </>
+                        )}
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
@@ -1340,6 +1356,8 @@ export default function ClassicCashierPage({ defaultWholesale = false }: { defau
             <VariantPanel item={variantEditItem} onOpenChange={(open) => { if (!open) { setVariantEditItem(null); setVariantEditCartId(null); } }} onConfirm={handleVariantConfirm} />
 
             <ReturnDialog open={isReturnOpen} onOpenChange={setIsReturnOpen} />
+            <PdfPreviewSheet open={fakturPdf.previewOpen} onOpenChange={fakturPdf.setPreviewOpen} pdfBytes={fakturPdf.pdfBytes} title={fakturPdf.title || 'Faktur Penjualan'} filename={fakturPdf.filename || 'faktur.pdf'} />
+            <PdfGeneratingOverlay open={fakturPdf.open} onCancel={fakturPdf.cancel} title={fakturPdf.title} elapsedMs={fakturPdf.elapsedMs} pageCount={fakturPdf.pageCount} />
         </div>
     );
 }

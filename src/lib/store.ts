@@ -60,7 +60,7 @@ interface StoreState {
     clearCart: () => void;
     checkout: (cashReceived: number, options?: DiscountOptions) => Promise<Transaction | null>;
     createReturn: (params: { originalTx: Transaction; returnLines: ReturnLine[]; reason: string; conditionOk: boolean }) => Promise<Transaction | null>;
-    openShift: (openingCash: number) => Promise<void>;
+    openShift: (openingCash: number, openedBy?: string) => Promise<void>;
     closeShift: (declaredCash: number) => Promise<void>;
     parkCart: () => Promise<void>;
     resumeCart: (cartId: string) => Promise<void>;
@@ -295,10 +295,10 @@ export const useStore = create<StoreState>()(
                 set({ cart: [] });
             },
 
-            openShift: async (openingCash: number) => {
+            openShift: async (openingCash: number, openedBy?: string) => {
                 if (get().activeShift) return;
                 try {
-                    await openShiftService(openingCash);
+                    await openShiftService(openingCash, openedBy);
                 } catch (error) {
                     console.error("Failed to open shift:", error);
                     toast({ variant: "destructive", title: "Gagal", description: "Gagal buka sif." });

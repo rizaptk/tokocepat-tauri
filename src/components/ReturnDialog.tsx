@@ -304,7 +304,7 @@ export default function ReturnDialog({ open, onOpenChange }: ReturnDialogProps) 
                                         {candidateTransactions.length} transaksi · urut dari yang terbaru
                                     </span>
                                 </div>
-                                <div className="border rounded-lg overflow-hidden max-h-[55vh] overflow-y-auto">
+                                <div className="border rounded-lg overflow-hidden">
                                     <Table>
                                         <TableHeader className="sticky top-0 z-10 border-b border-border bg-card">
                                             <TableRow className="hover:bg-transparent">

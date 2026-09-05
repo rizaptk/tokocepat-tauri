@@ -1,4 +1,5 @@
 // lib/database.ts
+import { splitTxCosts, MONEY_VERSION } from '@/lib/money';
 
 export async function ensureIndexes(firesqlite: any, _db: any) {
     const { createIndex, createCompositeIndex } = firesqlite;
@@ -92,5 +93,58 @@ export async function backfillTransactionDevice(firesqlite: any, db: any) {
         }
     } catch (error) {
         console.error("Failed to backfill transaction device:", error);
+    }
+}
+
+/**
+ * One-time backfill: freeze the cost split on legacy transaction docs that
+ * predate event-stored money (`money_v`). Deterministic — computed from each
+ * line's stored `cost_snapshot` (never recomputed from the product master,
+ * whose prices may have changed), so every peer converges to the same values
+ * over net-sync. Marker-guarded: runs once per store, resumes are naturally
+ * idempotent (docs already at version are skipped).
+ */
+export async function backfillTransactionMoney(firesqlite: any, db: any) {
+    const { collection, doc, getDoc, setDoc, getDocs, query, orderBy, limit, offset, writeBatch } = firesqlite;
+    if (!collection || !doc || !getDoc || !setDoc || !getDocs || !query || !orderBy || !limit || !offset || !writeBatch) return;
+
+    try {
+        const markerRef = doc(db, 'app_state', 'money_backfill');
+        const marker = await getDoc(markerRef);
+        if (marker.exists() && (marker.data()?.v || 0) >= MONEY_VERSION) return;
+
+        const BATCH = 500;
+        let skipped = 0;
+        let page = 0;
+        for (;;) {
+            const snap = await getDocs(query(
+                collection(db, 'transactions'),
+                orderBy('created_at', 'asc'),
+                limit(BATCH),
+                offset(page * BATCH),
+            ));
+            if (snap.docs.length === 0) break;
+            const batch = writeBatch(db);
+            let staged = 0;
+            for (const d of snap.docs) {
+                const tx = d.data();
+                if (!tx || (tx.money_v || 0) >= MONEY_VERSION) { skipped++; continue; }
+                const s = splitTxCosts(tx.items || []);
+                batch.update(doc(db, 'transactions', d.id), {
+                    hpp_standard: s.hppStandard,
+                    payout_consignment: s.payoutConsignment,
+                    money_v: MONEY_VERSION,
+                });
+                staged++;
+            }
+            if (staged > 0) await batch.commit();
+            if (snap.docs.length < BATCH) break;
+            page++;
+        }
+
+        await setDoc(markerRef, { v: MONEY_VERSION, at: new Date().toISOString() } as any);
+        console.log(`[Migration] Backfilled money scalars (skipped ${skipped} already versioned).`);
+    } catch (error) {
+        console.error("Failed to backfill transaction money:", error);
     }
 }

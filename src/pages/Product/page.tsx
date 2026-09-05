@@ -36,7 +36,7 @@ import { useGlobalBarcodeScanner } from "@/hooks/use-global-barcode-scanner";
 import { ProductEditor } from "./_components/ProductEditor";
 import { useSelectedProduct } from "@/lib/product-select-store";
 import { useProductSearch } from "@/lib/useProductSearch";
-import { useCatalogSearch, getCatalogItemByBarcode } from "@/lib/useCatalogSearch";
+import { useCatalogSearch, getCatalogItemByBarcode, prefetchCatalog } from "@/lib/useCatalogSearch";
 import { PackageSearch } from "lucide-react";
 
 
@@ -178,13 +178,15 @@ export default function ProductManagementPage() {
             try {
                 const { doc, getDoc } = firesqlite;
                 const snap = await getDoc(doc(db, 'app_state', 'catalog_import'));
-                if (!cancelled && snap.exists()) { setCatalogReady(true); return; }
+                // ponytail: prefetch only after the import marker exists; warming
+                // the cache before import would pin an empty array for the session
+                if (!cancelled && snap.exists()) { setCatalogReady(true); prefetchCatalog(); return; }
             } catch {}
             if (cancelled) return;
             setCatalogImporting(true);
             try {
                 await invoke<number>('import_catalog');
-                if (!cancelled) setCatalogReady(true);
+                if (!cancelled) { setCatalogReady(true); prefetchCatalog(); }
             } catch (e) {
                 console.warn('Catalog import failed', e);
                 if (!cancelled) setCatalogReady(true); // allow search to try anyway (cache may still load)
@@ -631,6 +633,7 @@ import { usePdfGeneration, PdfGeneratingOverlay } from '@/hooks/usePdfGeneration
 
 function CatalogHitRow({ item, onSelect }: { item: CatalogProduct; onSelect: () => void }) {
     const brandLabel = item.brand || item.generic_name;
+    const thumb = item.image_small_url || item.image_url;
     return (
         <div
             role="button"
@@ -645,9 +648,9 @@ function CatalogHitRow({ item, onSelect }: { item: CatalogProduct; onSelect: () 
             }}
             className="flex items-center gap-3 px-3 py-2.5 cursor-pointer hover:bg-accent focus-visible:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset transition-colors"
         >
-            {item.image_url ? (
+            {thumb ? (
                 <img
-                    src={item.image_url}
+                    src={thumb}
                     alt={item.name}
                     className="h-10 w-10 shrink-0 rounded-md border border-border/60 object-cover"
                     loading="lazy"

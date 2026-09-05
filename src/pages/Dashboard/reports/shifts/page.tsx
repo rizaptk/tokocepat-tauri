@@ -111,6 +111,7 @@ export default function ShiftsReportPage() {
                         <TableHeader>
                             <TableRow>
                                 <TableHead>Waktu</TableHead>
+                                <TableHead>Kasir</TableHead>
                                 <TableHead>Perangkat</TableHead>
                                 <TableHead>Kas Awal</TableHead>
                                 <TableHead>Ekspektasi</TableHead>
@@ -131,6 +132,7 @@ export default function ShiftsReportPage() {
                                                 }
                                             </div>
                                         </TableCell>
+                                        <TableCell className="font-medium">{(s as any).opened_by || '-'}</TableCell>
                                         <TableCell>{devices.find(d => d.id === s.device)?.name || s.device || '-'}</TableCell>
                                         <TableCell className="text-right font-bold">{formatCurrency(s.opening_cash)}</TableCell>
                                         <TableCell className="text-right font-bold">{formatCurrency(s.system_cash || 0)}</TableCell>
@@ -143,7 +145,7 @@ export default function ShiftsReportPage() {
                                 ))
                             ) : (
                                 <TableRow>
-                                    <TableCell colSpan={6} className="h-24 text-center">
+                                    <TableCell colSpan={7} className="h-24 text-center">
                                         Tidak ada data sif pada periode ini.
                                     </TableCell>
                                 </TableRow>

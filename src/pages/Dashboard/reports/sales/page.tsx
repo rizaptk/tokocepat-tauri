@@ -22,7 +22,7 @@ import { DateRangeFilter } from '@/components/DateRangeFilter';
 import { useStore } from '@/lib/store';
 import { NotificationBell } from '@/components/NotificationBell';
 import { ThemeToggle } from '@/components/ThemeButtons';
-import { useLoadTransactions } from '@/hooks/useLoadTransaction';
+import { useLoadTransactions, type TxRow } from '@/hooks/useLoadTransaction';
 import { useDeviceScope } from '@/hooks/useDeviceScope';
 import { DeviceScopeFilter } from '@/components/DeviceScopeFilter';
 
@@ -30,29 +30,20 @@ import { DeviceScopeFilter } from '@/components/DeviceScopeFilter';
 
 
 // Pre-define the Memoized Row
-const TransactionRow = React.memo(({ 
-    tx, 
-    virtualRow, 
-    columnStyles, 
-    onClick 
-}: { 
-    tx: Transaction, 
-    virtualRow: any, 
-    columnStyles: any, 
-    onClick: (tx: Transaction) => void 
+const TransactionRow = React.memo(({
+    tx,
+    virtualRow,
+    columnStyles,
+    onClick
+}: {
+    tx: TxRow,
+    virtualRow: any,
+    columnStyles: any,
+    onClick: (tx: TxRow) => void
 }) => {
-    // --- SPLIT COSTS IN THE DETAILED ROW ---
-    let standardCost = 0;
-    let consignmentPayout = 0;
-    
-    tx.items.forEach(i => {
-        const costVal = (i.cost_snapshot || 0) * i.qty;
-        if (i.product_snapshot.is_consignment) {
-            consignmentPayout += costVal;
-        } else {
-            standardCost += costVal;
-        }
-    });
+    // Aggregates precomputed in useLoadTransactions — no per-row items walk.
+    const standardCost = tx._stdCost;
+    const consignmentPayout = tx._payout;
 
     const txProfit = tx.subtotal - (tx.discount_total || 0) - standardCost - consignmentPayout;
 
@@ -123,16 +114,18 @@ export default function SalesReportPage() {
     const { activeDeviceId } = useDeviceScope();
     const {transactions, isLoading} = useLoadTransactions(date, activeDeviceId);
 
+    // Deferred so keystrokes stay responsive while the big-range filter runs.
+    const deferredSearch = React.useDeferredValue(searchTerm);
+
     const filteredTransactions = useMemo(() => {
         let paidTransactions = transactions.filter(tx => tx.status === 'paid');
         if (typeFilter === 'retail') paidTransactions = paidTransactions.filter(tx => !(tx as any).is_wholesale);
         else if (typeFilter === 'grosir') paidTransactions = paidTransactions.filter(tx => (tx as any).is_wholesale);
         else if (typeFilter === 'piutang') paidTransactions = paidTransactions.filter(tx => (tx as any).is_wholesale && (tx as any).payment_status && (tx as any).payment_status !== 'lunas');
-        if (!searchTerm.trim()) return paidTransactions;
-        return paidTransactions.filter(tx => 
-            tx.invoice_number.toLowerCase().includes(searchTerm.toLowerCase()) || ((tx as any).customer_name_snapshot || '').toLowerCase().includes(searchTerm.toLowerCase())
-        );
-    }, [transactions, searchTerm, typeFilter]);
+        const q = deferredSearch.trim().toLowerCase();
+        if (!q) return paidTransactions;
+        return paidTransactions.filter(tx => tx._hay.includes(q));
+    }, [transactions, deferredSearch, typeFilter]);
 
     const rowVirtualizer = useVirtualizer({
         count: filteredTransactions.length,
@@ -156,25 +149,22 @@ export default function SalesReportPage() {
 
     const stats = useMemo(() => {
         const paidTransactions = transactions.filter(tx => tx.status === 'paid');
-        const totalRevenue = paidTransactions.reduce((sum, tx) => sum + tx.total, 0);
-        const totalSubtotal = paidTransactions.reduce((sum, tx) => sum + tx.subtotal, 0);
-        const totalTax = paidTransactions.reduce((sum, tx) => sum + tx.tax_amount, 0); // Restored calculation
-        
+        let totalRevenue = 0;
+        let totalSubtotal = 0;
+        let totalTax = 0;
         let totalStandardCost = 0;
         let totalConsignmentPayout = 0;
         let totalDiscount = 0;
 
-        paidTransactions.forEach(tx => {
+        // Scalar pass — per-tx costs precomputed in useLoadTransactions.
+        for (const tx of paidTransactions) {
+            totalRevenue += tx.total;
+            totalSubtotal += tx.subtotal;
+            totalTax += tx.tax_amount;
             totalDiscount += tx.discount_total || 0;
-            tx.items.forEach(item => {
-                const costVal = (item.cost_snapshot || 0) * item.qty;
-                if (item.product_snapshot.is_consignment) {
-                    totalConsignmentPayout += costVal;
-                } else {
-                    totalStandardCost += costVal;
-                }
-            });
-        });
+            totalStandardCost += tx._stdCost;
+            totalConsignmentPayout += tx._payout;
+        }
 
         const totalProfit = totalSubtotal - totalDiscount - totalStandardCost - totalConsignmentPayout;
 

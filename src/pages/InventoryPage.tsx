@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { ProductSearchBar, type ProductSearchBarHandle } from "@/components/ProductSearchBar";
+import { SearchDropdown } from "@/components/SearchDropdown";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { PlusCircle, Plus, Minus, Calculator, Package, WarehouseIcon, History, ArrowUp, ArrowDown, ArrowRight, ClipboardList, Loader2, RotateCcw } from "lucide-react";
@@ -969,6 +970,16 @@ export default function InventoryPage() {
         return all.filter(p => p.name.toLowerCase().includes(q) || (p.barcode && p.barcode.toLowerCase().includes(q))).slice(0, 8);
     }, [products, productVariants, query, worksheetInventoryMode, activeSessionId]);
 
+    const worksheetDropdownOptions = useMemo(() => {
+        return [
+            ...products.map(p => ({ id: p.id, label: p.name, subLabel: `${p.stock} Pcs`, data: p } as const)),
+            ...productVariants.map(v => {
+                const parent = products.find(p => p.id === v.product_id);
+                return { id: v.id, label: parent ? `${parent.name} (${v.name})` : v.name, subLabel: `${v.stock} Pcs`, data: { ...v, isVariant: true, product_id: v.product_id } } as const;
+            }),
+        ];
+    }, [products, productVariants]);
+
     const handleWorksheetAddFromTop = async (product: any) => {
         if (!activeSessionId) return;
         const isVar = !!product.product_id && !!product.isVariant;
@@ -1254,32 +1265,42 @@ export default function InventoryPage() {
             <div className="w-full h-[calc(100vh-3rem)] md:grid md:grid-cols-10 min-h-0">
                 <div className={`h-full flex flex-col min-h-0 ${worksheetInventoryMode ? 'col-span-10' : 'col-span-10 md:col-span-6 lg:col-span-6'}`}>
                     <div className="flex flex-col gap-4 p-4">
-                        <div className="flex items-center gap-2 ">
-                            <div className="grow relative" role={worksheetInventoryMode && !activeSessionId ? "search" : undefined} aria-label={worksheetInventoryMode && !activeSessionId ? "Cari histori sesi" : undefined}>
-                                <ProductSearchBar
-                                    ref={searchBarRef}
-                                    onBarcodeScan={handleBarcodeScan}
-                                    onArrowNav={handleInventoryArrowNav}
-                                    placeholder={worksheetInventoryMode && !activeSessionId ? "Cari histori sesi (nama/operator/perihal)..." : worksheetInventoryMode && activeSessionId ? "Cari produk untuk ditambah ke worksheet..." : undefined}
-                                />
-                                {worksheetInventoryMode && activeSessionId && worksheetSearchResults.length > 0 && (
-                                    <div className="absolute top-full left-0 right-0 z-50 mt-1 max-h-72 overflow-auto rounded-lg border bg-popover shadow-xl">
-                                        {worksheetSearchResults.map((p: any) => (
-                                            <button key={p.id} onClick={() => handleWorksheetAddFromTop(p)} className="w-full text-left px-3 py-2 hover:bg-accent flex justify-between items-center gap-2">
-                                                <span className="truncate text-sm">{p.name}</span>
-                                                <span className="text-xs text-muted-foreground tabular-nums shrink-0">{p.stock ?? 0} Pcs</span>
-                                            </button>
-                                        ))}
+                        {worksheetInventoryMode ? (
+                            activeSessionId ? (
+                                <div className="flex items-center gap-2 ">
+                                    <div className="grow">
+                                        <SearchDropdown
+                                            value={query}
+                                            onChange={setQuery}
+                                            options={worksheetDropdownOptions}
+                                            onSelect={opt => { handleWorksheetAddFromTop(opt.data as any); setQuery(''); }}
+                                            placeholder="Cari produk untuk ditambah ke worksheet..."
+                                            onBarcodeScan={barcode => {
+                                                const found = worksheetDropdownOptions.find(o => (o.data as any)?.barcode?.toLowerCase() === barcode.toLowerCase())?.data as any
+                                                    ?? products.find((p: any) => p.barcode?.toLowerCase() === barcode.toLowerCase());
+                                                if (found) { handleWorksheetAddFromTop(found); setQuery(''); }
+                                                else toast({ title: `Produk dengan barcode "${barcode}" tidak ditemukan`, variant: "destructive" });
+                                            }}
+                                        />
                                     </div>
-                                )}
+                                </div>
+                            ) : null
+                        ) : (
+                            <div className="flex items-center gap-2 ">
+                                <div className="grow relative">
+                                    <ProductSearchBar
+                                        ref={searchBarRef}
+                                        onBarcodeScan={handleBarcodeScan}
+                                        onArrowNav={handleInventoryArrowNav}
+                                    />
+                                </div>
+                                <div className="md:hidden">
+                                    <Button onClick={handleOpenAdjustmentSheet}>
+                                        <PlusCircle className="mr-2 h-4 w-4" /> Penyesuaian
+                                    </Button>
+                                </div>
                             </div>
-
-                            <div className="md:hidden">
-                                <Button onClick={handleOpenAdjustmentSheet}>
-                                    <PlusCircle className="mr-2 h-4 w-4" /> Penyesuaian
-                                </Button>
-                            </div>
-                        </div>
+                        )}
                         {!worksheetInventoryMode &&
                             <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
                                 <FilterPill active={filter === 'all'} onClick={() => setFilter('all')}>All</FilterPill>

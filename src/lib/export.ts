@@ -3,6 +3,7 @@
 import { formatIDR as formatCurrency } from "@/lib/format";
 import * as XLSX from 'xlsx';
 import { Transaction, Product, StockMovement, Shift } from '@/lib/types';
+import { txCosts, txProfit } from '@/lib/money';
 import { format, parseISO } from 'date-fns';
 import { PDFDocument, rgb, StandardFonts, PageSizes } from 'pdf-lib';
 
@@ -38,18 +39,7 @@ async function saveFileNative(data: Uint8Array, defaultFilename: string, extensi
 
 export const exportSalesToExcel = async (transactions: Transaction[], dateRange: { from: Date, to: Date }, storeName: string) => {
     const dataForExport = transactions.map(tx => {
-        let stdCost = 0;
-        let consPayout = 0;
-        
-        tx.items.forEach(item => {
-            const costVal = (item.cost_snapshot || 0) * item.qty;
-            if (item.product_snapshot.is_consignment) {
-                consPayout += costVal;
-            } else {
-                stdCost += costVal;
-            }
-        });
-
+        const { std: stdCost, payout: consPayout } = txCosts(tx);
         const txProfit = tx.subtotal - (tx.discount_total || 0) - stdCost - consPayout;
 
         return {
@@ -160,17 +150,7 @@ export const exportSalesToPdf = async (transactions: Transaction[], dateRange: {
             y = drawTableHeader(currentPage, y);
         }
 
-        let stdCost = 0;
-        let consPayout = 0;
-        
-        tx.items.forEach(item => {
-            const costVal = (item.cost_snapshot || 0) * item.qty;
-            if (item.product_snapshot.is_consignment) {
-                consPayout += costVal;
-            } else {
-                stdCost += costVal;
-            }
-        });
+        const { std: stdCost, payout: consPayout } = txCosts(tx);
 
         const txProfit = tx.subtotal - (tx.discount_total || 0) - stdCost - consPayout;
 
@@ -198,16 +178,7 @@ export const exportSalesToPdf = async (transactions: Transaction[], dateRange: {
 
     // --- Grand Total Row ---
     const grandTotal = transactions.reduce((acc, tx) => {
-        let stdCost = 0;
-        let consPayout = 0;
-        tx.items.forEach(item => {
-            const costVal = (item.cost_snapshot || 0) * item.qty;
-            if (item.product_snapshot.is_consignment) {
-                consPayout += costVal;
-            } else {
-                stdCost += costVal;
-            }
-        });
+        const { std: stdCost, payout: consPayout } = txCosts(tx);
         acc.subtotal += tx.subtotal;
         acc.discount += tx.discount_total || 0;
         acc.stdCost += stdCost;
@@ -2061,17 +2032,7 @@ export const buildSalesPdfBytes = async (transactions: Transaction[], dateRange:
             y = drawTableHeader(currentPage, y);
         }
 
-        let stdCost = 0;
-        let consPayout = 0;
-        
-        tx.items.forEach(item => {
-            const costVal = (item.cost_snapshot || 0) * item.qty;
-            if (item.product_snapshot.is_consignment) {
-                consPayout += costVal;
-            } else {
-                stdCost += costVal;
-            }
-        });
+        const { std: stdCost, payout: consPayout } = txCosts(tx);
 
         const txProfit = tx.subtotal - (tx.discount_total || 0) - stdCost - consPayout;
 
@@ -2099,16 +2060,7 @@ export const buildSalesPdfBytes = async (transactions: Transaction[], dateRange:
 
     // --- Grand Total Row ---
     const grandTotal = transactions.reduce((acc, tx) => {
-        let stdCost = 0;
-        let consPayout = 0;
-        tx.items.forEach(item => {
-            const costVal = (item.cost_snapshot || 0) * item.qty;
-            if (item.product_snapshot.is_consignment) {
-                consPayout += costVal;
-            } else {
-                stdCost += costVal;
-            }
-        });
+        const { std: stdCost, payout: consPayout } = txCosts(tx);
         acc.subtotal += tx.subtotal;
         acc.discount += tx.discount_total || 0;
         acc.stdCost += stdCost;

@@ -34,11 +34,30 @@ import { isSameDay, differenceInDays, addDays } from 'date-fns';
 import { cn, itemMapping, typeConfig } from '@/lib/utils';
 import { usePdfGeneration, PdfGeneratingOverlay } from '@/hooks/usePdfGeneration';
 
-type ReportRow = StockMovement & {
+type LoadedMovement = StockMovement & { _t: number; _day: string; _hour: number };
+
+type ReportRow = LoadedMovement & {
     referenceDisplay: string;
     openingStock: number;
     resultingStock: number;
     productType: 'Product' | 'Variant';
+};
+
+/**
+ * Movement with sort/chart keys parsed once at fetch. The report re-sorts
+ * and re-buckets on every filter/date interaction, so paying one `Date`
+ * construction per row up front beats parsing ISO strings in comparators
+ * (O(n log n) parses) and chart loops.
+ */
+const toLoadedMovement = (m: StockMovement): LoadedMovement => {
+    const d = new Date(m.created_at);
+    const t = d.getTime();
+    return {
+        ...m,
+        _t: Number.isFinite(t) ? t : 0,
+        _day: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`,
+        _hour: d.getHours(),
+    };
 };
 
 // 1. Memoized Table Row Component
@@ -100,7 +119,7 @@ export default function StockMovementReportPage() {
       to: endOfDay(new Date()),
     });
     const [filterProductId, setFilterProductId] = useState<string | null>(null);
-    const [stockMovements, setStockMovements] = useState<StockMovement[]>([]);
+    const [stockMovements, setStockMovements] = useState<LoadedMovement[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const pdf = usePdfGeneration();
     const nav = useNavigate();
@@ -111,20 +130,29 @@ export default function StockMovementReportPage() {
         if (!date?.from) return;
         const fetchMovements = async () => {
             setIsLoading(true);
-            const data = await getStockMovementsByDateRange(date.from!, endOfDay(new Date()));
-            setStockMovements(data);
+            // Fetch exactly the displayed range (was: range start -> now, then
+            // client-trimmed). Product filter narrows server-side via the
+            // product_id + created_at composite index.
+            const data = await getStockMovementsByDateRange(
+                date.from!,
+                endOfDay(date.to ?? new Date()),
+                filterProductId,
+            );
+            setStockMovements(data.map(toLoadedMovement));
             setIsLoading(false);
         };
         fetchMovements();
-    }, [date]);
+    }, [date, filterProductId]);
     
+
+     const productById = useMemo(() => new Map(products.map(p => [p.id, p])), [products]);
 
      const itemsLookup = useMemo(() => {
         const map = new Map<string, 'Product' | 'Variant'>();
-        
+
         products.forEach(p => { if(!p.has_variant) map.set(p.id, 'Product') });
         productVariants.forEach(v => map.set(v.id, 'Variant'));
-        
+
         return map;
     }, [products, productVariants]);
 
@@ -135,16 +163,16 @@ export default function StockMovementReportPage() {
 
         const allVariants = productVariants
             .map(v => {
-                const parent = products.find(p => p.id === v.product_id);
+                const parent = productById.get(v.product_id);
                 return {
                     id: v.id,
                     name: `${parent?.name || 'Product'} (${v.name})`,
                     itemType: 'Variant' as const,
                 };
             });
-        
+
         return [...simpleProducts, ...allVariants];
-    }, [products, productVariants]);
+    }, [products, productVariants, productById]);
 
     const txIdToInvoiceMap = useMemo(() =>
         new Map(transactions.map(tx => [tx.id, tx.invoice_number])),
@@ -168,23 +196,23 @@ export default function StockMovementReportPage() {
     }, [txIdToInvoiceMap]);
 
     
-    // 3. OPTIMIZATION: Single-pass report processing
+    // 3. OPTIMIZATION: Single-pass report processing over numeric timestamps
     const reportData = useMemo((): ReportRow[] => {
         if (isLoading || stockMovements.length === 0) return [];
 
-        // Movements fetched from range start -> now; only show ones within date.to
+        // Backend already bounds the fetch; trim defensively to date.to.
         const toTime = date?.to ? new Date(date.to).getTime() : Number.MAX_SAFE_INTEGER;
-        const inRange = stockMovements
-            .filter(m => new Date(m.created_at).getTime() <= toTime)
-            .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+        const inRange = stockMovements.filter(m => m._t <= toTime);
 
         // Opening stock per item = current stock - sum of all movements from range start.
         // Running balance per item gives the resulting stock after each movement.
         const sums: Record<string, number> = {};
-        inRange.forEach(m => { sums[m.product_id] = (sums[m.product_id] || 0) + m.qty_change; });
+        for (const m of inRange) sums[m.product_id] = (sums[m.product_id] || 0) + m.qty_change;
 
+        // One numeric ascending pass for the running balances…
+        const asc = [...inRange].sort((a, b) => a._t - b._t);
         const running: Record<string, number> = {};
-        const rows: ReportRow[] = inRange.map(m => {
+        const ascRows: ReportRow[] = asc.map(m => {
             if (running[m.product_id] === undefined) {
                 running[m.product_id] = (currentStockMap.get(m.product_id) || 0) - (sums[m.product_id] || 0);
             }
@@ -198,9 +226,10 @@ export default function StockMovementReportPage() {
             };
         });
 
-        return rows
-            .filter(r => !filterProductId || r.product_id === filterProductId)
-            .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+        // …then reverse (O(n)) for newest-first display instead of a second sort.
+        ascRows.reverse();
+        if (!filterProductId) return ascRows;
+        return ascRows.filter(r => r.product_id === filterProductId);
     }, [stockMovements, filterProductId, itemsLookup, getReferenceDisplay, isLoading, currentStockMap, date]);
 
     // 4. OPTIMIZATION: Process Chart Data from the already-filtered reportData
@@ -215,7 +244,7 @@ export default function StockMovementReportPage() {
                 inflow: 0, outflow: 0, net: 0,
             }));
             reportData.forEach(m => {
-                const hour = new Date(m.created_at).getHours();
+                const hour = m._hour;
                 if (m.qty_change > 0) data[hour].inflow += m.qty_change;
                 else data[hour].outflow += Math.abs(m.qty_change);
                 data[hour].net += m.qty_change;
@@ -232,11 +261,11 @@ export default function StockMovementReportPage() {
             }
 
             reportData.forEach(m => {
-                const key = format(new Date(m.created_at), 'yyyy-MM-dd');
-                if (dataMap[key]) {
-                    if (m.qty_change > 0) dataMap[key].inflow += m.qty_change;
-                    else dataMap[key].outflow += Math.abs(m.qty_change);
-                    dataMap[key].net += m.qty_change;
+                const bucket = dataMap[m._day];
+                if (bucket) {
+                    if (m.qty_change > 0) bucket.inflow += m.qty_change;
+                    else bucket.outflow += Math.abs(m.qty_change);
+                    bucket.net += m.qty_change;
                 }
             });
             return Object.values(dataMap);

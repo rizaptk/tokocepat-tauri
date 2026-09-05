@@ -121,6 +121,26 @@ fn ensure_catalog_fts(gateway: &FireLiteGateway) -> Result<(), String> {
     Ok(())
 }
 
+/// Ensures a secondary index exists on `catalog.barcode` so exact barcode
+/// lookups (`where barcode == x, limit 1`) resolve to a point lookup instead
+/// of a full 11k collection scan. Idempotent: `create_index` is a no-op when
+/// the definition already exists.
+fn ensure_catalog_barcode_index(gateway: &FireLiteGateway) -> Result<(), String> {
+    let existing = gateway.db.list_indexes(Some(COLLECTION));
+    let has_barcode = existing
+        .secondary
+        .get(COLLECTION)
+        .map(|fields| fields.iter().any(|f| f == "barcode"))
+        .unwrap_or(false);
+    if !has_barcode {
+        gateway
+            .db
+            .create_index(COLLECTION, "barcode")
+            .map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
 /// Persists the distinct categories found in the bundled catalog into the
 /// `categories` collection so they can be picked in product forms. Idempotent:
 /// a category is only added when no existing category shares its name, so
@@ -182,6 +202,7 @@ pub async fn import_catalog(
     gateway: State<'_, FireLiteGateway>,
 ) -> Result<usize, String> {
     ensure_catalog_fts(&gateway)?;
+    ensure_catalog_barcode_index(&gateway)?;
 
     let path = catalog_path(&app)?;
     let bytes = std::fs::read(&path).map_err(|e| e.to_string())?;

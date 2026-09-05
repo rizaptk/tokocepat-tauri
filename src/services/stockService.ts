@@ -3,19 +3,22 @@ import { StockMovement, StockMovementType, WorksheetSubject, WorksheetSession, W
 import { useDbStore } from '@/lib/db-store';
 import { useStore } from '@/lib/store';
 
-export const getStockMovementsByDateRange = async (from: Date, to: Date): Promise<StockMovement[]> => {
+export const getStockMovementsByDateRange = async (from: Date, to: Date, productId?: string | null): Promise<StockMovement[]> => {
     const { db, firesqlite } = useDbStore.getState();
     if (!db || !firesqlite) throw new Error("Database not initialized");
 
     const { collection, query, where, getDocs, orderBy } = firesqlite;
-    
+
     const movementsRef = collection(db, 'stock_movements');
-    const q = query(
-        movementsRef,
+    const constraints: any[] = [
         where('created_at', 'gte', from.toISOString()),
         where('created_at', 'lte', to.toISOString()),
-        orderBy('created_at', 'desc')
-    );
+    ];
+    // Narrow server-side when the report filters to one item (composite
+    // product_id + created_at index) instead of shipping the whole range.
+    if (productId) constraints.push(where('product_id', 'eq', productId));
+    constraints.push(orderBy('created_at', 'desc'));
+    const q = query(movementsRef, ...constraints);
 
     const snapshot = await getDocs(q);
     return snapshot.docs.map((doc: any) => doc.data() as StockMovement);

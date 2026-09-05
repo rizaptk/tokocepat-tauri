@@ -13,6 +13,7 @@ import { Loader2, Save } from 'lucide-react';
 type StoreInfoFormValues = {
   store_name: string;
   address?: string;
+  npwp?: string;
   receipt_footer?: string;
 };
 
@@ -25,6 +26,7 @@ export function StoreInfoForm() {
         defaultValues: {
             store_name: '',
             address: '',
+            npwp: '',
             receipt_footer: '',
         }
     });
@@ -34,6 +36,7 @@ export function StoreInfoForm() {
             form.reset({
                 store_name: storeConfig.store_name,
                 address: storeConfig.address || '',
+                npwp: (storeConfig as any).npwp || '',
                 receipt_footer: storeConfig.receipt_footer || '',
             });
         }
@@ -71,6 +74,9 @@ export function StoreInfoForm() {
                         )} />
                         <FormField control={form.control} name="address" render={({ field }) => (
                             <FormItem><FormLabel>Alamat</FormLabel><FormControl><Textarea {...field} /></FormControl><FormMessage /></FormItem>
+                        )} />
+                        <FormField control={form.control} name="npwp" render={({ field }) => (
+                            <FormItem><FormLabel>NPWP Toko (opsional — kosong = space manual di faktur)</FormLabel><FormControl><Input {...field} placeholder="00.000.000.0-000.000" /></FormControl><FormMessage /></FormItem>
                         )} />
                         <FormField control={form.control} name="receipt_footer" render={({ field }) => (
                             <FormItem><FormLabel>Pesan Kaki Struk (Footer)</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>

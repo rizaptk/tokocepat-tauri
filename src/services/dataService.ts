@@ -11,6 +11,7 @@ export const resetApplicationData = async (): Promise<{ success: boolean, messag
     const { db, firesqlite } = useDbStore.getState();
     if (!db || !firesqlite) throw new Error("Database not initialized");
 
+    // Bisnis: dihapus. Preserved: catalog, app_state (lisensi & state), __firelite_security, dll.
     const collectionsToClear = [
         'products',
         'product_variants',
@@ -20,26 +21,56 @@ export const resetApplicationData = async (): Promise<{ success: boolean, messag
         'shifts',
         'pending_carts',
         'store_config',
+        'promos',
+        'customers',
+        'customer_groups',
+        'customer_payments',
+        'worksheet_sessions',
     ];
-    const { collection, query, deleteDocs } = firesqlite;
+    const { collection, query, deleteDocs, getDocs } = firesqlite as any;
 
     try {
+        // 1) Hapus subcollections worksheet_sessions/*/items sebelum induk (firelite subcollection orphan).
+        try {
+            const snap = await getDocs(query(collection(db, 'worksheet_sessions')));
+            const itemDeletions: Promise<any>[] = [];
+            for (const d of snap.docs || []) {
+                const sid = (d as any).id || (d.data && d.data().id);
+                if (!sid) continue;
+                itemDeletions.push(deleteDocs(query(collection(db, `worksheet_sessions/${sid}/items`))));
+            }
+            if (itemDeletions.length) await Promise.all(itemDeletions);
+        } catch {
+            // best-effort: lanjut hapus induk meski subcollection gagal
+        }
+
         const toDelete = collectionsToClear.map((col) => {
             const collectionRef = collection(db, col);
             return deleteDocs(query(collectionRef));
-        })
+        });
 
+        // Optimistic UI — store yang di-load via DbProvider onSnapshot akan kosong otomatis,
+        // tapi setState langsung agar UI tidak menunggu round-trip.
         useStore.setState({
+            products: [],
+            productVariants: [],
+            categories: [],
             transactions: [],
+            shifts: [],
+            activeShift: null as any,
+            pendingCarts: [],
             stockMovements: [],
+            promos: [],
+            customers: [],
+            customerGroups: [],
             storeConfig: {
                 store_name: '',
                 id: 'main',
                 currency: 'Rp',
                 tax_rate: 0.11,
                 address: '',
-            }
-        });
+            } as any,
+        } as any);
 
         await Promise.all(toDelete);
 
