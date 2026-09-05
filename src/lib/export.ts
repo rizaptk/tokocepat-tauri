@@ -3,7 +3,7 @@
 import { formatIDR as formatCurrency } from "@/lib/format";
 import * as XLSX from 'xlsx';
 import { Transaction, Product, StockMovement, Shift } from '@/lib/types';
-import { txCosts, txProfit } from '@/lib/money';
+import { txCosts } from '@/lib/money';
 import { format, parseISO } from 'date-fns';
 import { PDFDocument, rgb, StandardFonts, PageSizes } from 'pdf-lib';
 
